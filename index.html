@@ -151,7 +151,6 @@ h2 {
   margin: 0 auto 40px auto;
 }
 
-/* Nova trida pro fotku v podekovani */
 .thank-you-image {
   max-width: 200px;
   width: 100%;
@@ -214,6 +213,32 @@ iframe {
   font-weight: 600;
   min-height: 20px;
   letter-spacing: 0.5px;
+}
+
+/* Custom Selector Styles */
+.radio-select {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: #fff;
+  border-radius: 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.radio-select:hover {
+  border-color: #00f0ff;
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.radio-select option {
+  background: #000010;
+  color: #fff;
 }
 
 .radio-controls {
@@ -402,6 +427,10 @@ allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-pictur
   <div class="radio-status" id="radio-status">Radio Offline</div>
   <div class="radio-title" id="radio-title">Click Play to Tune In</div>
   
+  <select id="track-selector" class="radio-select">
+    <option value="" disabled selected>-- Select a track --</option>
+  </select>
+
   <audio id="main-audio-player"></audio>
 
   <div class="radio-controls">
@@ -500,6 +529,15 @@ CONTACT - David Zanta
   const nextBtn = document.getElementById('radio-next-btn');
   const statusDiv = document.getElementById('radio-status');
   const titleDiv = document.getElementById('radio-title');
+  const trackSelector = document.getElementById('track-selector');
+
+  // Fill the dropdown with tracks
+  playlist.forEach((track, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.text = track.title;
+    trackSelector.appendChild(option);
+  });
 
   let currentTrackIndex = -1;
   let isPlaying = false;
@@ -516,6 +554,9 @@ CONTACT - David Zanta
   function loadAndPlayTrack(index) {
     currentTrackIndex = index;
     const track = playlist[currentTrackIndex];
+    
+    // Sync dropdown with current track
+    trackSelector.value = index;
     
     audio.src = track.src;
     titleDiv.innerText = track.title;
@@ -534,6 +575,11 @@ CONTACT - David Zanta
         isPlaying = false;
       });
   }
+
+  // Dropdown event listener
+  trackSelector.addEventListener('change', (e) => {
+    loadAndPlayTrack(parseInt(e.target.value));
+  });
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
