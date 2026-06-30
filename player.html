@@ -18,6 +18,10 @@
   body.theme-earth { --bg-color-1: #1a2a1a; --bg-color-2: #051005; --accent-color: #00ff88; --accent-glow: #aaaa00; }
   body.theme-cyber { --bg-color-1: #2b00ff; --bg-color-2: #000000; --accent-color: #ff0055; --accent-glow: #00ffff; }
   body.theme-void { --bg-color-1: #080808; --bg-color-2: #000000; --accent-color: #777777; --accent-glow: #222222; }
+  /* Nová témata */
+  body.theme-blood { --bg-color-1: #3a0000; --bg-color-2: #0a0000; --accent-color: #ff3333; --accent-glow: #aa0000; }
+  body.theme-aqua { --bg-color-1: #002233; --bg-color-2: #000a11; --accent-color: #00ffff; --accent-glow: #0088aa; }
+  body.theme-gold { --bg-color-1: #332200; --bg-color-2: #110a00; --accent-color: #ffcc00; --accent-glow: #aa6600; }
 
   * { box-sizing: border-box; }
   
@@ -42,17 +46,22 @@
     background-size: 150px 150px;
     opacity: 0.1;
     animation: move 20s linear infinite;
-    z-index: -1;
+    z-index: -2;
   }
 
   @keyframes move { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  /* Nové plátno pro déšť */
+  #rain-canvas {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: -1; display: none;
+  }
 
   .header { padding: 20px 20px 10px; }
   .logo { max-width: 100px; filter: drop-shadow(0 0 10px var(--accent-color)); margin-bottom: 5px; }
   .brand-name { font-size: 18px; margin-bottom: 5px; letter-spacing: 2px; }
   .desc-text { font-size: 9px; opacity: 0.7; padding: 0 20px; line-height: 1.4; margin-bottom: 10px; }
   
-  /* Původní hudební sekce */
   .atmospheres {
     display: flex; justify-content: center; gap: 10px; margin-bottom: 8px; padding: 0 20px; flex-wrap: wrap;
   }
@@ -66,8 +75,7 @@
     box-shadow: 0 0 15px var(--accent-color);
   }
 
-  /* Nový jemný panel pro vizuální témata */
-  .themes-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; }
+  .themes-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; padding: 0 10px;}
   .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron'; font-size: 9px; cursor: pointer; transition: 0.3s; padding: 2px 4px; letter-spacing: 1px; }
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
 
@@ -88,10 +96,16 @@
   .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
   .btn-ctrl:active { transform: scale(0.95); }
 
+  /* Nová sekce pro extra funkce */
+  .extra-features { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+  #volume-slider { width: 80px; accent-color: var(--accent-color); cursor: pointer; }
+  .vol-icon { font-size: 12px; color: var(--accent-color); }
+  
   .timer-section { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
   #timer-display { font-size: 10px; color: var(--accent-color); margin-right: 5px; width: 45px; text-align: left; }
-  .btn-timer { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 8px; border-radius: 5px; font-family: 'Orbitron'; font-size: 9px; cursor: pointer; transition: 0.3s; }
-  .btn-timer:hover { border-color: var(--accent-color); }
+  .btn-timer, .btn-feature { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 8px; border-radius: 5px; font-family: 'Orbitron'; font-size: 9px; cursor: pointer; transition: 0.3s; }
+  .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); }
+  .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
 
   .footer { padding: 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
   .web-link { text-decoration: none; color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 20px; }
@@ -99,20 +113,20 @@
 </head>
 <body class="theme-neon" id="body">
 
+<canvas id="rain-canvas"></canvas>
+
 <div class="header">
   <img src="logo.jpg" alt="SYNTHLUCIDA" class="logo" onerror="this.style.display='none'">
   <div class="brand-name">SYNTHLUCIDA</div>
   <div class="desc-text">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack.</div>
 </div>
 
-<!-- Tlačítka pouze pro hudbu -->
 <div class="atmospheres">
   <button class="btn-atmos active" onclick="setPlaylist('asmr', this)">ASMR</button>
   <button class="btn-atmos" onclick="setPlaylist('piano', this)">PIANO</button>
   <button class="btn-atmos" onclick="setPlaylist('chill', this)">CHILL</button>
 </div>
 
-<!-- Samostatná tlačítka pouze pro změnu vzhledu -->
 <div class="themes-container">
   <span style="font-size: 8px; opacity: 0.3;">VISUAL:</span>
   <button class="btn-theme active" onclick="setVisualTheme('neon', this)">NEON</button>
@@ -120,6 +134,9 @@
   <button class="btn-theme" onclick="setVisualTheme('earth', this)">EARTH</button>
   <button class="btn-theme" onclick="setVisualTheme('cyber', this)">SYNTH</button>
   <button class="btn-theme" onclick="setVisualTheme('void', this)">DARK</button>
+  <button class="btn-theme" onclick="setVisualTheme('blood', this)">BLOOD</button>
+  <button class="btn-theme" onclick="setVisualTheme('aqua', this)">AQUA</button>
+  <button class="btn-theme" onclick="setVisualTheme('gold', this)">GOLD</button>
 </div>
 
 <div class="player-section">
@@ -134,6 +151,13 @@
   <div class="controls">
     <button class="btn-ctrl" id="btn-play">▶</button>
     <button class="btn-ctrl" id="btn-next">⏭</button>
+  </div>
+
+  <div class="extra-features">
+    <span class="vol-icon">🔉</span>
+    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
+    <button class="btn-feature" id="btn-fade" onclick="toggleFade()">FADE: OFF</button>
+    <button class="btn-feature" id="btn-rain" onclick="toggleRain()">RAIN: OFF</button>
   </div>
 
   <div class="timer-section">
@@ -153,7 +177,6 @@
 <audio id="audio-player"></audio>
 
 <script>
-  // Původní 3 hudební sekce (nyní jako klíče 'asmr', 'piano', 'chill')
   const tracks = {
     asmr: [
       { title: "SYNTHLUCIDA - ASMR", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr1.mp3" },
@@ -202,27 +225,123 @@
   const nextBtn = document.getElementById('btn-next');
   const body = document.getElementById('body');
   const playlistEl = document.getElementById('playlist');
+  const volumeSlider = document.getElementById('volume-slider');
+
+  // Proměnné pro nové funkce
+  let fadeEnabled = false;
+  let fadeInterval;
+  let rainEnabled = false;
+  const canvas = document.getElementById('rain-canvas');
+  const ctx = canvas.getContext('2d');
+  let rainDrops = [];
+
+  // Funkce deště
+  function initRain() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      rainDrops = [];
+      for(let i=0; i<100; i++) {
+          rainDrops.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              l: Math.random() * 20 + 10,
+              v: Math.random() * 4 + 4
+          });
+      }
+  }
+  initRain();
+  window.addEventListener('resize', initRain);
+
+  function drawRain() {
+      if(!rainEnabled) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let i=0; i<rainDrops.length; i++) {
+          let p = rainDrops[i];
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x, p.y + p.l);
+          p.y += p.v;
+          if(p.y > canvas.height) {
+              p.y = -20;
+              p.x = Math.random() * canvas.width;
+          }
+      }
+      ctx.stroke();
+      requestAnimationFrame(drawRain);
+  }
+
+  window.toggleRain = function() {
+      rainEnabled = !rainEnabled;
+      canvas.style.display = rainEnabled ? 'block' : 'none';
+      let btn = document.getElementById('btn-rain');
+      btn.innerText = rainEnabled ? "RAIN: ON" : "RAIN: OFF";
+      btn.classList.toggle('active', rainEnabled);
+      if(rainEnabled) drawRain();
+  };
+
+  // Ovládání hlasitosti
+  volumeSlider.addEventListener('input', (e) => {
+      audio.volume = e.target.value;
+  });
+
+  // Funkce prolínání
+  window.toggleFade = function() {
+      fadeEnabled = !fadeEnabled;
+      let btn = document.getElementById('btn-fade');
+      btn.innerText = fadeEnabled ? "FADE: ON" : "FADE: OFF";
+      btn.classList.toggle('active', fadeEnabled);
+  };
+
+  function doFade(targetVolume, callback) {
+      if (!fadeEnabled) {
+          audio.volume = targetVolume;
+          if (callback) callback();
+          return;
+      }
+      clearInterval(fadeInterval);
+      let step = targetVolume > audio.volume ? 0.05 : -0.05;
+      fadeInterval = setInterval(() => {
+          let newVol = audio.volume + step;
+          if ((step > 0 && newVol >= targetVolume) || (step < 0 && newVol <= targetVolume)) {
+              audio.volume = targetVolume;
+              clearInterval(fadeInterval);
+              if (callback) callback();
+          } else {
+              audio.volume = newVol;
+          }
+      }, 50);
+  }
 
   function updatePlaylistUI() {
     playlistEl.innerHTML = '';
     playlist.forEach((track, index) => {
       const li = document.createElement('li');
       li.innerText = track.title;
-      li.onclick = () => playTrack(index);
+      li.onclick = () => {
+          if(isPlaying && fadeEnabled) {
+              doFade(0, () => playTrack(index));
+          } else {
+              playTrack(index);
+          }
+      };
       playlistEl.appendChild(li);
     });
   }
 
-  // Funkce pouze pro změnu hudební sekce
   window.setPlaylist = function(key, btn) {
     playlist = tracks[key];
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updatePlaylistUI();
-    playRandom();
+    if(isPlaying && fadeEnabled) {
+        doFade(0, playRandom);
+    } else {
+        playRandom();
+    }
   };
 
-  // Funkce pouze pro změnu vzhledu (atmosféry)
   window.setVisualTheme = function(theme, btn) {
     body.className = 'theme-' + theme;
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active'));
@@ -234,7 +353,16 @@
     const track = playlist[index];
     audio.src = track.src;
     titleDiv.innerText = track.title;
-    audio.play();
+    
+    if (fadeEnabled) {
+        audio.volume = 0;
+        audio.play();
+        doFade(parseFloat(volumeSlider.value));
+    } else {
+        audio.volume = parseFloat(volumeSlider.value);
+        audio.play();
+    }
+    
     isPlaying = true;
     playBtn.innerText = "⏸";
     visualizer.classList.add('active');
@@ -246,14 +374,30 @@
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
-      audio.pause();
-      isPlaying = false;
-      playBtn.innerText = "▶";
-      visualizer.classList.remove('active');
+      if (fadeEnabled) {
+          doFade(0, () => {
+              audio.pause();
+              isPlaying = false;
+              playBtn.innerText = "▶";
+              visualizer.classList.remove('active');
+          });
+      } else {
+          audio.pause();
+          isPlaying = false;
+          playBtn.innerText = "▶";
+          visualizer.classList.remove('active');
+      }
     } else {
       if (currentTrackIndex === -1) playRandom();
       else {
-        audio.play();
+        if (fadeEnabled) {
+            audio.volume = 0;
+            audio.play();
+            doFade(parseFloat(volumeSlider.value));
+        } else {
+            audio.volume = parseFloat(volumeSlider.value);
+            audio.play();
+        }
         isPlaying = true;
         playBtn.innerText = "⏸";
         visualizer.classList.add('active');
@@ -261,8 +405,18 @@
     }
   });
 
-  nextBtn.addEventListener('click', playRandom);
-  audio.addEventListener('ended', playRandom);
+  nextBtn.addEventListener('click', () => {
+      if (isPlaying && fadeEnabled) {
+          doFade(0, playRandom);
+      } else {
+          playRandom();
+      }
+  });
+  
+  audio.addEventListener('ended', () => {
+      // Při skončení tracku už je volume přirozeně na konci, rovnou hrajeme další
+      playRandom();
+  });
 
   // Časovač
   window.setTimer = function(minutes) {
@@ -275,10 +429,19 @@
       if (timeRemaining <= 0) {
         cancelTimer();
         if (isPlaying) {
-          audio.pause();
-          isPlaying = false;
-          playBtn.innerText = "▶";
-          visualizer.classList.remove('active');
+          if (fadeEnabled) {
+              doFade(0, () => {
+                  audio.pause();
+                  isPlaying = false;
+                  playBtn.innerText = "▶";
+                  visualizer.classList.remove('active');
+              });
+          } else {
+              audio.pause();
+              isPlaying = false;
+              playBtn.innerText = "▶";
+              visualizer.classList.remove('active');
+          }
         }
       }
     }, 1000);
