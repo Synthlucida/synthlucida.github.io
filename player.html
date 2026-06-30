@@ -158,6 +158,8 @@
     <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
     <button class="btn-feature" id="btn-fade" onclick="toggleFade()">FADE: OFF</button>
     <button class="btn-feature" id="btn-rain" onclick="toggleRain()">RAIN: OFF</button>
+    <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
+    <button class="btn-feature" id="btn-wind" onclick="toggleWind()">WIND: OFF</button>
   </div>
 
   <div class="timer-section">
@@ -232,11 +234,15 @@
   let fadeEnabled = false;
   let fadeInterval;
   let rainEnabled = false;
+  let sunsetEnabled = false;
+  let windEnabled = false;
+  let canvasLoopActive = false;
   const canvas = document.getElementById('rain-canvas');
   const ctx = canvas.getContext('2d');
   let rainDrops = [];
+  let windLines = [];
 
-  // Funkce deště
+  // Funkce deště a větru
   function initRain() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -249,37 +255,101 @@
               v: Math.random() * 4 + 4
           });
       }
+      windLines = [];
+      for(let i=0; i<30; i++) {
+          windLines.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              l: Math.random() * 40 + 20,
+              v: Math.random() * 3 + 2
+          });
+      }
   }
   initRain();
   window.addEventListener('resize', initRain);
 
   function drawRain() {
-      if(!rainEnabled) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for(let i=0; i<rainDrops.length; i++) {
-          let p = rainDrops[i];
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x, p.y + p.l);
-          p.y += p.v;
-          if(p.y > canvas.height) {
-              p.y = -20;
-              p.x = Math.random() * canvas.width;
-          }
+      if(!rainEnabled && !sunsetEnabled && !windEnabled) {
+          canvasLoopActive = false;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          return;
       }
-      ctx.stroke();
+      canvasLoopActive = true;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if(sunsetEnabled) {
+          let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          grad.addColorStop(0, 'rgba(255, 40, 100, 0.22)');
+          grad.addColorStop(0.5, 'rgba(255, 110, 20, 0.15)');
+          grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      if(windEnabled) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for(let i=0; i<windLines.length; i++) {
+              let w = windLines[i];
+              ctx.moveTo(w.x, w.y);
+              ctx.lineTo(w.x + w.l, w.y);
+              w.x += w.v;
+              if(w.x > canvas.width) {
+                  w.x = -w.l;
+                  w.y = Math.random() * canvas.height;
+              }
+          }
+          ctx.stroke();
+      }
+
+      if(rainEnabled) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for(let i=0; i<rainDrops.length; i++) {
+              let p = rainDrops[i];
+              ctx.moveTo(p.x, p.y);
+              let slant = windEnabled ? 6 : 0;
+              ctx.lineTo(p.x + slant, p.y + p.l);
+              p.y += p.v;
+              if(windEnabled) p.x += 2;
+              if(p.y > canvas.height) {
+                  p.y = -20;
+                  p.x = Math.random() * canvas.width;
+              }
+              if(p.x > canvas.width) p.x = 0;
+          }
+          ctx.stroke();
+      }
       requestAnimationFrame(drawRain);
   }
 
   window.toggleRain = function() {
       rainEnabled = !rainEnabled;
-      canvas.style.display = rainEnabled ? 'block' : 'none';
+      canvas.style.display = (rainEnabled || sunsetEnabled || windEnabled) ? 'block' : 'none';
       let btn = document.getElementById('btn-rain');
       btn.innerText = rainEnabled ? "RAIN: ON" : "RAIN: OFF";
       btn.classList.toggle('active', rainEnabled);
-      if(rainEnabled) drawRain();
+      if((rainEnabled || sunsetEnabled || windEnabled) && !canvasLoopActive) drawRain();
+  };
+
+  window.toggleSunset = function() {
+      sunsetEnabled = !sunsetEnabled;
+      canvas.style.display = (rainEnabled || sunsetEnabled || windEnabled) ? 'block' : 'none';
+      let btn = document.getElementById('btn-sunset');
+      btn.innerText = sunsetEnabled ? "SUNSET: ON" : "SUNSET: OFF";
+      btn.classList.toggle('active', sunsetEnabled);
+      if((rainEnabled || sunsetEnabled || windEnabled) && !canvasLoopActive) drawRain();
+  };
+
+  window.toggleWind = function() {
+      windEnabled = !windEnabled;
+      canvas.style.display = (rainEnabled || sunsetEnabled || windEnabled) ? 'block' : 'none';
+      let btn = document.getElementById('btn-wind');
+      btn.innerText = windEnabled ? "WIND: ON" : "WIND: OFF";
+      btn.classList.toggle('active', windEnabled);
+      if((rainEnabled || sunsetEnabled || windEnabled) && !canvasLoopActive) drawRain();
   };
 
   // Ovládání hlasitosti
@@ -415,7 +485,6 @@
   });
   
   audio.addEventListener('ended', () => {
-      // Při skončení tracku už je volume přirozeně na konci, rovnou hrajeme další
       playRandom();
   });
 
