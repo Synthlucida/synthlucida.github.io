@@ -166,7 +166,6 @@
 
     <button class="btn-feature" id="btn-rain-wind" onclick="toggleRainWind()">RAIN & WIND: OFF</button>
     <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
-    <button class="btn-feature" id="btn-sunset2" onclick="toggleSunset2()">SUNSET 2: OFF</button>
   </div>
 
   <div class="timer-section">
@@ -245,7 +244,6 @@
   let currentVisualTheme = 'neon';
   let stormEnabled = false; // Spojený vítr a déšť
   let sunsetEnabled = false;
-  let sunset2Enabled = false;
   
   let canvasLoopActive = false;
   const canvas = document.getElementById('rain-canvas');
@@ -296,7 +294,7 @@
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(!stormEnabled && !sunsetEnabled && !sunset2Enabled && currentVisualTheme !== 'space') {
+      if(!stormEnabled && !sunsetEnabled && currentVisualTheme !== 'space') {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -337,30 +335,6 @@
           grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-      
-      if(sunset2Enabled) {
-          let time = Date.now() * 0.001;
-          let pulse = Math.sin(time * 2) * 5;
-          
-          let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          grad.addColorStop(0, 'rgba(255, 80, 150, 0.25)');
-          grad.addColorStop(0.6, 'rgba(255, 120, 50, 0.15)');
-          grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          let sunX = canvas.width / 2;
-          let sunY = canvas.height * 0.5;
-          let sunRadius = 80 + pulse;
-          
-          ctx.beginPath();
-          ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
-          let sunGrad = ctx.createRadialGradient(sunX, sunY, sunRadius * 0.2, sunX, sunY, sunRadius);
-          sunGrad.addColorStop(0, 'rgba(255, 220, 100, 0.6)');
-          sunGrad.addColorStop(1, 'rgba(255, 100, 50, 0)');
-          ctx.fillStyle = sunGrad;
-          ctx.fill();
       }
 
       // Spojený efekt větru a deště
@@ -403,7 +377,7 @@
   }
 
   function updateCanvasState() {
-      let active = stormEnabled || sunsetEnabled || sunset2Enabled || currentVisualTheme === 'space';
+      let active = stormEnabled || sunsetEnabled || currentVisualTheme === 'space';
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
   }
@@ -421,14 +395,6 @@
       let btn = document.getElementById('btn-sunset');
       btn.innerText = sunsetEnabled ? "SUNSET: ON" : "SUNSET: OFF";
       btn.classList.toggle('active', sunsetEnabled);
-      updateCanvasState();
-  };
-
-  window.toggleSunset2 = function() {
-      sunset2Enabled = !sunset2Enabled;
-      let btn = document.getElementById('btn-sunset2');
-      btn.innerText = sunset2Enabled ? "SUNSET 2: ON" : "SUNSET 2: OFF";
-      btn.classList.toggle('active', sunset2Enabled);
       updateCanvasState();
   };
 
