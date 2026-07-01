@@ -62,6 +62,25 @@
     transition: background 1s ease;
   }
 
+  /* Ambientní plynoucí koule (blobs) v pozadí pro hlubší visual */
+  .ambient-blobs {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none; z-index: -3; overflow: hidden;
+  }
+  .blob {
+    position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.25;
+    animation: floatBlobs 20s infinite ease-in-out alternate;
+  }
+  .blob-1 { width: 350px; height: 350px; background: var(--accent-color); top: -10%; left: -10%; }
+  .blob-2 { width: 450px; height: 450px; background: var(--accent-glow); bottom: -15%; right: -10%; animation-delay: -5s; animation-duration: 25s; }
+  .blob-3 { width: 300px; height: 300px; background: var(--accent-color); top: 30%; left: 50%; animation-delay: -10s; animation-duration: 22s; }
+
+  @keyframes floatBlobs {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(60px, 80px) scale(1.1); }
+  }
+
+  /* Kuličky co se otáčí */
   body::before {
     content: ""; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
     background: radial-gradient(circle, var(--accent-color) 0%, transparent 5%),
@@ -89,7 +108,7 @@
   }
   .btn-atmos {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
-    color: #fff; padding: 8px 12px; border-radius: 8px; font-family: 'Orbitron'; font-size: 10px;
+    color: #fff; padding: 8px 12px; border-radius: 8px; font-family: 'Orbitron', sans-serif; font-size: 10px;
     cursor: pointer; transition: 0.3s;
   }
   .btn-atmos.active {
@@ -97,11 +116,37 @@
     box-shadow: 0 0 15px var(--accent-color);
   }
 
-  .themes-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; padding: 0 10px;}
-  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron'; font-size: 9px; cursor: pointer; transition: 0.3s; padding: 2px 4px; letter-spacing: 1px; }
+  .themes-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; padding: 0 10px;}
+  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: 0.3s; padding: 2px 4px; letter-spacing: 1px; }
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
 
-  .player-section { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; padding: 10px; overflow: hidden; }
+  /* Slogany pod vizuálem */
+  .slogan-container {
+    min-height: 15px; 
+    font-size: 10px; 
+    opacity: 0;
+    transition: opacity 2.5s ease-in-out; 
+    margin: 0 auto 10px auto;
+    text-shadow: 0 0 8px var(--accent-color); 
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+  .slogan-container.visible { opacity: 0.8; }
+
+  /* Glassmorphism (Glass/Glasgow) stylizace přehrávače */
+  .player-section { 
+    flex-grow: 1; display: flex; flex-direction: column; justify-content: center; 
+    padding: 15px; overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    margin: 0 15px 15px 15px;
+    box-shadow: inset 0 0 20px rgba(255,255,255,0.01), 0 8px 32px rgba(0,0,0,0.3);
+  }
+
   .track-title { font-size: 14px; font-weight: 600; color: var(--accent-color); margin-bottom: 4px; text-shadow: 0 0 10px var(--accent-color); }
   .track-time { font-size: 11px; color: var(--accent-color); opacity: 0.8; margin-bottom: 8px; text-shadow: 0 0 5px var(--accent-color); letter-spacing: 1px; }
   
@@ -109,30 +154,37 @@
   .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color); transition: width 0.1s linear; }
 
   .playlist { list-style: none; padding: 0; margin: 0 auto 15px auto; width: 90%; max-height: 90px; overflow-y: auto; text-align: left; }
-  .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
-  .playlist li:hover { color: var(--accent-color); }
+  .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; }
+  .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
 
   .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; }
-  .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+  .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 0 15px rgba(0,0,0,0.3); }
   .btn-ctrl:active { transform: scale(0.95); }
-  .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0.6; }
+  .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0.6; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
 
   .extra-features { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; padding: 0 15px;}
   #volume-slider { width: 90px; accent-color: var(--accent-color); cursor: pointer; }
   .vol-icon { font-size: 11px; color: var(--accent-color); display: flex; align-items: center; }
   
-  .timer-section { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .timer-section { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
   #timer-display { font-size: 10px; color: var(--accent-color); margin-right: 5px; width: 45px; text-align: left; }
-  .btn-timer, .btn-feature { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 8px; border-radius: 5px; font-family: 'Orbitron'; font-size: 9px; cursor: pointer; transition: 0.3s; }
-  .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); }
+  .btn-timer, .btn-feature { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 8px; border-radius: 5px; font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: 0.3s; }
+  .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
 
-  .footer { padding: 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
-  .web-link { text-decoration: none; color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 20px; }
+  .footer { padding: 10px 15px 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+  .web-link { text-decoration: none; color: #fff; font-size: 9px; border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; transition: 0.3s; }
+  .web-link:hover { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px rgba(255,255,255,0.1); }
 </style>
 </head>
 <body class="theme-neon" id="body">
+
+<div class="ambient-blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
 
 <canvas id="rain-canvas"></canvas>
 
@@ -162,6 +214,8 @@
   <button class="btn-theme" onclick="setVisualTheme('amber', this)">AMBER</button>
   <button class="btn-theme" onclick="setVisualTheme('lavender', this)">LAVENDER</button>
 </div>
+
+<div id="slogan-container" class="slogan-container"></div>
 
 <div class="player-section">
   <div class="track-title" id="track-title">SELECT TRACK</div>
@@ -214,10 +268,11 @@
       { title: "SYNTHLUCIDA - ASMR Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/waves.mp3" },
       { title: "SYNTHLUCIDA - Thunderstorm 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/thunderstorm1.mp3" },
       { title: "SYNTHLUCIDA - Thunderstorm 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/thunderstorm2.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Candle", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/candle.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Campfire", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/campfire.mp3" },
       { title: "SYNTHLUCIDA - ASMR 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr2022.mp3" },
     ],
     piano: [
-      { title: "SYNTHLUCIDA - Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
       { title: "SYNTHLUCIDA - Nebula Piano 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano2.mp3" },
       { title: "SYNTHLUCIDA - Ambient Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/piano1.mp3" },
@@ -237,8 +292,10 @@
       { title: "SYNTHLUCIDA - Echoes Of Freedom", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/echoes_freedom.mp3" },
       { title: "SYNTHLUCIDA - Magic Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/magic_waves.mp3" },
       { title: "SYNTHLUCIDA - Night Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/night_waves.mp3" },
+      { title: "SYNTHLUCIDA - Atmos Sky", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/atmos_sky.mp3" },
       { title: "SYNTHLUCIDA - Raindrops", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/raindrops.mp3" },
       { title: "SYNTHLUCIDA - Winning Moments", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/winning_moments.mp3" },
+      { title: "SYNTHLUCIDA - Fly With The Soul - Long", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/fly_with_the_soul_long.mp3" },
       { title: "SYNTHLUCIDA - You and Me", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/you_and_me.mp3" },
       { title: "SYNTHLUCIDA - Tropical Free Tones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tropical.mp3" },
     ]
@@ -554,6 +611,59 @@
   }
 
   updatePlaylistUI();
+
+  // ==========================================
+  // MOTIVAČNÍ SLOGANY - ZDE MŮŽEŠ PŘIDÁVAT DALŠÍ
+  // ==========================================
+  const slogans = [
+    "Reset your frequencies.",
+    "Float in the ambient space.",
+    "Breathe deep, steady the pulse.",
+    "Let the waves wash over you.",
+    "Stillness is a superpower.",
+    "Your mind is a quiet room.",
+    "Sync with the rhythm of now.",
+    "Analog heart, digital peace.",
+    "Clear mind, pure signal.",
+    "Stay in the current.",
+    "Focus on the frequency.",
+    "Embrace the empty space.",
+    "You are exactly where you need to be.",
+    "Trust the pause.",
+    "Let go, let flow.",
+    "One moment, one breath.",
+    "Be kind to your mind.",
+    "Harmonize your thoughts."
+  ];
+  
+  const sloganEl = document.getElementById('slogan-container');
+  
+  function showSlogan() {
+    const randomSlogan = slogans[Math.floor(Math.random() * slogans.length)];
+    sloganEl.innerText = randomSlogan;
+    sloganEl.classList.add('visible');
+    
+    // Slogan zůstane svítit 8 sekund
+    setTimeout(() => {
+      sloganEl.classList.remove('visible');
+    }, 8000);
+  }
+
+  function scheduleNextSlogan() {
+    // Náhodný čas mezi 30s a 40s
+    const nextTime = Math.floor(Math.random() * (40000 - 30000 + 1)) + 30000;
+    setTimeout(() => {
+      showSlogan();
+      scheduleNextSlogan();
+    }, nextTime);
+  }
+  
+  // Spuštění prvního sloganu chvíli po načtení (10s)
+  setTimeout(() => {
+    showSlogan();
+    scheduleNextSlogan();
+  }, 10000);
+  // ==========================================
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
