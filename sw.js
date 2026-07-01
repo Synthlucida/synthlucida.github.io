@@ -1,4 +1,4 @@
-const CACHE_NAME = 'synthlucida-v18';
+const CACHE_NAME = 'synthlucida-v19';
 
 // Seznam souborů, které se uloží do paměti telefonu pro rychlé načítání
 const ASSETS_TO_CACHE = [
