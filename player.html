@@ -14,7 +14,7 @@
   }
   
   body.theme-neon { --bg-color-1: #1a0033; --bg-color-2: #000010; --accent-color: #00f0ff; --accent-glow: #ff00ff; }
-  body.theme-space { --bg-color-1: #0a0a2a; --bg-color-2: #000000; --accent-color: #6a0dad; --accent-glow: #4b0082; }
+  body.theme-space { --bg-color-1: #02000a; --bg-color-2: #000000; --accent-color: #aa88ff; --accent-glow: #4b0082; }
   body.theme-earth { --bg-color-1: #1a2a1a; --bg-color-2: #051005; --accent-color: #00ff88; --accent-glow: #aaaa00; }
   body.theme-cyber { --bg-color-1: #2b00ff; --bg-color-2: #000000; --accent-color: #ff0055; --accent-glow: #00ffff; }
   body.theme-void { --bg-color-1: #080808; --bg-color-2: #000000; --accent-color: #777777; --accent-glow: #222222; }
@@ -53,16 +53,6 @@
 
   @keyframes move { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-  /* Retro CRT efekt */
-  .crt-overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04));
-    background-size: 100% 4px, 6px 100%; z-index: 999; pointer-events: none; display: none;
-  }
-  body.crt-active .crt-overlay { display: block; animation: crt-flicker 0.15s infinite; }
-  @keyframes crt-flicker { 0% { opacity: 0.98; } 50% { opacity: 1; } 100% { opacity: 0.99; } }
-
   #rain-canvas {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     pointer-events: none; z-index: -1; display: none;
@@ -98,15 +88,9 @@
   .progress-container { width: 85%; max-width: 400px; margin: 0 auto 15px auto; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; }
   .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color); transition: width 0.1s linear; }
 
-  .playlist { list-style: none; padding: 0; margin: 0 auto 15px auto; width: 90%; max-height: 120px; overflow-y: auto; text-align: left; }
+  .playlist { list-style: none; padding: 0; margin: 0 auto 15px auto; width: 90%; max-height: 90px; overflow-y: auto; text-align: left; }
   .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
   .playlist li:hover { color: var(--accent-color); }
-
-  .equalizer { display: flex; justify-content: center; align-items: flex-end; gap: 5px; height: 30px; margin-bottom: 15px; opacity: 0.2; }
-  .equalizer.active { opacity: 1; }
-  .bar { width: 6px; height: 5px; background: var(--accent-color); border-radius: 4px; }
-  .equalizer.active .bar { animation: bounce 0.8s infinite ease-in-out alternate; }
-  @keyframes bounce { 0% { height: 5px; } 100% { height: 30px; } }
 
   .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; }
   .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
@@ -130,7 +114,6 @@
 </head>
 <body class="theme-neon" id="body">
 
-<div class="crt-overlay"></div>
 <canvas id="rain-canvas"></canvas>
 
 <div class="header">
@@ -170,10 +153,6 @@
   
   <ul class="playlist" id="playlist"></ul>
 
-  <div class="equalizer" id="visualizer">
-    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-  </div>
-
   <div class="controls">
     <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle">🔀</button>
     <button class="btn-ctrl" id="btn-play">▶</button>
@@ -183,16 +162,11 @@
 
   <div class="extra-features">
     <span class="vol-icon" title="Volume">VOL🔉</span>
-    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
+    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
 
-    <button class="btn-feature" id="btn-fade" onclick="toggleFade()">FADE: OFF</button>
-    <button class="btn-feature" id="btn-crt" onclick="toggleCRT()">FX: CRT OFF</button>
-    <button class="btn-feature" id="btn-rain" onclick="toggleRain()">RAIN: OFF</button>
-    <button class="btn-feature" id="btn-wind" onclick="toggleWind()">WIND: OFF</button>
+    <button class="btn-feature" id="btn-rain-wind" onclick="toggleRainWind()">RAIN & WIND: OFF</button>
     <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
     <button class="btn-feature" id="btn-sunset2" onclick="toggleSunset2()">SUNSET 2: OFF</button>
-    <button class="btn-feature" id="btn-winter" onclick="toggleWinter()">WINTER: OFF</button>
-    <button class="btn-feature" id="btn-eq" onclick="toggleEQ()">EQ: OFF</button>
   </div>
 
   <div class="timer-section">
@@ -254,14 +228,12 @@
   let isPlaying = false;
   let shuffleEnabled = false;
   let repeatEnabled = false;
-  let crtEnabled = false;
   
   let timeRemaining = 0;
   let timerInterval;
 
   const audio = document.getElementById('audio-player');
   const titleDiv = document.getElementById('track-title');
-  const visualizer = document.getElementById('visualizer');
   const playBtn = document.getElementById('btn-play');
   const nextBtn = document.getElementById('btn-next');
   const body = document.getElementById('body');
@@ -269,16 +241,11 @@
   const volumeSlider = document.getElementById('volume-slider');
   const progressContainer = document.getElementById('progress-container');
   const progressBar = document.getElementById('progress-bar');
-
-  let fadeEnabled = false;
-  let fadeInterval;
   
-  let rainEnabled = false;
+  let currentVisualTheme = 'neon';
+  let stormEnabled = false; // Spojený vítr a déšť
   let sunsetEnabled = false;
   let sunset2Enabled = false;
-  let windEnabled = false;
-  let winterEnabled = false;
-  let eqEnabled = false;
   
   let canvasLoopActive = false;
   const canvas = document.getElementById('rain-canvas');
@@ -286,8 +253,10 @@
   
   let rainDrops = [];
   let windLines = [];
-  let snowFlakes = [];
-  let eqBars = [];
+  let stars = [];
+
+  // Nastavení výchozí hlasitosti audio elementu při načtení
+  audio.volume = 0.5;
 
   function initEffects() {
       canvas.width = window.innerWidth;
@@ -312,21 +281,14 @@
               v: Math.random() * 3 + 2
           });
       }
-      
-      snowFlakes = [];
-      for(let i=0; i<150; i++) {
-          snowFlakes.push({
-              x: Math.random() * canvas.width,
-              y: Math.random() * canvas.height,
-              r: Math.random() * 2.5 + 0.5,
-              v: Math.random() * 1 + 0.5,
-              drift: Math.random() * Math.PI * 2
+
+      stars = [];
+      for(let i=0; i<250; i++) {
+          stars.push({
+              x: (Math.random() - 0.5) * canvas.width * 2,
+              y: (Math.random() - 0.5) * canvas.height * 2,
+              z: Math.random() * 2000
           });
-      }
-      
-      eqBars = [];
-      for(let i=0; i<64; i++) {
-          eqBars.push({ target: 5, current: 5 });
       }
   }
   
@@ -334,13 +296,39 @@
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(!rainEnabled && !sunsetEnabled && !sunset2Enabled && !windEnabled && !winterEnabled && !eqEnabled) {
+      if(!stormEnabled && !sunsetEnabled && !sunset2Enabled && currentVisualTheme !== 'space') {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
       }
       canvasLoopActive = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Vesmírný průlet
+      if(currentVisualTheme === 'space') {
+          let cx = canvas.width / 2;
+          let cy = canvas.height / 2;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          
+          for(let i=0; i<stars.length; i++) {
+              let s = stars[i];
+              s.z -= 1.5; // Pomalá meditativní rychlost
+              
+              if(s.z <= 0) {
+                  s.x = (Math.random() - 0.5) * canvas.width * 2;
+                  s.y = (Math.random() - 0.5) * canvas.height * 2;
+                  s.z = 2000;
+              }
+              
+              let px = cx + (s.x / s.z) * 500;
+              let py = cy + (s.y / s.z) * 500;
+              let size = Math.max(0.1, (1 - s.z / 2000) * 2.5);
+
+              ctx.beginPath();
+              ctx.arc(px, py, size, 0, Math.PI * 2);
+              ctx.fill();
+          }
+      }
 
       if(sunsetEnabled) {
           let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -375,25 +363,8 @@
           ctx.fill();
       }
 
-      if(winterEnabled) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.beginPath();
-          for(let i=0; i<snowFlakes.length; i++) {
-              let p = snowFlakes[i];
-              ctx.moveTo(p.x, p.y);
-              ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-              p.y += p.v;
-              p.x += Math.sin(p.drift) * 0.3;
-              p.drift += 0.02;
-              if(p.y > canvas.height) {
-                  p.y = -10;
-                  p.x = Math.random() * canvas.width;
-              }
-          }
-          ctx.fill();
-      }
-
-      if(windEnabled) {
+      // Spojený efekt větru a deště
+      if(stormEnabled) {
           ctx.strokeStyle = 'rgba(255,255,255,0.08)';
           ctx.lineWidth = 1;
           ctx.beginPath();
@@ -408,19 +379,17 @@
               }
           }
           ctx.stroke();
-      }
 
-      if(rainEnabled) {
           ctx.strokeStyle = 'rgba(255,255,255,0.2)';
           ctx.lineWidth = 1;
           ctx.beginPath();
           for(let i=0; i<rainDrops.length; i++) {
               let p = rainDrops[i];
               ctx.moveTo(p.x, p.y);
-              let slant = windEnabled ? 6 : 0;
+              let slant = 6; // Vždy nakloněno kvůli větru
               ctx.lineTo(p.x + slant, p.y + p.l);
               p.y += p.v;
-              if(windEnabled) p.x += 2;
+              p.x += 2; // Vítr sune déšť
               if(p.y > canvas.height) {
                   p.y = -20;
                   p.x = Math.random() * canvas.width;
@@ -429,40 +398,21 @@
           }
           ctx.stroke();
       }
-      
-      if(eqEnabled) {
-          let numBars = Math.min(64, Math.floor(canvas.width / 15));
-          let barWidth = (canvas.width / numBars) - 2;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-          
-          for(let i=0; i<numBars; i++) {
-              if(isPlaying) {
-                  if(Math.random() > 0.7) eqBars[i].target = Math.random() * 120 + 10;
-              } else {
-                  eqBars[i].target = 5;
-              }
-              eqBars[i].current += (eqBars[i].target - eqBars[i].current) * 0.15;
-              let h = eqBars[i].current;
-              let x = i * (barWidth + 2);
-              let y = canvas.height - h;
-              ctx.fillRect(x, y, barWidth, h);
-          }
-      }
 
       requestAnimationFrame(drawEffects);
   }
 
   function updateCanvasState() {
-      let active = rainEnabled || sunsetEnabled || sunset2Enabled || windEnabled || winterEnabled || eqEnabled;
+      let active = stormEnabled || sunsetEnabled || sunset2Enabled || currentVisualTheme === 'space';
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
   }
 
-  window.toggleRain = function() {
-      rainEnabled = !rainEnabled;
-      let btn = document.getElementById('btn-rain');
-      btn.innerText = rainEnabled ? "RAIN: ON" : "RAIN: OFF";
-      btn.classList.toggle('active', rainEnabled);
+  window.toggleRainWind = function() {
+      stormEnabled = !stormEnabled;
+      let btn = document.getElementById('btn-rain-wind');
+      btn.innerText = stormEnabled ? "RAIN & WIND: ON" : "RAIN & WIND: OFF";
+      btn.classList.toggle('active', stormEnabled);
       updateCanvasState();
   };
 
@@ -482,48 +432,9 @@
       updateCanvasState();
   };
 
-  window.toggleWind = function() {
-      windEnabled = !windEnabled;
-      let btn = document.getElementById('btn-wind');
-      btn.innerText = windEnabled ? "WIND: ON" : "WIND: OFF";
-      btn.classList.toggle('active', windEnabled);
-      updateCanvasState();
-  };
-
-  window.toggleWinter = function() {
-      winterEnabled = !winterEnabled;
-      let btn = document.getElementById('btn-winter');
-      btn.innerText = winterEnabled ? "WINTER: ON" : "WINTER: OFF";
-      btn.classList.toggle('active', winterEnabled);
-      updateCanvasState();
-  };
-
-  window.toggleEQ = function() {
-      eqEnabled = !eqEnabled;
-      let btn = document.getElementById('btn-eq');
-      btn.innerText = eqEnabled ? "EQ: ON" : "EQ: OFF";
-      btn.classList.toggle('active', eqEnabled);
-      updateCanvasState();
-  };
-
   volumeSlider.addEventListener('input', (e) => {
       audio.volume = e.target.value;
   });
-
-  window.toggleFade = function() {
-      fadeEnabled = !fadeEnabled;
-      let btn = document.getElementById('btn-fade');
-      btn.innerText = fadeEnabled ? "FADE: ON" : "FADE: OFF";
-      btn.classList.toggle('active', fadeEnabled);
-  };
-
-  window.toggleCRT = function() {
-      crtEnabled = !crtEnabled;
-      document.body.classList.toggle('crt-active', crtEnabled);
-      let btn = document.getElementById('btn-crt');
-      btn.innerText = crtEnabled ? "FX: CRT ON" : "FX: CRT OFF";
-      btn.classList.toggle('active', crtEnabled);
-  };
 
   window.toggleShuffle = function() {
       shuffleEnabled = !shuffleEnabled;
@@ -535,40 +446,13 @@
       document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled);
   };
 
-  function doFadeIn(targetVolume) {
-      clearInterval(fadeInterval);
-      fadeInterval = setInterval(() => {
-          let newVol = audio.volume + 0.05;
-          if (newVol >= targetVolume) {
-              audio.volume = targetVolume;
-              clearInterval(fadeInterval);
-          } else {
-              audio.volume = newVol;
-          }
-      }, 50);
-  }
-
-  function doFadeOut(callback) {
-      clearInterval(fadeInterval);
-      fadeInterval = setInterval(() => {
-          let newVol = audio.volume - 0.05;
-          if (newVol <= 0) {
-              audio.volume = 0;
-              clearInterval(fadeInterval);
-              if (callback) callback();
-          } else {
-              audio.volume = newVol;
-          }
-      }, 50);
-  }
-
   function updatePlaylistUI() {
     playlistEl.innerHTML = '';
     playlist.forEach((track, index) => {
       const li = document.createElement('li');
       li.innerText = track.title;
       li.onclick = () => {
-          playTrack(index); // Okamžité spuštění kvůli ochraně prohlížeče
+          playTrack(index); 
       };
       playlistEl.appendChild(li);
     });
@@ -579,14 +463,15 @@
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updatePlaylistUI();
-    playNextTrack(); // Okamžité přepnutí při volbě atmosféry
+    playNextTrack(); 
   };
 
   window.setVisualTheme = function(theme, btn) {
+    currentVisualTheme = theme;
     body.className = 'theme-' + theme;
-    if(crtEnabled) body.classList.add('crt-active');
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    updateCanvasState(); // Zkontroluje, zda zapnout plátno (pro 'space')
   };
 
   function formatTime(secs) {
@@ -634,23 +519,17 @@
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     
-    // Prohlížeč vyžaduje synchronní zavolání .play() hned při kliknutí
-    audio.volume = fadeEnabled ? 0 : parseFloat(volumeSlider.value);
+    audio.volume = parseFloat(volumeSlider.value);
     
     const playPromise = audio.play();
     if (playPromise !== undefined) {
-        playPromise.then(() => {
-            if (fadeEnabled) {
-                doFadeIn(parseFloat(volumeSlider.value));
-            }
-        }).catch(error => {
+        playPromise.catch(error => {
             console.log("Přehrávání selhalo:", error);
         });
     }
     
     isPlaying = true;
     playBtn.innerText = "⏸";
-    visualizer.classList.add('active');
   }
 
   function playNextTrack() {
@@ -665,37 +544,23 @@
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
-      if (fadeEnabled) {
-          doFadeOut(() => {
-              audio.pause();
-              isPlaying = false;
-              playBtn.innerText = "▶";
-              visualizer.classList.remove('active');
-          });
-      } else {
-          audio.pause();
-          isPlaying = false;
-          playBtn.innerText = "▶";
-          visualizer.classList.remove('active');
-      }
+      audio.pause();
+      isPlaying = false;
+      playBtn.innerText = "▶";
     } else {
       if (currentTrackIndex === -1) {
           playNextTrack();
       } else {
-        audio.volume = fadeEnabled ? 0 : parseFloat(volumeSlider.value);
+        audio.volume = parseFloat(volumeSlider.value);
         audio.play();
-        if (fadeEnabled) {
-            doFadeIn(parseFloat(volumeSlider.value));
-        }
         isPlaying = true;
         playBtn.innerText = "⏸";
-        visualizer.classList.add('active');
       }
     }
   });
 
   nextBtn.addEventListener('click', () => {
-      playNextTrack(); // Okamžité přepnutí bez prodlevy kvůli user-gesture blocku
+      playNextTrack();
   });
   
   audio.addEventListener('ended', () => {
@@ -716,19 +581,9 @@
       if (timeRemaining <= 0) {
         cancelTimer();
         if (isPlaying) {
-          if (fadeEnabled) {
-              doFadeOut(() => {
-                  audio.pause();
-                  isPlaying = false;
-                  playBtn.innerText = "▶";
-                  visualizer.classList.remove('active');
-              });
-          } else {
-              audio.pause();
-              isPlaying = false;
-              playBtn.innerText = "▶";
-              visualizer.classList.remove('active');
-          }
+          audio.pause();
+          isPlaying = false;
+          playBtn.innerText = "▶";
         }
       }
     }, 1000);
