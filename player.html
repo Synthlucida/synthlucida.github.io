@@ -3,7 +3,15 @@
 <head>
 <link rel="manifest" href="manifest.json">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a0033">
+<!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SYNTHLUCIDA">
+<link rel="apple-touch-icon" href="icon.png">
+<!-- Android/Chrome: totéž, primárně to ale řídí manifest.json (display: standalone) -->
+<meta name="mobile-web-app-capable" content="yes">
 <title>SYNTHLUCIDA Player</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -28,8 +36,6 @@
   /* Upravené NEON téma s ambientní animací */
   body.theme-neon { 
     --bg-color-2: #000010;
-    /* Optimalizováno pro plynulost */
-/* animation: neonBreathe 60s linear infinite; */
     will-change: background;
     --bg-color-1: #1a0033; 
     --accent-color: #00f0ff; 
@@ -37,6 +43,8 @@
   }
   
   body.theme-space { --bg-color-1: #02000a; --bg-color-2: #000000; --accent-color: #aa88ff; --accent-glow: #4b0082; }
+  body.theme-space::before { display: none !important; } /* Skrytí rotujících kuliček ve space tématu */
+  
   body.theme-earth { --bg-color-1: #1a2a1a; --bg-color-2: #051005; --accent-color: #00ff88; --accent-glow: #aaaa00; }
   body.theme-cyber { --bg-color-1: #2b00ff; --bg-color-2: #000000; --accent-color: #ff0055; --accent-glow: #00ffff; }
   body.theme-void { --bg-color-1: #080808; --bg-color-2: #000000; --accent-color: #777777; --accent-glow: #222222; }
@@ -70,6 +78,11 @@
     display: none !important;
   }
 
+  /* Oprava prolínání textu s okraji ve fullscreenu */
+  body.is-fullscreen .slogan-container {
+    margin-top: 40px; 
+  }
+
   /* Ambientní plynoucí koule (blobs) v pozadí pro hlubší visual */
   .ambient-blobs {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -77,11 +90,11 @@
   }
   .blob {
     position: absolute; border-radius: 50%; filter: blur(20px); opacity: 0.12; will-change: transform;
-    animation: floatBlobs 90s infinite linear alternate;
+    animation: floatBlobs 60s infinite linear alternate;
   }
   .blob-1 { width: 350px; height: 350px; background: var(--accent-color); top: -10%; left: -10%; }
-  .blob-2 { width: 450px; height: 450px; background: var(--accent-glow); bottom: -15%; right: -10%; animation-delay: -5s; animation-duration: 25s; }
-  .blob-3 { width: 300px; height: 300px; background: var(--accent-color); top: 30%; left: 50%; animation-delay: -10s; animation-duration: 22s; }
+  .blob-2 { width: 450px; height: 450px; background: var(--accent-glow); bottom: -15%; right: -10%; animation-delay: -5s; animation-duration: 18s; }
+  .blob-3 { width: 300px; height: 300px; background: var(--accent-color); top: 30%; left: 50%; animation-delay: -10s; animation-duration: 16s; }
 
   @keyframes floatBlobs {
     0% { transform: translate(0, 0) scale(1); }
@@ -91,11 +104,11 @@
   /* Kuličky co se otáčí */
   body::before {
     content: ""; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
-    background: radial-gradient(circle, var(--accent-color) 0%, transparent 5%),
-                radial-gradient(circle, var(--accent-glow) 0%, transparent 5%);
-    background-size: 420px 420px;
-    opacity: 0.1;
-    animation: move 180s linear infinite;
+    background: radial-gradient(circle, var(--accent-color) 0%, transparent 9%),
+                radial-gradient(circle, var(--accent-glow) 0%, transparent 9%);
+    background-size: 260px 260px;
+    opacity: 0.12;
+    animation: move 110s linear infinite;
     z-index: -2;
   }
 
@@ -106,10 +119,15 @@
     pointer-events: none; z-index: -1; display: none;
   }
 
-  .header { padding: 20px 20px 10px; }
-  .logo { max-width: 100px; filter: drop-shadow(0 0 10px var(--accent-color)); margin-bottom: 5px; }
+  .header { padding: 12px 20px 6px; }
+  .logo { max-width: 100px; margin-bottom: 5px; animation: logoPulse 3.5s ease-in-out infinite; }
   .brand-name { font-size: 18px; margin-bottom: 5px; letter-spacing: 2px; }
-  .desc-text { font-size: 9px; opacity: 0.7; padding: 0 20px; line-height: 1.4; margin-bottom: 10px; }
+  .desc-text { font-size: 9px; opacity: 0.7; padding: 0 20px; line-height: 1.4; margin-bottom: 6px; }
+
+  @keyframes logoPulse {
+    0%, 100% { filter: drop-shadow(0 0 8px var(--accent-color)); }
+    50% { filter: drop-shadow(0 0 16px var(--accent-color)); }
+  }
   
   .atmospheres {
     display: flex; justify-content: center; gap: 10px; margin-bottom: 8px; padding: 0 20px; flex-wrap: wrap;
@@ -143,55 +161,57 @@
   }
   .slogan-container.visible { opacity: 0.8; }
 
-  /* Glassmorphism (Glass/Glasgow) stylizace přehrávače - ZMENŠENO */
+  /* Glassmorphism stylizace přehrávače - ZMENŠENO PRO KOMPAKTNÍ VZHLED */
   .player-section { 
     flex-grow: 1; display: flex; flex-direction: column; justify-content: center; 
-    padding: 10px 15px; overflow: hidden; /* Zmenšený padding */
+    padding: 6px 14px; overflow: hidden; 
     background: rgba(255, 255, 255, 0.02);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 20px;
-    margin: 0 auto 5px auto; /* Centrování a zmenšený spodní odstup */
-    max-width: 500px; /* Omezení šířky pro kompaktnější vzhled */
+    margin: 0 auto 10px auto; /* Upravené centrování a odstup */
+    max-width: 420px; /* Zmenšeno z 500px */
     width: calc(100% - 30px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   }
 
   .track-title { font-size: 14px; font-weight: 600; color: var(--accent-color); margin-bottom: 4px; text-shadow: 0 0 10px var(--accent-color); }
-  .track-time { font-size: 11px; color: var(--accent-color); opacity: 0.8; margin-bottom: 8px; text-shadow: 0 0 5px var(--accent-color); letter-spacing: 1px; }
+  .track-time { font-size: 11px; color: var(--accent-color); opacity: 0.8; margin-bottom: 5px; text-shadow: 0 0 5px var(--accent-color); letter-spacing: 1px; }
   
-  .progress-container { width: 85%; max-width: 400px; margin: 0 auto 15px auto; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; }
+  .progress-container { width: 85%; max-width: 400px; margin: 0 auto 8px auto; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; }
   .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color); transition: width 0.1s linear; }
 
-  /* Playlist zmenšen */
-  .playlist { list-style: none; padding: 0; margin: 0 auto 15px auto; width: 90%; max-height: 75px; overflow-y: auto; text-align: left; }
+  /* Playlist - ZVĚTŠENO pro zobrazení 5-6 skladeb */
+  .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; max-height: 160px; /* Zvětšeno z 85px */ overflow-y: auto; text-align: left; }
   .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
   .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .offline-badge { font-size: 9px; opacity: 0.6; flex-shrink: 0; color: var(--accent-color); }
+  .offline-status { font-size: 8px; opacity: 0.45; display: inline-block; min-width: 60px; text-align: left; }
 
-  .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; }
+  .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 8px; }
   .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 0 6px rgba(0,0,0,0.2); }
   .btn-ctrl:active { transform: scale(0.95); }
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0.6; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
 
-  .extra-features { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; padding: 0 15px;}
+  .extra-features { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; padding: 0 15px;}
   #volume-slider { width: 90px; accent-color: var(--accent-color); cursor: pointer; }
   .vol-icon { font-size: 11px; color: var(--accent-color); display: flex; align-items: center; }
   
   .timer-section { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
-  #timer-display { font-size: 10px; color: var(--accent-color); margin-right: 5px; width: 45px; text-align: left; }
+  #timer-display { font-size: 10px; color: var(--accent-color); margin-right: 5px; display: inline-block; width: 55px; text-align: left; }
   
   /* Zmenšení tlačítek aby se vešla lépe na jeden řádek */
   .btn-timer, .btn-feature { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 4px 6px; border-radius: 5px; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.3s; }
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
+  #btn-download { min-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* Upravený footer s menším horním paddingem pro zvednutí odkazů */
-  .footer { padding: 0px 15px 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
-  .web-link { text-decoration: none; color: #fff; font-size: 9px; border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; transition: 0.3s; }
+  /* Upravený footer s menším paddingem pro zvednutí odkazů */
+  .footer { padding: 0px 15px 8px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+  .web-link { text-decoration: none; color: #fff; font-size: 9px; border: 1px solid rgba(255,255,255,0.2); padding: 6px 14px; border-radius: 20px; transition: 0.3s; }
   .web-link:hover { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px rgba(255,255,255,0.1); }
 
   .ambient-blobs,
@@ -267,6 +287,7 @@
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   <button class="btn-feature" onclick="toggleFullscreen()">FULLSCREEN</button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
+  <span class="offline-status" id="offline-status"></span>
 </div>
 
 <div id="slogan-container" class="slogan-container"></div>
@@ -383,7 +404,6 @@
   
   let rainDrops = [];
   let windLines = [];
-  let stars = [];
 
   audio.volume = 0.5;
 
@@ -400,49 +420,19 @@
       for(let i=0; i<30; i++) {
           windLines.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, l: Math.random() * 40 + 20, v: Math.random() * 3 + 2 });
       }
-
-      stars = [];
-      for(let i=0; i<250; i++) {
-          stars.push({ x: (Math.random() - 0.5) * canvas.width * 2, y: (Math.random() - 0.5) * canvas.height * 2, z: Math.random() * 2000 });
-      }
   }
   
   initEffects();
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(!stormEnabled && !sunsetEnabled && currentVisualTheme !== 'space') {
+      if(!stormEnabled && !sunsetEnabled) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
       }
       canvasLoopActive = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if(currentVisualTheme === 'space') {
-          let cx = canvas.width / 2;
-          let cy = canvas.height / 2;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-          
-          for(let i=0; i<stars.length; i++) {
-              let s = stars[i];
-              s.z -= 1.5; 
-              
-              if(s.z <= 0) {
-                  s.x = (Math.random() - 0.5) * canvas.width * 2;
-                  s.y = (Math.random() - 0.5) * canvas.height * 2;
-                  s.z = 2000;
-              }
-              
-              let px = cx + (s.x / s.z) * 500;
-              let py = cy + (s.y / s.z) * 500;
-              let size = Math.max(0.1, (1 - s.z / 2000) * 2.5);
-
-              ctx.beginPath();
-              ctx.arc(px, py, size, 0, Math.PI * 2);
-              ctx.fill();
-          }
-      }
 
       if(sunsetEnabled) {
           let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -485,7 +475,7 @@
   }
 
   function updateCanvasState() {
-      let active = stormEnabled || sunsetEnabled || currentVisualTheme === 'space';
+      let active = stormEnabled || sunsetEnabled;
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
   }
@@ -531,6 +521,16 @@
     }
   }
 
+  async function updateOfflineStatus() {
+    const statusEl = document.getElementById('offline-status');
+    if (!statusEl || !('caches' in window)) return;
+    let cachedCount = 0;
+    for (const track of playlist) {
+      if (await isTrackCached(track.src)) cachedCount++;
+    }
+    statusEl.innerText = `${cachedCount}/${playlist.length} OFFLINE`;
+  }
+
   async function updatePlaylistUI() {
     playlistEl.innerHTML = '';
     playlist.forEach((track, index) => {
@@ -555,6 +555,7 @@
         if (cached) badge.innerText = '✓ OFFLINE';
       });
     });
+    updateOfflineStatus();
   }
 
   window.downloadCurrentPlaylist = async function() {
@@ -566,35 +567,30 @@
     const originalText = btn.innerText;
     btn.disabled = true;
 
-    let downloaded = 0;
-    let skipped = 0;
-
     for (let i = 0; i < playlist.length; i++) {
       const track = playlist[i];
-      btn.innerText = `DOWNLOADING ${i + 1}/${playlist.length}...`;
+      btn.innerText = `DOWNLOADING ${i + 1}/${playlist.length}`;
 
       const already = await isTrackCached(track.src);
-      if (already) {
-        skipped++;
-        continue;
-      }
+      if (already) continue;
 
       try {
         // This fetch goes through the Service Worker, which caches the file itself
         await fetch(track.src);
-        downloaded++;
         const badge = document.getElementById(`offline-badge-${i}`);
         if (badge) badge.innerText = '✓ OFFLINE';
+        updateOfflineStatus();
       } catch (e) {
         console.log('Failed to download:', track.title, e);
       }
     }
 
-    btn.innerText = `DONE (${downloaded} downloaded, ${skipped} already cached)`;
+    btn.innerText = '✓ DONE';
+    updateOfflineStatus();
     setTimeout(() => {
       btn.innerText = originalText;
       btn.disabled = false;
-    }, 3000);
+    }, 2000);
   };
 
   window.setPlaylist = function(key, btn) {
@@ -607,7 +603,9 @@
 
   window.setVisualTheme = function(theme, btn) {
     currentVisualTheme = theme;
-    body.className = 'theme-' + theme;
+    // Nahrazujeme jen theme-* třídu, zbytek (např. is-fullscreen) necháme být
+    body.className = body.className.replace(/theme-\S+/g, '').trim();
+    body.classList.add('theme-' + theme);
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updateCanvasState(); 
@@ -670,7 +668,10 @@
       const badge = document.getElementById(`offline-badge-${index}`);
       if (badge) {
         isTrackCached(track.src).then((cached) => {
-          if (cached) badge.innerText = '✓ OFFLINE';
+          if (cached) {
+            badge.innerText = '✓ OFFLINE';
+            updateOfflineStatus();
+          }
         });
       }
       audio.removeEventListener('canplaythrough', refreshBadgeOnce);
