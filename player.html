@@ -166,8 +166,10 @@
 
   /* Playlist zmenšen */
   .playlist { list-style: none; padding: 0; margin: 0 auto 15px auto; width: 90%; max-height: 75px; overflow-y: auto; text-align: left; }
-  .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; }
+  .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
+  .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .offline-badge { font-size: 9px; opacity: 0.6; flex-shrink: 0; color: var(--accent-color); }
 
   .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 15px; }
   .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 0 6px rgba(0,0,0,0.2); }
@@ -264,6 +266,7 @@
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   <button class="btn-feature" onclick="toggleFullscreen()">FULLSCREEN</button>
+  <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
 </div>
 
 <div id="slogan-container" class="slogan-container"></div>
@@ -515,15 +518,84 @@
       document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled);
   };
 
-  function updatePlaylistUI() {
+  const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // musí odpovídat hodnotě v sw.js
+
+  async function isTrackCached(url) {
+    if (!('caches' in window)) return false;
+    try {
+      const cache = await caches.open(AUDIO_CACHE_NAME);
+      const match = await cache.match(url);
+      return !!match;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function updatePlaylistUI() {
     playlistEl.innerHTML = '';
     playlist.forEach((track, index) => {
       const li = document.createElement('li');
-      li.innerText = track.title;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'track-name';
+      nameSpan.innerText = track.title;
+
+      const badge = document.createElement('span');
+      badge.className = 'offline-badge';
+      badge.id = `offline-badge-${index}`;
+      badge.innerText = '';
+
+      li.appendChild(nameSpan);
+      li.appendChild(badge);
       li.onclick = () => { playTrack(index); };
       playlistEl.appendChild(li);
+
+      // Asynchronously check if the track is already cached and update the badge
+      isTrackCached(track.src).then((cached) => {
+        if (cached) badge.innerText = '✓ OFFLINE';
+      });
     });
   }
+
+  window.downloadCurrentPlaylist = async function() {
+    const btn = document.getElementById('btn-download');
+    if (!('caches' in window)) {
+      alert('This browser does not support offline downloads.');
+      return;
+    }
+    const originalText = btn.innerText;
+    btn.disabled = true;
+
+    let downloaded = 0;
+    let skipped = 0;
+
+    for (let i = 0; i < playlist.length; i++) {
+      const track = playlist[i];
+      btn.innerText = `DOWNLOADING ${i + 1}/${playlist.length}...`;
+
+      const already = await isTrackCached(track.src);
+      if (already) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        // This fetch goes through the Service Worker, which caches the file itself
+        await fetch(track.src);
+        downloaded++;
+        const badge = document.getElementById(`offline-badge-${i}`);
+        if (badge) badge.innerText = '✓ OFFLINE';
+      } catch (e) {
+        console.log('Failed to download:', track.title, e);
+      }
+    }
+
+    btn.innerText = `DONE (${downloaded} downloaded, ${skipped} already cached)`;
+    setTimeout(() => {
+      btn.innerText = originalText;
+      btn.disabled = false;
+    }, 3000);
+  };
 
   window.setPlaylist = function(key, btn) {
     playlist = tracks[key];
@@ -592,6 +664,17 @@
     
     isPlaying = true;
     playBtn.innerText = "⏸";
+
+    // Once the track can play through (and has landed in the SW cache), refresh its badge
+    audio.addEventListener('canplaythrough', function refreshBadgeOnce() {
+      const badge = document.getElementById(`offline-badge-${index}`);
+      if (badge) {
+        isTrackCached(track.src).then((cached) => {
+          if (cached) badge.innerText = '✓ OFFLINE';
+        });
+      }
+      audio.removeEventListener('canplaythrough', refreshBadgeOnce);
+    });
   }
 
   function playNextTrack() {
