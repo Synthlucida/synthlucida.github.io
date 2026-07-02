@@ -63,6 +63,13 @@
     transition: background 0.4s linear; will-change: background;
   }
 
+  /* Fullscreen skrytí elementů */
+  body.is-fullscreen .logo,
+  body.is-fullscreen .brand-name,
+  body.is-fullscreen .desc-text {
+    display: none !important;
+  }
+
   /* Ambientní plynoucí koule (blobs) v pozadí pro hlubší visual */
   .ambient-blobs {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -144,7 +151,7 @@
     -webkit-backdrop-filter: blur(4px);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 20px;
-    margin: 0 15px 15px 15px;
+    margin: 0 15px 5px 15px; /* Upraven margin pro posunutí footeru */
     box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   }
 
@@ -170,11 +177,14 @@
   
   .timer-section { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
   #timer-display { font-size: 10px; color: var(--accent-color); margin-right: 5px; width: 45px; text-align: left; }
-  .btn-timer, .btn-feature { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 8px; border-radius: 5px; font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: 0.3s; }
+  
+  /* Zmenšení tlačítek aby se vešla lépe na jeden řádek */
+  .btn-timer, .btn-feature { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 4px 6px; border-radius: 5px; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.3s; }
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
 
-  .footer { padding: 10px 15px 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+  /* Upravený footer s menším horním paddingem pro zvednutí odkazů */
+  .footer { padding: 0px 15px 15px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
   .web-link { text-decoration: none; color: #fff; font-size: 9px; border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; transition: 0.3s; }
   .web-link:hover { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px rgba(255,255,255,0.1); }
 
@@ -184,7 +194,6 @@
     transform: translateZ(0);
     backface-visibility: hidden;
   }
-
 
   @media (prefers-reduced-motion: no-preference) {
     body.theme-neon .blob-3 {
@@ -269,8 +278,10 @@
     <span class="vol-icon" title="Volume">VOL🔉</span>
     <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
 
-    <button class="btn-feature" id="btn-rain-wind" onclick="toggleRainWind()">RAIN & WIND: OFF</button>
+    <button class="btn-feature" id="btn-rain" onclick="toggleRain()">RAIN: OFF</button>
     <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
+    <button class="btn-feature" onclick="saveSettings()">SAVE</button>
+    <button class="btn-feature" onclick="toggleFullscreen()">FULLSCREEN</button>
   </div>
 
   <div class="timer-section">
@@ -468,10 +479,10 @@
       if (active && !canvasLoopActive) drawEffects();
   }
 
-  window.toggleRainWind = function() {
+  window.toggleRain = function() {
       stormEnabled = !stormEnabled;
-      let btn = document.getElementById('btn-rain-wind');
-      btn.innerText = stormEnabled ? "RAIN & WIND: ON" : "RAIN & WIND: OFF";
+      let btn = document.getElementById('btn-rain');
+      btn.innerText = stormEnabled ? "RAIN: ON" : "RAIN: OFF";
       btn.classList.toggle('active', stormEnabled);
       updateCanvasState();
   };
@@ -641,20 +652,84 @@
     }
   }
 
+  // Funkce pro uložení nastavení
+  window.saveSettings = function() {
+    const settings = {
+        theme: currentVisualTheme,
+        rain: stormEnabled,
+        sunset: sunsetEnabled
+    };
+    localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
+    
+    // Malý vizuální feedback
+    let btn = document.querySelector('button[onclick="saveSettings()"]');
+    let oldText = btn.innerText;
+    btn.innerText = "SAVED!";
+    btn.style.color = "var(--accent-color)";
+    btn.style.borderColor = "var(--accent-color)";
+    setTimeout(() => {
+        btn.innerText = oldText;
+        btn.style.color = "";
+        btn.style.borderColor = "";
+    }, 2000);
+  };
+
+  // Fullscreen logika
+  window.toggleFullscreen = function() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log(`Chyba fullscreenu: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+  };
+
+  // Event listener pro schování loga
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+        document.body.classList.add('is-fullscreen');
+    } else {
+        document.body.classList.remove('is-fullscreen');
+    }
+  });
+
   updatePlaylistUI();
 
+  // Nové načítání z localStorage místo výchozího nastavení
   window.addEventListener('DOMContentLoaded', () => {
-  const defaultTheme = 'amber';
+    let savedTheme = 'amber'; // výchozí
+    let savedRain = false;
+    let savedSunset = false;
 
-  const defaultBtn = Array.from(document.querySelectorAll('.btn-theme'))
-    .find(b => b.textContent.trim() === defaultTheme.toUpperCase());
+    try {
+        const savedSettings = localStorage.getItem('synthlucida_settings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            if (settings.theme) savedTheme = settings.theme;
+            if (settings.rain) savedRain = true;
+            if (settings.sunset) savedSunset = true;
+        }
+    } catch (e) { console.error("Nelze načíst nastavení:", e); }
 
-  if (defaultBtn) {
-    setVisualTheme(defaultTheme, defaultBtn);
-  } else {
-    setVisualTheme(defaultTheme, document.querySelector('.btn-theme'));
-  }
-});
+    const defaultBtn = Array.from(document.querySelectorAll('.btn-theme'))
+      .find(b => b.textContent.trim() === savedTheme.toUpperCase());
+
+    if (defaultBtn) {
+      setVisualTheme(savedTheme, defaultBtn);
+    } else {
+      setVisualTheme(savedTheme, document.querySelector('.btn-theme'));
+    }
+
+    if (savedRain) {
+        toggleRain(); 
+    }
+    if (savedSunset) {
+        toggleSunset();
+    }
+  });
 
   // ==========================================
   // MOTIVAČNÍ SLOGANY - ZDE MŮŽEŠ PŘIDÁVAT DALŠÍ
