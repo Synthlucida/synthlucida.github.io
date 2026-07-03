@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SYNTHLUCIDA | Ambient Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --cursor-x: 50vw; --cursor-y: 50vh; --hue: 260; }
+
+  body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #020008; font-family: 'Orbitron', sans-serif; overflow: hidden; color: #fff; }
+
+  /* Základní gradient pozadí */
+  .canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; transition: background 1.5s ease; }
+
+  /* Vrstva kapek */
+  #drops { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
+
+  /* Slogan kontejner */
+  .slogan-container {
+    position: absolute; top: 50%; left: 0; width: 100%; text-align: center;
+    z-index: 3; pointer-events: none;
+  }
+  
+  .slogan {
+    font-size: 1.8rem; letter-spacing: 8px; text-transform: uppercase;
+    opacity: 0; transition: opacity 3s ease-in-out, filter 3s ease-in-out;
+    text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 0 40px hsl(var(--hue), 80%, 50%);
+  }
+
+  .slogan.visible { opacity: 0.9; }
+  .slogan.hidden { opacity: 0; }
+
+  /* Tlačítko - minimalistické */
+  .back-btn {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    padding: 10px 25px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.1); color: rgba(255,255,255,0.3);
+    font-family: 'Orbitron', sans-serif; font-size: 0.7rem; letter-spacing: 3px;
+    cursor: pointer; text-decoration: none; border-radius: 30px;
+    transition: 0.5s; z-index: 10;
+  }
+  .back-btn:hover { border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<div class="canvas" id="canvas"></div>
+<canvas id="drops"></canvas>
+
+<div class="slogan-container">
+  <div id="slogan" class="slogan"></div>
+</div>
+
+<a href="player.html" class="back-btn">BACK TO PLAYER</a>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const dropsCanvas = document.getElementById('drops');
+  const ctx = dropsCanvas.getContext('2d');
+  const sloganEl = document.getElementById('slogan');
+  const slogans = ["RESET YOUR MIND", "BREATHE DEEP", "STILLNESS IS POWER", "SYNC YOUR FREQUENCY", "LET GO", "FOCUS ON THE NOW", "CLEAR SIGNAL"];
+
+  // Nastavení canvasu
+  function resize() {
+    dropsCanvas.width = window.innerWidth;
+    dropsCanvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Vytvoření "kapek" (ambientní bílé koule)
+  let drops = [];
+  for(let i=0; i<30; i++) {
+    drops.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.2,
+      vy: (Math.random() - 0.5) * 0.2,
+      size: Math.random() * 8 + 3, // Různé velikosti
+      opacity: Math.random() * 0.4 + 0.1,
+      blur: Math.random() * 5 + 2 // Rozmazání
+    });
+  }
+
+  function animateDrops() {
+    ctx.clearRect(0, 0, dropsCanvas.width, dropsCanvas.height);
+    
+    drops.forEach(d => {
+      d.x += d.vx;
+      d.y += d.vy;
+      
+      // Odrazy od krajů
+      if(d.x < 0 || d.x > dropsCanvas.width) d.vx *= -1;
+      if(d.y < 0 || d.y > dropsCanvas.height) d.vy *= -1;
+      
+      ctx.save();
+      ctx.filter = `blur(${d.blur}px)`; // Efekt rozmazaného skla
+      ctx.fillStyle = `rgba(255, 255, 255, ${d.opacity})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    requestAnimationFrame(animateDrops);
+  }
+  animateDrops();
+
+  // Interaktivita pozadí
+  function update(x, y) {
+    let hue = (x / window.innerWidth) * 360;
+    document.documentElement.style.setProperty('--hue', hue);
+    canvas.style.background = `radial-gradient(circle at ${x}px ${y}px, hsl(${hue}, 30%, 15%) 0%, #020008 80%)`;
+  }
+
+  document.addEventListener('mousemove', (e) => update(e.clientX, e.clientY));
+  document.addEventListener('touchmove', (e) => update(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+
+  // Logika sloganů
+  function showSlogan() {
+    sloganEl.innerText = slogans[Math.floor(Math.random() * slogans.length)];
+    sloganEl.className = 'slogan visible';
+    setTimeout(() => { sloganEl.className = 'slogan hidden'; }, 6000);
+    setTimeout(showSlogan, 14000);
+  }
+  showSlogan();
+</script>
+</body>
+</html>
