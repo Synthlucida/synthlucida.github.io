@@ -77,7 +77,30 @@
   @keyframes move { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
   .header { padding: 10px 20px 4px; }
-  .brand-name { font-size: 20px; letter-spacing: 3px; text-shadow: 0 0 10px var(--accent-color); }
+  .brand-name {
+    font-size: 20px; letter-spacing: 3px; text-shadow: 0 0 10px var(--accent-color);
+    position: relative; display: inline-block; z-index: 1;
+    animation: titleTextGlow 3.5s ease-in-out infinite;
+  }
+  .brand-name::before {
+    content: "";
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1);
+    width: 240px; height: 60px;
+    background: radial-gradient(ellipse at center, var(--accent-color) 0%, var(--accent-glow) 40%, transparent 75%);
+    filter: blur(22px);
+    opacity: 0.25;
+    z-index: -1;
+    pointer-events: none;
+    animation: titleGlowPulse 3.5s ease-in-out infinite;
+  }
+  @keyframes titleTextGlow {
+    0%, 100% { text-shadow: 0 0 8px var(--accent-color); }
+    50% { text-shadow: 0 0 18px var(--accent-color), 0 0 30px var(--accent-glow); }
+  }
+  @keyframes titleGlowPulse {
+    0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.9); }
+    50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.2); }
+  }
   .desc-text { font-size: 9px; opacity: 0.7; letter-spacing: 1px; margin-top: 3px; }
 
   .atmospheres { display: flex; justify-content: center; gap: 8px; margin-bottom: 6px; }
@@ -222,6 +245,35 @@
   }
   .btn-restart:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
 
+  /* START / PLAY OVERLAY */
+  #start-overlay {
+    display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.88); border-radius: 15px; z-index: 20;
+    flex-direction: column; justify-content: center; align-items: center; gap: 20px;
+    backdrop-filter: blur(3px);
+  }
+  #start-overlay.show { display: flex; }
+  .start-overlay-title {
+    font-size: 14px; letter-spacing: 3px; color: var(--accent-color);
+    text-shadow: 0 0 10px var(--accent-color), 0 0 20px var(--accent-glow);
+    animation: titleTextGlow 3.5s ease-in-out infinite;
+    text-align: center; padding: 0 10px;
+  }
+  .btn-start {
+    background: rgba(255,255,255,0.05); border: 2px solid var(--accent-color); color: var(--accent-color);
+    padding: 14px 32px; font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 2px; border-radius: 10px; cursor: pointer; transition: 0.3s;
+    animation: startBtnGlow 2s ease-in-out infinite;
+  }
+  .btn-start:hover, .btn-start:active {
+    background: var(--accent-color); color: #000; box-shadow: 0 0 20px var(--accent-color), 0 0 35px var(--accent-glow);
+  }
+  @keyframes startBtnGlow {
+    0% { box-shadow: 0 0 8px var(--accent-color); }
+    50% { box-shadow: 0 0 22px var(--accent-color), 0 0 14px var(--accent-glow); }
+    100% { box-shadow: 0 0 8px var(--accent-color); }
+  }
+
   .footer { padding: 10px 15px; font-size: 9px; opacity: 0.3; }
 
   /* MOBILE CONTROLS STYLES */
@@ -229,19 +281,20 @@
     display: none;
     justify-content: space-between;
     margin-top: 15px;
-    gap: 8px;
+    gap: 10px;
     width: 260px;
     margin-left: auto;
     margin-right: auto;
   }
   .m-btn {
     flex: 1;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: #fff;
-    padding: 12px 0;
+    background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--accent-color);
+    padding: 14px 0;
     font-size: 18px;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
     touch-action: manipulation;
     transition: 0.2s;
@@ -249,12 +302,22 @@
     align-items: center;
     justify-content: center;
     font-family: inherit;
+    box-shadow: 0 0 8px rgba(0,0,0,0.4), inset 0 0 6px rgba(255,255,255,0.03);
+    text-shadow: 0 0 6px var(--accent-color);
   }
   .m-btn:active {
     background: var(--accent-color);
     color: #000;
     border-color: var(--accent-color);
-    box-shadow: 0 0 10px var(--accent-color);
+    box-shadow: 0 0 14px var(--accent-color), 0 0 26px var(--accent-glow);
+    text-shadow: none;
+  }
+  .m-btn.holding {
+    background: var(--accent-color);
+    color: #000;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 16px var(--accent-color), 0 0 30px var(--accent-glow);
+    text-shadow: none;
   }
 
   /* RESPONSIVE LAYOUT */
@@ -305,6 +368,11 @@
     <div id="unlock-overlay">
       <h3>🎵 TRACK UNLOCKED!</h3>
       <div id="unlock-track-name">Track Name</div>
+    </div>
+
+    <div id="start-overlay">
+      <div class="start-overlay-title">SYNTHLUCIDA BLOCKS</div>
+      <button class="btn-start" id="btn-start-game">▶ PLAY</button>
     </div>
 
     <div class="mobile-controls" id="mobile-controls">
@@ -668,7 +736,7 @@
   context.scale(26, 26);
 
   const tetrisColors = [
-    null, '#ff00ff', '#00ffff', '#ff7700', '#00ff88', '#ff3333', '#ffff00', '#aa00ff'
+    null, '#ff00ff', '#00ffff', '#ff7700', '#00ff88', '#ff3333', '#ffff00', '#aa00ff', '#00aaff', '#ff5599'
   ];
 
   function createMatrix(w, h) {
@@ -719,6 +787,18 @@
       [7,0,0],
       [7,0,0]
     ]; // Velké L (Big L)
+
+    if (type === 'Y') return [
+      [8,0,0],
+      [8,8,8],
+      [0,8,0]
+    ]; // Šipka (Arrow)
+
+    if (type === 'N') return [
+      [9,9,0],
+      [0,9,9],
+      [0,0,9]
+    ]; // Schod (Stairs)
   }
 
   const arena = createMatrix(10, 20);
@@ -849,7 +929,7 @@
   }
 
   function playerReset() {
-    const pieces = 'TJLOSZI';
+    const pieces = 'TJLOSZIYN';
     player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
     player.pos.y = 0;
     player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
@@ -991,7 +1071,30 @@
     addTapListener(btnLeft, () => playerMove(-1));
     addTapListener(btnRight, () => playerMove(1));
     addTapListener(btnRot, () => playerRotate());
-    addTapListener(btnDown, () => playerDrop());
+
+    // Podržení šipky dolů = rychlejší opakovaný pád kostičky
+    let downHoldInterval = null;
+    const startDownHold = (e) => {
+      e.preventDefault();
+      if (!gameActive || isPaused) return;
+      playerDrop();
+      btnDown.classList.add('holding');
+      if (downHoldInterval) clearInterval(downHoldInterval);
+      downHoldInterval = setInterval(() => {
+        if (gameActive && !isPaused) { playerDrop(); }
+      }, 50);
+    };
+    const stopDownHold = () => {
+      if (downHoldInterval) { clearInterval(downHoldInterval); downHoldInterval = null; }
+      btnDown.classList.remove('holding');
+    };
+
+    btnDown.addEventListener('touchstart', startDownHold, {passive: false});
+    btnDown.addEventListener('touchend', stopDownHold);
+    btnDown.addEventListener('touchcancel', stopDownHold);
+    btnDown.addEventListener('mousedown', startDownHold);
+    btnDown.addEventListener('mouseup', stopDownHold);
+    btnDown.addEventListener('mouseleave', stopDownHold);
   };
 
   // ---------------------------------------------------------
@@ -1023,8 +1126,26 @@
   updatePlaylistUI();
   updateScoreUI();
   setupMobileControls();
-  
-  requestAnimationFrame(updateGameLoop);
+
+  // ---------------------------------------------------------
+  // ÚVODNÍ OBRAZOVKA - hra se spustí až po stisku PLAY
+  // ---------------------------------------------------------
+  isPaused = true;
+  draw();
+  const startOverlay = document.getElementById('start-overlay');
+  const startBtn = document.getElementById('btn-start-game');
+  const pauseBtnRef = document.getElementById('btn-pause');
+  if (pauseBtnRef) { pauseBtnRef.disabled = true; pauseBtnRef.style.opacity = '0.35'; pauseBtnRef.style.pointerEvents = 'none'; }
+  if (startOverlay) startOverlay.classList.add('show');
+  if (startBtn) {
+    startBtn.addEventListener('click', () => {
+      if (startOverlay) startOverlay.classList.remove('show');
+      if (pauseBtnRef) { pauseBtnRef.disabled = false; pauseBtnRef.style.opacity = ''; pauseBtnRef.style.pointerEvents = ''; }
+      isPaused = false;
+      lastTime = performance.now();
+      updateGameLoop();
+    }, { once: true });
+  }
 </script>
 </body>
 </html>
