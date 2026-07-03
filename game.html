@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a0033">
+<title>SYNTHLUCIDA TETRIS PLAYER</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  @property --accent-color { syntax: '<color>'; inherits: true; initial-value: #00f0ff; }
+  @property --accent-glow { syntax: '<color>'; inherits: true; initial-value: #ff00ff; }
+  @property --bg-color-1 { syntax: '<color>'; inherits: true; initial-value: #1a0033; }
+
+  :root {
+    --bg-color-1: #1a0033;
+    --bg-color-2: #000010;
+    --accent-color: #00f0ff;
+    --accent-glow: #ff00ff;
+    --tetris-bg: rgba(0, 0, 0, 0.65);
+  }
+  
+  body.theme-neon { --bg-color-2: #000010; --bg-color-1: #1a0033; --accent-color: #00f0ff; --accent-glow: #ff00ff; }
+  body.theme-space { --bg-color-1: #02000a; --bg-color-2: #000000; --accent-color: #aa88ff; --accent-glow: #4b0082; }
+  body.theme-space::before { display: none !important; }
+  body.theme-earth { --bg-color-1: #1a2a1a; --bg-color-2: #051005; --accent-color: #00ff88; --accent-glow: #aaaa00; }
+  body.theme-cyber { --bg-color-1: #2b00ff; --bg-color-2: #000000; --accent-color: #ff0055; --accent-glow: #00ffff; }
+  body.theme-void { --bg-color-1: #080808; --bg-color-2: #000000; --accent-color: #777777; --accent-glow: #222222; }
+  body.theme-blood { --bg-color-1: #3a0000; --bg-color-2: #0a0000; --accent-color: #ff3333; --accent-glow: #aa0000; }
+  body.theme-aqua { --bg-color-1: #002233; --bg-color-2: #000a11; --accent-color: #00ffff; --accent-glow: #0088aa; }
+  body.theme-gold { --bg-color-1: #332200; --bg-color-2: #110a00; --accent-color: #ffcc00; --accent-glow: #aa6600; }
+  body.theme-matrix { --bg-color-1: #001a00; --bg-color-2: #000000; --accent-color: #00ff66; --accent-glow: #003311; }
+  body.theme-amber { --bg-color-1: #3a1a00; --bg-color-2: #0a0500; --accent-color: #ff7700; --accent-glow: #993300; }
+  body.theme-lavender { --bg-color-1: #20003b; --bg-color-2: #050010; --accent-color: #d400ff; --accent-glow: #550088; }
+
+  * { box-sizing: border-box; }
+  
+  body {
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    color: #ffffff;
+    background: radial-gradient(circle at top, var(--bg-color-1), var(--bg-color-2), #000000);
+    text-align: center;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: background 0.4s linear;
+  }
+
+  .ambient-blobs {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none; z-index: -3; overflow: hidden;
+  }
+  .blob {
+    position: absolute; border-radius: 50%; filter: blur(25px); opacity: 0.12;
+    animation: floatBlobs 30s infinite linear alternate;
+  }
+  .blob-1 { width: 350px; height: 350px; background: var(--accent-color); top: -10%; left: -10%; }
+  .blob-2 { width: 450px; height: 450px; background: var(--accent-glow); bottom: -15%; right: -10%; animation-delay: -5s; animation-duration: 20s; }
+  .blob-3 { width: 300px; height: 300px; background: var(--accent-color); top: 30%; left: 50%; animation-delay: -10s; animation-duration: 15s; }
+
+  @keyframes floatBlobs {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(60px, 80px) scale(1.15); }
+  }
+
+  body::before {
+    content: ""; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle, var(--accent-color) 0%, transparent 9%),
+                radial-gradient(circle, var(--accent-glow) 0%, transparent 9%);
+    background-size: 260px 260px;
+    opacity: 0.05;
+    animation: move 120s linear infinite;
+    z-index: -2;
+  }
+  @keyframes move { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  .header { padding: 10px 20px 4px; }
+  .brand-name { font-size: 20px; letter-spacing: 3px; text-shadow: 0 0 10px var(--accent-color); }
+  .desc-text { font-size: 9px; opacity: 0.7; letter-spacing: 1px; margin-top: 3px; }
+
+  .atmospheres { display: flex; justify-content: center; gap: 8px; margin-bottom: 6px; }
+  .btn-atmos {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 6px 12px; border-radius: 8px; font-family: 'Orbitron', sans-serif; font-size: 10px;
+    cursor: pointer; transition: 0.3s;
+  }
+  .btn-atmos.active { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); color: var(--accent-color); }
+
+  .themes-container { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; padding: 0 10px; }
+  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: 0.3s; padding: 2px 4px; }
+  .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+
+  .main-layout {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 15px;
+    flex-grow: 1;
+  }
+
+  .tetris-panel {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 10px;
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  }
+  canvas#tetris {
+    background: var(--tetris-bg);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    display: block;
+  }
+
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 320px;
+    text-align: left;
+  }
+
+  .glass-section {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .stats-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; letter-spacing: 1px; }
+  .stats-row:last-child { margin-bottom: 0; }
+  .stats-val { color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); font-weight: 600; }
+  
+  .stats-row.highlight { font-weight: 600; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; margin-top: 4px;}
+  .stats-row.highlight .stats-val { color: #ff00ff; text-shadow: 0 0 8px #ff00ff; }
+
+  .track-title { font-size: 13px; font-weight: 600; color: var(--accent-color); text-shadow: 0 0 10px var(--accent-color); margin-bottom: 4px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+  .track-time { font-size: 10px; color: var(--accent-color); opacity: 0.8; margin-bottom: 6px; letter-spacing: 1px; }
+  
+  .progress-container { width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; margin-bottom: 8px; }
+  .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 8px var(--accent-color); }
+
+  .playlist { list-style: none; padding: 0; margin: 0; max-height: 140px; overflow-y: auto; border-radius: 5px; background: rgba(0,0,0,0.2); }
+  .playlist li {
+    font-size: 10px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.03);
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  }
+  .playlist li.unlocked { cursor: pointer; color: #fff; }
+  .playlist li.unlocked:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 12px; }
+  .playlist li.locked { cursor: not-allowed; opacity: 0.25; }
+  
+  .badge { font-size: 8px; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
+  .playlist li.unlocked .badge { color: #00ff88; border: 1px solid rgba(0,255,136,0.3); background: rgba(0,255,136,0.05); }
+  .playlist li.locked .badge { color: #ff3333; border: 1px solid rgba(255,51,51,0.3); background: rgba(255,51,51,0.05); }
+
+  .controls { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 10px; }
+  .btn-ctrl { background: rgba(0,0,0,0.5); border: 1px solid var(--accent-color); color: var(--accent-color); width: 36px; height: 36px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+  .btn-ctrl:active { transform: scale(0.95); }
+  .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; }
+  .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
+
+  .vol-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 9px; color: var(--accent-color); }
+  #volume-slider { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
+
+  .btn-save-progress {
+    width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 8px; border-radius: 8px; font-family: 'Orbitron', sans-serif; font-size: 10px;
+    cursor: pointer; transition: 0.3s; font-weight: 600; letter-spacing: 1px; text-align: center;
+  }
+  .btn-save-progress:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
+
+  .hint-text { font-size: 8px; opacity: 0.4; text-align: center; letter-spacing: 1px; }
+
+  #game-over-overlay {
+    display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); border-radius: 15px; z-index: 10;
+    flex-direction: column; justify-content: center; align-items: center;
+  }
+  #game-over-overlay h2 { color: var(--accent-color); text-shadow: 0 0 10px var(--accent-color); margin-bottom: 5px; font-size: 20px; }
+  .btn-restart {
+    background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color);
+    padding: 8px 16px; font-family: 'Orbitron'; font-size: 11px; border-radius: 5px; cursor: pointer; transition: 0.3s; margin-top: 15px;
+  }
+  .btn-restart:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
+
+  .footer { padding: 10px 15px; font-size: 9px; opacity: 0.3; }
+</style>
+</head>
+<body class="theme-amber" id="body">
+
+<div class="ambient-blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<div class="header">
+  <div class="brand-name">SYNTHLUCIDA TETRIS</div>
+  <div class="desc-text">CLEAR LINES TO UNLOCK YOUR TRACKS LINEARLY</div>
+</div>
+
+<div class="atmospheres">
+  <button class="btn-atmos active" onclick="changePlaylist('asmr', this)">ASMR</button>
+  <button class="btn-atmos" onclick="changePlaylist('piano', this)">PIANO</button>
+  <button class="btn-atmos" onclick="changePlaylist('chill', this)">CHILL</button>
+</div>
+
+<div class="themes-container">
+  <button class="btn-theme" onclick="setVisualTheme('neon', this)">NEON</button>
+  <button class="btn-theme" onclick="setVisualTheme('space', this)">SPACE</button>
+  <button class="btn-theme" onclick="setVisualTheme('earth', this)">EARTH</button>
+  <button class="btn-theme" onclick="setVisualTheme('cyber', this)">SYNTH</button>
+  <button class="btn-theme" onclick="setVisualTheme('void', this)">DARK</button>
+  <button class="btn-theme" onclick="setVisualTheme('blood', this)">BLOOD</button>
+  <button class="btn-theme" onclick="setVisualTheme('aqua', this)">AQUA</button>
+  <button class="btn-theme" onclick="setVisualTheme('gold', this)">GOLD</button>
+  <button class="btn-theme" onclick="setVisualTheme('matrix', this)">MATRIX</button>
+  <button class="btn-theme active" onclick="setVisualTheme('amber', this)">AMBER</button>
+  <button class="btn-theme" onclick="setVisualTheme('lavender', this)">LAVENDER</button>
+</div>
+
+<div class="main-layout">
+  
+  <div class="tetris-panel">
+    <canvas id="tetris" width="260" height="520"></canvas>
+    
+    <div id="game-over-overlay">
+      <h2>SYSTEM OVERLOAD</h2>
+      <div style="font-size: 11px; opacity: 0.8;">SCORE: <span id="final-score">0</span></div>
+      <button class="btn-restart" onclick="resetGame()">REBOOT INTERFACE</button>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    
+    <div class="glass-section">
+      <div class="stats-row"><span>SCORE:</span> <span class="stats-val" id="score">0</span></div>
+      <div class="stats-row"><span>HIGH SCORE:</span> <span class="stats-val" id="highscore">0</span></div>
+      <div class="stats-row"><span>LEVEL:</span> <span class="stats-val" id="level">1</span></div>
+      <div class="stats-row"><span>LINES CLEARED:</span> <span class="stats-val" id="lines">0</span></div>
+      <div class="stats-row highlight"><span>LINES TO NEXT LVL:</span> <span class="stats-val" id="lines-to-next">10</span></div>
+    </div>
+
+    <div class="glass-section">
+      <div class="track-title" id="track-title">SELECT TRACK</div>
+      <div class="track-time" id="track-time">00:00 / 00:00</div>
+      
+      <div class="progress-container" id="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      
+      <ul class="playlist" id="playlist"></ul>
+
+      <div class="controls">
+        <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle">🔀</button>
+        <button class="btn-ctrl" id="btn-play">▶</button>
+        <button class="btn-ctrl" id="btn-next">⏭</button>
+        <button class="btn-ctrl-sub" id="btn-repeat" onclick="toggleRepeat()" title="Repeat">🔁</button>
+      </div>
+
+      <div class="vol-row">
+        <span>VOL</span>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </div>
+
+    <button class="btn-save-progress" onclick="saveGameProgress()">SAVE PROGRESS</button>
+    <div class="hint-text">CONTROLS: ARROWS LEFT/RIGHT = MOVE | UP = ROTATE | DOWN = SOFT DROP</div>
+  </div>
+
+</div>
+
+<div class="footer">SYNTHLUCIDA © 2026 </div>
+
+<audio id="audio-player"></audio>
+
+<script>
+  // ---------------------------------------------------------
+  // KNIHOVNA SKLADEB (Sem můžeš libovolně přidávat/mazat)
+  // ---------------------------------------------------------
+  const tracks = {
+    asmr: [
+      { title: "SYNTHLUCIDA - ASMR", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr1.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Summer Walk", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr_summer_walk.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Rain", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr_rain.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Summer Night", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/summer_night.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/waves.mp3" },
+      { title: "SYNTHLUCIDA - Thunderstorm 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/thunderstorm1.mp3" },
+      { title: "SYNTHLUCIDA - Thunderstorm 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/thunderstorm2.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Candle", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/candle.mp3" },
+      { title: "SYNTHLUCIDA - ASMR Campfire", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/campfire.mp3" },
+      { title: "SYNTHLUCIDA - ASMR 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr2022.mp3" },
+    ],
+    piano: [
+      { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
+      { title: "SYNTHLUCIDA - Nebula Piano 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano2.mp3" },
+      { title: "SYNTHLUCIDA - Children Dreams", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/children_dreams.mp3" },
+      { title: "SYNTHLUCIDA - Ambient Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/piano1.mp3" },
+      { title: "SYNTHLUCIDA - Ambient Piano 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/piano2.mp3" },
+      { title: "SYNTHLUCIDA - Polaris", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/polaris.mp3" },
+      { title: "SYNTHLUCIDA - Mo leannan Seònaid", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/jane.mp3" },
+    ],
+    chill: [
+      { title: "SYNTHLUCIDA - Spirits Of Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spirits_of_summer.mp3" },
+      { title: "SYNTHLUCIDA - SunSets", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sunset.mp3" },
+      { title: "SYNTHLUCIDA - Everything", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/everything.mp3" },
+      { title: "SYNTHLUCIDA - Back To Life", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/life.mp3" },
+      { title: "SYNTHLUCIDA - Sun Rider", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sun_rider.mp3" },
+      { title: "SYNTHLUCIDA - Spirits of Spring", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spring.mp3" },
+      { title: "SYNTHLUCIDA - Fly With The Soul part2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/fly_with_the_soul_part2.mp3" },
+      { title: "SYNTHLUCIDA - Sky", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sky.mp3" },
+      { title: "SYNTHLUCIDA - Last Sunset", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Last.Sunset.mp3" },
+      { title: "SYNTHLUCIDA - Echoes Of Freedom", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/echoes_freedom.mp3" },
+      { title: "SYNTHLUCIDA - Magic Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/magic_waves.mp3" },
+      { title: "SYNTHLUCIDA - Night Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/night_waves.mp3" },
+      { title: "SYNTHLUCIDA - Atmos Sky", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/atmos_sky.mp3" },
+      { title: "SYNTHLUCIDA - Dreams Come True", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/dreams_come_true.mp3" },
+      { title: "SYNTHLUCIDA - Raindrops", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/raindrops.mp3" },
+      { title: "SYNTHLUCIDA - Winning Moments", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/winning_moments.mp3" },
+      { title: "SYNTHLUCIDA - Fly With The Soul - Long", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/fly_with_the_soul_long.mp3" },
+      { title: "SYNTHLUCIDA - You and Me", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/you_and_me.mp3" },
+      { title: "SYNTHLUCIDA - Moonlight", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/moonlight.mp3" },
+      { title: "SYNTHLUCIDA - Endless Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/endless_summer.mp3" },
+      { title: "SYNTHLUCIDA - Tropical Free Tones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tropical.mp3" },
+    ]
+  };
+
+  // ---------------------------------------------------------
+  // DYNAMICKÝ REQ ENGINE (Lineární generování požadavků na level)
+  // ---------------------------------------------------------
+  function buildDynamicRequirements() {
+    let currentGlobalLevel = 1;
+    // Postupně prochází sekce přesně v žádaném pořadí
+    const order = ['asmr', 'piano', 'chill'];
+    order.forEach(category => {
+      if (tracks[category]) {
+        tracks[category].forEach(track => {
+          track.req = currentGlobalLevel;
+          currentGlobalLevel++; // Každá další skladba vyžaduje o 1 vyšší level
+        });
+      }
+    });
+  }
+
+  // ---------------------------------------------------------
+  // STAV A UKLÁDÁNÍ HRY
+  // ---------------------------------------------------------
+  let savedState = {
+    highScore: 0,
+    highestLevelReached: 1,
+    theme: 'amber'
+  };
+
+  function loadProgress() {
+    try {
+      const stored = localStorage.getItem('synthlucida_tetris_progres');
+      if (stored) { savedState = JSON.parse(stored); }
+    } catch (e) { console.error("Nelze načíst uložený postup.", e); }
+  }
+
+  window.saveGameProgress = function() {
+    try {
+      localStorage.setItem('synthlucida_tetris_progres', JSON.stringify(savedState));
+      let btn = document.querySelector('.btn-save-progress');
+      let oldText = btn.innerText;
+      btn.innerText = "SAVED!";
+      btn.style.color = "var(--accent-color)";
+      btn.style.borderColor = "var(--accent-color)";
+      setTimeout(() => {
+        btn.innerText = oldText;
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      }, 2000);
+    } catch(e) { console.error("Chyba při ukládání.", e); }
+  };
+
+  // ---------------------------------------------------------
+  // AUDIO ENGINE & PLAYLIST LOGIC
+  // ---------------------------------------------------------
+  let currentPlaylistKey = 'asmr';
+  let activePlaylist = tracks[currentPlaylistKey];
+  let currentTrackIndex = -1;
+  let isPlaying = false;
+  let shuffleEnabled = false;
+  let repeatEnabled = false;
+
+  const audio = document.getElementById('audio-player');
+  const titleDiv = document.getElementById('track-title');
+  const timeDiv = document.getElementById('track-time');
+  const playBtn = document.getElementById('btn-play');
+  const nextBtn = document.getElementById('btn-next');
+  const playlistEl = document.getElementById('playlist');
+  const volumeSlider = document.getElementById('volume-slider');
+  const progressContainer = document.getElementById('progress-container');
+  const progressBar = document.getElementById('progress-bar');
+  const body = document.getElementById('body');
+
+  audio.volume = 0.5;
+  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; });
+
+  window.changePlaylist = function(key, btn) {
+    currentPlaylistKey = key;
+    activePlaylist = tracks[key];
+    document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updatePlaylistUI();
+  };
+
+  function updatePlaylistUI() {
+    playlistEl.innerHTML = '';
+    activePlaylist.forEach((track, index) => {
+      const isUnlocked = savedState.highestLevelReached >= track.req;
+      const li = document.createElement('li');
+      li.className = isUnlocked ? 'unlocked' : 'locked';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.innerText = track.title;
+      nameSpan.style.textOverflow = "ellipsis";
+      nameSpan.style.whiteSpace = "nowrap";
+      nameSpan.style.overflow = "hidden";
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.innerText = isUnlocked ? '✓ READY' : `LVL ${track.req}`;
+
+      li.appendChild(nameSpan);
+      li.appendChild(badge);
+      
+      if(isUnlocked) {
+        li.onclick = () => playTrack(index);
+      }
+      playlistEl.appendChild(li);
+    });
+  }
+
+  function playTrack(index) {
+    if (index < 0 || index >= activePlaylist.length) return;
+    if (savedState.highestLevelReached < activePlaylist[index].req) return;
+
+    currentTrackIndex = index;
+    const track = activePlaylist[index];
+    audio.src = track.src;
+    titleDiv.innerText = track.title;
+    
+    audio.play().catch(err => console.log("Přehrávání vyžaduje interakci."));
+    isPlaying = true;
+    playBtn.innerText = "⏸";
+  }
+
+  window.toggleShuffle = function() {
+    shuffleEnabled = !shuffleEnabled;
+    document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled);
+  };
+
+  window.toggleRepeat = function() {
+    repeatEnabled = !repeatEnabled;
+    document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled);
+  };
+
+  playBtn.addEventListener('click', () => {
+    if (isPlaying) {
+      audio.pause();
+      isPlaying = false;
+      playBtn.innerText = "▶";
+    } else {
+      if (currentTrackIndex === -1) {
+        let firstUn = activePlaylist.findIndex(t => savedState.highestLevelReached >= t.req);
+        if(firstUn !== -1) playTrack(firstUn);
+      } else {
+        audio.play();
+        isPlaying = true;
+        playBtn.innerText = "⏸";
+      }
+    }
+  });
+
+  function playNextTrack() {
+    if (shuffleEnabled) {
+      let unlockedIndices = [];
+      activePlaylist.forEach((t, idx) => {
+        if(savedState.highestLevelReached >= t.req) unlockedIndices.push(idx);
+      });
+      if(unlockedIndices.length > 0) {
+        let rand = unlockedIndices[Math.floor(Math.random() * unlockedIndices.length)];
+        playTrack(rand);
+      }
+    } else {
+      let nextIndex = currentTrackIndex + 1;
+      if (nextIndex >= activePlaylist.length || savedState.highestLevelReached < activePlaylist[nextIndex].req) {
+        nextIndex = 0;
+      }
+      if (savedState.highestLevelReached >= activePlaylist[nextIndex].req) {
+        playTrack(nextIndex);
+      }
+    }
+  }
+
+  nextBtn.addEventListener('click', playNextTrack);
+  audio.addEventListener('ended', () => {
+    if (repeatEnabled) { playTrack(currentTrackIndex); } 
+    else { playNextTrack(); }
+  });
+
+  function formatTime(secs) {
+    if (isNaN(secs) || secs < 0) return "00:00";
+    let m = Math.floor(secs / 60);
+    let s = Math.floor(secs % 60);
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  audio.addEventListener('timeupdate', () => {
+    const current = audio.currentTime;
+    const duration = audio.duration;
+    if (isNaN(duration)) return;
+    timeDiv.innerText = `${formatTime(current)} / -${formatTime(duration - current)}`;
+    progressBar.style.width = `${(current / duration) * 100}%`;
+  });
+
+  progressContainer.addEventListener('click', (e) => {
+    if (!isNaN(audio.duration)) {
+      const rect = progressContainer.getBoundingClientRect();
+      audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+    }
+  });
+
+  // ---------------------------------------------------------
+  // TETRIS GAME ENGINE
+  // ---------------------------------------------------------
+  const canvas = document.getElementById('tetris');
+  const context = canvas.getContext('2d');
+  context.scale(26, 26);
+
+  const tetrisColors = [
+    null, '#ff00ff', '#00ffff', '#ff7700', '#00ff88', '#ff3333', '#ffff00', '#aa00ff'
+  ];
+
+  function createMatrix(w, h) {
+    const matrix = [];
+    while (h--) { matrix.push(new Array(w).fill(0)); }
+    return matrix;
+  }
+
+  function createPiece(type) {
+    if (type === 'T') return [[0,0,0], [1,1,1], [0,1,0]];
+    if (type === 'O') return [[2,2], [2,2]];
+    if (type === 'L') return [[0,3,0], [0,3,0], [0,3,3]];
+    if (type === 'J') return [[0,4,0], [0,4,0], [4,4,0]];
+    if (type === 'I') return [[0,5,0,0], [0,5,0,0], [0,5,0,0], [0,5,0,0]];
+    if (type === 'S') return [[0,6,6], [6,6,0], [0,0,0]];
+    if (type === 'Z') return [[7,7,0], [0,7,7], [0,0,0]];
+  }
+
+  const arena = createMatrix(10, 20);
+  const player = { pos: {x: 0, y: 0}, matrix: null, score: 0, lines: 0, level: 1 };
+
+  function drawMatrix(matrix, offset) {
+    matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value !== 0) {
+          context.fillStyle = tetrisColors[value];
+          context.shadowBlur = 8;
+          context.shadowColor = tetrisColors[value];
+          context.fillRect(x + offset.x, y + offset.y, 1, 1);
+          context.shadowBlur = 0;
+          context.fillStyle = 'rgba(0,0,0,0.3)';
+          context.fillRect(x + offset.x + 0.1, y + offset.y + 0.1, 0.8, 0.8);
+        }
+      });
+    });
+  }
+
+  function draw() {
+    context.fillStyle = 'var(--tetris-bg)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.strokeStyle = 'rgba(255,255,255,0.03)';
+    context.lineWidth = 0.04;
+    for(let i=0; i<=10; i++) { context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }
+    for(let i=0; i<=20; i++) { context.beginPath(); context.moveTo(0,i); context.lineTo(10,i); context.stroke(); }
+
+    drawMatrix(arena, {x: 0, y: 0});
+    drawMatrix(player.matrix, player.pos);
+  }
+
+  function merge(arena, player) {
+    player.matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value !== 0) { arena[y + player.pos.y][x + player.pos.x] = value; }
+      });
+    });
+  }
+
+  function collide(arena, player) {
+    const m = player.matrix, o = player.pos;
+    for (let y = 0; y < m.length; ++y) {
+      for (let x = 0; x < m[y].length; ++x) {
+        if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) return true;
+      }
+    }
+    return false;
+  }
+
+  let dropCounter = 0;
+  let dropInterval = 1000;
+  let lastTime = 0;
+  let gameActive = true;
+
+  function updateGameLoop(time = 0) {
+    if (!gameActive) return;
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
+    dropCounter += deltaTime;
+    if (dropCounter > dropInterval) { playerDrop(); }
+
+    draw();
+    requestAnimationFrame(updateGameLoop);
+  }
+
+  function playerDrop() {
+    player.pos.y++;
+    if (collide(arena, player)) {
+      player.pos.y--;
+      merge(arena, player);
+      playerReset();
+      arenaSweep();
+      updateScoreUI();
+    }
+    dropCounter = 0;
+  }
+
+  function playerMove(offset) {
+    player.pos.x += offset;
+    if (collide(arena, player)) player.pos.x -= offset;
+  }
+
+  function playerRotate() {
+    const pos = player.pos.x;
+    let offset = 1;
+    for (let y = 0; y < player.matrix.length; ++y) {
+      for (let x = 0; x < y; ++x) {
+        [player.matrix[x][y], player.matrix[y][x]] = [player.matrix[y][x], player.matrix[x][y]];
+      }
+    }
+    player.matrix.forEach(row => row.reverse());
+
+    while (collide(arena, player)) {
+      player.pos.x += offset;
+      offset = -(offset + (offset > 0 ? 1 : -1));
+      if (offset > player.matrix[0].length) {
+        player.matrix.forEach(row => row.reverse());
+        for (let y = 0; y < player.matrix.length; ++y) {
+          for (let x = 0; x < y; ++x) {
+            [player.matrix[x][y], player.matrix[y][x]] = [player.matrix[y][x], player.matrix[x][y]];
+          }
+        }
+        player.pos.x = pos;
+        return;
+      }
+    }
+  }
+
+  function playerReset() {
+    const pieces = 'TJLOSZI';
+    player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
+    player.pos.y = 0;
+    player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+    
+    if (collide(arena, player)) {
+      gameActive = false;
+      document.getElementById('game-over-overlay').style.display = 'flex';
+      document.getElementById('final-score').innerText = player.score;
+      if (player.score > savedState.highScore) {
+        savedState.highScore = player.score;
+      }
+      saveGameProgress();
+    }
+  }
+
+  function arenaSweep() {
+    let rowCount = 1;
+    let linesClearedThisTurn = 0;
+    outer: for (let y = arena.length - 1; y > 0; --y) {
+      for (let x = 0; x < arena[y].length; ++x) {
+        if (arena[y][x] === 0) continue outer;
+      }
+      const row = arena.splice(y, 1)[0].fill(0);
+      arena.unshift(row);
+      ++y;
+      player.score += rowCount * 100;
+      rowCount *= 2;
+      linesClearedThisTurn++;
+    }
+
+    if (linesClearedThisTurn > 0) {
+      player.lines += linesClearedThisTurn;
+      
+      const calculatedLevel = Math.floor(player.lines / 10) + 1;
+      if (calculatedLevel > player.level) {
+        player.level = calculatedLevel;
+        dropInterval = Math.max(80, 1000 - (player.level - 1) * 90);
+        
+        if (player.level > savedState.highestLevelReached) {
+          savedState.highestLevelReached = player.level;
+          updatePlaylistUI();
+        }
+      }
+    }
+  }
+
+  function updateScoreUI() {
+    document.getElementById('score').innerText = player.score;
+    document.getElementById('lines').innerText = player.lines;
+    document.getElementById('level').innerText = player.level;
+    document.getElementById('highscore').innerText = Math.max(player.score, savedState.highScore);
+    
+    const linesToNext = 10 - (player.lines % 10);
+    document.getElementById('lines-to-next').innerText = linesToNext;
+  }
+
+  window.resetGame = function() {
+    arena.forEach(row => row.fill(0));
+    player.score = 0;
+    player.lines = 0;
+    player.level = 1;
+    dropInterval = 1000;
+    document.getElementById('game-over-overlay').style.display = 'none';
+    gameActive = true;
+    playerReset();
+    updateScoreUI();
+    lastTime = performance.now();
+    updateGameLoop();
+  };
+
+  document.addEventListener('keydown', event => {
+    if (!gameActive) return;
+    if (event.keyCode === 37) { playerMove(-1); }
+    else if (event.keyCode === 39) { playerMove(1); }
+    else if (event.keyCode === 40) { playerDrop(); }
+    else if (event.keyCode === 38) { playerRotate(); }
+  });
+
+  // ---------------------------------------------------------
+  // VIZUÁLNÍ TÉMATA
+  // ---------------------------------------------------------
+  window.setVisualTheme = function(theme, btn) {
+    savedState.theme = theme;
+    body.className = body.className.replace(/theme-\S+/g, '').trim();
+    body.classList.add('theme-' + theme);
+    document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+  };
+
+  // ---------------------------------------------------------
+  // INICIALIZACE SYSTÉMU
+  // ---------------------------------------------------------
+  // 1. Spočítá a seřadí level požadavky podle aktuální podoby tracků
+  buildDynamicRequirements();
+  
+  // 2. Načte dlouhodobé uložené skóre a levely
+  loadProgress();
+  
+  if(savedState.theme) {
+    const activeBtn = Array.from(document.querySelectorAll('.btn-theme'))
+      .find(b => b.textContent.trim().toUpperCase() === savedState.theme.toUpperCase());
+    setVisualTheme(savedState.theme, activeBtn);
+  }
+
+  updatePlaylistUI();
+  updateScoreUI();
+  playerReset();
+  
+  requestAnimationFrame(updateGameLoop);
+</script>
+</body>
+</html>
