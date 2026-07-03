@@ -104,6 +104,12 @@
     flex-grow: 1;
   }
 
+  @keyframes ambientGlow {
+    0% { box-shadow: 0 4px 15px rgba(0,0,0,0.6), 0 0 5px var(--accent-color); }
+    50% { box-shadow: 0 4px 15px rgba(0,0,0,0.6), 0 0 25px var(--accent-color), 0 0 15px var(--accent-glow); }
+    100% { box-shadow: 0 4px 15px rgba(0,0,0,0.6), 0 0 5px var(--accent-color); }
+  }
+
   .tetris-panel {
     background: rgba(255, 255, 255, 0.02);
     backdrop-filter: blur(4px);
@@ -111,8 +117,9 @@
     border-radius: 15px;
     padding: 10px;
     position: relative;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    animation: ambientGlow 4s ease-in-out infinite;
   }
+  
   canvas#tetris {
     background: var(--tetris-bg);
     border: 1px solid rgba(255,255,255,0.08);
@@ -270,11 +277,10 @@
 </div>
 
 <div class="header">
-  <div class="brand-name">SYNTHLUCIDA TETRIS 2026</div>
+  <div class="brand-name">SYNTHLUCIDA BLOCKS 2026</div>
   <div class="desc-text">CLEAR LINES TO UNLOCK YOUR TRACKS LINEARLY</div>
 </div>
 
-<!-- Sekce se nyní generují plně automaticky z JS objektu tracks -->
 <div class="atmospheres" id="atmospheres-container"></div>
 
 <div class="themes-container">
@@ -414,23 +420,21 @@
   };
 
   // ---------------------------------------------------------
-  // DYNAMICKÝ REQ & ATMO ENGINE (Plně hratelná a automatická křivka)
+  // DYNAMICKÝ REQ & ATMO ENGINE
   // ---------------------------------------------------------
   function buildDynamicRequirements() {
     let currentTarget = 0;
-    let gap = 5;          // Výchozí skok pro druhou skladbu je 5 linek
+    let gap = 5;          
     let trackCount = 0;
     
     Object.keys(tracks).forEach(category => {
       tracks[category].forEach((track, index) => {
         if (trackCount === 0) {
-          track.reqLines = 0; // Úplně první skladba je odemčená ihned
+          track.reqLines = 0; 
         } else {
           currentTarget += gap;
           track.reqLines = currentTarget;
           
-          // Každé dvě skladby mírně zvětšíme mezeru o 1 linku.
-          // Výsledkem je rozumná hratelná křivka, kde konec nevyžaduje tisíce linek.
           if (trackCount % 2 === 0) {
             gap += 1;
           }
@@ -452,7 +456,6 @@
       container.appendChild(btn);
     });
     
-    // Nastavení výchozího aktivního playlistu podle prvního klíče
     currentPlaylistKey = Object.keys(tracks)[0];
     activePlaylist = tracks[currentPlaylistKey];
   }
@@ -658,7 +661,7 @@
   });
 
   // ---------------------------------------------------------
-  // TETRIS GAME ENGINE
+  // NON-TETRIS GAME ENGINE (Originální nesymetrické tvary)
   // ---------------------------------------------------------
   const canvas = document.getElementById('tetris');
   const context = canvas.getContext('2d');
@@ -675,13 +678,47 @@
   }
 
   function createPiece(type) {
-    if (type === 'T') return [[0,0,0], [1,1,1], [0,1,0]];
-    if (type === 'O') return [[2,2], [2,2]];
-    if (type === 'L') return [[0,3,0], [0,3,0], [0,3,3]];
-    if (type === 'J') return [[0,4,0], [0,4,0], [4,4,0]];
-    if (type === 'I') return [[0,5,0,0], [0,5,0,0], [0,5,0,0], [0,5,0,0]];
-    if (type === 'S') return [[0,6,6], [6,6,0], [0,0,0]];
-    if (type === 'Z') return [[7,7,0], [0,7,7], [0,0,0]];
+    if (type === 'T') return [
+      [0,1,0],
+      [1,1,1],
+      [0,1,0]
+    ]; // Kříž (Cross)
+    
+    if (type === 'O') return [
+      [2,2,0],
+      [2,0,0],
+      [0,0,0]
+    ]; // Malý roh (Small L)
+    
+    if (type === 'L') return [
+      [3,0,3],
+      [3,3,3],
+      [0,0,0]
+    ]; // U-tvar
+    
+    if (type === 'J') return [
+      [4,4,0],
+      [4,4,0],
+      [4,0,0]
+    ]; // P-tvar
+    
+    if (type === 'I') return [
+      [0,5,0],
+      [0,5,0],
+      [0,5,0]
+    ]; // Tříbloková čára
+    
+    if (type === 'S') return [
+      [6,0,0],
+      [6,6,0],
+      [0,6,6]
+    ]; // W-tvar
+    
+    if (type === 'Z') return [
+      [7,7,7],
+      [7,0,0],
+      [7,0,0]
+    ]; // Velké L (Big L)
   }
 
   const arena = createMatrix(10, 20);
@@ -960,8 +997,8 @@
   // ---------------------------------------------------------
   // INICIALIZACE SYSTÉMU
   // ---------------------------------------------------------
-  buildAtmosphereButtons(); // Automatické vygenerování kategorií podle dat
-  buildDynamicRequirements(); // Výpočet férové progresivní křivky pro linky
+  buildAtmosphereButtons(); 
+  buildDynamicRequirements(); 
   loadProgress();
   
   if(savedState.theme) {
@@ -970,7 +1007,6 @@
     setVisualTheme(savedState.theme, activeBtn);
   }
 
-  // Obnovení stavu herní desky, pokud má hráč uloženo
   if (savedState.boardState && savedState.boardState.arena) {
     for(let y=0; y < arena.length; y++) {
       arena[y] = [...savedState.boardState.arena[y]];
