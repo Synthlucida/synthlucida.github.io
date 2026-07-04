@@ -10,32 +10,40 @@
 
   body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #020008; font-family: 'Orbitron', sans-serif; overflow: hidden; color: #fff; }
 
-  /* Západ slunce */
+  /* Západ slunce - animováno přes transform/opacity (GPU, žádný reflow) */
   .sun {
-    position: absolute; left: 50%; width: 150vw; height: 150vw; transform: translateX(-50%);
+    position: absolute; left: 50%; top: -30vh; width: 150vw; height: 150vw;
+    transform: translateX(-50%) translateY(0);
     background: radial-gradient(circle, rgba(255, 90, 0, 0.08) 0%, rgba(200, 20, 100, 0.03) 40%, transparent 70%);
     z-index: 1; pointer-events: none;
     animation: setSun 45s ease-in-out infinite alternate;
-  }
-  
-  @keyframes setSun {
-    0% { top: -30vh; opacity: 0.3; }
-    100% { top: 60vh; opacity: 1; }
+    will-change: transform, opacity;
   }
 
-  /* Canvas pro kurzorovou záři (zmenšena na 50%) */
-  .canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; transition: background 1.5s ease; }
+  @keyframes setSun {
+    0% { transform: translateX(-50%) translateY(0); opacity: 0.3; }
+    100% { transform: translateX(-50%) translateY(90vh); opacity: 1; }
+  }
+
+  /* Canvas pro kurzorovou záři - pozice řešena přes transform (GPU), ne přes přepočítávané pozadí */
+  .canvas {
+    position: absolute; top: -50vh; left: -50vw; width: 200vw; height: 200vh; z-index: 2; pointer-events: none;
+    background: radial-gradient(circle, hsl(var(--hue), 30%, 15%) 0%, transparent 10%);
+    background-position: center;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+  }
 
   .noise-overlay {
     position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 3; pointer-events: none;
     background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
-    opacity: 0.04; 
+    opacity: 0.04;
   }
 
   #drops { position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none; }
 
   .slogan-container { position: absolute; top: 50%; left: 0; width: 100%; text-align: center; z-index: 5; pointer-events: none; }
-  
+
   .slogan {
     font-size: 1.3rem; letter-spacing: 12px; text-transform: uppercase;
     opacity: 0; transition: opacity 3s ease-in-out, filter 3s ease-in-out;
@@ -71,6 +79,13 @@
     transition: 0.5s; outline: none; backdrop-filter: blur(5px);
   }
   .btn:hover, .btn.active-btn { border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+
+  .lang-btn {
+    padding: 6px 14px; font-size: 0.55rem; letter-spacing: 2px;
+    border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.05);
+    color: rgba(255,255,255,0.2);
+  }
+  .lang-btn.active-btn { color: rgba(255,255,255,0.75); box-shadow: 0 0 10px rgba(255,255,255,0.12); }
 </style>
 </head>
 <body>
@@ -90,6 +105,7 @@
   <div class="controls">
     <a href="player.html" class="btn">BACK TO PLAYER</a>
     <button id="binaural-btn" class="btn">BINAURAL: OFF</button>
+    <button id="lang-btn" class="btn lang-btn">CZ</button>
   </div>
 </div>
 
@@ -98,106 +114,166 @@
   const dropsCanvas = document.getElementById('drops');
   const ctx = dropsCanvas.getContext('2d');
   const sloganEl = document.getElementById('slogan');
-  const slogans = ["RESET YOUR MIND", "BREATHE DEEP", "STILLNESS IS POWER", "SYNC YOUR FREQUENCY", "LET GO", "FOCUS ON THE NOW", "CLEAR SIGNAL"];
+  const slogansEn = [
+    "RESET YOUR MIND", "BREATHE DEEP", "STILLNESS IS POWER", "SYNC YOUR FREQUENCY",
+    "LET GO", "FOCUS ON THE NOW", "CLEAR SIGNAL", "INNER SILENCE", "SLOW DOWN",
+    "FIND YOUR CENTER", "EXHALE TENSION", "PRESENCE OVER NOISE", "DRIFT GENTLY",
+    "QUIET THE STORM", "ALIGN AND RESTORE", "TRUST THE FLOW", "SOFTEN YOUR GAZE",
+    "PEACE IS A CHOICE", "RETURN TO STILLNESS", "EMBRACE THE PAUSE"
+  ];
+  const slogansCz = [
+    "RESTARTUJ SVOU MYSL", "DÝCHEJ ZHLUBOKA", "KLID JE SÍLA", "NALAĎ SVOU FREKVENCI",
+    "PUSŤ TO", "SOUSTŘEĎ SE NA TEĎ", "ČISTÝ SIGNÁL", "VNITŘNÍ TICHO", "ZPOMAL",
+    "NAJDI SVŮJ STŘED", "VYDECHNI NAPĚTÍ", "PŘÍTOMNOST NAD HLUKEM", "NECH SE UNÁŠET",
+    "UTIŠ BOUŘI", "SJEDNOŤ SE A OBNOV SÍLY", "DŮVĚŘUJ TOKU", "UVOLNI SVŮJ POHLED",
+    "KLID JE VOLBA", "VRAŤ SE DO KLIDU", "PŘIJMI PAUZU"
+  ];
+  let currentLang = 'en';
+  let slogans = slogansEn;
+
+  const isMobile = window.innerWidth <= 768;
 
   let mouse = { x: -1000, y: -1000 };
+  let pendingGlowUpdate = false;
 
   function resize() {
     dropsCanvas.width = window.innerWidth;
     dropsCanvas.height = window.innerHeight;
   }
-  window.addEventListener('resize', resize);
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 150);
+  });
   resize();
 
+  // --- Kapičky: předrenderované "sprite" canvasy místo ctx.filter blur každý frame ---
   let drops = [];
-  const numDrops = 100; 
-  
-  for(let i=0; i<numDrops; i++) {
+  const numDrops = isMobile ? 22 : 55;
+  const connectDist = isMobile ? 0 : 110; // spojovací čárky vypnuté na mobilu (šetří O(n^2) výpočet)
+  const connectDistSq = connectDist * connectDist;
+
+  function createDropSprite(size, blur, opacity) {
+    const outerRadius = size + blur;
+    const dim = Math.max(2, Math.ceil(outerRadius * 2));
+    const c = document.createElement('canvas');
+    c.width = dim;
+    c.height = dim;
+    const cctx = c.getContext('2d');
+    const cx = dim / 2, cy = dim / 2;
+    const solidStop = Math.max(0, Math.min(1, size / outerRadius));
+    const gradient = cctx.createRadialGradient(cx, cy, 0, cx, cy, outerRadius);
+    gradient.addColorStop(0, `rgba(255,255,255,${opacity})`);
+    gradient.addColorStop(solidStop, `rgba(255,255,255,${opacity})`);
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    cctx.fillStyle = gradient;
+    cctx.beginPath();
+    cctx.arc(cx, cy, outerRadius, 0, Math.PI * 2);
+    cctx.fill();
+    return c;
+  }
+
+  for (let i = 0; i < numDrops; i++) {
     const isFast = Math.random() > 0.85;
     const speedMult = isFast ? (Math.random() * 1.2 + 0.5) : (Math.random() * 0.2 + 0.05);
     const initialVx = (Math.random() - 0.5) * speedMult;
     const initialVy = (Math.random() - 0.5) * speedMult;
-    
-    const size = Math.random() * 22 + 2; 
-    
-    // Snížený blur pro čistší vzhled
-    let blur;
-    if (size > 14) blur = size * 0.8; 
-    else if (size < 5) blur = 2;      
-    else blur = Math.random() * 1;    
+
+    const size = Math.random() * 22 + 2;
+    // Konzistentnější, jemné rozmazání pro všechny velikosti (dřív byly střední kapičky skoro ostré)
+    const blur = size * 0.55 + 3;
+    // Větší (přední) kapičky jsou výrazně průhlednější, aby působily jemně a nerušily
+    const sizeNorm = (size - 2) / 22; // 0 = nejmenší, 1 = největší
+    const opacity = (Math.random() * 0.12 + 0.015) * (1 - sizeNorm * 0.75);
+    const sprite = createDropSprite(size, blur, opacity);
 
     drops.push({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
       baseVx: initialVx, baseVy: initialVy,
       vx: initialVx, vy: initialVy,
-      size: size, opacity: Math.random() * 0.35 + 0.05,
-      blur: blur
+      sprite: sprite,
+      half: sprite.width / 2
     });
   }
 
+  let isPageVisible = true;
+  document.addEventListener('visibilitychange', () => {
+    isPageVisible = document.visibilityState === 'visible';
+    if (isPageVisible) requestAnimationFrame(animateDrops);
+  });
+
   function animateDrops() {
+    if (!isPageVisible) return;
     ctx.clearRect(0, 0, dropsCanvas.width, dropsCanvas.height);
-    ctx.filter = 'none'; 
-    
-    for(let i = 0; i < drops.length; i++) {
-      for(let j = i + 1; j < drops.length; j++) {
-        let dx = drops[i].x - drops[j].x;
-        let dy = drops[i].y - drops[j].y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist < 110) {
-          ctx.beginPath();
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.06 - (dist/1800)})`;
-          ctx.lineWidth = 0.5;
-          ctx.moveTo(drops[i].x, drops[i].y);
-          ctx.lineTo(drops[j].x, drops[j].y);
-          ctx.stroke();
+
+    if (connectDist > 0) {
+      for (let i = 0; i < drops.length; i++) {
+        for (let j = i + 1; j < drops.length; j++) {
+          const dx = drops[i].x - drops[j].x;
+          const dy = drops[i].y - drops[j].y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < connectDistSq) {
+            const dist = Math.sqrt(distSq);
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.06 - (dist / 1800)})`;
+            ctx.lineWidth = 0.5;
+            ctx.moveTo(drops[i].x, drops[i].y);
+            ctx.lineTo(drops[j].x, drops[j].y);
+            ctx.stroke();
+          }
         }
       }
     }
-    
-    drops.forEach(d => {
-      let mdx = d.x - mouse.x;
-      let mdy = d.y - mouse.y;
-      let mDist = Math.sqrt(mdx*mdx + mdy*mdy);
-      if(mDist < 150) {
-        let force = (150 - mDist) / 150;
+
+    for (let k = 0; k < drops.length; k++) {
+      const d = drops[k];
+      const mdx = d.x - mouse.x;
+      const mdy = d.y - mouse.y;
+      const mDistSq = mdx * mdx + mdy * mdy;
+      if (mDistSq < 22500) { // 150*150
+        const mDist = Math.sqrt(mDistSq) || 1;
+        const force = (150 - mDist) / 150;
         d.vx += (mdx / mDist) * force * 0.2;
         d.vy += (mdy / mDist) * force * 0.2;
       }
       d.vx += (d.baseVx - d.vx) * 0.02;
       d.vy += (d.baseVy - d.vy) * 0.02;
       d.x += d.vx; d.y += d.vy;
-      
-      if(d.x < -40) d.x = dropsCanvas.width + 40;
-      if(d.x > dropsCanvas.width + 40) d.x = -40;
-      if(d.y < -40) d.y = dropsCanvas.height + 40;
-      if(d.y > dropsCanvas.height + 40) d.y = -40;
-      
-      ctx.save();
-      ctx.filter = `blur(${d.blur}px)`;
-      ctx.fillStyle = `rgba(255, 255, 255, ${d.opacity})`;
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
+
+      if (d.x < -40) d.x = dropsCanvas.width + 40;
+      if (d.x > dropsCanvas.width + 40) d.x = -40;
+      if (d.y < -40) d.y = dropsCanvas.height + 40;
+      if (d.y > dropsCanvas.height + 40) d.y = -40;
+
+      ctx.drawImage(d.sprite, d.x - d.half, d.y - d.half);
+    }
     requestAnimationFrame(animateDrops);
   }
   animateDrops();
 
-  function update(x, y) {
-    mouse.x = x; mouse.y = y;
-    let hue = (x / window.innerWidth) * 360;
-    document.documentElement.style.setProperty('--hue', hue);
-    // Záře zmenšena na 40% (transparent 40%)
-    canvas.style.background = `radial-gradient(circle at ${x}px ${y}px, hsl(${hue}, 30%, 15%) 0%, transparent 40%)`;
+  // --- Kurzorová záře: pozice přes transform (GPU), barva throttlovaná na rAF ---
+  function updateGlow() {
+    if (pendingGlowUpdate) {
+      const hue = (mouse.x / window.innerWidth) * 360;
+      document.documentElement.style.setProperty('--hue', hue);
+      canvas.style.transform = `translate3d(${mouse.x - window.innerWidth / 2}px, ${mouse.y - window.innerHeight / 2}px, 0)`;
+      pendingGlowUpdate = false;
+    }
+    requestAnimationFrame(updateGlow);
   }
+  updateGlow();
 
-  document.addEventListener('mousemove', (e) => update(e.clientX, e.clientY));
-  document.addEventListener('touchmove', (e) => update(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+  document.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    pendingGlowUpdate = true;
+  });
+  document.addEventListener('touchmove', (e) => {
+    mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+    pendingGlowUpdate = true;
+  }, { passive: true });
   document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
-  document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, {passive: true});
+  document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, { passive: true });
 
   function showSlogan() {
     sloganEl.innerText = slogans[Math.floor(Math.random() * slogans.length)];
@@ -207,6 +283,19 @@
   }
   showSlogan();
 
+  const langBtn = document.getElementById('lang-btn');
+  langBtn.addEventListener('click', () => {
+    if (currentLang === 'en') {
+      currentLang = 'cz';
+      slogans = slogansCz;
+      langBtn.classList.add('active-btn');
+    } else {
+      currentLang = 'en';
+      slogans = slogansEn;
+      langBtn.classList.remove('active-btn');
+    }
+  });
+
   // Audio logika zůstává beze změny
   let audioCtx;
   let oscL, oscR, gainL, gainR, merger;
@@ -215,7 +304,7 @@
     { name: "OFF", base: 0, beat: 0 },
     { name: "DELTA WAVES (2Hz) - DEEP REST", base: 136.1, beat: 2 },
     { name: "THETA WAVES (5Hz) - MEDITATION", base: 174.0, beat: 5 },
-    { name: "ALPHA WAVES (9Hz) - RELAXATION", base: 256.0, beat: 9 } 
+    { name: "ALPHA WAVES (9Hz) - RELAXATION", base: 256.0, beat: 9 }
   ];
   const binBtn = document.getElementById('binaural-btn');
   const binStatus = document.getElementById('binaural-status');
