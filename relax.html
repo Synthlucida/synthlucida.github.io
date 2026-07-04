@@ -10,49 +10,88 @@
 
   body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #020008; font-family: 'Orbitron', sans-serif; overflow: hidden; color: #fff; }
 
-  /* Základní gradient pozadí */
-  .canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; transition: background 1.5s ease; }
-
-  /* Vrstva kapek */
-  #drops { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
-
-  /* Slogan kontejner */
-  .slogan-container {
-    position: absolute; top: 50%; left: 0; width: 100%; text-align: center;
-    z-index: 3; pointer-events: none;
+  /* Západ slunce */
+  .sun {
+    position: absolute; left: 50%; width: 150vw; height: 150vw; transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(255, 90, 0, 0.08) 0%, rgba(200, 20, 100, 0.03) 40%, transparent 70%);
+    z-index: 1; pointer-events: none;
+    animation: setSun 45s ease-in-out infinite alternate;
   }
   
-  .slogan {
-    font-size: 1.8rem; letter-spacing: 8px; text-transform: uppercase;
-    opacity: 0; transition: opacity 3s ease-in-out, filter 3s ease-in-out;
-    text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 0 40px hsl(var(--hue), 80%, 50%);
+  @keyframes setSun {
+    0% { top: -30vh; opacity: 0.3; }
+    100% { top: 60vh; opacity: 1; }
   }
 
-  .slogan.visible { opacity: 0.9; }
+  /* Canvas pro kurzorovou záři (zmenšena na 50%) */
+  .canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; transition: background 1.5s ease; }
+
+  .noise-overlay {
+    position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 3; pointer-events: none;
+    background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+    opacity: 0.04; 
+  }
+
+  #drops { position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none; }
+
+  .slogan-container { position: absolute; top: 50%; left: 0; width: 100%; text-align: center; z-index: 5; pointer-events: none; }
+  
+  .slogan {
+    font-size: 1.3rem; letter-spacing: 12px; text-transform: uppercase;
+    opacity: 0; transition: opacity 3s ease-in-out, filter 3s ease-in-out;
+    text-shadow: 0 0 15px rgba(255,255,255,0.3), 0 0 35px hsl(var(--hue), 80%, 50%);
+  }
+  .slogan.visible { opacity: 0.85; }
   .slogan.hidden { opacity: 0; }
 
-  /* Tlačítko - minimalistické */
-  .back-btn {
+  .ui-container {
     position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; width: 100%;
+  }
+
+  .headphones-notice {
+    font-size: 0.55rem; letter-spacing: 4px; color: rgba(255,255,255,0.35);
+    text-transform: uppercase; text-shadow: 0 0 8px rgba(255,255,255,0.1); margin-bottom: 2px;
+  }
+
+  .binaural-status {
+    font-size: 0.65rem; letter-spacing: 5px; color: rgba(255,255,255,0.6);
+    text-transform: uppercase; opacity: 0; transition: opacity 1s ease;
+    text-shadow: 0 0 10px rgba(255,255,255,0.2); height: 12px; margin-bottom: 8px;
+  }
+  .binaural-status.active { opacity: 1; }
+
+  .controls { display: flex; gap: 20px; }
+
+  .btn {
     padding: 10px 25px; border: 1px solid rgba(255,255,255,0.1);
     background: rgba(0,0,0,0.1); color: rgba(255,255,255,0.3);
     font-family: 'Orbitron', sans-serif; font-size: 0.7rem; letter-spacing: 3px;
     cursor: pointer; text-decoration: none; border-radius: 30px;
-    transition: 0.5s; z-index: 10;
+    transition: 0.5s; outline: none; backdrop-filter: blur(5px);
   }
-  .back-btn:hover { border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+  .btn:hover, .btn.active-btn { border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
 </style>
 </head>
 <body>
 
+<div class="sun"></div>
 <div class="canvas" id="canvas"></div>
+<div class="noise-overlay"></div>
 <canvas id="drops"></canvas>
 
 <div class="slogan-container">
   <div id="slogan" class="slogan"></div>
 </div>
 
-<a href="player.html" class="back-btn">BACK TO PLAYER</a>
+<div class="ui-container">
+  <div class="headphones-notice">BEST EXPERIENCED WITH HEADPHONES</div>
+  <div id="binaural-status" class="binaural-status">DELTA WAVES (2Hz) - DEEP CALM</div>
+  <div class="controls">
+    <a href="player.html" class="btn">BACK TO PLAYER</a>
+    <button id="binaural-btn" class="btn">BINAURAL: OFF</button>
+  </div>
+</div>
 
 <script>
   const canvas = document.getElementById('canvas');
@@ -61,7 +100,8 @@
   const sloganEl = document.getElementById('slogan');
   const slogans = ["RESET YOUR MIND", "BREATHE DEEP", "STILLNESS IS POWER", "SYNC YOUR FREQUENCY", "LET GO", "FOCUS ON THE NOW", "CLEAR SIGNAL"];
 
-  // Nastavení canvasu
+  let mouse = { x: -1000, y: -1000 };
+
   function resize() {
     dropsCanvas.width = window.innerWidth;
     dropsCanvas.height = window.innerHeight;
@@ -69,33 +109,73 @@
   window.addEventListener('resize', resize);
   resize();
 
-  // Vytvoření "kapek" (ambientní bílé koule)
   let drops = [];
-  for(let i=0; i<30; i++) {
+  const numDrops = 100; 
+  
+  for(let i=0; i<numDrops; i++) {
+    const isFast = Math.random() > 0.85;
+    const speedMult = isFast ? (Math.random() * 1.2 + 0.5) : (Math.random() * 0.2 + 0.05);
+    const initialVx = (Math.random() - 0.5) * speedMult;
+    const initialVy = (Math.random() - 0.5) * speedMult;
+    
+    const size = Math.random() * 22 + 2; 
+    
+    // Snížený blur pro čistší vzhled
+    let blur;
+    if (size > 14) blur = size * 0.8; 
+    else if (size < 5) blur = 2;      
+    else blur = Math.random() * 1;    
+
     drops.push({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.2,
-      vy: (Math.random() - 0.5) * 0.2,
-      size: Math.random() * 8 + 3, // Různé velikosti
-      opacity: Math.random() * 0.4 + 0.1,
-      blur: Math.random() * 5 + 2 // Rozmazání
+      baseVx: initialVx, baseVy: initialVy,
+      vx: initialVx, vy: initialVy,
+      size: size, opacity: Math.random() * 0.35 + 0.05,
+      blur: blur
     });
   }
 
   function animateDrops() {
     ctx.clearRect(0, 0, dropsCanvas.width, dropsCanvas.height);
+    ctx.filter = 'none'; 
+    
+    for(let i = 0; i < drops.length; i++) {
+      for(let j = i + 1; j < drops.length; j++) {
+        let dx = drops[i].x - drops[j].x;
+        let dy = drops[i].y - drops[j].y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist < 110) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.06 - (dist/1800)})`;
+          ctx.lineWidth = 0.5;
+          ctx.moveTo(drops[i].x, drops[i].y);
+          ctx.lineTo(drops[j].x, drops[j].y);
+          ctx.stroke();
+        }
+      }
+    }
     
     drops.forEach(d => {
-      d.x += d.vx;
-      d.y += d.vy;
+      let mdx = d.x - mouse.x;
+      let mdy = d.y - mouse.y;
+      let mDist = Math.sqrt(mdx*mdx + mdy*mdy);
+      if(mDist < 150) {
+        let force = (150 - mDist) / 150;
+        d.vx += (mdx / mDist) * force * 0.2;
+        d.vy += (mdy / mDist) * force * 0.2;
+      }
+      d.vx += (d.baseVx - d.vx) * 0.02;
+      d.vy += (d.baseVy - d.vy) * 0.02;
+      d.x += d.vx; d.y += d.vy;
       
-      // Odrazy od krajů
-      if(d.x < 0 || d.x > dropsCanvas.width) d.vx *= -1;
-      if(d.y < 0 || d.y > dropsCanvas.height) d.vy *= -1;
+      if(d.x < -40) d.x = dropsCanvas.width + 40;
+      if(d.x > dropsCanvas.width + 40) d.x = -40;
+      if(d.y < -40) d.y = dropsCanvas.height + 40;
+      if(d.y > dropsCanvas.height + 40) d.y = -40;
       
       ctx.save();
-      ctx.filter = `blur(${d.blur}px)`; // Efekt rozmazaného skla
+      ctx.filter = `blur(${d.blur}px)`;
       ctx.fillStyle = `rgba(255, 255, 255, ${d.opacity})`;
       ctx.beginPath();
       ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
@@ -106,17 +186,19 @@
   }
   animateDrops();
 
-  // Interaktivita pozadí
   function update(x, y) {
+    mouse.x = x; mouse.y = y;
     let hue = (x / window.innerWidth) * 360;
     document.documentElement.style.setProperty('--hue', hue);
-    canvas.style.background = `radial-gradient(circle at ${x}px ${y}px, hsl(${hue}, 30%, 15%) 0%, #020008 80%)`;
+    // Záře zmenšena na 40% (transparent 40%)
+    canvas.style.background = `radial-gradient(circle at ${x}px ${y}px, hsl(${hue}, 30%, 15%) 0%, transparent 40%)`;
   }
 
   document.addEventListener('mousemove', (e) => update(e.clientX, e.clientY));
   document.addEventListener('touchmove', (e) => update(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+  document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
+  document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, {passive: true});
 
-  // Logika sloganů
   function showSlogan() {
     sloganEl.innerText = slogans[Math.floor(Math.random() * slogans.length)];
     sloganEl.className = 'slogan visible';
@@ -124,6 +206,69 @@
     setTimeout(showSlogan, 14000);
   }
   showSlogan();
+
+  // Audio logika zůstává beze změny
+  let audioCtx;
+  let oscL, oscR, gainL, gainR, merger;
+  let currentToneIndex = 0;
+  const tones = [
+    { name: "OFF", base: 0, beat: 0 },
+    { name: "DELTA WAVES (2Hz) - DEEP REST", base: 136.1, beat: 2 },
+    { name: "THETA WAVES (5Hz) - MEDITATION", base: 174.0, beat: 5 },
+    { name: "ALPHA WAVES (9Hz) - RELAXATION", base: 256.0, beat: 9 } 
+  ];
+  const binBtn = document.getElementById('binaural-btn');
+  const binStatus = document.getElementById('binaural-status');
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      merger = audioCtx.createChannelMerger(2);
+      merger.connect(audioCtx.destination);
+      gainL = audioCtx.createGain(); gainR = audioCtx.createGain();
+      gainL.connect(merger, 0, 0); gainR.connect(merger, 0, 1);
+      gainL.gain.value = 0; gainR.gain.value = 0;
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playTone(base, beat) {
+    if (oscL) { oscL.stop(); oscL.disconnect(); }
+    if (oscR) { oscR.stop(); oscR.disconnect(); }
+    oscL = audioCtx.createOscillator(); oscR = audioCtx.createOscillator();
+    oscL.type = 'sine'; oscR.type = 'sine';
+    oscL.frequency.value = base; oscR.frequency.value = base + beat;
+    oscL.connect(gainL); oscR.connect(gainR);
+    oscL.start(); oscR.start();
+    const now = audioCtx.currentTime;
+    gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
+    gainL.gain.setTargetAtTime(0.06, now, 2.5); gainR.gain.setTargetAtTime(0.06, now, 2.5);
+  }
+
+  function stopTone() {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
+    gainL.gain.setTargetAtTime(0, now, 1.5); gainR.gain.setTargetAtTime(0, now, 1.5);
+  }
+
+  binBtn.addEventListener('click', () => {
+    initAudio();
+    currentToneIndex = (currentToneIndex + 1) % tones.length;
+    const state = tones[currentToneIndex];
+    if (currentToneIndex === 0) {
+      stopTone();
+      binBtn.innerText = "BINAURAL: OFF";
+      binBtn.classList.remove('active-btn');
+      binStatus.classList.remove('active');
+    } else {
+      playTone(state.base, state.beat);
+      binBtn.innerText = `BINAURAL: ON`;
+      binBtn.classList.add('active-btn');
+      binStatus.innerText = state.name;
+      binStatus.classList.add('active');
+    }
+  });
 </script>
 </body>
 </html>
