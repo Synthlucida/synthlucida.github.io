@@ -10,19 +10,109 @@
 
   body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #020008; font-family: 'Orbitron', sans-serif; overflow: hidden; color: #fff; }
 
-  /* Západ slunce - animováno přes transform/opacity (GPU, žádný reflow) */
+  #stars { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; }
+
+  /* Mlzny pas Mlecne drahy - nekolik prekryvajicich se "mracku" podel
+     diagonaly, staticky (nic se neprepocitava), pusobi organicteji nez
+     jeden rovny gradient */
+  .milkyway {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 32% 14% at 12% 12%, rgba(200,205,255,0.05), transparent 70%),
+      radial-gradient(ellipse 38% 16% at 26% 24%, rgba(210,215,255,0.07), transparent 70%),
+      radial-gradient(ellipse 34% 15% at 40% 34%, rgba(195,205,255,0.065), transparent 70%),
+      radial-gradient(ellipse 40% 17% at 55% 44%, rgba(210,215,255,0.07), transparent 70%),
+      radial-gradient(ellipse 34% 14% at 68% 52%, rgba(195,200,255,0.055), transparent 70%),
+      radial-gradient(ellipse 36% 15% at 82% 60%, rgba(190,198,255,0.05), transparent 70%),
+      radial-gradient(ellipse 30% 13% at 95% 68%, rgba(185,195,255,0.04), transparent 70%);
+  }
+
+  /* Mesic - jemny disk + pulzujici zare kolem nej. Vse jen transform/opacity
+     (kompozitor GPU), zadny filter, takze levne na vykon i na mobilu. */
+  /* Mesic - realnejsi povrch (krátery + more), zatazeny hloub do pozadi
+     (nizsi z-index, pod vrstvami mlhy/sumu/kapicek = pusobi jako v opare),
+     a "zivy" cyklus faz uplnek -> nov -> uplnek. Vse jen transform/opacity,
+     zadna animace filtru, takze levne na vykon i na mobilu. */
+  .moon-wrapper {
+    position: absolute; top: 9vh; right: 12vw; width: 0; height: 0;
+    z-index: 0; pointer-events: none; opacity: 0.72;
+  }
+  .moon-glow {
+    position: absolute; top: 0; left: 0; width: 190px; height: 190px;
+    transform: translate(-50%, -50%) scale(1);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,240,0.18) 0%, rgba(255,255,240,0.06) 42%, transparent 72%);
+    will-change: transform, opacity;
+    animation: moonGlowPulse 180s ease-in-out infinite;
+  }
+  .moon {
+    position: absolute; top: 0; left: 0; width: 80px; height: 80px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    overflow: hidden; /* oriznuti stinu do kruhu */
+    filter: blur(1.6px); /* jemny opar, staticke - nic to nestoji na vykonu */
+    box-shadow: 0 0 14px rgba(255,255,240,0.15);
+    background:
+      /* male kratery - tmavsi jadro + svetlejsi lem */
+      radial-gradient(circle at 66% 70%, rgba(80,78,68,0.4) 0%, rgba(150,148,135,0.12) 45%, transparent 58%),
+      radial-gradient(circle at 30% 62%, rgba(80,78,68,0.32) 0%, rgba(150,148,135,0.10) 45%, transparent 58%),
+      radial-gradient(circle at 74% 30%, rgba(80,78,68,0.3) 0%, rgba(150,148,135,0.10) 42%, transparent 55%),
+      radial-gradient(circle at 44% 80%, rgba(80,78,68,0.26) 0%, transparent 50%),
+      radial-gradient(circle at 20% 22%, rgba(80,78,68,0.22) 0%, transparent 45%),
+      radial-gradient(circle at 55% 18%, rgba(80,78,68,0.2) 0%, transparent 40%),
+      /* vetsi tmava "more" */
+      radial-gradient(circle at 62% 66%, rgba(105,102,90,0.22) 0%, transparent 34%),
+      radial-gradient(circle at 26% 58%, rgba(105,102,90,0.16) 0%, transparent 30%),
+      radial-gradient(circle at 40% 78%, rgba(105,102,90,0.12) 0%, transparent 24%),
+      /* zakladni povrch */
+      radial-gradient(circle at 35% 32%, #ece8db 0%, #ddd9c9 32%, #c2beac 60%, #a29d88 100%);
+  }
+  .moon-shadow {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    border-radius: 50%; background: #04030a;
+    animation: moonPhase 180s ease-in-out infinite;
+  }
+  .moon-outline {
+    position: absolute; top: 0; left: 0; width: 80px; height: 80px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
+  }
+  @keyframes moonPhase {
+    0%   { transform: translateX(-100%); } /* uplnek */
+    50%  { transform: translateX(0%); }    /* nov */
+    100% { transform: translateX(100%); }  /* uplnek */
+  }
+  @keyframes moonGlowPulse {
+    0%   { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+    50%  { opacity: 0.1; transform: translate(-50%, -50%) scale(0.82); }
+    100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  @media (max-width: 480px) {
+    .moon-wrapper { top: 7vh; right: 8vw; }
+    .moon, .moon-outline { width: 56px; height: 56px; }
+    .moon-glow { width: 140px; height: 140px; }
+  }
+
+  /* Západ slunce - jemná záře těsně pred zapadnutim, pomalu klesa
+     Jen transform/opacity (GPU, žádný reflow, žádný filter) */
   .sun {
-    position: absolute; left: 50%; top: -30vh; width: 150vw; height: 150vw;
+    position: absolute; left: 50%; top: 58vh; width: 170vw; height: 170vw;
     transform: translateX(-50%) translateY(0);
-    background: radial-gradient(circle, rgba(255, 90, 0, 0.08) 0%, rgba(200, 20, 100, 0.03) 40%, transparent 70%);
+    background: radial-gradient(circle,
+      rgba(255, 150, 70, 0.11) 0%,
+      rgba(255, 90, 90, 0.06) 30%,
+      rgba(150, 40, 110, 0.03) 50%,
+      transparent 72%);
     z-index: 1; pointer-events: none;
-    animation: setSun 45s ease-in-out infinite alternate;
+    animation: setSun 90s ease-in-out infinite alternate;
     will-change: transform, opacity;
   }
 
   @keyframes setSun {
-    0% { transform: translateX(-50%) translateY(0); opacity: 0.3; }
-    100% { transform: translateX(-50%) translateY(90vh); opacity: 1; }
+    0% { transform: translateX(-50%) translateY(0); opacity: 0.5; }
+    100% { transform: translateX(-50%) translateY(7vh); opacity: 0.85; }
   }
 
   /* Canvas pro kurzorovou záři - pozice řešena přes transform (GPU), ne přes přepočítávané pozadí */
@@ -42,15 +132,32 @@
 
   #drops { position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none; }
 
-  .slogan-container { position: absolute; top: 50%; left: 0; width: 100%; text-align: center; z-index: 5; pointer-events: none; }
+  .slogan-container {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    max-width: 88vw; text-align: center; z-index: 5; pointer-events: none;
+  }
 
   .slogan {
     font-size: 1.3rem; letter-spacing: 12px; text-transform: uppercase;
-    opacity: 0; transition: opacity 3s ease-in-out, filter 3s ease-in-out;
+    opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(12px);
+    transition: opacity 5s ease-in-out, filter 5s ease-in-out, transform 5s ease-in-out;
     text-shadow: 0 0 15px rgba(255,255,255,0.3), 0 0 35px hsl(var(--hue), 80%, 50%);
+    will-change: opacity, transform, filter;
   }
-  .slogan.visible { opacity: 0.85; }
-  .slogan.hidden { opacity: 0; }
+  .slogan.visible {
+    opacity: 0.85; transform: translateY(0) scale(1); filter: blur(0px);
+    animation: sloganBreathe 7s ease-in-out infinite;
+    animation-delay: 5s; /* dýchání nastoupí, až se text plně "vynoří" */
+  }
+  .slogan.hidden {
+    opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(12px);
+    animation: none;
+  }
+
+  @keyframes sloganBreathe {
+    0%, 100% { opacity: 0.7; transform: translateY(0) scale(1); }
+    50% { opacity: 0.95; transform: translateY(0) scale(1.025); }
+  }
 
   .ui-container {
     position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -89,19 +196,102 @@
     padding: 6px 14px; font-size: 0.55rem; letter-spacing: 2px;
     border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.05);
     color: rgba(255,255,255,0.2);
+    position: relative;
+  }
+  /* Zvětšená neviditelná klikací plocha - řeší nepřesný hitbox tlačítka */
+  .lang-btn::after {
+    content: '';
+    position: absolute;
+    inset: -14px;
   }
   .lang-btn.active-btn { color: rgba(255,255,255,0.75); box-shadow: 0 0 10px rgba(255,255,255,0.12); }
+
+  .volume-control {
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .vol-label {
+    font-size: 0.55rem; letter-spacing: 3px; color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+  }
+
+  #binaural-volume {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 2px; border-radius: 2px;
+    background: rgba(255,255,255,0.15); outline: none; cursor: pointer;
+  }
+  #binaural-volume::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.5);
+    cursor: pointer;
+  }
+  #binaural-volume::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%; border: none;
+    background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.5); cursor: pointer;
+  }
+  #binaural-volume::-moz-range-track {
+    height: 2px; border-radius: 2px; background: rgba(255,255,255,0.15);
+  }
+
+  /* Jemné plovoucí světelné orby - stejná technika jako .sun (radial-gradient
+     + transform/opacity), žádný filter:blur, takže to nezatěžuje výkon */
+  .orb {
+    position: absolute; border-radius: 50%; z-index: 1; pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .orb-1 {
+    width: 45vw; height: 45vw; left: 8vw; top: 15vh;
+    background: radial-gradient(circle, rgba(120, 80, 255, 0.07) 0%, rgba(80, 40, 200, 0.03) 45%, transparent 70%);
+    animation: floatOrb1 38s ease-in-out infinite alternate;
+  }
+  .orb-2 {
+    width: 38vw; height: 38vw; right: 5vw; top: 45vh;
+    background: radial-gradient(circle, rgba(0, 200, 220, 0.06) 0%, rgba(0, 120, 180, 0.025) 45%, transparent 70%);
+    animation: floatOrb2 46s ease-in-out infinite alternate;
+  }
+  .orb-3 {
+    width: 30vw; height: 30vw; left: 35vw; bottom: -10vh;
+    background: radial-gradient(circle, rgba(255, 60, 160, 0.05) 0%, rgba(200, 20, 120, 0.02) 45%, transparent 70%);
+    animation: floatOrb3 52s ease-in-out infinite alternate;
+  }
+
+  @keyframes floatOrb1 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.6; }
+    100% { transform: translate3d(6vw, 8vh, 0) scale(1.15); opacity: 1; }
+  }
+  @keyframes floatOrb2 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.5; }
+    100% { transform: translate3d(-7vw, -6vh, 0) scale(1.1); opacity: 0.9; }
+  }
+  @keyframes floatOrb3 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.4; }
+    100% { transform: translate3d(5vw, -5vh, 0) scale(1.2); opacity: 0.8; }
+  }
 
   @media (max-width: 480px) {
     .controls { gap: 12px; }
     .btn { padding: 9px 16px; font-size: 0.6rem; letter-spacing: 2px; }
     .lang-btn { padding: 6px 12px; font-size: 0.5rem; }
+    .orb-1, .orb-2, .orb-3 { display: none; } /* na mobilu vypnuto kvuli vykonu a baterii */
   }
 </style>
 </head>
 <body>
 
+<div class="milkyway"></div>
+<canvas id="stars"></canvas>
 <div class="sun"></div>
+<div class="moon-wrapper">
+  <div class="moon-glow"></div>
+  <div class="moon">
+    <div class="moon-shadow"></div>
+  </div>
+  <div class="moon-outline"></div>
+</div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
 <div class="canvas" id="canvas"></div>
 <div class="noise-overlay"></div>
 <canvas id="drops"></canvas>
@@ -116,6 +306,10 @@
   <div class="controls">
     <a href="player.html" class="btn">BACK TO PLAYER</a>
     <button id="binaural-btn" class="btn">BINAURAL: OFF</button>
+    <div class="volume-control" id="volume-control">
+      <span class="vol-label">VOL</span>
+      <input type="range" id="binaural-volume" min="0" max="100" value="40">
+    </div>
     <button id="lang-btn" class="btn lang-btn">CZ</button>
   </div>
 </div>
@@ -130,14 +324,26 @@
     "LET GO", "FOCUS ON THE NOW", "CLEAR SIGNAL", "INNER SILENCE", "SLOW DOWN",
     "FIND YOUR CENTER", "EXHALE TENSION", "PRESENCE OVER NOISE", "DRIFT GENTLY",
     "QUIET THE STORM", "ALIGN AND RESTORE", "TRUST THE FLOW", "SOFTEN YOUR GAZE",
-    "PEACE IS A CHOICE", "RETURN TO STILLNESS", "EMBRACE THE PAUSE"
+    "PEACE IS A CHOICE", "RETURN TO STILLNESS", "EMBRACE THE PAUSE",
+    "JUST BREATHE", "BE HERE NOW", "LISTEN WITHIN", "CALM IS STRENGTH",
+    "UNWIND SLOWLY", "OPEN YOUR MIND", "RELEASE THE NOISE", "FLOAT FREELY",
+    "GENTLE MOMENTS", "STILL WATERS", "WEIGHTLESS MIND", "INHALE PEACE",
+    "MELT THE TENSION", "RETURN TO SELF", "SOFT FOCUS", "ECHOES OF CALM",
+    "REST WITHOUT RUSH", "GRAVITY LETS GO", "SILENT CLARITY", "DEEPER STILLNESS",
+    "THE QUIET WITHIN", "MOMENT BY MOMENT", "SURRENDER THE RUSH", "SPACE TO BREATHE"
   ];
   const slogansCz = [
     "RESTARTUJ SVOU MYSL", "DÝCHEJ ZHLUBOKA", "KLID JE SÍLA", "NALAĎ SVOU FREKVENCI",
     "PUSŤ TO", "SOUSTŘEĎ SE NA TEĎ", "ČISTÝ SIGNÁL", "VNITŘNÍ TICHO", "ZPOMAL",
     "NAJDI SVŮJ STŘED", "VYDECHNI NAPĚTÍ", "PŘÍTOMNOST NAD HLUKEM", "NECH SE UNÁŠET",
     "UTIŠ BOUŘI", "SJEDNOŤ SE A OBNOV SÍLY", "DŮVĚŘUJ TOKU", "UVOLNI SVŮJ POHLED",
-    "KLID JE VOLBA", "VRAŤ SE DO KLIDU", "PŘIJMI PAUZU"
+    "KLID JE VOLBA", "VRAŤ SE DO KLIDU", "PŘIJMI PAUZU",
+    "PROSTĚ DÝCHEJ", "BUĎ TADY A TEĎ", "NASLOUCHEJ SOBĚ", "KLID JE SÍLA V TICHU",
+    "ZPOMAL A VYDECHNI", "OTEVŘI SVOU MYSL", "PUSŤ VEŠKERÝ HLUK", "VZNÁŠEJ SE VOLNĚ",
+    "JEMNÉ OKAMŽIKY", "TICHÁ HLADINA", "MYSL BEZ TÍHY", "NADECHNI SE KLIDU",
+    "ROZPUSŤ NAPĚTÍ", "VRAŤ SE K SOBĚ", "JEMNÉ SOUSTŘEDĚNÍ", "OZVĚNY KLIDU",
+    "ODPOČÍVEJ BEZ SPĚCHU", "NECH TÍHU ODEJÍT", "TICHÁ JASNOST", "HLUBŠÍ KLID",
+    "TICHO UVNITŘ", "OKAMŽIK PO OKAMŽIKU", "PUSŤ SPĚCH", "PROSTOR PRO NÁDECH"
   ];
   let currentLang = 'en';
   let slogans = slogansEn;
@@ -147,9 +353,14 @@
   let mouse = { x: -1000, y: -1000 };
   let pendingGlowUpdate = false;
 
+  const starsCanvas = document.getElementById('stars');
+  const starsCtx = starsCanvas.getContext('2d');
+
   function resize() {
     dropsCanvas.width = window.innerWidth;
     dropsCanvas.height = window.innerHeight;
+    starsCanvas.width = window.innerWidth;
+    starsCanvas.height = window.innerHeight;
   }
   let resizeTimer;
   window.addEventListener('resize', () => {
@@ -211,8 +422,95 @@
   let isPageVisible = true;
   document.addEventListener('visibilitychange', () => {
     isPageVisible = document.visibilityState === 'visible';
-    if (isPageVisible) requestAnimationFrame(animateDrops);
+    if (isPageVisible) {
+      requestAnimationFrame(animateDrops);
+      requestAnimationFrame(animateStars);
+    }
   });
+
+  // --- Hvezdna obloha: predrenderovany sprite (stejny trik jako u kapicek),
+  // jen jemny drift + pulzujici pruhlednost. Na mobilu min hvezd kvuli vykonu. ---
+  function createStarSprite(radius) {
+    const dim = Math.max(2, Math.ceil(radius * 4));
+    const c = document.createElement('canvas');
+    c.width = dim; c.height = dim;
+    const cctx = c.getContext('2d');
+    const cx = dim / 2, cy = dim / 2;
+    const gradient = cctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 2);
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    cctx.fillStyle = gradient;
+    cctx.beginPath();
+    cctx.arc(cx, cy, radius * 2, 0, Math.PI * 2);
+    cctx.fill();
+    return c;
+  }
+
+  const numStars = isMobile ? 90 : 220;
+  const bandRatio = 0.55; // ~55% hvezd je zhustenych do pasu (Mlecna draha)
+  const stars = [];
+
+  // Pomocna "priblizne gaussovska" nahodna hodnota v rozsahu cca -1..1,
+  // hustsi kolem stredu - pro prirozene rozlozeni hvezd kolem osy pasu
+  function gaussianish() {
+    return (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+  }
+
+  const bandStartX = -0.15 * window.innerWidth, bandStartY = 0.05 * window.innerHeight;
+  const bandEndX = 1.15 * window.innerWidth, bandEndY = 0.62 * window.innerHeight;
+  const bandDx = bandEndX - bandStartX, bandDy = bandEndY - bandStartY;
+  const bandLen = Math.sqrt(bandDx * bandDx + bandDy * bandDy) || 1;
+  const bandPerpX = -bandDy / bandLen, bandPerpY = bandDx / bandLen;
+  const bandSpreadPx = isMobile ? 55 : 90;
+
+  function bandPosition() {
+    const t = Math.random();
+    const cx = bandStartX + bandDx * t;
+    const cy = bandStartY + bandDy * t;
+    const offset = gaussianish() * bandSpreadPx;
+    return { x: cx + bandPerpX * offset, y: cy + bandPerpY * offset };
+  }
+
+  for (let i = 0; i < numStars; i++) {
+    const inBand = i < numStars * bandRatio;
+    const pos = inBand
+      ? bandPosition()
+      : { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight };
+    const radius = Math.random() * 1.1 + 0.4;
+    stars.push({
+      x: pos.x,
+      y: pos.y,
+      vx: (Math.random() - 0.5) * 0.012,
+      vy: (Math.random() - 0.5) * 0.012,
+      baseOpacity: (inBand ? Math.random() * 0.4 + 0.2 : Math.random() * 0.5 + 0.3),
+      phase: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.0012 + 0.0006,
+      sprite: createStarSprite(radius),
+      half: 0
+    });
+    stars[i].half = stars[i].sprite.width / 2;
+  }
+
+  function animateStars(ts) {
+    if (!isPageVisible) return;
+    starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      s.x += s.vx; s.y += s.vy;
+      if (s.x < -10) s.x = starsCanvas.width + 10;
+      if (s.x > starsCanvas.width + 10) s.x = -10;
+      if (s.y < -10) s.y = starsCanvas.height + 10;
+      if (s.y > starsCanvas.height + 10) s.y = -10;
+
+      const twinkle = 0.5 + 0.5 * Math.sin((ts || 0) * s.speed + s.phase);
+      starsCtx.globalAlpha = s.baseOpacity * twinkle;
+      starsCtx.drawImage(s.sprite, s.x - s.half, s.y - s.half);
+    }
+    starsCtx.globalAlpha = 1;
+    requestAnimationFrame(animateStars);
+  }
+  animateStars();
 
   function animateDrops() {
     if (!isPageVisible) return;
@@ -286,11 +584,20 @@
   document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
   document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, { passive: true });
 
+  const sloganContainer = document.querySelector('.slogan-container');
   function showSlogan() {
+    // Náhodná, ale bezpečná pozice (nepřesahuje okraje obrazovky a
+    // nezasahuje do ovládacích prvků dole). Mění se, jen když je text
+    // neviditelný, takže nikdy "nejezdí" po obrazovce.
+    const randomTop = 18 + Math.random() * 45;   // 18% - 63% výšky
+    const randomLeft = 24 + Math.random() * 52;  // 24% - 76% šířky
+    sloganContainer.style.top = randomTop + '%';
+    sloganContainer.style.left = randomLeft + '%';
+
     sloganEl.innerText = slogans[Math.floor(Math.random() * slogans.length)];
     sloganEl.className = 'slogan visible';
-    setTimeout(() => { sloganEl.className = 'slogan hidden'; }, 6000);
-    setTimeout(showSlogan, 14000);
+    setTimeout(() => { sloganEl.className = 'slogan hidden'; }, 10000);
+    setTimeout(showSlogan, 20000);
   }
   showSlogan();
 
@@ -319,6 +626,20 @@
   ];
   const binBtn = document.getElementById('binaural-btn');
   const binStatus = document.getElementById('binaural-status');
+  const volumeControl = document.getElementById('volume-control');
+  const volumeSlider = document.getElementById('binaural-volume');
+  // Slider 0-100 mapovaný na hlasitost 0 - 0.15 (výchozí 40 = 0.06, stejně
+  // hlasité jako to bylo puvodne pevne nastavene)
+  let currentVolume = (volumeSlider.value / 100) * 0.15;
+
+  volumeSlider.addEventListener('input', () => {
+    currentVolume = (volumeSlider.value / 100) * 0.15;
+    if (audioCtx && currentToneIndex !== 0) {
+      const now = audioCtx.currentTime;
+      gainL.gain.setTargetAtTime(currentVolume, now, 0.3);
+      gainR.gain.setTargetAtTime(currentVolume, now, 0.3);
+    }
+  });
 
   function initAudio() {
     if (!audioCtx) {
@@ -342,7 +663,7 @@
     oscL.start(); oscR.start();
     const now = audioCtx.currentTime;
     gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
-    gainL.gain.setTargetAtTime(0.06, now, 2.5); gainR.gain.setTargetAtTime(0.06, now, 2.5);
+    gainL.gain.setTargetAtTime(currentVolume, now, 2.5); gainR.gain.setTargetAtTime(currentVolume, now, 2.5);
   }
 
   function stopTone() {
