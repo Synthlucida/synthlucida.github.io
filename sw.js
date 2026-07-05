@@ -3,13 +3,15 @@
 // v30 - offline cache for audio (MP3), CORS-safe (no manual byte slicing)
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v49';
+const APP_CACHE_NAME = 'synthlucida-app-v51';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
 const ASSETS_TO_CACHE = [
   './',
   './player.html',
+  './game.html',
+  './relax.html',
   './manifest.json',
   './icon.png',
   './logo.jpg'
