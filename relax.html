@@ -175,10 +175,10 @@
   .tap-synth-panel {
     position: absolute; bottom: 100%; left: 50%;
     transform: translateX(-50%) translateY(10px);
-    margin-bottom: 14px; min-width: 220px;
+    margin-bottom: 14px; min-width: 260px; max-height: 60vh; overflow-y: auto;
     display: flex; flex-direction: column; gap: 10px;
     padding: 14px 22px 16px; border-radius: 16px;
-    background: rgba(10,8,20,0.55); border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(10,8,20,0.75); border: 1px solid rgba(255,255,255,0.1);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     opacity: 0; pointer-events: none;
     transition: opacity 0.35s ease, transform 0.35s ease;
@@ -186,9 +186,12 @@
   .tap-synth-panel.open {
     opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0);
   }
+  .tap-synth-panel::-webkit-scrollbar { width: 4px; }
+  .tap-synth-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
   .tsp-title {
     font-size: 0.55rem; letter-spacing: 4px; color: rgba(255,255,255,0.4);
-    text-align: center; margin-bottom: 2px;
+    text-align: center; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;
   }
   .tsp-row { display: flex; align-items: center; gap: 12px; }
   .tsp-label {
@@ -265,6 +268,41 @@
     100% { transform: translate3d(5vw, -5vh, 0) scale(1.2); opacity: 0.8; }
   }
 
+  /* --- NOVÉ: Info Overlay CSS --- */
+  .top-bar { position: absolute; top: 20px; right: 20px; z-index: 20; }
+  .info-btn { 
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); 
+    width: 40px; height: 40px; border-radius: 50%; font-family: 'Orbitron', sans-serif; font-size: 1.2rem; 
+    cursor: pointer; backdrop-filter: blur(5px); transition: 0.3s; 
+  }
+  .info-btn:hover { background: rgba(255,255,255,0.15); color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+
+  .info-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+    background: rgba(5, 3, 12, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
+  }
+  .info-overlay.open { opacity: 1; pointer-events: auto; }
+  
+  .info-content {
+    max-width: 600px; max-height: 80vh; overflow-y: auto; padding: 30px;
+    background: rgba(20, 18, 30, 0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+    text-align: left; color: rgba(255,255,255,0.8); line-height: 1.6; font-size: 0.85rem;
+  }
+  .info-content h2 { font-size: 1.2rem; color: #fff; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-top: 0; }
+  .info-content h3 { font-size: 0.95rem; color: rgba(255,255,255,0.9); margin-top: 25px; text-transform: uppercase; letter-spacing: 1px;}
+  .info-content p, .info-content ul { margin-bottom: 15px; }
+  .info-content li { margin-bottom: 8px; }
+  .warning { color: #ff6b6b; font-weight: 600; font-size: 0.8rem; letter-spacing: 1px; padding: 10px; background: rgba(255, 107, 107, 0.1); border-radius: 8px; border: 1px solid rgba(255, 107, 107, 0.3); }
+  
+  .close-info-btn {
+    margin-top: 20px; padding: 10px 30px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+    color: #fff; border-radius: 30px; cursor: pointer; font-family: 'Orbitron', sans-serif; font-size: 0.8rem; letter-spacing: 2px; transition: 0.3s;
+  }
+  .close-info-btn:hover { background: rgba(255,255,255,0.2); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+  /* -------------------------------- */
+
   @media (max-width: 480px) {
     .controls { gap: 12px; }
     .btn { padding: 9px 16px; font-size: 0.6rem; letter-spacing: 2px; }
@@ -277,6 +315,40 @@
 
 <audio id="crickets-audio" src="cvrcci.mp3" loop></audio>
 
+<div class="top-bar">
+  <button id="info-btn" class="info-btn">ℹ</button>
+</div>
+
+<div id="info-overlay" class="info-overlay">
+  <div class="info-content">
+    <h2>Information & Guide</h2>
+    
+    <div class="warning">
+      ⚠ EPILEPSY WARNING: This application contains gently pulsating visual elements (twinkling stars, light orbs). If you suffer from photosensitive epilepsy, please use caution.
+    </div>
+
+    <h3>How to use the app</h3>
+    <p>SYNTHLUCIDA is an interactive ambient canvas designed for relaxation and creative flow. Headphones are highly recommended.</p>
+    
+    <ul>
+      <li><strong>Binaural Beats:</strong> Clicking "BINAURAL" activates low-frequency waves that help the brain transition into a state of deep relaxation.</li>
+      <li><strong>Nature:</strong> The "NATURE" button triggers a loop of night nature sounds.</li>
+      <li><strong>Tap Synthesizer:</strong> Touching anywhere on the night sky plays the generative synthesizer. X position determines the pitch, Y position controls filter/tone.</li>
+    </ul>
+
+    <h3>Sound Customization (🎛)</h3>
+    <p>Opening the synthesizer panel gives you control over your own sound for beginners and experts alike:</p>
+    <ul>
+      <li><strong>Wave:</strong> Choose basic waveform (Sine, Triangle, Square, Saw).</li>
+      <li><strong>Unison:</strong> Adds detuned duplicate voices for a huge, wide sound.</li>
+      <li><strong>Reverb:</strong> Controls the depth of spatial hall effect.</li>
+      <li><strong>Noise:</strong> Blends in subtle background noise for texture.</li>
+      <li><strong>Presets:</strong> Use the dropdown and SAVE button to keep your favorite setup.</li>
+    </ul>
+
+    <button id="close-info-btn" class="close-info-btn">CLOSE</button>
+  </div>
+</div>
 <div class="milkyway"></div>
 <canvas id="stars"></canvas>
 <div class="sun"></div>
@@ -317,7 +389,16 @@
   </div>
 
   <div id="tap-synth-panel" class="tap-synth-panel">
-    <div class="tsp-title">TAP MELODY</div>
+    <div class="tsp-title">
+      TAP MELODY
+      <div style="display:flex; align-items:center; gap:6px;">
+        <select id="tsp-preset" style="background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.45rem; outline:none; cursor:pointer;">
+          <option value="user">User</option><option value="default">Default</option>
+        </select>
+        <button id="tsp-save" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">SAVE</button>
+      </div>
+    </div>
+    
     <div class="tsp-row"><span class="tsp-label">VOLUME</span><input type="range" id="tsp-volume" min="0" max="100" value="46"></div>
     <div class="tsp-row"><span class="tsp-label">TONE</span><input type="range" id="tsp-brightness" min="0" max="100" value="50"></div>
     <div class="tsp-row"><span class="tsp-label">ATTACK</span><input type="range" id="tsp-attack" min="0" max="100" value="10"></div>
@@ -329,10 +410,28 @@
     <div class="tsp-row"><span class="tsp-label">FILT Q</span><input type="range" id="tsp-filter-q" min="0" max="100" value="0"></div>
     <div class="tsp-row"><span class="tsp-label">LFO</span><input type="range" id="tsp-lfo" min="0" max="100" value="0"></div>
     <div class="tsp-row"><span class="tsp-label">ARP</span><input type="range" id="tsp-arp" min="0" max="100" value="0"></div>
+    
+    <div class="tsp-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+      <span class="tsp-label">WAVE</span>
+      <select id="tsp-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+        <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth">SAW (Rich)</option>
+      </select>
+    </div>
+    <div class="tsp-row"><span class="tsp-label">UNISON</span><input type="range" id="tsp-unison" min="0" max="100" value="0"></div>
+    <div class="tsp-row"><span class="tsp-label">REVERB</span><input type="range" id="tsp-reverb" min="0" max="100" value="30"></div>
+    <div class="tsp-row"><span class="tsp-label">NOISE</span><input type="range" id="tsp-noise" min="0" max="100" value="0"></div>
   </div>
 </div>
 
 <script>
+  // --- NOVÉ: Info logika ---
+  const infoBtn = document.getElementById('info-btn');
+  const infoOverlay = document.getElementById('info-overlay');
+  const closeInfoBtn = document.getElementById('close-info-btn');
+  infoBtn.addEventListener('click', () => infoOverlay.classList.add('open'));
+  closeInfoBtn.addEventListener('click', () => infoOverlay.classList.remove('open'));
+  // -------------------------
+
   const canvas = document.getElementById('canvas');
   const dropsCanvas = document.getElementById('drops');
   const ctx = dropsCanvas.getContext('2d');
@@ -345,11 +444,26 @@
   const starsCanvas = document.getElementById('stars');
   const starsCtx = starsCanvas.getContext('2d');
 
+  // --- NOVÉ: Souhvězdí ---
+  const constellationPoints = [
+    [{x: 0.15, y: 0.2}, {x: 0.18, y: 0.23}, {x: 0.2, y: 0.19}, {x: 0.25, y: 0.22}, {x: 0.28, y: 0.28}],
+    [{x: 0.8, y: 0.3}, {x: 0.85, y: 0.28}, {x: 0.82, y: 0.35}, {x: 0.77, y: 0.38}],
+    [{x: 0.5, y: 0.1}, {x: 0.55, y: 0.15}, {x: 0.58, y: 0.12}]
+  ];
+  let mappedConst = [];
+  function mapConst() {
+    mappedConst = constellationPoints.map(g => g.map(p => ({
+        x: p.x * window.innerWidth, y: p.y * window.innerHeight, phase: Math.random()*Math.PI*2, speed: Math.random() * 0.0015 + 0.0008
+    })));
+  }
+  // -----------------------
+
   function resize() {
     dropsCanvas.width = window.innerWidth;
     dropsCanvas.height = window.innerHeight;
     starsCanvas.width = window.innerWidth;
     starsCanvas.height = window.innerHeight;
+    mapConst(); // Přidán mapConst do resize
   }
   let resizeTimer;
   window.addEventListener('resize', () => {
@@ -530,6 +644,21 @@
     if (!isPageVisible) return;
     ts = ts || 0;
     starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+    
+    // --- NOVÉ: Kreslení souhvězdí ---
+    starsCtx.lineWidth = 0.5;
+    mappedConst.forEach(g => {
+      starsCtx.beginPath();
+      g.forEach((p, i) => {
+        const twinkle = 0.3 + 0.7 * Math.sin(ts * p.speed + p.phase);
+        if(i === 0) starsCtx.moveTo(p.x, p.y); else starsCtx.lineTo(p.x, p.y);
+        starsCtx.strokeStyle = `rgba(255,255,255,${0.1 * twinkle})`;
+        starsCtx.fillStyle = `rgba(255,255,255,${0.8 * twinkle})`;
+        starsCtx.fillRect(p.x - 1, p.y - 1, 2, 2);
+      });
+      starsCtx.stroke();
+    });
+    // --------------------------------
 
     for (let i = 0; i < stars.length; i++) {
       const s = stars[i];
@@ -788,6 +917,11 @@
   });
 
   let tapMasterGain, tapDelay, tapFeedback, tapDelayFilter;
+  // --- NOVÉ ZVUKOVÉ UZLY ---
+  let tapReverbNode, tapReverbGain;
+  let noiseBuffer;
+  // -------------------------
+
   const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
 
   let tapVolume = 0.16;      
@@ -800,9 +934,16 @@
   let tapArp = 0;
   
   // NOVÉ PROMENNÉ PRO BARVU TÓNU
-  let tapAttackTime = 0.16;  // Rychlost náběhu tónu
-  let tapTimbreBlend = 0;    // Blend pro klavírní nádech
-  let tapDetuneVal = 1.006;  // Rozladění oscilátorů
+  let tapAttackTime = 0.16;  
+  let tapTimbreBlend = 0;    
+  let tapDetuneVal = 1.006;  
+  
+  // --- NOVÉ PARAMETRY ---
+  let tapWave = 'sine';
+  let tapUnison = 0;
+  let tapReverb = 0.3;
+  let tapNoise = 0;
+  // ----------------------
 
   function initTapAudio() {
     initAudio(); 
@@ -810,6 +951,27 @@
     tapMasterGain = audioCtx.createGain();
     tapMasterGain.gain.value = tapVolume;
     tapMasterGain.connect(audioCtx.destination);
+
+    // --- NOVÉ: Inicializace Reverb a Noise bufferu ---
+    tapReverbNode = audioCtx.createConvolver();
+    const length = audioCtx.sampleRate * 3.5;
+    const revBuffer = audioCtx.createBuffer(2, length, audioCtx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const data = revBuffer.getChannelData(c);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3.5);
+    }
+    tapReverbNode.buffer = revBuffer;
+    
+    tapReverbGain = audioCtx.createGain();
+    tapReverbGain.gain.value = tapReverb;
+    tapReverbNode.connect(tapReverbGain);
+    tapReverbGain.connect(tapMasterGain);
+
+    const nLen = audioCtx.sampleRate * 2;
+    noiseBuffer = audioCtx.createBuffer(1, nLen, audioCtx.sampleRate);
+    const nData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nData[i] = Math.random() * 2 - 1;
+    // -------------------------------------------------
 
     tapDelay = audioCtx.createDelay(2.0);
     tapDelay.delayTime.value = tapDelayTime;
@@ -835,8 +997,8 @@
     const osc1 = audioCtx.createOscillator();
     const osc2 = audioCtx.createOscillator();
     
-    // Změna vln podle TIMBRE - nad 40% přidáme bohatší harmonické křivky (klavírní/FM vibe)
-    osc1.type = tapTimbreBlend > 0.4 ? 'triangle' : 'sine';
+    // Změna vln - zachována tvá logika z Timbre, ale s ohledem na nový Wave parametr
+    osc1.type = tapWave; // Použije přímo vybranou vlnu
     osc2.type = tapTimbreBlend > 0.7 ? 'square' : (tapTimbreBlend > 0.2 ? 'triangle' : 'sine');
 
     const noteFilter = audioCtx.createBiquadFilter();
@@ -869,6 +1031,23 @@
     noteFilter.connect(noteGain);
     noteGain.connect(tapMasterGain);
     noteGain.connect(tapDelay);
+    
+    // --- NOVÉ: Připojení na Reverb ---
+    noteGain.connect(tapReverbNode);
+    // ---------------------------------
+
+    // --- NOVÉ: Unison logika ---
+    if (tapUnison > 0) {
+      const uOsc1 = audioCtx.createOscillator(); const uOsc2 = audioCtx.createOscillator();
+      uOsc1.type = tapWave; uOsc2.type = tapWave;
+      uOsc1.frequency.value = baseFreq * (1 + (tapUnison * 0.02));
+      uOsc2.frequency.value = baseFreq * (1 - (tapUnison * 0.02));
+      const uGain = audioCtx.createGain(); uGain.gain.value = 0.5; // Kompenzace hlasitosti
+      uOsc1.connect(uGain); uOsc2.connect(uGain); uGain.connect(noteFilter);
+      uOsc1.start(now); uOsc2.start(now);
+      uOsc1.stop(now + tapDecay + 0.2); uOsc2.stop(now + tapDecay + 0.2);
+    }
+    // ---------------------------
 
     // LFO MODULACE FILTRU
     if (tapLfo > 0) {
@@ -901,10 +1080,26 @@
 
     osc1.start(now); osc2.start(now);
     osc1.stop(now + tapDecay + 0.2); osc2.stop(now + tapDecay + 0.2);
+
+    // --- NOVÉ: Spuštění šumu ---
+    if (tapNoise > 0 && noiseBuffer) {
+      const nSrc = audioCtx.createBufferSource();
+      nSrc.buffer = noiseBuffer; nSrc.loop = true;
+      const nGain = audioCtx.createGain();
+      nGain.gain.setValueAtTime(0, now);
+      nGain.gain.linearRampToValueAtTime(tapNoise, now + tapAttackTime);
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + tapDecay);
+      nSrc.connect(nGain); nGain.connect(tapMasterGain);
+      nSrc.start(now); nSrc.stop(now + tapDecay + 0.2);
+    }
+    // ---------------------------
   }
 
   function handleSkyTap(e) {
     if (e.target.closest && e.target.closest('.ui-container')) return;
+    if (e.target.closest && e.target.closest('.top-bar')) return;
+    if (e.target.closest && e.target.closest('.info-overlay')) return;
+    
     const x = e.clientX, y = e.clientY;
     playAmbientNote(x / window.innerWidth, y / window.innerHeight);
     tapSparkles.push({ x, y, spawnTs: performance.now(), duration: 900 });
@@ -946,7 +1141,7 @@
     tapArp = (e.target.value / 100); 
   });
   
-  // NOVÉ LISTENERY
+  // NOVÉ LISTENERY (původní)
   document.getElementById('tsp-attack').addEventListener('input', (e) => {
     // 0 = 10ms (klavír/brnkání), 100 = 1.5s (dlouhý táhlý nájezd)
     tapAttackTime = 0.01 + (e.target.value / 100) * 1.5; 
@@ -959,6 +1154,86 @@
     tapDetuneVal = 1 + (e.target.value / 100) * 0.04; 
   });
 
+  // --- NOVÉ LISTENERY (přidané pro Wave, Unison atd.) ---
+  document.getElementById('tsp-wave').addEventListener('change', (e) => tapWave = e.target.value);
+  document.getElementById('tsp-unison').addEventListener('input', (e) => tapUnison = e.target.value / 100);
+  document.getElementById('tsp-reverb').addEventListener('input', (e) => {
+    tapReverb = e.target.value / 100;
+    if(tapReverbGain) tapReverbGain.gain.setTargetAtTime(tapReverb, audioCtx.currentTime, 0.1);
+  });
+  document.getElementById('tsp-noise').addEventListener('input', (e) => tapNoise = (e.target.value / 100) * 0.15);
+
+  // --- NOVÉ: PRESETY A LOCALSTORAGE ---
+  const saveBtn = document.getElementById('tsp-save');
+  const presetSel = document.getElementById('tsp-preset');
+  
+  function getPresetObj() {
+    return {
+      vol: document.getElementById('tsp-volume').value,
+      bright: document.getElementById('tsp-brightness').value,
+      att: document.getElementById('tsp-attack').value,
+      dec: document.getElementById('tsp-decay').value,
+      timb: document.getElementById('tsp-timbre').value,
+      det: document.getElementById('tsp-detune').value,
+      echo: document.getElementById('tsp-echo').value,
+      delT: document.getElementById('tsp-delay-time').value,
+      filQ: document.getElementById('tsp-filter-q').value,
+      lfo: document.getElementById('tsp-lfo').value,
+      arp: document.getElementById('tsp-arp').value,
+      wave: document.getElementById('tsp-wave').value,
+      uni: document.getElementById('tsp-unison').value,
+      rev: document.getElementById('tsp-reverb').value,
+      noi: document.getElementById('tsp-noise').value
+    };
+  }
+
+  function loadPresetObj(obj) {
+    if(!obj) return;
+    const trigger = (id, val) => { 
+      const el = document.getElementById(id); 
+      if(el) { el.value = val; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
+    };
+    trigger('tsp-volume', obj.vol || 46);
+    trigger('tsp-brightness', obj.bright || 50);
+    trigger('tsp-attack', obj.att || 10);
+    trigger('tsp-decay', obj.dec || 43);
+    trigger('tsp-timbre', obj.timb || 0);
+    trigger('tsp-detune', obj.det || 15);
+    trigger('tsp-echo', obj.echo || 51);
+    trigger('tsp-delay-time', obj.delT || 42);
+    trigger('tsp-filter-q', obj.filQ || 0);
+    trigger('tsp-lfo', obj.lfo || 0);
+    trigger('tsp-arp', obj.arp || 0);
+    trigger('tsp-wave', obj.wave || 'sine');
+    trigger('tsp-unison', obj.uni || 0);
+    trigger('tsp-reverb', obj.rev || 30);
+    trigger('tsp-noise', obj.noi || 0);
+  }
+
+  saveBtn.addEventListener('click', () => {
+    localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj()));
+    presetSel.value = 'user';
+    saveBtn.innerText = 'OK';
+    setTimeout(() => saveBtn.innerText = 'SAVE', 1000);
+  });
+
+  presetSel.addEventListener('change', (e) => {
+    if(e.target.value === 'user') {
+      const saved = localStorage.getItem('synthlucida_preset');
+      if(saved) loadPresetObj(JSON.parse(saved));
+    } else {
+      // Default
+      loadPresetObj({vol:46, bright:50, att:10, dec:43, timb:0, det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, wave:'sine', uni:0, rev:30, noi:0});
+    }
+  });
+
+  // Načtení na začátku
+  const initialSaved = localStorage.getItem('synthlucida_preset');
+  if(initialSaved) {
+    presetSel.value = 'user';
+    loadPresetObj(JSON.parse(initialSaved));
+  }
+  // ------------------------------------
 </script>
 </body>
 </html>
