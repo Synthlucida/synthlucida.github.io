@@ -308,6 +308,20 @@
   }
   .website-link a { color: #fff; text-decoration: none; transition: 0.3s; }
   .website-link a:hover { color: #dfe8ff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+
+  /* --- Sequencer CSS --- */
+  .seq-dot {
+    width: 100%;
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .seq-dot:hover { background: rgba(255,255,255,0.15); }
+  .seq-dot.active { background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+  .seq-dot.playing { border-color: #ff6b6b; transform: scale(1.1); }
   /* -------------------------------- */
 
   @media (max-width: 480px) {
@@ -329,7 +343,6 @@
 <div id="info-overlay" class="info-overlay">
   <div class="info-content">
     <h2>Information & Guide</h2>
-    
     <div class="warning">
       ⚠ EPILEPSY WARNING: This application contains gently pulsating visual elements (twinkling stars, light orbs and other). If you suffer from photosensitive epilepsy, please use caution.
     </div>
@@ -367,11 +380,7 @@
       <li><strong>NOISE:</strong> Blends in a subtle background vinyl/tape noise for a lo-fi atmosphere.</li>
       <li><strong>PRESETS & SAVE:</strong> Use the dropdown menu to switch between default settings and your custom user setup. Click <strong>SAVE</strong> to store your current layout directly in your browser.</li>
     </ul>
-
-    <div class="website-link">
-      <a href="https://www.synthlucida.com" target="_blank" rel="noopener noreferrer">WWW.SYNTHLUCIDA.COM</a>
-    </div>
-
+    <div class="website-link"><a href="https://www.synthlucida.com" target="_blank" rel="noopener noreferrer">WWW.SYNTHLUCIDA.COM</a></div>
     <button id="close-info-btn" class="close-info-btn">CLOSE</button>
   </div>
 </div>
@@ -380,9 +389,7 @@
 <div class="sun"></div>
 <div class="moon-wrapper">
   <div class="moon-glow"></div>
-  <div class="moon">
-    <div class="moon-shadow"></div>
-  </div>
+  <div class="moon"><div class="moon-shadow"></div></div>
   <div class="moon-outline"></div>
 </div>
 <div class="orb orb-1"></div>
@@ -423,6 +430,21 @@
           <option value="user">User</option><option value="default">Default</option>
         </select>
         <button id="tsp-save" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">SAVE</button>
+      </div>
+    </div>
+
+    <!-- SEQUENCER UI ADDED HERE -->
+    <div class="tsp-row" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-direction: column; align-items: flex-start; gap: 8px;">
+      <div style="display:flex; justify-content: space-between; width: 100%; align-items: center;">
+        <span class="tsp-label" style="min-width:auto; color: #fff;">SEQUENCER</span>
+        <button id="seq-play" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.3); padding: 4px 10px; border-radius:4px; font-size:0.45rem; cursor:pointer; font-family: 'Orbitron', sans-serif;">PLAY</button>
+      </div>
+      <div class="tsp-row" style="width: 100%;">
+        <span class="tsp-label">BPM</span>
+        <input type="range" id="seq-bpm" min="40" max="240" value="110">
+      </div>
+      <div id="seq-grid" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; width: 100%; margin-top: 4px;">
+        <!-- Dots injected by JS -->
       </div>
     </div>
     
@@ -466,11 +488,29 @@
     </div>
     
     <div class="tsp-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
-      <span class="tsp-label">WAVE</span>
+      <span class="tsp-label">OSC1 WAV</span>
       <select id="tsp-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
         <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth">SAW (Rich)</option>
       </select>
     </div>
+    
+    <!-- OSC 3 CONTROLS -->
+    <div class="tsp-row">
+      <span class="tsp-label">OSC3 WAV</span>
+      <select id="tsp-osc3-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+        <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth" selected>SAW (Rich)</option>
+      </select>
+    </div>
+    <div class="tsp-row">
+      <span class="tsp-label">OSC3 OCT</span>
+      <select id="tsp-osc3-oct" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+        <option value="-2">-2 OCT</option><option value="-1" selected>-1 OCT</option><option value="0">0 OCT</option><option value="1">+1 OCT</option><option value="2">+2 OCT</option>
+      </select>
+    </div>
+    <div class="tsp-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+      <span class="tsp-label">OSC3 VOL</span><input type="range" id="tsp-osc3-vol" min="0" max="100" value="0">
+    </div>
+
     <div class="tsp-row"><span class="tsp-label">UNISON</span><input type="range" id="tsp-unison" min="0" max="100" value="0"></div>
     <div class="tsp-row"><span class="tsp-label">REVERB</span><input type="range" id="tsp-reverb" min="0" max="100" value="30"></div>
     <div class="tsp-row"><span class="tsp-label">NOISE</span><input type="range" id="tsp-noise" min="0" max="100" value="0"></div>
@@ -999,6 +1039,24 @@
   let tapLooper = 0;
   let tapRange = 1;
 
+  // --- Nové proměnné pro OSC 3 ---
+  let tapOsc3Wave = 'sawtooth';
+  let tapOsc3Oct = -1;
+  let tapOsc3Vol = 0;
+
+  // --- Sequencer Variables ---
+  // seqSteps nyní ukládá objekty, aby si pamatoval x a y pro každý krok
+  let seqSteps = Array.from({length: 16}, () => ({ active: false, x: 0.5, y: 0.5 }));
+  let seqIsPlaying = false;
+  let seqBpm = 110;
+  let seqCurrentStep = 0;
+  let seqLastX = 0.5;
+  let seqLastY = 0.5;
+  let seqTimerID = null;
+  let nextNoteTime = 0;
+  const seqLookahead = 25.0; // ms
+  const seqScheduleAheadTime = 0.1; // s
+
   function initTapAudio() {
     initAudio(); 
     if (tapMasterGain) return;
@@ -1068,7 +1126,6 @@
     noteFilter.type = 'lowpass';
     noteFilter.Q.value = tapFilterQ;
 
-    // VYLEPŠENÝ ARPEGGIATOR
     if (tapArp > 0) {
       const stepTime = 0.05 + (1 - tapArp) * 0.3; 
       let t = now;
@@ -1096,6 +1153,19 @@
 
     osc1.connect(noteFilter);
     osc2.connect(noteFilter);
+    
+    // --- OSC 3 (Nový oscilátor) ---
+    const osc3 = audioCtx.createOscillator();
+    osc3.type = tapOsc3Wave;
+    osc3.frequency.value = baseFreq * Math.pow(2, tapOsc3Oct);
+    const osc3Gain = audioCtx.createGain();
+    osc3Gain.gain.value = tapOsc3Vol * 0.6; // Škálováno, aby to nepřervalo mix
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(noteFilter);
+    osc3.start(now);
+    osc3.stop(now + tapDecay + 0.2);
+    // -----------------------------
+
     noteFilter.connect(noteGain);
     noteGain.connect(tapMasterGain);
     noteGain.connect(tapDelay);
@@ -1156,13 +1226,85 @@
     }
   }
 
+  // --- Sequencer Logic ---
+  const seqGrid = document.getElementById('seq-grid');
+  for (let i = 0; i < 16; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'seq-dot';
+    dot.addEventListener('click', () => {
+      seqSteps[i].active = !seqSteps[i].active;
+      // Uloží aktuální tón do této tečky
+      if (seqSteps[i].active) {
+        seqSteps[i].x = seqLastX;
+        seqSteps[i].y = seqLastY;
+      }
+      dot.classList.toggle('active', seqSteps[i].active);
+    });
+    seqGrid.appendChild(dot);
+  }
+
+  function seqAdvanceNote() {
+    const secondsPerBeat = 60.0 / seqBpm;
+    nextNoteTime += 0.25 * secondsPerBeat; // 16th note
+    seqCurrentStep = (seqCurrentStep + 1) % 16;
+  }
+
+  function seqScheduleNote(stepNumber, time) {
+    const timeUntilNote = time - audioCtx.currentTime;
+    setTimeout(() => {
+      document.querySelectorAll('.seq-dot').forEach((dot, idx) => {
+        dot.classList.toggle('playing', idx === stepNumber);
+      });
+      if (seqSteps[stepNumber].active) {
+        // Přehrává konkrétní uloženou pozici (tón) z daného kroku
+        playAmbientNote(seqSteps[stepNumber].x, seqSteps[stepNumber].y);
+      }
+    }, Math.max(0, timeUntilNote * 1000));
+  }
+
+  function seqScheduler() {
+    while (nextNoteTime < audioCtx.currentTime + seqScheduleAheadTime) {
+      seqScheduleNote(seqCurrentStep, nextNoteTime);
+      seqAdvanceNote();
+    }
+    seqTimerID = setTimeout(seqScheduler, seqLookahead);
+  }
+
+  document.getElementById('seq-play').addEventListener('click', () => {
+    initAudio();
+    seqIsPlaying = !seqIsPlaying;
+    const playBtn = document.getElementById('seq-play');
+    if (seqIsPlaying) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      nextNoteTime = audioCtx.currentTime + 0.1;
+      seqScheduler();
+      playBtn.style.background = 'rgba(255,107,107,0.4)';
+      playBtn.style.borderColor = '#ff6b6b';
+      playBtn.innerText = 'PAUSE';
+    } else {
+      clearTimeout(seqTimerID);
+      document.querySelectorAll('.seq-dot').forEach(d => d.classList.remove('playing'));
+      playBtn.style.background = 'rgba(255,255,255,0.1)';
+      playBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+      playBtn.innerText = 'PLAY';
+    }
+  });
+
+  document.getElementById('seq-bpm').addEventListener('input', (e) => {
+    seqBpm = parseInt(e.target.value);
+  });
+
   function handleSkyTap(e) {
     if (e.target.closest && e.target.closest('.ui-container')) return;
     if (e.target.closest && e.target.closest('.top-bar')) return;
     if (e.target.closest && e.target.closest('.info-overlay')) return;
     
     const x = e.clientX, y = e.clientY;
-    playAmbientNote(x / window.innerWidth, y / window.innerHeight);
+    // Aktualizace aktuálního "globálního" tónu pro vkládání do sekvenceru
+    seqLastX = x / window.innerWidth;
+    seqLastY = y / window.innerHeight;
+    
+    playAmbientNote(seqLastX, seqLastY);
     tapSparkles.push({ x, y, spawnTs: performance.now(), duration: 900 });
   }
   document.addEventListener('pointerdown', handleSkyTap);
@@ -1177,6 +1319,11 @@
   document.getElementById('tsp-scale').addEventListener('change', (e) => currentScale = e.target.value);
   document.getElementById('tsp-range').addEventListener('change', (e) => tapRange = parseFloat(e.target.value));
   document.getElementById('tsp-arp-mode').addEventListener('change', (e) => tapArpMode = e.target.value);
+  
+  // OSC 3 Events
+  document.getElementById('tsp-osc3-wave').addEventListener('change', (e) => tapOsc3Wave = e.target.value);
+  document.getElementById('tsp-osc3-oct').addEventListener('change', (e) => tapOsc3Oct = parseInt(e.target.value));
+  document.getElementById('tsp-osc3-vol').addEventListener('input', (e) => tapOsc3Vol = e.target.value / 100);
   
   document.getElementById('tsp-looper').addEventListener('input', (e) => {
     tapLooper = e.target.value / 100;
@@ -1250,9 +1397,14 @@
       arp: document.getElementById('tsp-arp').value,
       arpMode: document.getElementById('tsp-arp-mode').value,
       wave: document.getElementById('tsp-wave').value,
+      osc3Wave: document.getElementById('tsp-osc3-wave').value,
+      osc3Oct: document.getElementById('tsp-osc3-oct').value,
+      osc3Vol: document.getElementById('tsp-osc3-vol').value,
       uni: document.getElementById('tsp-unison').value,
       rev: document.getElementById('tsp-reverb').value,
-      noi: document.getElementById('tsp-noise').value
+      noi: document.getElementById('tsp-noise').value,
+      seqSteps: seqSteps,
+      seqBpm: document.getElementById('seq-bpm').value
     };
   }
 
@@ -1278,9 +1430,28 @@
     trigger('tsp-arp', obj.arp || 0);
     trigger('tsp-arp-mode', obj.arpMode || 'up');
     trigger('tsp-wave', obj.wave || 'sine');
+    trigger('tsp-osc3-wave', obj.osc3Wave || 'sawtooth');
+    trigger('tsp-osc3-oct', obj.osc3Oct || '-1');
+    trigger('tsp-osc3-vol', obj.osc3Vol || '0');
     trigger('tsp-unison', obj.uni || 0);
     trigger('tsp-reverb', obj.rev || 30);
     trigger('tsp-noise', obj.noi || 0);
+    
+    if(obj.seqSteps !== undefined) {
+      seqSteps = obj.seqSteps.map(step => {
+        // Zajištění kompatibility se staršími uloženými presety (kdy to bylo jen true/false)
+        if (typeof step === 'boolean') {
+          return { active: step, x: 0.5, y: 0.5 };
+        }
+        return step;
+      });
+      document.querySelectorAll('.seq-dot').forEach((dot, i) => {
+        dot.classList.toggle('active', seqSteps[i].active);
+      });
+    }
+    if(obj.seqBpm !== undefined) {
+      trigger('seq-bpm', obj.seqBpm);
+    }
   }
 
   saveBtn.addEventListener('click', () => {
@@ -1297,31 +1468,29 @@
     } else {
       loadPresetObj({
         scale: 'pentatonic', range: 1, looper: 0, vol:46, bright:50, att:10, dec:43, timb:0, 
-        det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, arpMode: 'up', wave:'sine', 
-        uni:0, rev:30, noi:0
+        det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, arpMode: 'up', wave:'sine',
+        osc3Wave: 'sawtooth', osc3Oct: -1, osc3Vol: 0, 
+        uni:0, rev:30, noi:0, seqSteps: Array.from({length: 16}, () => ({ active: false, x: 0.5, y: 0.5 })), seqBpm: 110
       });
     }
   });
 
   document.getElementById('tsp-reset').addEventListener('click', () => {
+    if (audioCtx && looperGain && looperFeedback) {
+      const now = audioCtx.currentTime;
+      looperGain.gain.cancelScheduledValues(now);
+      looperFeedback.gain.cancelScheduledValues(now);
+      looperGain.gain.setValueAtTime(0, now);
+      looperFeedback.gain.setValueAtTime(0, now);
+    }
 
-  // okamžité ztišení a zastavení looperu
-  if (audioCtx && looperGain && looperFeedback) {
-    const now = audioCtx.currentTime;
-
-    looperGain.gain.cancelScheduledValues(now);
-    looperFeedback.gain.cancelScheduledValues(now);
-
-    looperGain.gain.setValueAtTime(0, now);
-    looperFeedback.gain.setValueAtTime(0, now);
-  }
-
-  loadPresetObj({
-    scale: 'pentatonic', range: 1, looper: 0, vol: 0, bright: 50, att: 10, dec: 43, timb: 0,
-    det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
-    uni: 0, rev: 30, noi: 0
+    loadPresetObj({
+      scale: 'pentatonic', range: 1, looper: 0, vol: 0, bright: 50, att: 10, dec: 43, timb: 0,
+      det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
+      osc3Wave: 'sawtooth', osc3Oct: -1, osc3Vol: 0,
+      uni: 0, rev: 30, noi: 0, seqSteps: Array.from({length: 16}, () => ({ active: false, x: 0.5, y: 0.5 })), seqBpm: 110
+    });
   });
-});
 
   const initialSaved = localStorage.getItem('synthlucida_preset');
   if(initialSaved) {
