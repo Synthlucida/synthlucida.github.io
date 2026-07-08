@@ -463,8 +463,8 @@
     <div class="tsp-row"><span class="tsp-label">DECAY</span><input type="range" id="tsp-decay" min="0" max="100" value="43"></div>
     <div class="tsp-row"><span class="tsp-label">TIMBRE</span><input type="range" id="tsp-timbre" min="0" max="100" value="0"></div>
     <div class="tsp-row"><span class="tsp-label">DETUNE</span><input type="range" id="tsp-detune" min="0" max="100" value="15"></div>
+    <div class="tsp-row"><span class="tsp-label">SYNC DEL.</span><input type="range" id="tsp-delay-time" min="1" max="100" value="42"></div>
     <div class="tsp-row"><span class="tsp-label">ECHO</span><input type="range" id="tsp-echo" min="0" max="100" value="51"></div>
-    <div class="tsp-row"><span class="tsp-label">DEL T.</span><input type="range" id="tsp-delay-time" min="1" max="100" value="42"></div>
     <div class="tsp-row"><span class="tsp-label">FILT Q</span><input type="range" id="tsp-filter-q" min="0" max="100" value="0"></div>
     <div class="tsp-row"><span class="tsp-label">LFO</span><input type="range" id="tsp-lfo" min="0" max="100" value="0"></div>
     <div class="tsp-row"><span class="tsp-label">DRIVE</span><input type="range" id="tsp-drive" min="0" max="100" value="0"></div>
@@ -513,13 +513,11 @@ const fsBtn = document.getElementById('fs-btn');
 
 fsBtn.addEventListener('click', () => {
   if (!document.fullscreenElement) {
-    // Vstup do fullscreenu
     document.documentElement.requestFullscreen().catch(err => {
       console.log(`Error attempting to enable full-screen mode: ${err.message}`);
     });
     fsBtn.innerText = "FULLSCREEN: ON";
   } else {
-    // Odchod z fullscreenu
     document.exitFullscreen();
     fsBtn.innerText = "FULLSCREEN: OFF";
   }
@@ -788,14 +786,13 @@ fsBtn.addEventListener('click', () => {
   }
   animateDrops();
 
-  // Mouse tracking solely for water drops effect
   document.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
   document.addEventListener('touchmove', (e) => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: true });
   document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
   document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, { passive: true });
 
   let audioCtx;
-  let globalMixer; 
+  let globalMixer, sidechainGain; 
   let oscL, oscR, gainL, gainR, merger;
   let currentToneIndex = 0;
   const tones = [
@@ -873,7 +870,6 @@ fsBtn.addEventListener('click', () => {
     }
     const blob = new Blob([view], { type: 'audio/wav' });
 
-    // Try modern File System Access API for user destination choice
     if (window.showSaveFilePicker) {
       try {
         const handle = await window.showSaveFilePicker({
@@ -892,7 +888,6 @@ fsBtn.addEventListener('click', () => {
       }
     }
 
-    // Fallback standard download
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = 'synthlucida_session.wav';
     a.click(); window.URL.revokeObjectURL(url);
@@ -1083,6 +1078,19 @@ fsBtn.addEventListener('click', () => {
   const seqLookahead = 25.0; 
   const seqScheduleAheadTime = 0.1; 
 
+  function updateDelayTime() {
+    if(!tapDelay || !audioCtx) return;
+    const beatLen = 60.0 / seqBpm;
+    const sliderVal = document.getElementById('tsp-delay-time').value;
+    let mult = 0.75; 
+    if(sliderVal < 20) mult = 0.25;
+    else if(sliderVal < 40) mult = 0.5;
+    else if(sliderVal < 60) mult = 0.75;
+    else if(sliderVal < 80) mult = 1.0;
+    else mult = 2.0;
+    tapDelay.delayTime.setTargetAtTime(beatLen * mult, audioCtx.currentTime, 0.1);
+  }
+
   function makeDistortionCurve(amount) {
     let k = amount * 10, n_samples = 44100, curve = new Float32Array(n_samples), deg = Math.PI / 180, i = 0, x;
     for ( ; i < n_samples; ++i ) {
@@ -1094,10 +1102,17 @@ fsBtn.addEventListener('click', () => {
 
   function initTapAudio() {
     initAudio(); 
+    
+    if (!sidechainGain) {
+      sidechainGain = audioCtx.createGain();
+      sidechainGain.gain.value = 1.0;
+      sidechainGain.connect(globalMixer);
+    }
+
     if (tapMasterGain) return;
     tapMasterGain = audioCtx.createGain();
     tapMasterGain.gain.value = tapVolume;
-    tapMasterGain.connect(globalMixer);
+    tapMasterGain.connect(sidechainGain);
 
     tapReverbNode = audioCtx.createConvolver();
     const length = audioCtx.sampleRate * 3.5;
@@ -1119,7 +1134,7 @@ fsBtn.addEventListener('click', () => {
     for (let i = 0; i < nLen; i++) nData[i] = Math.random() * 2 - 1;
 
     tapDelay = audioCtx.createDelay(2.0);
-    tapDelay.delayTime.value = tapDelayTime;
+    updateDelayTime();
     tapFeedback = audioCtx.createGain(); tapFeedback.gain.value = tapEcho;
     tapDelayFilter = audioCtx.createBiquadFilter(); tapDelayFilter.type = 'lowpass'; tapDelayFilter.frequency.value = 2200;
 
@@ -1143,11 +1158,23 @@ fsBtn.addEventListener('click', () => {
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(globalMixer);
     osc.type = 'sine';
+    
     osc.frequency.setValueAtTime(tapKickPitch, time);
+    osc.frequency.exponentialRampToValueAtTime(40, time + 0.05); 
     osc.frequency.exponentialRampToValueAtTime(10, time + tapKickDecay);
-    gain.gain.setValueAtTime(tapKickVol, time);
+    
+    gain.gain.setValueAtTime(0.001, time);
+    gain.gain.linearRampToValueAtTime(tapKickVol, time + 0.005);
     gain.gain.exponentialRampToValueAtTime(0.001, time + tapKickDecay);
+    
     osc.start(time); osc.stop(time + tapKickDecay);
+
+    if(sidechainGain) {
+       sidechainGain.gain.cancelScheduledValues(time);
+       sidechainGain.gain.setValueAtTime(1.0, time);
+       sidechainGain.gain.linearRampToValueAtTime(0.2, time + 0.02); 
+       sidechainGain.gain.exponentialRampToValueAtTime(1.0, time + 0.35); 
+    }
   }
 
   function playAmbientNote(xRatio, yRatio, schedTime = 0) {
@@ -1178,10 +1205,9 @@ fsBtn.addEventListener('click', () => {
       osc1.frequency.value = baseFreq; osc2.frequency.value = baseFreq * tapDetuneVal;
     }
 
-    const noteGain = audioCtx.createGain(); noteGain.gain.value = 0;
+    const noteGain = audioCtx.createGain(); 
     osc1.connect(noteFilter); osc2.connect(noteFilter);
     
-    // --- OSC 2 ---
     const osc3 = audioCtx.createOscillator();
     osc3.type = tapOsc2Wave;
     osc3.frequency.value = baseFreq * Math.pow(2, tapOsc2Oct);
@@ -1214,17 +1240,23 @@ fsBtn.addEventListener('click', () => {
     }
 
     const filterMax = (900 + (1 - yRatio) * 2600) * tapBrightness;
-    if (tapTimbreBlend > 0.3 && tapAttackTime < 0.2) {
-      noteFilter.frequency.setValueAtTime(filterMax * (1 + tapTimbreBlend), now); noteFilter.frequency.exponentialRampToValueAtTime(filterMax * 0.4, now + (tapDecay * 0.4));
-    } else { noteFilter.frequency.value = filterMax; }
+    if (tapTimbreBlend > 0) {
+      const peak = filterMax * (1 + tapTimbreBlend * 2);
+      noteFilter.frequency.setValueAtTime(peak, now); 
+      noteFilter.frequency.exponentialRampToValueAtTime(Math.max(10, filterMax * 0.3), now + tapDecay * 0.4);
+    } else { noteFilter.frequency.setValueAtTime(filterMax, now); }
 
-    noteGain.gain.setValueAtTime(0, now); noteGain.gain.linearRampToValueAtTime(0.9, now + tapAttackTime); noteGain.gain.exponentialRampToValueAtTime(0.001, now + tapDecay);
+    const safeAttack = Math.max(0.015, tapAttackTime);
+    noteGain.gain.setValueAtTime(0.001, now); 
+    noteGain.gain.linearRampToValueAtTime(0.8, now + safeAttack); 
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + tapDecay);
+    
     osc1.start(now); osc2.start(now); osc1.stop(now + tapDecay + 0.2); osc2.stop(now + tapDecay + 0.2);
 
     if (tapNoise > 0 && noiseBuffer) {
       const nSrc = audioCtx.createBufferSource(); nSrc.buffer = noiseBuffer; nSrc.loop = true;
       const nGain = audioCtx.createGain();
-      nGain.gain.setValueAtTime(0, now); nGain.gain.linearRampToValueAtTime(tapNoise, now + tapAttackTime); nGain.gain.exponentialRampToValueAtTime(0.001, now + tapDecay);
+      nGain.gain.setValueAtTime(0, now); nGain.gain.linearRampToValueAtTime(tapNoise, now + safeAttack); nGain.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + tapDecay);
       nSrc.connect(nGain); nGain.connect(tapMasterGain); nSrc.start(now); nSrc.stop(now + tapDecay + 0.2);
     }
   }
@@ -1293,7 +1325,10 @@ fsBtn.addEventListener('click', () => {
     }
   });
 
-  document.getElementById('seq-bpm').addEventListener('input', (e) => seqBpm = parseInt(e.target.value));
+  document.getElementById('seq-bpm').addEventListener('input', (e) => {
+      seqBpm = parseInt(e.target.value);
+      updateDelayTime();
+  });
 
   function handleSkyTap(e) {
     if (e.target.closest && e.target.closest('.ui-container')) return;
@@ -1332,7 +1367,9 @@ fsBtn.addEventListener('click', () => {
   document.getElementById('tsp-brightness').addEventListener('input', (e) => tapBrightness = 0.4 + (e.target.value / 100) * 1.4);
   document.getElementById('tsp-decay').addEventListener('input', (e) => tapDecay = 0.8 + (e.target.value / 100) * 4.2);
   document.getElementById('tsp-echo').addEventListener('input', (e) => { tapEcho = (e.target.value / 100) * 0.55; if (tapFeedback) tapFeedback.gain.setTargetAtTime(tapEcho, audioCtx.currentTime, 0.1); });
-  document.getElementById('tsp-delay-time').addEventListener('input', (e) => { tapDelayTime = 0.1 + (e.target.value / 100) * 1.9; if (tapDelay) tapDelay.delayTime.setTargetAtTime(tapDelayTime, audioCtx.currentTime, 0.1); });
+  
+  document.getElementById('tsp-delay-time').addEventListener('input', (e) => { updateDelayTime(); });
+  
   document.getElementById('tsp-filter-q').addEventListener('input', (e) => tapFilterQ = 1 + (e.target.value / 100) * 15);
   document.getElementById('tsp-lfo').addEventListener('input', (e) => tapLfo = (e.target.value / 100));
   document.getElementById('tsp-arp').addEventListener('input', (e) => tapArp = (e.target.value / 100));
