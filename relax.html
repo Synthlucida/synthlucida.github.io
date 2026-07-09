@@ -19,8 +19,7 @@
       radial-gradient(ellipse 150% 60% at 50% 50%, rgba(30, 20, 60, 0.15) 0%, transparent 40%),
       radial-gradient(ellipse 120% 40% at 40% 55%, rgba(50, 30, 80, 0.12) 10%, transparent 50%),
       radial-gradient(ellipse 180% 50% at 60% 45%, rgba(20, 40, 90, 0.1) 20%, transparent 60%);
-    transform: rotate(-15deg) scale(1.5);
-    filter: blur(15px);
+    transform: rotate(-15deg) scale(1.5) translateZ(0);
     opacity: 0.8;
   }
 
@@ -41,19 +40,14 @@
     transform: translate(-50%, -50%);
     border-radius: 50%;
     overflow: hidden; 
-    filter: blur(1.6px); 
-    box-shadow: 0 0 14px rgba(255,255,240,0.15);
+    box-shadow: inset -12px -8px 20px rgba(0,0,0,0.65), inset 4px 4px 8px rgba(255,255,255,0.4), 0 0 14px rgba(255,255,240,0.2);
     background:
-      radial-gradient(circle at 66% 70%, rgba(80,78,68,0.4) 0%, rgba(150,148,135,0.12) 45%, transparent 58%),
-      radial-gradient(circle at 30% 62%, rgba(80,78,68,0.32) 0%, rgba(150,148,135,0.10) 45%, transparent 58%),
-      radial-gradient(circle at 74% 30%, rgba(80,78,68,0.3) 0%, rgba(150,148,135,0.10) 42%, transparent 55%),
-      radial-gradient(circle at 44% 80%, rgba(80,78,68,0.26) 0%, transparent 50%),
-      radial-gradient(circle at 20% 22%, rgba(80,78,68,0.22) 0%, transparent 45%),
-      radial-gradient(circle at 55% 18%, rgba(80,78,68,0.2) 0%, transparent 40%),
-      radial-gradient(circle at 62% 66%, rgba(105,102,90,0.22) 0%, transparent 34%),
-      radial-gradient(circle at 26% 58%, rgba(105,102,90,0.16) 0%, transparent 30%),
-      radial-gradient(circle at 40% 78%, rgba(105,102,90,0.12) 0%, transparent 24%),
-      radial-gradient(circle at 35% 32%, #ece8db 0%, #ddd9c9 32%, #c2beac 60%, #a29d88 100%);
+      radial-gradient(circle at 45% 35%, rgba(120, 118, 105, 0.45) 0%, transparent 20%),
+      radial-gradient(circle at 25% 60%, rgba(100, 98, 85, 0.5) 0%, transparent 30%),
+      radial-gradient(circle at 65% 70%, rgba(110, 108, 95, 0.4) 0%, transparent 25%),
+      radial-gradient(circle at 75% 30%, rgba(130, 128, 115, 0.45) 0%, transparent 22%),
+      radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.3) 0%, transparent 15%),
+      #d4d2c8;
   }
   .moon-shadow {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -109,6 +103,7 @@
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
     background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
     opacity: 0.04;
+    transform: translateZ(0);
   }
 
   #drops { position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none; }
@@ -121,17 +116,20 @@
   .headphones-notice {
     font-size: 0.55rem; letter-spacing: 4px; color: rgba(255,255,255,0.35);
     text-transform: uppercase; text-shadow: 0 0 8px rgba(255,255,255,0.1); margin-bottom: 2px;
+    text-align: center;
   }
 
   .tap-notice {
     font-size: 0.5rem; letter-spacing: 3px; color: rgba(255,255,255,0.22);
     text-transform: uppercase; text-shadow: 0 0 6px rgba(255,255,255,0.08); margin-bottom: 4px;
+    text-align: center;
   }
 
   .binaural-status {
     font-size: 0.65rem; letter-spacing: 5px; color: rgba(255,255,255,0.6);
     text-transform: uppercase; opacity: 0; transition: opacity 1s ease;
     text-shadow: 0 0 10px rgba(255,255,255,0.2); height: 12px; margin-bottom: 8px;
+    text-align: center;
   }
   .binaural-status.active { opacity: 1; }
 
@@ -150,6 +148,11 @@
     box-sizing: border-box; white-space: nowrap;
   }
   .btn:hover, .btn.active-btn { border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+
+  #timer-btn {
+    min-width: 140px;
+    font-variant-numeric: tabular-nums;
+  }
 
   .lang-btn {
     padding: 6px 14px; font-size: 0.55rem; letter-spacing: 2px;
@@ -431,7 +434,7 @@
         <span class="tsp-label">BPM</span>
         <input type="range" id="seq-bpm" min="40" max="240" value="110">
       </div>
-      <div id="seq-grid" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; width: 100%; margin-top: 4px;">
+      <div id="seq-grid" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; width: 100%; margin-top: 4px; box-sizing: border-box;">
         <!-- Dots injected by JS -->
       </div>
       
@@ -439,7 +442,7 @@
       <div style="display:flex; justify-content: space-between; width: 100%; align-items: center; margin-top: 8px;">
         <span class="tsp-label" style="min-width:auto; color: #fff;">KICK SEQ</span>
       </div>
-      <div id="kick-grid" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; width: 100%; margin-top: 2px;">
+      <div id="kick-grid" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; width: 100%; margin-top: 2px; box-sizing: border-box;">
         <!-- Dots injected by JS -->
       </div>
       <div class="tsp-row" style="width:100%; margin-top:6px;"><span class="tsp-label">KCK VOL</span><input type="range" id="tsp-kick-vol" min="0" max="100" value="80"></div>
@@ -517,7 +520,6 @@
 </div>
 
 <script>
-
   // --- Fullscreen logika ---
 const fsBtn = document.getElementById('fs-btn');
 
