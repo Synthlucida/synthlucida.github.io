@@ -52,17 +52,11 @@
   .moon-shadow {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     border-radius: 50%; background: #04030a;
-    animation: moonPhase 180s ease-in-out infinite;
   }
   .moon-outline {
     position: absolute; top: 0; left: 0; width: 80px; height: 80px;
     transform: translate(-50%, -50%);
     border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
-  }
-  @keyframes moonPhase {
-    0%   { transform: translateX(-100%); } 
-    50%  { transform: translateX(0%); }    
-    100% { transform: translateX(100%); }  
   }
   @keyframes moonGlowPulse {
     0%   { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
@@ -153,6 +147,10 @@
     min-width: 140px;
     font-variant-numeric: tabular-nums;
   }
+  
+  #binaural-btn, #crickets-btn {
+    min-width: 155px;
+  }
 
   .lang-btn {
     padding: 6px 14px; font-size: 0.55rem; letter-spacing: 2px;
@@ -194,7 +192,7 @@
 
   .tsp-title {
     font-size: 0.55rem; letter-spacing: 4px; color: rgba(255,255,255,0.4);
-    text-align: center; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center;
+    text-align: center; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
   }
   .tsp-row { display: flex; align-items: center; gap: 12px; }
   .tsp-label {
@@ -415,19 +413,23 @@
 
   <div id="tap-synth-panel" class="tap-synth-panel">
     <div class="tsp-title">
-      TAP MELODY
-      <div style="display:flex; align-items:center; gap:6px;">
+      <span style="display:inline-block; margin-right:auto;">TAP MELODY</span>
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
         <button id="tsp-reset" style="background:rgba(255,107,107,0.3); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">RESET</button>
         <select id="tsp-preset" style="background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.45rem; outline:none; cursor:pointer;">
           <option value="user">User</option><option value="default">Default</option>
         </select>
         <button id="tsp-save" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">SAVE</button>
+        <button id="tsp-exp-json" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">EXP FILE</button>
+        <button id="tsp-imp-json" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">IMP FILE</button>
+        <button id="tsp-exp-midi" style="background:rgba(120,80,255,0.5); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">MIDI</button>
+        <input type="file" id="tsp-file-input" accept=".json" style="display:none;">
       </div>
     </div>
 
     <div class="tsp-row" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-direction: column; align-items: flex-start; gap: 8px;">
       <div style="display:flex; justify-content: space-between; width: 100%; align-items: center;">
-        <span class="tsp-label" style="min-width:auto; color: #fff;">MELODY SEQ</span>
+        <span class="tsp-label" style="min-width:auto; color: #fff;">MELODY SEQ 1</span>
         <button id="seq-play" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.3); padding: 4px 10px; border-radius:4px; font-size:0.45rem; cursor:pointer; font-family: 'Orbitron', sans-serif;">PLAY</button>
       </div>
       <div class="tsp-row" style="width: 100%;">
@@ -435,6 +437,13 @@
         <input type="range" id="seq-bpm" min="40" max="240" value="110">
       </div>
       <div id="seq-grid" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; width: 100%; margin-top: 4px; box-sizing: border-box;">
+        <!-- Dots injected by JS -->
+      </div>
+
+      <div style="display:flex; justify-content: space-between; width: 100%; align-items: center; margin-top: 8px;">
+        <span class="tsp-label" style="min-width:auto; color: #fff;">MELODY SEQ 2</span>
+      </div>
+      <div id="seq2-grid" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; width: 100%; margin-top: 4px; box-sizing: border-box;">
         <!-- Dots injected by JS -->
       </div>
       
@@ -520,20 +529,39 @@
 </div>
 
 <script>
-  // --- Fullscreen logika ---
-const fsBtn = document.getElementById('fs-btn');
-
-fsBtn.addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(err => {
-      console.log(`Error attempting to enable full-screen mode: ${err.message}`);
-    });
-    fsBtn.innerText = "FULLSCREEN: ON";
-  } else {
-    document.exitFullscreen();
-    fsBtn.innerText = "FULLSCREEN: OFF";
+  // --- Moon Logic ---
+  function updateMoonPhase() {
+    const synodic = 29.53058867;
+    const msPerDay = 86400000;
+    const baseNewMoon = new Date('2000-01-06T18:14:00Z');
+    const diff = (Date.now() - baseNewMoon.getTime()) / msPerDay;
+    let phaseRatio = (diff % synodic) / synodic;
+    let tx;
+    if (phaseRatio <= 0.5) {
+      tx = phaseRatio * 200; // 0 to 100
+    } else {
+      tx = (phaseRatio - 1) * 200; // -100 to 0
+    }
+    const shadow = document.querySelector('.moon-shadow');
+    if (shadow) shadow.style.transform = `translateX(${tx}%)`;
   }
-});
+  updateMoonPhase();
+  setInterval(updateMoonPhase, 3600000);
+
+  // --- Fullscreen logika ---
+  const fsBtn = document.getElementById('fs-btn');
+
+  fsBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+      fsBtn.innerText = "FULLSCREEN: ON";
+    } else {
+      document.exitFullscreen();
+      fsBtn.innerText = "FULLSCREEN: OFF";
+    }
+  });
 
   // --- Info logika ---
   const infoBtn = document.getElementById('info-btn');
@@ -1082,6 +1110,7 @@ fsBtn.addEventListener('click', () => {
 
   // --- Sequencer Variables (32 steps for 2 full bars) ---
   let seqSteps = Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 }));
+  let seq2Steps = Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 }));
   let kickSteps = Array.from({length: 32}, () => false);
   
   let seqIsPlaying = false;
@@ -1288,6 +1317,17 @@ fsBtn.addEventListener('click', () => {
     seqGrid.appendChild(dot);
   }
 
+  const seq2Grid = document.getElementById('seq2-grid');
+  for (let i = 0; i < 32; i++) {
+    const dot = document.createElement('div'); dot.className = 'seq-dot';
+    dot.addEventListener('click', () => {
+      seq2Steps[i].active = !seq2Steps[i].active;
+      if (seq2Steps[i].active) { seq2Steps[i].x = seqLastX; seq2Steps[i].y = seqLastY; }
+      dot.classList.toggle('active', seq2Steps[i].active);
+    });
+    seq2Grid.appendChild(dot);
+  }
+
   const kickGrid = document.getElementById('kick-grid');
   for (let i = 0; i < 32; i++) {
     const dot = document.createElement('div'); dot.className = 'kick-dot';
@@ -1308,10 +1348,16 @@ fsBtn.addEventListener('click', () => {
     const timeUntilNote = time - audioCtx.currentTime;
     
     if (seqSteps[stepNumber].active) playAmbientNote(seqSteps[stepNumber].x, seqSteps[stepNumber].y, time);
+    if (seq2Steps[stepNumber].active) playAmbientNote(seq2Steps[stepNumber].x, seq2Steps[stepNumber].y, time);
     if (kickSteps[stepNumber]) playKickNote(time);
 
     setTimeout(() => {
-      document.querySelectorAll('.seq-dot').forEach((dot, idx) => dot.classList.toggle('playing', idx === stepNumber));
+      const seq1Dots = document.getElementById('seq-grid').children;
+      const seq2Dots = document.getElementById('seq2-grid').children;
+      for(let idx = 0; idx < 32; idx++) {
+        if(seq1Dots[idx]) seq1Dots[idx].classList.toggle('playing', idx === stepNumber);
+        if(seq2Dots[idx]) seq2Dots[idx].classList.toggle('playing', idx === stepNumber);
+      }
       document.querySelectorAll('.kick-dot').forEach((dot, idx) => dot.classList.toggle('playing', idx === stepNumber));
     }, Math.max(0, timeUntilNote * 1000));
   }
@@ -1410,7 +1456,7 @@ fsBtn.addEventListener('click', () => {
       osc2Vol: document.getElementById('tsp-osc2-vol').value, uni: document.getElementById('tsp-unison').value, rev: document.getElementById('tsp-reverb').value,
       noi: document.getElementById('tsp-noise').value, drive: document.getElementById('tsp-drive').value,
       kickVol: document.getElementById('tsp-kick-vol').value, kickPitch: document.getElementById('tsp-kick-pitch').value, kickDecay: document.getElementById('tsp-kick-decay').value,
-      seqSteps: seqSteps, kickSteps: kickSteps, seqBpm: document.getElementById('seq-bpm').value
+      seqSteps: seqSteps, seq2Steps: seq2Steps, kickSteps: kickSteps, seqBpm: document.getElementById('seq-bpm').value
     };
   }
 
@@ -1428,7 +1474,14 @@ fsBtn.addEventListener('click', () => {
     if(obj.seqSteps !== undefined) {
       seqSteps = obj.seqSteps.map(step => (typeof step === 'boolean' ? { active: step, x: 0.5, y: 0.5 } : step));
       while(seqSteps.length < 32) seqSteps.push({active: false, x: 0.5, y: 0.5});
-      document.querySelectorAll('.seq-dot').forEach((dot, i) => dot.classList.toggle('active', seqSteps[i]?.active));
+      const seq1Dots = document.getElementById('seq-grid').children;
+      for(let i=0; i<32; i++) if(seq1Dots[i]) seq1Dots[i].classList.toggle('active', seqSteps[i].active);
+    }
+    if(obj.seq2Steps !== undefined) {
+      seq2Steps = obj.seq2Steps.map(step => (typeof step === 'boolean' ? { active: step, x: 0.5, y: 0.5 } : step));
+      while(seq2Steps.length < 32) seq2Steps.push({active: false, x: 0.5, y: 0.5});
+      const seq2Dots = document.getElementById('seq2-grid').children;
+      for(let i=0; i<32; i++) if(seq2Dots[i]) seq2Dots[i].classList.toggle('active', seq2Steps[i].active);
     }
     if(obj.kickSteps !== undefined) {
       kickSteps = obj.kickSteps;
@@ -1450,7 +1503,9 @@ fsBtn.addEventListener('click', () => {
       loadPresetObj({
         scale: 'pentatonic', range: 1, looper: 0, vol:46, bright:50, att:10, dec:43, timb:0, det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, arpMode: 'up', wave:'sine',
         osc2Wave: 'sawtooth', osc2Oct: -1, osc2Vol: 0, uni:0, rev:30, noi:0, drive: 0, kickVol: 80, kickPitch: 120, kickDecay: 40,
-        seqSteps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })), kickSteps: Array.from({length: 32}, () => false), seqBpm: 110
+        seqSteps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })), 
+        seq2Steps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })),
+        kickSteps: Array.from({length: 32}, () => false), seqBpm: 110
       });
     }
   });
@@ -1460,9 +1515,111 @@ fsBtn.addEventListener('click', () => {
     loadPresetObj({
       scale: 'pentatonic', range: 1, looper: 0, vol: 0, bright: 50, att: 10, dec: 43, timb: 0, det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
       osc2Wave: 'sawtooth', osc2Oct: -1, osc2Vol: 0, uni: 0, rev: 30, noi: 0, drive: 0, kickVol: 80, kickPitch: 120, kickDecay: 40,
-      seqSteps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })), kickSteps: Array.from({length: 32}, () => false), seqBpm: 110
+      seqSteps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })), 
+      seq2Steps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })),
+      kickSteps: Array.from({length: 32}, () => false), seqBpm: 110
     });
   });
+
+  // Export JSON na disk
+  document.getElementById('tsp-exp-json').addEventListener('click', () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(getPresetObj()));
+    const a = document.createElement('a');
+    a.setAttribute("href", dataStr);
+    a.setAttribute("download", "synthlucida_preset.json");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  // Import JSON z disku
+  document.getElementById('tsp-imp-json').addEventListener('click', () => {
+    document.getElementById('tsp-file-input').click();
+  });
+
+  document.getElementById('tsp-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const obj = JSON.parse(evt.target.result);
+        loadPresetObj(obj);
+        presetSel.value = 'user';
+        localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj()));
+      } catch(err) {
+        alert("Invalid preset file");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset inputu
+  });
+
+  // Export do MIDI
+  document.getElementById('tsp-exp-midi').addEventListener('click', exportMIDI);
+
+  function exportMIDI() {
+    const toBytes = (val, bytes) => { let res = []; for(let i=bytes-1; i>=0; i--) res.push((val >> (i*8)) & 0xFF); return res; };
+    const toVarLen = (val) => { let res = [val & 0x7f]; while((val >>= 7) > 0) res.unshift((val & 0x7f) | 0x80); return res; };
+    let tracks = [];
+    let tempoTrack = [];
+    let mpqn = Math.floor(60000000 / seqBpm); 
+    tempoTrack.push(0x00, 0xFF, 0x51, 0x03, ...toBytes(mpqn, 3)); 
+    tempoTrack.push(0x00, 0xFF, 0x2F, 0x00); 
+    tracks.push(tempoTrack);
+
+    const generateTrackEvents = (steps, channel, isDrum) => {
+      let events = [];
+      for(let i=0; i<32; i++) {
+        let tick = i * 30; // 30 ticks = 1/16th (protože 120 TPQN)
+        let note = null;
+        if(isDrum) {
+          if(steps[i]) note = 36;
+        } else {
+          if(steps[i] && steps[i].active) {
+            let activeScale = scales[currentScale];
+            let noteIndex = Math.min(activeScale.length - 1, Math.floor(steps[i].x * activeScale.length));
+            let freq = activeScale[noteIndex] * (steps[i].y < 0.5 ? 2 : 1) * tapRange;
+            note = Math.round(69 + 12 * Math.log2(freq / 440));
+            note = Math.max(0, Math.min(127, note));
+          }
+        }
+        if(note !== null) {
+          events.push({ tick: tick, msg: [0x90 | channel, note, 100] });
+          events.push({ tick: tick + 28, msg: [0x80 | channel, note, 0] }); 
+        }
+      }
+      events.sort((a,b) => a.tick - b.tick);
+      let trkBytes = []; let lastTick = 0;
+      events.forEach(ev => { let delta = ev.tick - lastTick; lastTick = ev.tick; trkBytes.push(...toVarLen(delta), ...ev.msg); });
+      trkBytes.push(0x00, 0xFF, 0x2F, 0x00);
+      return trkBytes;
+    };
+
+    tracks.push(generateTrackEvents(seqSteps, 0, false));   // CH 1
+    tracks.push(generateTrackEvents(seq2Steps, 1, false));  // CH 2
+    tracks.push(generateTrackEvents(kickSteps, 9, true));   // CH 10
+
+    let midiBytes = [];
+    midiBytes.push(...[0x4D, 0x54, 0x68, 0x64]);
+    midiBytes.push(...toBytes(6, 4));
+    midiBytes.push(...toBytes(1, 2));
+    midiBytes.push(...toBytes(tracks.length, 2));
+    midiBytes.push(...toBytes(120, 2));
+    tracks.forEach(trk => {
+      midiBytes.push(...[0x4D, 0x54, 0x72, 0x6B]);
+      midiBytes.push(...toBytes(trk.length, 4));
+      midiBytes.push(...trk);
+    });
+    
+    let u8 = new Uint8Array(midiBytes);
+    let blob = new Blob([u8], {type: 'audio/midi'});
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url; a.download = 'synthlucida_sequence.mid';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const initialSaved = localStorage.getItem('synthlucida_preset');
   if(initialSaved) { presetSel.value = 'user'; loadPresetObj(JSON.parse(initialSaved)); }
