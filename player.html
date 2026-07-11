@@ -56,18 +56,30 @@
   body.theme-lavender { --bg-color-1: #20003b; --bg-color-2: #050010; --accent-color: #d400ff; --accent-glow: #550088; }
 
   * { box-sizing: border-box; }
-  
+
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     margin: 0;
     font-family: 'Orbitron', sans-serif;
     color: #ffffff;
     background: radial-gradient(circle at top, var(--bg-color-1), var(--bg-color-2), #000000);
     text-align: center;
-    overflow: hidden;
-    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* min-height (ne height) + auto scroll = obsah se nikdy neztratí/neořízne, jen se v krajním
+       případě (malý telefon, landscape) povolí jemný scroll místo neviditelného oříznutí */
+    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    /* Respektuje notch / dynamic island / home indicator na telefonech, protože viewport-fit=cover
+       nechává obsah zasahovat až pod tyto oblasti */
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     transition: background 0.4s linear; will-change: background;
   }
 
@@ -120,7 +132,7 @@
   }
 
   .header { padding: 12px 20px 6px; }
-  .logo { max-width: 100px; margin-bottom: 5px; animation: logoPulse 3.5s ease-in-out infinite; }
+  .logo { max-width: 100px; height: auto; margin-bottom: 5px; animation: logoPulse 3.5s ease-in-out infinite; }
   .brand-name { font-size: 18px; margin-bottom: 5px; letter-spacing: 2px; }
   .desc-text { font-size: 9px; opacity: 0.7; padding: 0 20px; line-height: 1.4; margin-bottom: 6px; }
 
@@ -183,10 +195,10 @@
   .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color); transition: width 0.1s linear; }
 
   /* Playlist - ZVĚTŠENO pro zobrazení 5-6 skladeb */
-  .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; max-height: 160px; /* Zvětšeno z 85px */ overflow-y: auto; text-align: left; }
+  .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; max-height: clamp(90px, 22vh, 160px); overflow-y: auto; overflow-x: hidden; text-align: left; }
   .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
-  .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
   .offline-badge { font-size: 9px; opacity: 0.6; flex-shrink: 0; color: var(--accent-color); }
   .offline-status { font-size: 8px; opacity: 0.45; display: inline-block; min-width: 60px; text-align: left; }
 
@@ -244,6 +256,15 @@
     text-shadow: 0 0 4px var(--accent-color) !important;
   }
 
+  /* Kompaktnější hlavička na nízkých obrazovkách (landscape telefony, malé/starší telefony),
+     ať je vidět co nejvíc přehrávače bez nutnosti scrollovat */
+  @media (max-height: 700px) {
+    .logo { max-width: 64px; }
+    .header { padding: 6px 20px 4px; }
+    .brand-name { font-size: 16px; margin-bottom: 3px; }
+    .desc-text-marketing { display: none; }
+  }
+
 </style>
 </head>
 <body class="theme-amber" id="body">
@@ -261,7 +282,7 @@
   <div class="brand-name">SYNTHLUCIDA</div>
   <div class="desc-text">www.SYNTHLUCIDA.com</div>
   <div class="desc-text">Offline listening works only for the app.</div>
-  <div class="desc-text">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack.</div>
+  <div class="desc-text desc-text-marketing">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack.</div>
 </div>
 
 <div class="atmospheres">
