@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>SYNTHLUCIDA | Ambient Flow</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root { --hue: 260; }
 
   body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #020008; font-family: 'Orbitron', sans-serif; overflow: hidden; color: #fff; }
+  @supports (height: 100dvh) { body, html { height: 100dvh; } }
+  * { -webkit-tap-highlight-color: transparent; }
+  button, input[type="range"], select, a.btn { touch-action: manipulation; }
 
   #stars { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; }
 
@@ -105,6 +108,8 @@
   .ui-container {
     position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
     display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; width: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
   }
 
   .headphones-notice {
@@ -150,6 +155,11 @@
   
   #binaural-btn, #crickets-btn {
     min-width: 155px;
+  }
+
+  #rec-btn {
+    min-width: 185px;
+    font-variant-numeric: tabular-nums;
   }
 
   .lang-btn {
@@ -269,7 +279,7 @@
     100% { transform: translate3d(5vw, -5vh, 0) scale(1.2); opacity: 0.8; }
   }
 
-  .top-bar { position: absolute; top: 20px; left: 20px; z-index: 20; }
+  .top-bar { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); left: calc(20px + env(safe-area-inset-left, 0px)); z-index: 20; }
   .info-btn { 
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); 
     width: 40px; height: 40px; border-radius: 50%; font-family: 'Orbitron', sans-serif; font-size: 1.2rem; 
@@ -326,8 +336,34 @@
   @media (max-width: 480px) {
     .controls { gap: 12px; }
     .btn { padding: 9px 16px; font-size: 0.6rem; letter-spacing: 2px; }
+    #rec-btn { min-width: 150px; }
+    #timer-btn { min-width: 115px; }
+    #binaural-btn, #crickets-btn { min-width: 128px; }
     .lang-btn { padding: 6px 12px; font-size: 0.5rem; }
     .orb-1, .orb-2, .orb-3 { display: none; } 
+  }
+
+  @media (max-width: 380px) {
+    .controls { gap: 8px; }
+    .btn { padding: 8px 12px; font-size: 0.55rem; letter-spacing: 1.5px; }
+    #rec-btn { min-width: 128px; }
+    #timer-btn { min-width: 100px; }
+    #binaural-btn, #crickets-btn { min-width: 110px; }
+    .headphones-notice { font-size: 0.48rem; letter-spacing: 2.5px; }
+    .tap-notice { font-size: 0.44rem; letter-spacing: 2px; }
+    .tap-synth-panel { width: 96vw; padding: 10px 12px 12px; gap: 8px; }
+    .tsp-label { min-width: 44px; font-size: 0.46rem; }
+  }
+
+  @media (max-width: 700px) and (orientation: landscape) {
+    .ui-container { bottom: 10px; gap: 6px; }
+    .headphones-notice, .tap-notice { display: none; }
+    .tap-synth-panel { max-height: 78vh; }
+    .moon-wrapper { top: 4vh; }
+  }
+
+  @media (max-width: 480px) {
+    .tap-synth-panel { max-height: 65vh; }
   }
 </style>
 </head>
@@ -466,6 +502,12 @@
         <option value="minor">MINOR (Dark)</option>
         <option value="major">MAJOR (Happy)</option>
         <option value="hirajoshi">HIRAJOSHI (Asian)</option>
+        <option value="dorian">DORIAN (Mystic)</option>
+        <option value="lydian">LYDIAN (Dreamy)</option>
+        <option value="mixolydian">MIXOLYDIAN (Folk)</option>
+        <option value="blues">BLUES (Soulful)</option>
+        <option value="harmonicMinor">HARM. MINOR (Exotic)</option>
+        <option value="wholeTone">WHOLE TONE (Floating)</option>
       </select>
     </div>
 
@@ -475,6 +517,17 @@
         <option value="0.25">SUB-BASS</option>
         <option value="0.5">BASS</option>
         <option value="1" selected>STANDARD</option>
+      </select>
+    </div>
+
+    <div class="tsp-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+      <span class="tsp-label">CHORD</span>
+      <select id="tsp-chord" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+        <option value="off">OFF (Single note)</option>
+        <option value="power5">POWER 5TH</option>
+        <option value="triad">TRIAD</option>
+        <option value="sus4">SUS4</option>
+        <option value="seventh">7TH (Rich)</option>
       </select>
     </div>
 
@@ -495,7 +548,7 @@
       <span class="tsp-label">ARP SPD</span>
       <input type="range" id="tsp-arp" min="0" max="100" value="0" style="flex:1;">
       <select id="tsp-arp-mode" style="width: 45px; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.4rem; outline:none; margin-left: 5px; cursor:pointer;">
-        <option value="up">UP</option><option value="random">RND</option>
+        <option value="up">UP</option><option value="down">DOWN</option><option value="updown">UP-DN</option><option value="random">RND</option>
       </select>
     </div>
     
@@ -503,6 +556,7 @@
       <span class="tsp-label">OSC1 WAV</span>
       <select id="tsp-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
         <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth">SAW (Rich)</option>
+        <option value="warm">WARM PAD</option><option value="glass">GLASS BELL</option><option value="vox">VOX (Airy)</option>
       </select>
     </div>
     
@@ -510,6 +564,7 @@
       <span class="tsp-label">OSC2 WAV</span>
       <select id="tsp-osc2-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
         <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth" selected>SAW (Rich)</option>
+        <option value="warm">WARM PAD</option><option value="glass">GLASS BELL</option><option value="vox">VOX (Airy)</option>
       </select>
     </div>
     <div class="tsp-row">
@@ -531,22 +586,24 @@
 <script>
   // --- Moon Logic ---
   function updateMoonPhase() {
-    const synodic = 29.53058867;
-    const msPerDay = 86400000;
-    const baseNewMoon = new Date('2000-01-06T18:14:00Z');
-    const diff = (Date.now() - baseNewMoon.getTime()) / msPerDay;
-    let phaseRatio = (diff % synodic) / synodic;
-    let tx;
-    if (phaseRatio <= 0.5) {
-      tx = phaseRatio * 200; // 0 to 100
-    } else {
-      tx = (phaseRatio - 1) * 200; // -100 to 0
-    }
-    const shadow = document.querySelector('.moon-shadow');
-    if (shadow) shadow.style.transform = `translateX(${tx}%)`;
+  const synodic = 29.53058867;
+  const msPerDay = 86400000;
+  const baseNewMoon = new Date('2000-01-06T18:14:00Z');
+  const diff = (Date.now() - baseNewMoon.getTime()) / msPerDay;
+  let phaseRatio = (diff % synodic) / synodic;
+  let tx;
+  
+  if (phaseRatio <= 0.5) {
+    tx = -(phaseRatio * 200); 
+  } else {
+    tx = (1 - phaseRatio) * 200; 
   }
-  updateMoonPhase();
-  setInterval(updateMoonPhase, 3600000);
+  
+  const shadow = document.querySelector('.moon-shadow');
+  if (shadow) shadow.style.transform = `translateX(${tx}%)`;
+}
+updateMoonPhase();
+setInterval(updateMoonPhase, 3600000);
 
   // --- Fullscreen logika ---
   const fsBtn = document.getElementById('fs-btn');
@@ -829,9 +886,9 @@
   }
   animateDrops();
 
-  document.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; }, { passive: true });
   document.addEventListener('touchmove', (e) => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: true });
-  document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
+  document.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; }, { passive: true });
   document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, { passive: true });
 
   let audioCtx;
@@ -1072,7 +1129,13 @@
     pentatonic: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00],
     minor: [261.63, 293.66, 311.13, 349.23, 392.00, 415.30, 466.16, 523.25, 587.33, 622.25], 
     major: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25], 
-    hirajoshi: [261.63, 293.66, 311.13, 392.00, 415.30, 523.25, 587.33, 622.25, 783.99, 830.61] 
+    hirajoshi: [261.63, 293.66, 311.13, 392.00, 415.30, 523.25, 587.33, 622.25, 783.99, 830.61],
+    dorian: [261.63, 293.66, 311.13, 349.23, 392.00, 440.00, 466.16, 523.25, 587.33, 622.25],
+    lydian: [261.63, 293.66, 329.63, 369.99, 392.00, 440.00, 493.88, 523.25, 587.33, 659.25],
+    mixolydian: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 466.16, 523.25, 587.33, 659.25],
+    blues: [261.63, 311.13, 349.23, 369.99, 392.00, 466.16, 523.25, 622.25, 698.46, 739.99],
+    harmonicMinor: [261.63, 293.66, 311.13, 349.23, 392.00, 415.30, 493.88, 523.25, 587.33, 622.25],
+    wholeTone: [261.63, 293.66, 329.63, 369.99, 415.30, 466.16, 523.25, 587.33, 659.25, 739.99]
   };
   let currentScale = 'pentatonic';
 
@@ -1097,6 +1160,59 @@
   let tapNoise = 0;
   let tapLooper = 0;
   let tapRange = 1;
+  let tapChordMode = 'off';
+
+  // --- Custom richer waveforms (harmonic-based periodic waves) ---
+  let customWaveformCache = {};
+  const customWaveShapes = {
+    warm:  [0, 1, 0.5, 0.28, 0.12, 0.06, 0.03, 0.015],
+    glass: [0, 1, 0.15, 0.5, 0.1, 0.35, 0.08, 0.22],
+    vox:   [0, 1, 0.6, 0.7, 0.3, 0.4, 0.15, 0.1]
+  };
+  function getPeriodicWave(name) {
+    if (!audioCtx) return null;
+    if (customWaveformCache[name]) return customWaveformCache[name];
+    const amps = customWaveShapes[name];
+    if (!amps) return null;
+    const N = amps.length;
+    const real = new Float32Array(N);
+    const imag = new Float32Array(N);
+    for (let i = 0; i < N; i++) imag[i] = amps[i];
+    const wave = audioCtx.createPeriodicWave(real, imag, { disableNormalization: false });
+    customWaveformCache[name] = wave;
+    return wave;
+  }
+  function applyWave(osc, waveName) {
+    if (customWaveShapes[waveName]) {
+      const w = getPeriodicWave(waveName);
+      if (w) { osc.setPeriodicWave(w); return; }
+      osc.type = 'sine';
+    } else {
+      osc.type = waveName;
+    }
+  }
+  const chordIntervals = {
+    off: [], power5: [4], triad: [2, 4], sus4: [3, 4], seventh: [2, 4, 6]
+  };
+  function playChordVoice(freq, yRatio, now) {
+    if (!tapMasterGain) return;
+    const osc = audioCtx.createOscillator();
+    applyWave(osc, tapWave);
+    osc.frequency.value = freq;
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass'; filt.Q.value = tapFilterQ;
+    const filterMax = (900 + (1 - yRatio) * 2600) * tapBrightness;
+    filt.frequency.setValueAtTime(filterMax, now);
+    const g = audioCtx.createGain();
+    osc.connect(filt); filt.connect(g);
+    g.connect(tapMasterGain); g.connect(tapDelay); g.connect(tapReverbNode);
+    g.connect(looperGain);
+    const safeAttack = Math.max(0.015, tapAttackTime);
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(0.5, now + safeAttack);
+    g.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + tapDecay);
+    osc.start(now); osc.stop(now + tapDecay + 0.2);
+  }
 
   // --- OSC 2 ---
   let tapOsc2Wave = 'sawtooth';
@@ -1230,7 +1346,7 @@
     const baseFreq = activeScale[noteIndex] * (yRatio < 0.5 ? 2 : 1) * tapRange;
 
     const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-    osc1.type = tapWave; 
+    applyWave(osc1, tapWave); 
     osc2.type = tapTimbreBlend > 0.7 ? 'square' : (tapTimbreBlend > 0.2 ? 'triangle' : 'sine');
 
     const noteFilter = audioCtx.createBiquadFilter();
@@ -1240,7 +1356,11 @@
       const stepTime = 0.05 + (1 - tapArp) * 0.3; 
       let t = now; let step = 0;
       while (t < now + tapDecay + 0.5) {
-        let arpIndex = tapArpMode === 'up' ? Math.min(activeScale.length - 1, noteIndex + (step % 4)) : Math.floor(Math.random() * activeScale.length);
+        let arpIndex;
+        if (tapArpMode === 'up') arpIndex = Math.min(activeScale.length - 1, noteIndex + (step % 4));
+        else if (tapArpMode === 'down') arpIndex = Math.max(0, noteIndex - (step % 4));
+        else if (tapArpMode === 'updown') { const cyc = step % 8; const rel = cyc < 4 ? cyc : 8 - cyc; arpIndex = Math.min(activeScale.length - 1, noteIndex + rel); }
+        else arpIndex = Math.floor(Math.random() * activeScale.length);
         const aFreq = activeScale[arpIndex] * (yRatio < 0.5 ? 2 : 1) * (Math.floor(step / 4) % 2 === 1 ? 2 : 1) * tapRange;
         osc1.frequency.setValueAtTime(aFreq, t); osc2.frequency.setValueAtTime(aFreq * tapDetuneVal, t);
         t += stepTime; step++;
@@ -1253,7 +1373,7 @@
     osc1.connect(noteFilter); osc2.connect(noteFilter);
     
     const osc3 = audioCtx.createOscillator();
-    osc3.type = tapOsc2Wave;
+    applyWave(osc3, tapOsc2Wave);
     osc3.frequency.value = baseFreq * Math.pow(2, tapOsc2Oct);
     const osc3Gain = audioCtx.createGain(); osc3Gain.gain.value = tapOsc2Vol * 0.6; 
     osc3.connect(osc3Gain); osc3Gain.connect(noteFilter);
@@ -1270,7 +1390,7 @@
 
     if (tapUnison > 0) {
       const uOsc1 = audioCtx.createOscillator(); const uOsc2 = audioCtx.createOscillator();
-      uOsc1.type = tapWave; uOsc2.type = tapWave;
+      applyWave(uOsc1, tapWave); applyWave(uOsc2, tapWave);
       uOsc1.frequency.value = baseFreq * (1 + (tapUnison * 0.02)); uOsc2.frequency.value = baseFreq * (1 - (tapUnison * 0.02));
       const uGain = audioCtx.createGain(); uGain.gain.value = 0.5;
       uOsc1.connect(uGain); uOsc2.connect(uGain); uGain.connect(noteFilter);
@@ -1302,6 +1422,17 @@
       const nGain = audioCtx.createGain();
       nGain.gain.setValueAtTime(0, now); nGain.gain.linearRampToValueAtTime(tapNoise, now + safeAttack); nGain.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + tapDecay);
       nSrc.connect(nGain); nGain.connect(tapMasterGain); nSrc.start(now); nSrc.stop(now + tapDecay + 0.2);
+    }
+
+    if (tapChordMode !== 'off') {
+      const steps = chordIntervals[tapChordMode] || [];
+      steps.forEach(step => {
+        const idx = noteIndex + step;
+        const oct = Math.floor(idx / activeScale.length);
+        const wrapped = ((idx % activeScale.length) + activeScale.length) % activeScale.length;
+        const cFreq = activeScale[wrapped] * Math.pow(2, oct) * (yRatio < 0.5 ? 2 : 1) * tapRange;
+        playChordVoice(cFreq, yRatio, now);
+      });
     }
   }
 
@@ -1400,7 +1531,7 @@
     playAmbientNote(seqLastX, seqLastY);
     tapSparkles.push({ x, y, spawnTs: performance.now(), duration: 900 });
   }
-  document.addEventListener('pointerdown', handleSkyTap);
+  document.addEventListener('pointerdown', handleSkyTap, { passive: true });
 
   const tapSynthToggle = document.getElementById('tap-synth-toggle');
   const tapSynthPanel = document.getElementById('tap-synth-panel');
@@ -1408,6 +1539,7 @@
 
   document.getElementById('tsp-scale').addEventListener('change', (e) => currentScale = e.target.value);
   document.getElementById('tsp-range').addEventListener('change', (e) => tapRange = parseFloat(e.target.value));
+  document.getElementById('tsp-chord').addEventListener('change', (e) => tapChordMode = e.target.value);
   document.getElementById('tsp-arp-mode').addEventListener('change', (e) => tapArpMode = e.target.value);
   
   document.getElementById('tsp-osc2-wave').addEventListener('change', (e) => tapOsc2Wave = e.target.value);
@@ -1448,6 +1580,7 @@
   function getPresetObj() {
     return {
       scale: document.getElementById('tsp-scale').value, range: document.getElementById('tsp-range').value, looper: document.getElementById('tsp-looper').value,
+      chord: document.getElementById('tsp-chord').value,
       vol: document.getElementById('tsp-volume').value, bright: document.getElementById('tsp-brightness').value, att: document.getElementById('tsp-attack').value,
       dec: document.getElementById('tsp-decay').value, timb: document.getElementById('tsp-timbre').value, det: document.getElementById('tsp-detune').value,
       echo: document.getElementById('tsp-echo').value, delT: document.getElementById('tsp-delay-time').value, filQ: document.getElementById('tsp-filter-q').value,
@@ -1464,6 +1597,7 @@
     if(!obj) return;
     const trigger = (id, val) => { const el = document.getElementById(id); if(el) { el.value = val; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); } };
     trigger('tsp-scale', obj.scale || 'pentatonic'); trigger('tsp-range', obj.range || 1); trigger('tsp-looper', obj.looper || 0); trigger('tsp-volume', obj.vol || 46);
+    trigger('tsp-chord', obj.chord || 'off');
     trigger('tsp-brightness', obj.bright || 50); trigger('tsp-attack', obj.att || 10); trigger('tsp-decay', obj.dec || 43); trigger('tsp-timbre', obj.timb || 0);
     trigger('tsp-detune', obj.det || 15); trigger('tsp-echo', obj.echo || 51); trigger('tsp-delay-time', obj.delT || 42); trigger('tsp-filter-q', obj.filQ || 0);
     trigger('tsp-lfo', obj.lfo || 0); trigger('tsp-arp', obj.arp || 0); trigger('tsp-arp-mode', obj.arpMode || 'up'); trigger('tsp-wave', obj.wave || 'sine');
@@ -1501,7 +1635,7 @@
       const saved = localStorage.getItem('synthlucida_preset'); if(saved) loadPresetObj(JSON.parse(saved));
     } else {
       loadPresetObj({
-        scale: 'pentatonic', range: 1, looper: 0, vol:46, bright:50, att:10, dec:43, timb:0, det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, arpMode: 'up', wave:'sine',
+        scale: 'pentatonic', range: 1, looper: 0, chord: 'off', vol:46, bright:50, att:10, dec:43, timb:0, det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, arpMode: 'up', wave:'sine',
         osc2Wave: 'sawtooth', osc2Oct: -1, osc2Vol: 0, uni:0, rev:30, noi:0, drive: 0, kickVol: 80, kickPitch: 120, kickDecay: 40,
         seqSteps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })), 
         seq2Steps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })),
@@ -1513,7 +1647,7 @@
   document.getElementById('tsp-reset').addEventListener('click', () => {
     if (audioCtx && looperGain && looperFeedback) { const now = audioCtx.currentTime; looperGain.gain.cancelScheduledValues(now); looperFeedback.gain.cancelScheduledValues(now); looperGain.gain.setValueAtTime(0, now); looperFeedback.gain.setValueAtTime(0, now); }
     loadPresetObj({
-      scale: 'pentatonic', range: 1, looper: 0, vol: 0, bright: 50, att: 10, dec: 43, timb: 0, det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
+      scale: 'pentatonic', range: 1, looper: 0, chord: 'off', vol: 0, bright: 50, att: 10, dec: 43, timb: 0, det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
       osc2Wave: 'sawtooth', osc2Oct: -1, osc2Vol: 0, uni: 0, rev: 30, noi: 0, drive: 0, kickVol: 80, kickPitch: 120, kickDecay: 40,
       seqSteps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })), 
       seq2Steps: Array.from({length: 32}, () => ({ active: false, x: 0.5, y: 0.5 })),
