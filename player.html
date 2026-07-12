@@ -54,6 +54,22 @@
   body.theme-matrix { --bg-color-1: #001a00; --bg-color-2: #000000; --accent-color: #00ff66; --accent-glow: #003311; }
   body.theme-amber { --bg-color-1: #3a1a00; --bg-color-2: #0a0500; --accent-color: #ff7700; --accent-glow: #993300; }
   body.theme-lavender { --bg-color-1: #20003b; --bg-color-2: #050010; --accent-color: #d400ff; --accent-glow: #550088; }
+  body.theme-sakura { --bg-color-1: #2a0a1f; --bg-color-2: #0a0308; --accent-color: #ff8fc7; --accent-glow: #ff5599; }
+  body.theme-frost { --bg-color-1: #041826; --bg-color-2: #00060d; --accent-color: #aeeaff; --accent-glow: #4fb8e8; }
+  body.theme-rosegold { --bg-color-1: #2b1210; --bg-color-2: #0d0505; --accent-color: #ffb3a0; --accent-glow: #e8a15c; }
+
+  /* AURORA - jediné animované téma (kromě neon), barvy plynule přecházejí jako polární záře */
+  @keyframes auroraShift {
+    0%, 100% { --accent-color: #00ffaa; --accent-glow: #00d4ff; }
+    33% { --accent-color: #00e0ff; --accent-glow: #7c4dff; }
+    66% { --accent-color: #7c4dff; --accent-glow: #00ffaa; }
+  }
+  body.theme-aurora {
+    --bg-color-1: #001f1a; --bg-color-2: #00060d;
+    --accent-color: #00ffaa; --accent-glow: #00d4ff;
+    animation: auroraShift 14s ease-in-out infinite;
+    will-change: background;
+  }
 
   * { box-sizing: border-box; }
 
@@ -302,6 +318,88 @@
     .header { padding: 6px 20px 4px; }
     .brand-name { font-size: 16px; margin-bottom: 3px; }
     .desc-text-marketing { display: none; }
+    .breath-orb-wrap { width: 128px; height: 128px; }
+    .breath-logo { width: 58px; }
+    .breath-count { font-size: 38px; }
+    .breath-phase { margin-top: 20px; }
+    .breath-hint { margin-top: 20px; }
+  }
+
+  /* ============================================
+     DECHOVÉ CVIČENÍ (Breathing) — malé minimalistické tlačítko + fullscreen overlay
+     ============================================ */
+  .breathe-icon {
+    display: inline-block; font-size: 8px; margin-right: 4px;
+    animation: breatheIconPulse 4s ease-in-out infinite;
+  }
+  @keyframes breatheIconPulse {
+    0%, 100% { transform: scale(0.8); opacity: 0.45; }
+    50% { transform: scale(1.2); opacity: 1; }
+  }
+
+  .breathing-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 45%, var(--bg-color-1), var(--bg-color-2) 65%, #000000);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    transition: background 0.4s linear;
+  }
+  /* Vše kromě overlaye zmizí ze scény - jedno pravidlo pokryje i budoucí sekce */
+  body.breathing-active > *:not(.breathing-overlay) { display: none !important; }
+  body.breathing-active { overflow: hidden; }
+  body.breathing-active .breathing-overlay { display: flex; }
+
+  .breathing-close {
+    position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 14px; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
+  }
+  .breathing-close:hover, .breathing-close:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+  .breathing-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  .breath-orb-wrap {
+    position: relative; width: 180px; height: 180px;
+    display: flex; align-items: center; justify-content: center;
+    transform: scale(0.62);
+    transition: transform 4s ease-in-out;
+    will-change: transform;
+  }
+  .breath-orb {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-color) 0%, var(--accent-glow) 45%, transparent 72%);
+    filter: blur(6px); opacity: 0.32;
+    transition: opacity 4s ease-in-out;
+    will-change: opacity;
+  }
+  .breath-orb.holding { animation: breathHoldShimmer 2.4s ease-in-out infinite; }
+  @keyframes breathHoldShimmer {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.6; }
+  }
+  .breath-logo {
+    position: relative; width: 84px; height: auto; z-index: 1;
+    filter: drop-shadow(0 0 8px var(--accent-color));
+    transition: filter 4s ease-in-out;
+  }
+
+  .breath-phase {
+    margin-top: 34px; font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent-color); text-shadow: 0 0 12px var(--accent-color); min-height: 18px;
+  }
+  .breath-count {
+    margin-top: 8px; font-size: 50px; font-weight: 600; line-height: 1;
+    font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 20px var(--accent-color);
+  }
+  .breath-hint {
+    margin-top: 36px; font-size: 9px; opacity: 0.3; letter-spacing: 1.5px; text-transform: uppercase;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .breath-orb-wrap, .breath-orb, .breath-logo { transition-duration: 0.6s !important; }
+    .breath-orb.holding, .breathe-icon { animation: none; }
   }
 
 </style>
@@ -345,11 +443,16 @@
   <button class="btn-theme" onclick="setVisualTheme('matrix', this)">MATRIX</button>
   <button class="btn-theme active" onclick="setVisualTheme('amber', this)">AMBER</button>
   <button class="btn-theme" onclick="setVisualTheme('lavender', this)">LAVENDER</button>
+  <button class="btn-theme" onclick="setVisualTheme('aurora', this)">AURORA</button>
+  <button class="btn-theme" onclick="setVisualTheme('sakura', this)">SAKURA</button>
+  <button class="btn-theme" onclick="setVisualTheme('frost', this)">FROST</button>
+  <button class="btn-theme" onclick="setVisualTheme('rosegold', this)">ROSEGOLD</button>
 </div>
 
 <div class="effects-container">
   <button class="btn-feature" id="btn-rain" onclick="toggleRain()">RAIN: OFF</button>
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
+  <button class="btn-feature" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   <button class="btn-feature" onclick="toggleFullscreen()">FULLSCREEN</button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
@@ -406,6 +509,17 @@
 </div>
 
 <audio id="audio-player"></audio>
+
+<div class="breathing-overlay" id="breathing-overlay">
+  <button class="breathing-close" onclick="stopBreathing()" aria-label="Exit breathing exercise">✖</button>
+  <div class="breath-orb-wrap" id="breath-orb-wrap">
+    <div class="breath-orb" id="breath-orb"></div>
+    <img src="logo.jpg" alt="" class="breath-logo" id="breath-logo" onerror="this.style.display='none'">
+  </div>
+  <div class="breath-phase" id="breath-phase" aria-live="polite">Breathe In</div>
+  <div class="breath-count" id="breath-count">4</div>
+  <div class="breath-hint">tap ✖ to exit</div>
+</div>
 
 <script>
   const tracks = {
@@ -494,6 +608,10 @@
   let currentVisualTheme = 'amber';
   let stormEnabled = false; 
   let sunsetEnabled = false;
+  let breathingActive = false;
+  let breathPhaseIndex = 0;
+  let breathPhaseTimeout = null;
+  let breathCountdownInterval = null;
   
   let canvasLoopActive = false;
   const canvas = document.getElementById('rain-canvas');
@@ -523,7 +641,7 @@
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(!stormEnabled && !sunsetEnabled) {
+      if(breathingActive || (!stormEnabled && !sunsetEnabled)) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -592,6 +710,84 @@
       btn.classList.toggle('active', sunsetEnabled);
       updateCanvasState();
   };
+
+  // ==========================================
+  // DECHOVÉ CVIČENÍ — technika 4-7-8 (nádech 4s, zádrž 7s, výdech 8s)
+  // Logo + glow "dýchají" spolu s cyklem, hudba na pozadí dál hraje.
+  // ==========================================
+  const BREATH_PHASES = [
+    { label: 'Breathe In',  duration: 4, scale: 1.15, orbOpacity: 0.85, glowPx: 26, isHold: false },
+    { label: 'Hold',        duration: 7, scale: 1.15, orbOpacity: 0.85, glowPx: 26, isHold: true  },
+    { label: 'Breathe Out', duration: 8, scale: 0.62, orbOpacity: 0.32, glowPx: 8,  isHold: false },
+  ];
+
+  const breathOrbWrap = document.getElementById('breath-orb-wrap');
+  const breathOrbEl = document.getElementById('breath-orb');
+  const breathLogoEl = document.getElementById('breath-logo');
+  const breathPhaseEl = document.getElementById('breath-phase');
+  const breathCountEl = document.getElementById('breath-count');
+
+  function setBreathTransitionDuration(seconds) {
+    breathOrbWrap.style.transitionDuration = seconds + 's';
+    breathOrbEl.style.transitionDuration = seconds + 's';
+    breathLogoEl.style.transitionDuration = seconds + 's';
+  }
+
+  function applyBreathPhase(phase) {
+    breathOrbWrap.style.transform = `scale(${phase.scale})`;
+    breathOrbEl.style.opacity = phase.orbOpacity;
+    breathLogoEl.style.filter = `drop-shadow(0 0 ${phase.glowPx}px var(--accent-color))`;
+    breathOrbEl.classList.toggle('holding', phase.isHold);
+  }
+
+  function runBreathPhase() {
+    if (!breathingActive) return;
+    const phase = BREATH_PHASES[breathPhaseIndex];
+    breathPhaseEl.innerText = phase.label;
+    setBreathTransitionDuration(phase.duration);
+    requestAnimationFrame(() => applyBreathPhase(phase));
+
+    let secondsLeft = phase.duration;
+    breathCountEl.innerText = secondsLeft;
+    clearInterval(breathCountdownInterval);
+    breathCountdownInterval = setInterval(() => {
+      secondsLeft--;
+      if (secondsLeft > 0) breathCountEl.innerText = secondsLeft;
+    }, 1000);
+
+    breathPhaseTimeout = setTimeout(() => {
+      breathPhaseIndex = (breathPhaseIndex + 1) % BREATH_PHASES.length;
+      runBreathPhase();
+    }, phase.duration * 1000);
+  }
+
+  window.startBreathing = function() {
+    if (breathingActive) return;
+    breathingActive = true;
+    breathPhaseIndex = 0;
+    document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
+
+    // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav, pak teprve spustit plynulý cyklus
+    setBreathTransitionDuration(0);
+    applyBreathPhase(BREATH_PHASES[2]);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(runBreathPhase);
+    });
+  };
+
+  window.stopBreathing = function() {
+    if (!breathingActive) return;
+    breathingActive = false;
+    clearTimeout(breathPhaseTimeout);
+    clearInterval(breathCountdownInterval);
+    breathOrbEl.classList.remove('holding');
+    document.body.classList.remove('breathing-active');
+    updateCanvasState(); // obnoví déšť/sunset canvas, pokud byl zapnutý
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && breathingActive) stopBreathing();
+  });
 
   volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; });
 
