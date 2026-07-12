@@ -397,6 +397,30 @@
     margin-top: 36px; font-size: 9px; opacity: 0.3; letter-spacing: 1.5px; text-transform: uppercase;
   }
 
+  /* Slogany a ovládací tlačítka uvnitř dechového cvičení */
+  .breath-slogan {
+    min-height: 14px; margin-top: 22px; max-width: 260px;
+    font-size: 10px; opacity: 0; transition: opacity 2.5s ease-in-out;
+    text-shadow: 0 0 8px var(--accent-color); letter-spacing: 2px;
+    text-transform: uppercase; font-weight: 400;
+  }
+  .breath-slogan.visible { opacity: 0.8; }
+
+  .breath-controls {
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    flex-wrap: wrap; margin-top: 26px; padding: 0 20px; max-width: 320px;
+  }
+  .btn-breath-ctrl {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 5px 8px; border-radius: 5px; font-family: 'Orbitron', sans-serif;
+    font-size: 8px; cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
+  }
+  .btn-breath-ctrl:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
+  .btn-breath-ctrl.active {
+    border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color);
+  }
+  .btn-breath-ctrl:disabled { opacity: 0.3; cursor: default; }
+
   @media (prefers-reduced-motion: reduce) {
     .breath-orb-wrap, .breath-orb, .breath-logo { transition-duration: 0.6s !important; }
     .breath-orb.holding, .breathe-icon { animation: none; }
@@ -518,6 +542,15 @@
   </div>
   <div class="breath-phase" id="breath-phase" aria-live="polite">Breathe In</div>
   <div class="breath-count" id="breath-count">4</div>
+  <div class="breath-slogan" id="breath-slogan"></div>
+
+  <div class="breath-controls">
+    <button class="btn-breath-ctrl" id="breath-start-btn" onclick="resumeBreathCycle()">START</button>
+    <button class="btn-breath-ctrl" id="breath-stop-btn" onclick="pauseBreathCycle()">STOP</button>
+    <button class="btn-breath-ctrl" id="breath-logo-btn" onclick="toggleBreathLogo()">LOGO: ON</button>
+    <button class="btn-breath-ctrl" id="breath-save-btn" onclick="saveBreathSettings()">SAVE</button>
+  </div>
+
   <div class="breath-hint">tap ✖ to exit</div>
 </div>
 
@@ -609,9 +642,14 @@
   let stormEnabled = false; 
   let sunsetEnabled = false;
   let breathingActive = false;
+  let breathingPaused = false;
+  let breathLogoHidden = false;
   let breathPhaseIndex = 0;
   let breathPhaseTimeout = null;
   let breathCountdownInterval = null;
+  let breathSloganQueue = [];
+  let breathSloganTimeout = null;
+  let breathSloganActiveTimeout = null;
   
   let canvasLoopActive = false;
   const canvas = document.getElementById('rain-canvas');
@@ -726,6 +764,7 @@
   const breathLogoEl = document.getElementById('breath-logo');
   const breathPhaseEl = document.getElementById('breath-phase');
   const breathCountEl = document.getElementById('breath-count');
+  const breathSloganEl = document.getElementById('breath-slogan');
 
   function setBreathTransitionDuration(seconds) {
     breathOrbWrap.style.transitionDuration = seconds + 's';
@@ -764,6 +803,7 @@
   window.startBreathing = function() {
     if (breathingActive) return;
     breathingActive = true;
+    breathingPaused = false;
     breathPhaseIndex = 0;
     document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
 
@@ -773,13 +813,124 @@
     requestAnimationFrame(() => {
       requestAnimationFrame(runBreathPhase);
     });
+
+    updateBreathControlsUI();
+    breathSloganQueue = [];
+    breathSloganEl.classList.remove('visible');
+    scheduleNextBreathSlogan(10000);
   };
+
+  // STOP tlačítko uvnitř overlaye - pozastaví cyklus, ale zůstane otevřený (na rozdíl od ✖)
+  window.pauseBreathCycle = function() {
+    if (!breathingActive || breathingPaused) return;
+    breathingPaused = true;
+    clearTimeout(breathPhaseTimeout);
+    clearInterval(breathCountdownInterval);
+    clearTimeout(breathSloganTimeout);
+    clearTimeout(breathSloganActiveTimeout);
+    updateBreathControlsUI();
+  };
+
+  // START tlačítko uvnitř overlaye - pokud bylo cvičení pozastaveno, znovu ho spustí
+  window.resumeBreathCycle = function() {
+    if (!breathingActive) { window.startBreathing(); return; }
+    if (!breathingPaused) return;
+    breathingPaused = false;
+    runBreathPhase();
+    scheduleNextBreathSlogan(4000);
+    updateBreathControlsUI();
+  };
+
+  function updateBreathControlsUI() {
+    const startBtn = document.getElementById('breath-start-btn');
+    const stopBtn = document.getElementById('breath-stop-btn');
+    if (startBtn) startBtn.classList.toggle('active', breathingActive && !breathingPaused);
+    if (stopBtn) stopBtn.classList.toggle('active', breathingActive && breathingPaused);
+  }
+
+  // Přepínač loga (schování/zobrazení) v dechovém cvičení
+  window.toggleBreathLogo = function() {
+    breathLogoHidden = !breathLogoHidden;
+    applyBreathLogoVisibility();
+  };
+
+  function applyBreathLogoVisibility() {
+    breathLogoEl.style.display = breathLogoHidden ? 'none' : '';
+    const btn = document.getElementById('breath-logo-btn');
+    if (btn) {
+      btn.innerText = breathLogoHidden ? 'LOGO: OFF' : 'LOGO: ON';
+      btn.classList.toggle('active', !breathLogoHidden);
+    }
+  }
+
+  // Uložení nastavení dechového cvičení (zatím jen viditelnost loga) do stejného úložiště jako ostatní nastavení
+  window.saveBreathSettings = function() {
+    let settings = {};
+    try {
+      const existing = localStorage.getItem('synthlucida_settings');
+      if (existing) settings = JSON.parse(existing);
+    } catch (e) { settings = {}; }
+    settings.breathLogoHidden = breathLogoHidden;
+    localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
+
+    const btn = document.getElementById('breath-save-btn');
+    if (btn) {
+      const oldText = btn.innerText;
+      btn.innerText = 'SAVED!';
+      btn.classList.add('active');
+      setTimeout(() => {
+        btn.innerText = oldText;
+        btn.classList.toggle('active', !breathLogoHidden);
+      }, 2000);
+    }
+  };
+
+  // Slogany v dechovém cvičení - vlastní zamíchané pořadí, jiné než na hlavní obrazovce
+  function shuffleSlogans(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function nextBreathSlogan() {
+    if (breathSloganQueue.length === 0) {
+      breathSloganQueue = shuffleSlogans(slogans);
+    }
+    return breathSloganQueue.shift();
+  }
+
+  function showBreathSlogan() {
+    if (!breathingActive || breathingPaused) return;
+    breathSloganEl.innerText = nextBreathSlogan();
+    breathSloganEl.classList.add('visible');
+    clearTimeout(breathSloganActiveTimeout);
+    breathSloganActiveTimeout = setTimeout(() => {
+      breathSloganEl.classList.remove('visible');
+    }, 8000);
+  }
+
+  function scheduleNextBreathSlogan(firstDelay) {
+    clearTimeout(breathSloganTimeout);
+    const delay = typeof firstDelay === 'number' ? firstDelay : (Math.floor(Math.random() * (40000 - 30000 + 1)) + 30000);
+    breathSloganTimeout = setTimeout(() => {
+      showBreathSlogan();
+      scheduleNextBreathSlogan();
+    }, delay);
+  }
 
   window.stopBreathing = function() {
     if (!breathingActive) return;
     breathingActive = false;
+    breathingPaused = false;
     clearTimeout(breathPhaseTimeout);
     clearInterval(breathCountdownInterval);
+    clearTimeout(breathSloganTimeout);
+    clearTimeout(breathSloganActiveTimeout);
+    breathSloganEl.classList.remove('visible');
+    updateBreathControlsUI();
     breathOrbEl.classList.remove('holding');
     document.body.classList.remove('breathing-active');
     updateCanvasState(); // obnoví déšť/sunset canvas, pokud byl zapnutý
@@ -1069,7 +1220,8 @@
     const settings = {
         theme: currentVisualTheme,
         rain: stormEnabled,
-        sunset: sunsetEnabled
+        sunset: sunsetEnabled,
+        breathLogoHidden: breathLogoHidden
     };
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
     
@@ -1123,8 +1275,11 @@
             if (settings.theme) savedTheme = settings.theme;
             if (settings.rain) savedRain = true;
             if (settings.sunset) savedSunset = true;
+            if (settings.breathLogoHidden) breathLogoHidden = true;
         }
     } catch (e) { console.error("Nelze načíst nastavení:", e); }
+
+    applyBreathLogoVisibility();
 
     const defaultBtn = Array.from(document.querySelectorAll('.btn-theme'))
       .find(b => b.textContent.trim() === savedTheme.toUpperCase());
