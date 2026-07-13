@@ -354,6 +354,7 @@
       <div class="stats-row"><span>LEVEL:</span> <span class="stats-val" id="level">1</span></div>
       <div class="stats-row"><span>LINES (RUN):</span> <span class="stats-val" id="lines">0</span></div>
       <div class="stats-row highlight career-stat"><span>CAREER LINES:</span> <span class="stats-val" id="career-lines">0</span></div>
+      <div class="stats-row highlight" id="bonus-row" style="display:none; color:#ffcc00;"><span>⚡ BONUS 2x SKÓRE:</span> <span class="stats-val" id="bonus-timer" style="color:#ffcc00; text-shadow:0 0 6px #ffcc00;">60s</span></div>
     </div>
 
     <div class="glass-section">
@@ -610,7 +611,8 @@
 
   const tetrisColors = [
     null, '#ff00ff', '#00ffff', '#ff7700', '#00ff88', '#ff3333', '#ffff00', '#aa00ff', '#00aaff', '#ff5599',
-    '#ff00aa', '#00ffcc', '#ccff00', '#ff0000', '#ffffff', '#ffffff', '#ff0055', '#7700ff', '#00ffaa', '#ffbb00', '#99ff00'
+    '#ff00aa', '#00ffcc', '#ccff00', '#ff0000', '#ffffff', '#ffffff', '#ff0055', '#7700ff', '#00ffaa', '#ffbb00', '#99ff00',
+    '#33ffee', '#ffaa33', '#88ff33', '#cccccc', '#ffee88'
   ];
 
   function createMatrix(w, h) {
@@ -629,6 +631,27 @@
     if (type === 'H') return [[16,0,16],[16,16,16],[16,0,16]]; if (type === 'X') return [[17,0,17],[0,0,0],[17,0,17]];
     if (type === 'V') return [[18,0,0],[18,0,0],[18,18,18]]; if (type === 'F') return [[0,19,19],[19,19,0],[0,19,0]];
     if (type === '5') return [[0,0,20,0,0],[0,0,20,0,0],[0,0,20,0,0],[0,0,20,0,0],[0,0,20,0,0]];
+    if (type === 'K') return [[21,0,0,0],[21,21,0,0],[0,21,21,0],[0,0,21,0]];
+    if (type === 'M') return [[22,22,22],[22,0,22],[22,22,22]];
+    if (type === 'R') return [[23,23],[0,23]];
+    if (type === 'D') return [[24,24],[0,0]];
+    if (type === 'Q') return [[25]];
+  }
+
+  // --- VÝBĚR KOSTIČEK S VAHOU: H, + a X (křížky/hvězdy) padají méně často, D a Q (lehké, domino a monomino) padají o něco častěji ---
+  const pieceTypes = ['T','J','L','O','S','Z','I','Y','N','U','P','W','C','+','H','X','V','F','5','K','M','R','D','Q'];
+  const pieceSpawnWeights = { '+': 0.35, 'H': 0.35, 'X': 0.35, 'D': 1.6, 'Q': 1.6 };
+  function pickRandomPieceType() {
+    let total = 0;
+    const weights = pieceTypes.map(t => { const w = pieceSpawnWeights[t] || 1; total += w; return w; });
+    let r = Math.random() * total;
+    for (let i = 0; i < pieceTypes.length; i++) { r -= weights[i]; if (r <= 0) return pieceTypes[i]; }
+    return pieceTypes[pieceTypes.length - 1];
+  }
+
+  // Počet vyplněných buněk kostičky - "váha" kostičky pro bonus při mazání řádků
+  function countPieceCells(matrix) {
+    let c = 0; matrix.forEach(row => row.forEach(v => { if (v !== 0) c++; })); return c;
   }
 
   const arena = createMatrix(10, 20);
@@ -677,6 +700,7 @@
   }
 
   let dropCounter = 0; let dropInterval = 1000; let lastTime = 0; let gameActive = true; let isPaused = false; let isUnlockPaused = false;
+  let bonusRoundActive = false; let bonusRoundEndsAt = 0; let bonusRoundInterval = null;
 
   window.togglePause = function() {
     if (!gameActive || isUnlockPaused) return; isPaused = !isPaused;
@@ -715,12 +739,14 @@
   function playerDrop() {
     player.pos.y++;
     if (collide(arena, player)) {
-      player.pos.y--; merge(arena, player);
+      player.pos.y--;
+      const droppedWeight = player.matrix ? countPieceCells(player.matrix) : 4;
+      merge(arena, player);
       if (player.isSpecial) {
         arena.splice(15, 5); for (let i = 0; i < 5; i++) arena.unshift(new Array(10).fill(0));
         player.isSpecial = false; if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
       }
-      playerReset(); arenaSweep(); updateScoreUI();
+      playerReset(); arenaSweep(droppedWeight); updateScoreUI();
     }
     dropCounter = 0;
   }
@@ -742,7 +768,7 @@
   }
 
   function playerReset() {
-    const pieces = 'TJLOSZIYNUPWC+HXVF5'; player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
+    player.matrix = createPiece(pickRandomPieceType());
     player.pos.y = 0; player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0); player.isSpecial = false;
     if (collide(arena, player)) {
       gameActive = false; savedState.boardState = null;
@@ -753,21 +779,63 @@
     }
   }
 
-  function arenaSweep() {
+  function arenaSweep(pieceWeight) {
+    pieceWeight = pieceWeight || 4;
+    const scoreMultiplier = bonusRoundActive ? 2 : 1;
     let rowCount = 1, linesClearedThisTurn = 0;
     outer: for (let y = arena.length - 1; y > 0; --y) {
       for (let x = 0; x < arena[y].length; ++x) { if (arena[y][x] === 0) continue outer; }
       const row = arena.splice(y, 1)[0].fill(0); arena.unshift(row); ++y;
-      player.score += rowCount * 100; rowCount *= 2; linesClearedThisTurn++;
+      player.score += rowCount * 100 * scoreMultiplier; rowCount *= 2; linesClearedThisTurn++;
     }
+
+    // Bonus za těžší kostičky: pokud dopadlá kostička měla 6+ buněk a smazala aspoň 1 řádek,
+    // pomůže doklidit i skoro plné řádky (max 2 navíc), takže ubyde více řádků najednou.
+    if (linesClearedThisTurn > 0 && pieceWeight >= 6) {
+      const extraAllowed = Math.min(2, Math.floor((pieceWeight - 4) / 2));
+      let extraCleared = 0;
+      for (let y = arena.length - 1; y > 0 && extraCleared < extraAllowed; --y) {
+        const emptyCount = arena[y].filter(v => v === 0).length;
+        if (emptyCount > 0 && emptyCount <= 2) {
+          arena.splice(y, 1); arena.unshift(new Array(10).fill(0));
+          player.score += Math.floor(50 * scoreMultiplier);
+          linesClearedThisTurn++; extraCleared++; ++y;
+        }
+      }
+    }
+
     if (linesClearedThisTurn > 0) {
       player.lines += linesClearedThisTurn; savedState.totalCareerLines += linesClearedThisTurn;
       savedState.linesToSpecial = (savedState.linesToSpecial || 0) + linesClearedThisTurn;
-      if (savedState.linesToSpecial >= 20) { savedState.specialCharges = (savedState.specialCharges || 0) + Math.floor(savedState.linesToSpecial / 20); savedState.linesToSpecial %= 20; }
+      if (savedState.linesToSpecial >= 20) {
+        savedState.specialCharges = (savedState.specialCharges || 0) + Math.floor(savedState.linesToSpecial / 20); savedState.linesToSpecial %= 20;
+        startBonusRound();
+      }
       updateSpecialUI(); if (navigator.vibrate) navigator.vibrate(40);
       checkUnlocks(); player.level = Math.floor(player.lines / 10) + 1;
       dropInterval = Math.max(80, 1000 - (player.level - 1) * 90); saveGameProgress(true);
     }
+  }
+
+  function startBonusRound() {
+    bonusRoundActive = true; bonusRoundEndsAt = Date.now() + 60000;
+    if (bonusRoundInterval) clearInterval(bonusRoundInterval);
+    updateBonusRoundUI();
+    bonusRoundInterval = setInterval(() => {
+      if (Date.now() >= bonusRoundEndsAt) {
+        bonusRoundActive = false; clearInterval(bonusRoundInterval); bonusRoundInterval = null;
+      }
+      updateBonusRoundUI();
+    }, 250);
+    if (navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 50]);
+  }
+
+  function updateBonusRoundUI() {
+    const row = document.getElementById('bonus-row'); if (!row) return;
+    if (bonusRoundActive) {
+      const remaining = Math.max(0, Math.ceil((bonusRoundEndsAt - Date.now()) / 1000));
+      row.style.display = 'flex'; document.getElementById('bonus-timer').innerText = remaining + 's';
+    } else { row.style.display = 'none'; }
   }
 
   function checkUnlocks() {
@@ -793,6 +861,7 @@
   window.resetGame = function() {
     arena.forEach(row => row.fill(0)); player.score = 0; player.lines = 0; player.level = 1; dropInterval = 1000;
     savedState.boardState = null; document.getElementById('game-over-overlay').style.display = 'none';
+    bonusRoundActive = false; if (bonusRoundInterval) { clearInterval(bonusRoundInterval); bonusRoundInterval = null; } updateBonusRoundUI();
     gameActive = true; playerReset(); updateScoreUI(); updateSpecialUI(); lastTime = performance.now(); updateGameLoop();
   };
 
