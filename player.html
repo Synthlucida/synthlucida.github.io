@@ -323,6 +323,8 @@
     .breath-count { font-size: 38px; }
     .breath-phase { margin-top: 20px; }
     .breath-hint { margin-top: 20px; }
+    .breath-technique-select { margin-bottom: 4px; }
+    .breath-technique-info { margin-bottom: 2px; }
   }
 
   /* ============================================
@@ -360,6 +362,85 @@
   }
   .breathing-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
 
+  .breathing-info {
+    position: absolute; top: 16px; left: 16px; width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 15px; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent; z-index: 2;
+  }
+  .breathing-info:hover, .breathing-info:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+  .breathing-info:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  /* Panel s návodem k jednotlivým technikám (AJ) */
+  .breath-guide {
+    position: absolute; inset: 0; z-index: 5; display: none;
+    background: rgba(5, 2, 10, 0.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 64px 24px 40px;
+  }
+  .breath-guide.visible { display: block; }
+  .breath-guide-inner { max-width: 380px; margin: 0 auto; text-align: left; }
+  .breath-guide-inner h3 {
+    font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-color);
+    text-shadow: 0 0 10px var(--accent-color); margin: 0 0 10px;
+  }
+  .breath-guide-inner p.breath-guide-intro {
+    font-size: 10.5px; line-height: 1.7; opacity: 0.75; margin: 0 0 22px;
+  }
+  .breath-guide-tech { margin-bottom: 18px; }
+  .breath-guide-tech h4 {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent-color);
+    margin: 0 0 4px; opacity: 0.9;
+  }
+  .breath-guide-tech p {
+    font-size: 10px; line-height: 1.6; opacity: 0.65; margin: 0;
+  }
+  .breath-guide-note {
+    font-size: 9px; opacity: 0.35; line-height: 1.6; margin-top: 24px; letter-spacing: 0.5px;
+  }
+  .breath-guide-close {
+    position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 14px; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
+  }
+  .breath-guide-close:hover, .breath-guide-close:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+
+  /* Ambientní bubliny uvnitř overlaye - vlastní kopie, protože zbytek stránky se při dýchání schová */
+  .breath-ambient {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  }
+  .breath-blob {
+    position: absolute; border-radius: 50%; filter: blur(30px); opacity: 0.14; will-change: transform;
+    background: var(--accent-color); animation: floatBlobs 55s infinite linear alternate;
+  }
+  .breath-blob.b1 { width: 260px; height: 260px; top: 6%; left: -8%; }
+  .breath-blob.b2 { width: 320px; height: 320px; bottom: 4%; right: -10%; background: var(--accent-glow); animation-duration: 42s; animation-delay: -8s; }
+
+  /* Výběr techniky dechu - více variant podle studií, uživatel si vybere */
+  .breath-technique-select {
+    position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+    max-width: 320px; padding: 0 16px; margin-bottom: 8px;
+  }
+  .btn-breath-tech {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; opacity: 0.55; padding: 5px 10px; border-radius: 20px;
+    font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 1px;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
+  }
+  .btn-breath-tech:hover { opacity: 0.85; }
+  .btn-breath-tech.active {
+    opacity: 1; color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+  .breath-technique-info {
+    position: relative; font-size: 8px; opacity: 0.4; letter-spacing: 1.5px;
+    text-transform: uppercase; max-width: 260px; margin-bottom: 6px; min-height: 10px;
+  }
+
   .breath-orb-wrap {
     position: relative; width: 180px; height: 180px;
     display: flex; align-items: center; justify-content: center;
@@ -367,6 +448,18 @@
     transition: transform 4s ease-in-out;
     will-change: transform;
   }
+  /* Expandující prstence - jemné "sonarové" pulzy pro hlubší atmosféru */
+  .breath-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid var(--accent-color); opacity: 0; pointer-events: none;
+    animation: breathRingPulse 4s ease-out infinite;
+  }
+  .breath-ring-2 { animation-delay: 2s; }
+  @keyframes breathRingPulse {
+    0% { transform: scale(0.9); opacity: 0.35; }
+    100% { transform: scale(1.7); opacity: 0; }
+  }
+  .breathing-overlay.breath-paused .breath-ring { animation-play-state: paused; opacity: 0; }
   .breath-orb {
     position: absolute; inset: 0; border-radius: 50%;
     background: radial-gradient(circle, var(--accent-color) 0%, var(--accent-glow) 45%, transparent 72%);
@@ -423,7 +516,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .breath-orb-wrap, .breath-orb, .breath-logo { transition-duration: 0.6s !important; }
-    .breath-orb.holding, .breathe-icon { animation: none; }
+    .breath-orb.holding, .breathe-icon, .breath-ring, .breath-blob { animation: none; }
+    .breath-ring { display: none; }
   }
 
 </style>
@@ -535,8 +629,60 @@
 <audio id="audio-player"></audio>
 
 <div class="breathing-overlay" id="breathing-overlay">
+  <div class="breath-ambient" aria-hidden="true">
+    <div class="breath-blob b1"></div>
+    <div class="breath-blob b2"></div>
+  </div>
   <button class="breathing-close" onclick="stopBreathing()" aria-label="Exit breathing exercise">✖</button>
+  <button class="breathing-info" onclick="toggleBreathGuide()" aria-label="Breathing guide">ⓘ</button>
+
+  <div class="breath-guide" id="breath-guide">
+    <div class="breath-guide-inner">
+      <button class="breath-guide-close" onclick="toggleBreathGuide()" aria-label="Close guide">✖</button>
+      <h3>How to breathe</h3>
+      <p class="breath-guide-intro">Sit comfortably and follow the glowing orb: it expands on the inhale, holds steady and shimmers during a hold, and shrinks on the exhale. Breathe through the nose when the technique doesn't say otherwise. Pick whichever technique fits the moment — you can switch anytime.</p>
+
+      <div class="breath-guide-tech">
+        <h4>4-7-8 — Dr. Weil</h4>
+        <p>Inhale quietly through the nose for 4s, hold for 7s, then exhale completely through the mouth for 8s. Popularized by Dr. Andrew Weil, this ratio is widely used to ease anxiety and wind down before sleep by shifting the body toward a "rest and digest" state.</p>
+      </div>
+
+      <div class="breath-guide-tech">
+        <h4>Box — Navy SEAL method</h4>
+        <p>Inhale for 4s, hold for 4s, exhale for 4s, hold empty for 4s. An equal-count pattern used by Navy SEALs and first responders to stay calm and sharply focused under pressure.</p>
+      </div>
+
+      <div class="breath-guide-tech">
+        <h4>Coherent breathing</h4>
+        <p>Inhale and exhale evenly for about 5.5s each — roughly 5-6 breaths per minute. Studied as a resonance frequency in heart-rate variability (HRV) research, linked to better vagal tone and stress resilience over time.</p>
+      </div>
+
+      <div class="breath-guide-tech">
+        <h4>Calm — extended exhale</h4>
+        <p>Inhale for 4s, exhale for 6s, making the out-breath longer than the in-breath. A longer exhale stimulates the vagus nerve and slows the heart rate — a quick way to downshift after a stressful moment.</p>
+      </div>
+
+      <div class="breath-guide-tech">
+        <h4>Sigh — Huberman Lab</h4>
+        <p>Two inhales through the nose (one long, one short "sip" on top of it), followed by one long, slow exhale through the mouth. Studied at Stanford's Huberman Lab as one of the fastest ways to lower physiological stress in real time.</p>
+      </div>
+
+      <p class="breath-guide-note">General relaxation information only — not medical advice. If you feel dizzy or unwell, breathe normally and stop.</p>
+    </div>
+  </div>
+
+  <div class="breath-technique-select" id="breath-technique-select">
+    <button class="btn-breath-tech" data-tech="478" onclick="selectBreathTechnique('478')">4-7-8</button>
+    <button class="btn-breath-tech" data-tech="box" onclick="selectBreathTechnique('box')">BOX</button>
+    <button class="btn-breath-tech" data-tech="coherent" onclick="selectBreathTechnique('coherent')">COHERENT</button>
+    <button class="btn-breath-tech" data-tech="calm" onclick="selectBreathTechnique('calm')">CALM</button>
+    <button class="btn-breath-tech" data-tech="sigh" onclick="selectBreathTechnique('sigh')">SIGH</button>
+  </div>
+  <div class="breath-technique-info" id="breath-technique-info"></div>
+
   <div class="breath-orb-wrap" id="breath-orb-wrap">
+    <div class="breath-ring breath-ring-1"></div>
+    <div class="breath-ring breath-ring-2"></div>
     <div class="breath-orb" id="breath-orb"></div>
     <img src="logo.jpg" alt="" class="breath-logo" id="breath-logo" onerror="this.style.display='none'">
   </div>
@@ -548,6 +694,7 @@
     <button class="btn-breath-ctrl" id="breath-start-btn" onclick="resumeBreathCycle()">START</button>
     <button class="btn-breath-ctrl" id="breath-stop-btn" onclick="pauseBreathCycle()">STOP</button>
     <button class="btn-breath-ctrl" id="breath-logo-btn" onclick="toggleBreathLogo()">LOGO: ON</button>
+    <button class="btn-breath-ctrl" id="breath-vibe-btn" onclick="toggleBreathVibration()">VIBE: ON</button>
     <button class="btn-breath-ctrl" id="breath-save-btn" onclick="saveBreathSettings()">SAVE</button>
   </div>
 
@@ -644,6 +791,8 @@
   let breathingActive = false;
   let breathingPaused = false;
   let breathLogoHidden = false;
+  let currentBreathTechnique = '478';
+  let vibrationEnabled = true;
   let breathPhaseIndex = 0;
   let breathPhaseTimeout = null;
   let breathCountdownInterval = null;
@@ -750,14 +899,62 @@
   };
 
   // ==========================================
-  // DECHOVÉ CVIČENÍ — technika 4-7-8 (nádech 4s, zádrž 7s, výdech 8s)
+  // DECHOVÉ CVIČENÍ — více technik podle publikovaných dechových metod,
+  // uživatel si vybere, kterou chce zrovna použít.
   // Logo + glow "dýchají" spolu s cyklem, hudba na pozadí dál hraje.
   // ==========================================
-  const BREATH_PHASES = [
-    { label: 'Breathe In',  duration: 4, scale: 1.15, orbOpacity: 0.85, glowPx: 26, isHold: false },
-    { label: 'Hold',        duration: 7, scale: 1.15, orbOpacity: 0.85, glowPx: 26, isHold: true  },
-    { label: 'Breathe Out', duration: 8, scale: 0.62, orbOpacity: 0.32, glowPx: 8,  isHold: false },
-  ];
+  const DEFAULT_PHASE_LABELS = { in: 'Breathe In', hold: 'Hold', out: 'Breathe Out' };
+
+  const BREATH_TECHNIQUES = {
+    '478': {
+      name: '4-7-8',
+      info: 'Dr. Weil relaxation breath · calms the mind, eases into sleep',
+      phases: [
+        { type: 'in',   duration: 4 },
+        { type: 'hold', duration: 7 },
+        { type: 'out',  duration: 8 },
+      ]
+    },
+    box: {
+      name: 'Box',
+      info: 'Box breathing (Navy SEAL method) · steadies focus under stress',
+      phases: [
+        { type: 'in',   duration: 4 },
+        { type: 'hold', duration: 4 },
+        { type: 'out',  duration: 4 },
+        { type: 'hold', duration: 4 },
+      ]
+    },
+    coherent: {
+      name: 'Coherent',
+      info: '~5.5 breaths/min · resonance breathing shown to raise HRV',
+      phases: [
+        { type: 'in',  duration: 5.5 },
+        { type: 'out', duration: 5.5 },
+      ]
+    },
+    calm: {
+      name: 'Calm',
+      info: 'Extended exhale · longer out-breath engages the vagus nerve',
+      phases: [
+        { type: 'in',  duration: 4 },
+        { type: 'out', duration: 6 },
+      ]
+    },
+    sigh: {
+      name: 'Sigh',
+      info: 'Physiological sigh (Huberman Lab) · fastest reset for acute stress',
+      phases: [
+        { type: 'in',  duration: 2, label: 'Breathe In' },
+        { type: 'in',  duration: 1, label: 'Sip More Air' },
+        { type: 'out', duration: 6, label: 'Long Exhale' },
+      ]
+    }
+  };
+
+  const OUT_VISUAL = { scale: 0.62, orbOpacity: 0.32, glowPx: 8, isHold: false };
+  const IN_VISUAL  = { scale: 1.15, orbOpacity: 0.85, glowPx: 26, isHold: false };
+  let lastBreathVisual = OUT_VISUAL;
 
   const breathOrbWrap = document.getElementById('breath-orb-wrap');
   const breathOrbEl = document.getElementById('breath-orb');
@@ -765,6 +962,7 @@
   const breathPhaseEl = document.getElementById('breath-phase');
   const breathCountEl = document.getElementById('breath-count');
   const breathSloganEl = document.getElementById('breath-slogan');
+  const breathTechniqueInfoEl = document.getElementById('breath-technique-info');
 
   function setBreathTransitionDuration(seconds) {
     breathOrbWrap.style.transitionDuration = seconds + 's';
@@ -772,21 +970,44 @@
     breathLogoEl.style.transitionDuration = seconds + 's';
   }
 
-  function applyBreathPhase(phase) {
-    breathOrbWrap.style.transform = `scale(${phase.scale})`;
-    breathOrbEl.style.opacity = phase.orbOpacity;
-    breathLogoEl.style.filter = `drop-shadow(0 0 ${phase.glowPx}px var(--accent-color))`;
-    breathOrbEl.classList.toggle('holding', phase.isHold);
+  function applyBreathPhase(visual) {
+    breathOrbWrap.style.transform = `scale(${visual.scale})`;
+    breathOrbEl.style.opacity = visual.orbOpacity;
+    breathLogoEl.style.filter = `drop-shadow(0 0 ${visual.glowPx}px var(--accent-color))`;
+    breathOrbEl.classList.toggle('holding', visual.isHold);
+  }
+
+  // Nádech/výdech mají pevný vzhled, zádrž si podrží vzhled poslední ne-hold fáze (shimmer navíc)
+  function getPhaseVisual(phase) {
+    if (phase.type === 'in') return IN_VISUAL;
+    if (phase.type === 'out') return OUT_VISUAL;
+    return { scale: lastBreathVisual.scale, orbOpacity: lastBreathVisual.orbOpacity, glowPx: lastBreathVisual.glowPx, isHold: true };
+  }
+
+  // Jemná vibrace na mobilu při každé změně fáze (nádech / výdech / zádrž), respektuje přepínač VIBE
+  function triggerBreathVibration(type) {
+    if (!vibrationEnabled) return;
+    if (!('vibrate' in navigator)) return;
+    let pattern;
+    if (type === 'in') pattern = [40];
+    else if (type === 'out') pattern = [90];
+    else pattern = [25, 50, 25]; // hold - dvojité ťuknutí
+    try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
   }
 
   function runBreathPhase() {
     if (!breathingActive) return;
-    const phase = BREATH_PHASES[breathPhaseIndex];
-    breathPhaseEl.innerText = phase.label;
+    const phases = BREATH_TECHNIQUES[currentBreathTechnique].phases;
+    const phase = phases[breathPhaseIndex];
+    breathPhaseEl.innerText = phase.label || DEFAULT_PHASE_LABELS[phase.type];
     setBreathTransitionDuration(phase.duration);
-    requestAnimationFrame(() => applyBreathPhase(phase));
 
-    let secondsLeft = phase.duration;
+    const visual = getPhaseVisual(phase);
+    if (phase.type !== 'hold') lastBreathVisual = visual;
+    requestAnimationFrame(() => applyBreathPhase(visual));
+    triggerBreathVibration(phase.type);
+
+    let secondsLeft = Math.ceil(phase.duration);
     breathCountEl.innerText = secondsLeft;
     clearInterval(breathCountdownInterval);
     breathCountdownInterval = setInterval(() => {
@@ -795,10 +1016,41 @@
     }, 1000);
 
     breathPhaseTimeout = setTimeout(() => {
-      breathPhaseIndex = (breathPhaseIndex + 1) % BREATH_PHASES.length;
+      breathPhaseIndex = (breathPhaseIndex + 1) % phases.length;
       runBreathPhase();
     }, phase.duration * 1000);
   }
+
+  // Přepnutí techniky dechu - kdykoliv, i za běhu cvičení
+  window.selectBreathTechnique = function(techId) {
+    if (!BREATH_TECHNIQUES[techId]) return;
+    currentBreathTechnique = techId;
+    updateBreathTechniqueUI();
+    breathPhaseIndex = 0;
+    clearTimeout(breathPhaseTimeout);
+    clearInterval(breathCountdownInterval);
+    lastBreathVisual = OUT_VISUAL;
+    if (breathingActive) {
+      setBreathTransitionDuration(0);
+      applyBreathPhase(OUT_VISUAL);
+      if (!breathingPaused) {
+        requestAnimationFrame(() => requestAnimationFrame(runBreathPhase));
+      }
+    }
+  };
+
+  function updateBreathTechniqueUI() {
+    document.querySelectorAll('.btn-breath-tech').forEach((b) => {
+      b.classList.toggle('active', b.dataset.tech === currentBreathTechnique);
+    });
+    if (breathTechniqueInfoEl) breathTechniqueInfoEl.innerText = BREATH_TECHNIQUES[currentBreathTechnique].info;
+  }
+
+  // Panel s návodem (AJ) - vysvětluje jednotlivé techniky dechu
+  window.toggleBreathGuide = function() {
+    const guide = document.getElementById('breath-guide');
+    if (guide) guide.classList.toggle('visible');
+  };
 
   window.startBreathing = function() {
     if (breathingActive) return;
@@ -808,12 +1060,14 @@
     document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
 
     // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav, pak teprve spustit plynulý cyklus
+    lastBreathVisual = OUT_VISUAL;
     setBreathTransitionDuration(0);
-    applyBreathPhase(BREATH_PHASES[2]);
+    applyBreathPhase(OUT_VISUAL);
     requestAnimationFrame(() => {
       requestAnimationFrame(runBreathPhase);
     });
 
+    updateBreathTechniqueUI();
     updateBreathControlsUI();
     breathSloganQueue = [];
     breathSloganEl.classList.remove('visible');
@@ -828,6 +1082,7 @@
     clearInterval(breathCountdownInterval);
     clearTimeout(breathSloganTimeout);
     clearTimeout(breathSloganActiveTimeout);
+    document.getElementById('breathing-overlay').classList.add('breath-paused');
     updateBreathControlsUI();
   };
 
@@ -836,6 +1091,7 @@
     if (!breathingActive) { window.startBreathing(); return; }
     if (!breathingPaused) return;
     breathingPaused = false;
+    document.getElementById('breathing-overlay').classList.remove('breath-paused');
     runBreathPhase();
     scheduleNextBreathSlogan(4000);
     updateBreathControlsUI();
@@ -863,7 +1119,21 @@
     }
   }
 
-  // Uložení nastavení dechového cvičení (zatím jen viditelnost loga) do stejného úložiště jako ostatní nastavení
+  // Přepínač vibrací při změně fáze dechu (nádech/výdech/zádrž)
+  window.toggleBreathVibration = function() {
+    vibrationEnabled = !vibrationEnabled;
+    applyBreathVibrationVisibility();
+  };
+
+  function applyBreathVibrationVisibility() {
+    const btn = document.getElementById('breath-vibe-btn');
+    if (btn) {
+      btn.innerText = vibrationEnabled ? 'VIBE: ON' : 'VIBE: OFF';
+      btn.classList.toggle('active', vibrationEnabled);
+    }
+  }
+
+  // Uložení nastavení dechového cvičení (logo, vibrace, oblíbená technika) do stejného úložiště jako ostatní nastavení
   window.saveBreathSettings = function() {
     let settings = {};
     try {
@@ -871,6 +1141,8 @@
       if (existing) settings = JSON.parse(existing);
     } catch (e) { settings = {}; }
     settings.breathLogoHidden = breathLogoHidden;
+    settings.vibrationEnabled = vibrationEnabled;
+    settings.breathTechnique = currentBreathTechnique;
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
 
     const btn = document.getElementById('breath-save-btn');
@@ -933,11 +1205,17 @@
     updateBreathControlsUI();
     breathOrbEl.classList.remove('holding');
     document.body.classList.remove('breathing-active');
+    document.getElementById('breathing-overlay').classList.remove('breath-paused');
+    const guide = document.getElementById('breath-guide');
+    if (guide) guide.classList.remove('visible');
     updateCanvasState(); // obnoví déšť/sunset canvas, pokud byl zapnutý
   };
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && breathingActive) stopBreathing();
+    if (e.key !== 'Escape' || !breathingActive) return;
+    const guide = document.getElementById('breath-guide');
+    if (guide && guide.classList.contains('visible')) { guide.classList.remove('visible'); return; }
+    stopBreathing();
   });
 
   volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; });
@@ -1276,10 +1554,16 @@
             if (settings.rain) savedRain = true;
             if (settings.sunset) savedSunset = true;
             if (settings.breathLogoHidden) breathLogoHidden = true;
+            if (settings.vibrationEnabled === false) vibrationEnabled = false;
+            if (settings.breathTechnique && BREATH_TECHNIQUES[settings.breathTechnique]) {
+                currentBreathTechnique = settings.breathTechnique;
+            }
         }
     } catch (e) { console.error("Nelze načíst nastavení:", e); }
 
     applyBreathLogoVisibility();
+    applyBreathVibrationVisibility();
+    updateBreathTechniqueUI();
 
     const defaultBtn = Array.from(document.querySelectorAll('.btn-theme'))
       .find(b => b.textContent.trim() === savedTheme.toUpperCase());
