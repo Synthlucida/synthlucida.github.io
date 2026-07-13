@@ -1328,7 +1328,8 @@
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updatePlaylistUI();
-    playNextTrack(); 
+    // Zapamatování posledně vybraného playlistu (bez autoplaye)
+    try { localStorage.setItem('synthlucida_last_playlist', key); } catch (e) {}
   };
 
   window.setVisualTheme = function(theme, btn) {
@@ -1580,6 +1581,18 @@
     if (savedSunset) {
         toggleSunset();
     }
+
+    // Obnovení posledně vybraného playlistu (funguje i po přechodu z jiné stránky, např. game.html/relax.html)
+    try {
+        const savedPlaylist = localStorage.getItem('synthlucida_last_playlist');
+        if (savedPlaylist && tracks[savedPlaylist]) {
+            const playlistBtn = Array.from(document.querySelectorAll('.btn-atmos'))
+              .find(b => b.textContent.trim().toLowerCase() === savedPlaylist);
+            if (playlistBtn) {
+                setPlaylist(savedPlaylist, playlistBtn);
+            }
+        }
+    } catch (e) { console.error("Nelze načíst poslední playlist:", e); }
   });
 
   // ==========================================
