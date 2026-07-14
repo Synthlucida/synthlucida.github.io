@@ -102,7 +102,8 @@
   /* Fullscreen skrytí elementů */
   body.is-fullscreen .logo,
   body.is-fullscreen .brand-name,
-  body.is-fullscreen .desc-text {
+  body.is-fullscreen .desc-text,
+  body.is-fullscreen .main-guide-btn {
     display: none !important;
   }
 
@@ -155,6 +156,62 @@
   @keyframes logoPulse {
     0%, 100% { filter: drop-shadow(0 0 8px var(--accent-color)); }
     50% { filter: drop-shadow(0 0 16px var(--accent-color)); }
+  }
+
+  /* ============================================
+     MANUAL (AJ) — info tlačítko v levém horním rohu hlavní stránky
+     ============================================ */
+  .main-guide-btn {
+    position: fixed;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 15px; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent; z-index: 50;
+  }
+  .main-guide-btn:hover, .main-guide-btn:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+  .main-guide-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  .main-guide {
+    position: fixed; inset: 0; z-index: 9998; display: none;
+    background: rgba(5, 2, 10, 0.95); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: calc(64px + env(safe-area-inset-top, 0px)) 24px calc(40px + env(safe-area-inset-bottom, 0px));
+  }
+  .main-guide.visible { display: block; }
+  .main-guide-inner { max-width: 420px; margin: 0 auto; text-align: left; }
+  .main-guide-inner h3 {
+    font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-color);
+    text-shadow: 0 0 10px var(--accent-color); margin: 0 0 12px; text-align: center;
+  }
+  .main-guide-inner p.main-guide-intro {
+    font-size: 10.5px; line-height: 1.7; opacity: 0.75; margin: 0 0 22px;
+  }
+  .main-guide-section { margin-bottom: 18px; }
+  .main-guide-section h4 {
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent-color);
+    margin: 0 0 4px; opacity: 0.9;
+  }
+  .main-guide-section p {
+    font-size: 10px; line-height: 1.6; opacity: 0.65; margin: 0;
+  }
+  .main-guide-note {
+    font-size: 9px; opacity: 0.35; line-height: 1.6; margin-top: 24px; letter-spacing: 0.5px; text-align: center;
+  }
+  .main-guide-close {
+    position: fixed;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 14px; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent; z-index: 9999;
+  }
+  .main-guide-close:hover, .main-guide-close:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
   
   .atmospheres {
@@ -317,7 +374,6 @@
     .logo { max-width: 64px; }
     .header { padding: 6px 20px 4px; }
     .brand-name { font-size: 16px; margin-bottom: 3px; }
-    .desc-text-marketing { display: none; }
     .breath-orb-wrap { width: 128px; height: 128px; }
     .breath-logo { width: 58px; }
     .breath-count { font-size: 38px; }
@@ -524,6 +580,8 @@
 </head>
 <body class="theme-amber" id="body">
 
+<button class="main-guide-btn" onclick="toggleMainGuide()" aria-label="User guide">ⓘ</button>
+
 <div class="ambient-blobs">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -535,9 +593,6 @@
 <div class="header">
   <img src="logo.jpg" alt="SYNTHLUCIDA" class="logo" onerror="this.style.display='none'">
   <div class="brand-name">SYNTHLUCIDA</div>
-  <div class="desc-text">www.SYNTHLUCIDA.com</div>
-  <div class="desc-text">Offline listening works only for the app.</div>
-  <div class="desc-text desc-text-marketing">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack.</div>
 </div>
 
 <div class="atmospheres">
@@ -627,6 +682,56 @@
 </div>
 
 <audio id="audio-player"></audio>
+
+<div class="main-guide" id="main-guide">
+  <button class="main-guide-close" onclick="toggleMainGuide()" aria-label="Close guide">✖</button>
+  <div class="main-guide-inner">
+    <h3>SYNTHLUCIDA — User Guide</h3>
+    <p class="main-guide-intro">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.</p>
+
+    <div class="main-guide-section">
+      <h4>Playback</h4>
+      <p>Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Atmospheres & playlists</h4>
+      <p>Switch between the ASMR, PIANO and CHILL playlists at the top of the screen. GAME and RELAX open separate pages with their own soundscapes. The playlist you last listened to is remembered automatically the next time you open the player.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Visual themes</h4>
+      <p>Choose from NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST and ROSEGOLD to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Ambient effects</h4>
+      <p>RAIN overlays a soft falling-rain animation, and SUNSET blends the background into a warm gradient. Both effects can be combined with any visual theme, and are remembered when you save your settings.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Breathing exercise</h4>
+      <p>Tap BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Sleep timer</h4>
+      <p>Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Save & fullscreen</h4>
+      <p>SAVE stores your current theme, effects and other preferences so they load automatically the next time you visit. FULLSCREEN hides the browser interface for a cleaner, distraction-free view.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4>Offline listening</h4>
+      <p>⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback. Offline listening works only inside the app, not in a regular browser tab.</p>
+    </div>
+
+    <p class="main-guide-note">SYNTHLUCIDA · www.SYNTHLUCIDA.com</p>
+  </div>
+</div>
 
 <div class="breathing-overlay" id="breathing-overlay">
   <div class="breath-ambient" aria-hidden="true">
@@ -1054,6 +1159,12 @@
     if (guide) guide.classList.toggle('visible');
   };
 
+  // Kompletní manuál (AJ) - dostupný z levého horního rohu hlavní stránky
+  window.toggleMainGuide = function() {
+    const guide = document.getElementById('main-guide');
+    if (guide) guide.classList.toggle('visible');
+  };
+
   window.startBreathing = function() {
     if (breathingActive) return;
     breathingActive = true;
@@ -1214,7 +1325,10 @@
   };
 
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || !breathingActive) return;
+    if (e.key !== 'Escape') return;
+    const mainGuide = document.getElementById('main-guide');
+    if (mainGuide && mainGuide.classList.contains('visible')) { mainGuide.classList.remove('visible'); return; }
+    if (!breathingActive) return;
     const guide = document.getElementById('breath-guide');
     if (guide && guide.classList.contains('visible')) { guide.classList.remove('visible'); return; }
     stopBreathing();
