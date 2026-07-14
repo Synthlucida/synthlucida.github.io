@@ -184,6 +184,54 @@
   .color-swatch:hover { transform: scale(1.08); }
   .color-swatch.active { border-color: #fff; box-shadow: 0 0 10px var(--c, #fff), 0 0 3px #fff; transform: scale(1.12); }
 
+  .color-swatch-custom {
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer; flex-shrink: 0; position: relative;
+    border: 2px dashed rgba(255,255,255,0.35); transition: 0.15s; padding: 0; overflow: hidden;
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .color-swatch-custom:hover { transform: scale(1.08); }
+  .color-swatch-custom.active { border-style: solid; border-color: #fff; box-shadow: 0 0 10px #fff; transform: scale(1.12); }
+  .color-swatch-custom span {
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 13px; line-height: 1; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center; pointer-events: none;
+  }
+  .color-swatch-custom input[type="color"] {
+    position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0;
+  }
+
+  /* --- BRING TO LIFE (LIVING PARTS) --- */
+  .parts-hint { font-size: 8.5px; opacity: 0.55; line-height: 1.5; margin-bottom: 8px; }
+  .parts-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .parts-list:empty { display: none; }
+  .part-chip {
+    display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 3px 4px 3px 9px;
+    font-size: 9px; color: var(--accent-color);
+  }
+  .part-chip button {
+    background: rgba(255,255,255,0.08); border: none; color: #fff; width: 15px; height: 15px; border-radius: 50%;
+    font-size: 9px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7;
+  }
+  .part-chip button:hover { opacity: 1; background: var(--accent-glow); }
+
+  .btn-add-part.active { opacity: 1; border-color: var(--accent-glow); color: var(--accent-glow); box-shadow: 0 0 8px var(--accent-glow); }
+  .btn-live.active { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
+
+  .part-toolbar {
+    position: absolute; z-index: 50; display: flex; gap: 4px; padding: 5px;
+    background: rgba(10,10,15,0.92); border: 1px solid var(--accent-color); border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 10px var(--accent-color); transform: translate(-50%, -100%);
+  }
+  .part-toolbar button {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+    font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 0.5px; padding: 6px 5px; border-radius: 6px;
+    cursor: pointer; white-space: nowrap; transition: 0.15s;
+  }
+  .part-toolbar button:hover { background: var(--accent-color); color: #000; }
+  .part-toolbar button.cancel { color: #ff6666; }
+  .part-toolbar button.cancel:hover { background: #ff3333; color: #fff; }
+
   .vol-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 8px; color: var(--accent-color); }
   .size-label { font-size: 9px; color: var(--accent-color); opacity: 0.85; min-width: 32px; }
   #brush-size { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
@@ -255,7 +303,7 @@
     .header { padding: 10px 10px 2px; }
   }
 
-  /* --- FULLSCREEN REŽIM (stejný princip jako v playeru) --- */
+  /* --- FULLSCREEN MODE (same principle as in the player) --- */
   .corner-btn-fullscreen { top: auto; bottom: 10px; right: 10px; left: auto; font-size: 14px; }
 
   body.is-fullscreen {
@@ -299,7 +347,7 @@
     <p>Press and drag with your mouse or finger to paint glowing light trails. A single tap leaves a dot.</p>
 
     <h3>BRUSH</h3>
-    <p>Pick a color from the palette and set the size with the slider. Your last choice is remembered next time you visit.</p>
+    <p>Pick a color from the palette and set the size with the slider. The "+" swatch opens a full custom color picker. Your last choice is remembered next time you visit.</p>
 
     <h3>TOOLS</h3>
     <ul>
@@ -307,8 +355,13 @@
       <li>✨ SPARKLE — turn the glowing trail on or off</li>
       <li>↺ UNDO — step back one stroke</li>
       <li>CLEAR — wipe the canvas (still undoable)</li>
+      <li>▶ ANIMATE — replay your drawing stroke by stroke, in the order you drew it</li>
+      <li>⬇ VIDEO — record the animated replay and download it as a WEBM video</li>
       <li>⬇ SAVE IMAGE — download your drawing as a PNG</li>
     </ul>
+
+    <h3>BRING THE PICTURE TO LIFE</h3>
+    <p>Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP (flapping), SWAY (gentle swaying), SPIN (rotation), or BOB (bouncing). Add as many parts as you like (both wings, a tail...) and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're "attached" to the body.</p>
 
     <h3>THEMES</h3>
     <p>Pick a THEME from the row above the canvas to change the background mood. It doesn't change your brush color.</p>
@@ -371,9 +424,23 @@
         <button class="btn-action" id="btn-clear">CLEAR</button>
       </div>
       <div class="actions-row">
+        <button class="btn-action" id="btn-animate" disabled>▶ ANIMATE</button>
+        <button class="btn-action" id="btn-save-video" disabled>⬇ VIDEO</button>
+      </div>
+      <div class="actions-row">
         <button class="btn-action btn-save" id="btn-save">⬇ SAVE IMAGE</button>
       </div>
       <a href="player.html" class="btn-action btn-player-link">▶ BACK TO PLAYER</a>
+    </div>
+
+    <div class="glass-section">
+      <div class="panel-label">BRING TO LIFE</div>
+      <div class="parts-hint">Drag a box over part of your picture (e.g. a wing) and pick a motion — then hit LIVE to bring it to life.</div>
+      <div class="actions-row">
+        <button class="btn-action btn-add-part" id="btn-add-part" disabled>➕ MARK PART</button>
+        <button class="btn-action btn-live" id="btn-live" disabled>🦋 LIVE</button>
+      </div>
+      <div class="parts-list" id="parts-list"></div>
     </div>
 
     <div class="hint-text">DRAW WITH MOUSE OR FINGER · PICK A COLOR AND SIZE</div>
@@ -394,7 +461,8 @@
   const dctx = drawCanvas.getContext('2d');
   const fctx = fxCanvas.getContext('2d');
 
-  const PALETTE = ['#00f0ff', '#ff00ff', '#00ff88', '#ffcc00', '#ff3333', '#d400ff', '#3388ff', '#ffffff', '#ff6600', '#ff0066', '#00ffaa', '#aaff00', '#ff8fc7', '#4fb8e8', '#e8a15c', '#8844ff', '#20e0c0', '#4b0082'];
+  const PALETTE = ['#00f0ff', '#ff00ff', '#00ff88', '#ffcc00', '#ff3333', '#d400ff', '#3388ff', '#ffffff', '#ff6600', '#ff0066', '#00ffaa', '#aaff00', '#ff8fc7', '#4fb8e8', '#e8a15c', '#8844ff', '#20e0c0', '#4b0082',
+    '#ff1493', '#7fff00', '#00bfff', '#ff4500', '#9400d3', '#ffd700', '#00fa9a', '#1e90ff', '#ff69b4', '#adff2f', '#ba55d3', '#40e0d0', '#ff8c00', '#c0c0c0', '#000000'];
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   let brushColor = '#ffcc00';
@@ -410,7 +478,33 @@
   const MAX_UNDO = 12;
   let particles = [];
 
-  // --- ULOŽENÉ PREFERENCE ---
+  // --- ANIMATION DATA (STROKE RECORDING) ---
+  let strokes = [];
+  let currentStroke = null;
+  let isAnimating = false;
+  let animRafId = null;
+
+  // --- BRING TO LIFE (LIVING PARTS) ---
+  let livingParts = [];
+  let addPartMode = false;
+  let selStart = null;
+  let selRect = null;
+  let partToolbarEl = null;
+  let isLive = false;
+  let liveRafId = null;
+  let liveStart = 0;
+  let liveOriginalCanvas = null;
+  let liveBaseCanvas = null;
+  let livePartCanvases = [];
+  let partIdCounter = 1;
+  const MOTION_META = {
+    flap: { icon: '🦋', label: 'FLAP', ampDeg: 32, speed: 7 },
+    sway: { icon: '🌿', label: 'SWAY', ampDeg: 9, speed: 1.8 },
+    spin: { icon: '↻', label: 'SPIN', speed: 1.6 },
+    bob: { icon: '〜', label: 'BOB', ampPx: 7, speed: 3.2 }
+  };
+
+  // --- SAVED PREFERENCES ---
   function loadPrefs() {
     try {
       const raw = localStorage.getItem('synthlucida_canvas_prefs');
@@ -426,7 +520,7 @@
   }
   loadPrefs();
 
-  // --- MOTIV (STEJNÝ SYSTÉM JAKO GAME.HTML) ---
+  // --- THEME (SAME SYSTEM AS GAME.HTML) ---
   window.setVisualTheme = function (theme, btn) {
     body.className = body.className.replace(/theme-\S+/g, '').trim().concat(' theme-' + theme);
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active'));
@@ -443,7 +537,7 @@
     } catch (e) {}
   })();
 
-  // --- PLÁTNO: NASTAVENÍ ROZLIŠENÍ (S OHLEDEM NA DPR) ---
+  // --- CANVAS: RESOLUTION SETUP (ACCOUNTING FOR DPR) ---
   function resizeAll(preserve) {
     dpr = Math.max(1, window.devicePixelRatio || 1);
     const rect = stack.getBoundingClientRect();
@@ -496,7 +590,26 @@
     paletteEl.appendChild(b);
   });
 
-  // --- VELIKOST ŠTĚTCE ---
+  // --- CUSTOM COLOR (COLOR PICKER) ---
+  const customSwatch = document.createElement('div');
+  customSwatch.className = 'color-swatch-custom';
+  customSwatch.title = 'Custom color';
+  customSwatch.innerHTML = '<span>+</span><input type="color" id="custom-color-input" aria-label="Custom color picker">';
+  paletteEl.appendChild(customSwatch);
+  const customColorInput = customSwatch.querySelector('#custom-color-input');
+  customColorInput.value = brushColor;
+  function selectCustomColor(hex) {
+    brushColor = hex;
+    eraseMode = false;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    document.getElementById('btn-eraser').classList.remove('active');
+    customSwatch.classList.add('active');
+    customSwatch.style.setProperty('--c', hex);
+    savePrefs();
+  }
+  customColorInput.addEventListener('input', () => selectCustomColor(customColorInput.value));
+
+  // --- BRUSH SIZE ---
   const sizeSlider = document.getElementById('brush-size');
   const sizeValue = document.getElementById('size-value');
   sizeSlider.value = brushSize;
@@ -507,7 +620,7 @@
     savePrefs();
   });
 
-  // --- GUMA / JISKRY (TOGGLE TLAČÍTKA) ---
+  // --- ERASER / SPARKLE (TOGGLE BUTTONS) ---
   const btnEraser = document.getElementById('btn-eraser');
   btnEraser.addEventListener('click', () => {
     eraseMode = !eraseMode;
@@ -521,7 +634,7 @@
     savePrefs();
   });
 
-  // --- TOAST ZPRÁVY ---
+  // --- TOAST MESSAGES ---
   let toastTimer = null;
   function showToast(msg) {
     const t = document.getElementById('toast');
@@ -537,31 +650,47 @@
     snap.width = drawCanvas.width;
     snap.height = drawCanvas.height;
     snap.getContext('2d').drawImage(drawCanvas, 0, 0);
-    undoStack.push(snap);
+    undoStack.push({ canvas: snap, strokesLen: strokes.length });
     if (undoStack.length > MAX_UNDO) undoStack.shift();
     updateUndoBtn();
   }
   function updateUndoBtn() {
     document.getElementById('btn-undo').disabled = undoStack.length === 0;
   }
+  function updateAnimateBtns() {
+    const has = strokes.length > 0 && !isAnimating && !isLive;
+    document.getElementById('btn-animate').disabled = !has;
+    document.getElementById('btn-save-video').disabled = !has || typeof MediaRecorder === 'undefined';
+    document.getElementById('btn-add-part').disabled = !(strokes.length > 0) || isAnimating || isLive;
+    document.getElementById('btn-live').disabled = !(strokes.length > 0 && livingParts.length > 0) || isAnimating || addPartMode;
+  }
   document.getElementById('btn-undo').addEventListener('click', () => {
-    if (!undoStack.length) return;
-    const snap = undoStack.pop();
+    if (!undoStack.length || isAnimating || isLive) return;
+    const entry = undoStack.pop();
     dctx.save();
     dctx.setTransform(1, 0, 0, 1, 0, 0);
     dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    dctx.drawImage(snap, 0, 0, snap.width, snap.height, 0, 0, drawCanvas.width, drawCanvas.height);
+    dctx.drawImage(entry.canvas, 0, 0, entry.canvas.width, entry.canvas.height, 0, 0, drawCanvas.width, drawCanvas.height);
     dctx.restore();
+    strokes.length = entry.strokesLen;
     updateUndoBtn();
+    updateAnimateBtns();
     showToast('UNDONE');
   });
 
   document.getElementById('btn-clear').addEventListener('click', () => {
+    if (isAnimating) return;
+    if (isLive) stopLive();
+    if (addPartMode) cancelAddPart();
     pushUndo();
     dctx.save();
     dctx.setTransform(1, 0, 0, 1, 0, 0);
     dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     dctx.restore();
+    strokes = [];
+    livingParts = [];
+    renderPartsList();
+    updateAnimateBtns();
     showToast('CLEARED');
   });
 
@@ -572,7 +701,7 @@
     }
   });
 
-  // --- ULOŽENÍ OBRÁZKU (PNG NA POZADÍ AKTUÁLNÍHO MOTIVU) ---
+  // --- SAVE IMAGE (PNG ON CURRENT THEME BACKGROUND) ---
   document.getElementById('btn-save').addEventListener('click', () => {
     const w = drawCanvas.width, h = drawCanvas.height;
     const out = document.createElement('canvas');
@@ -604,7 +733,7 @@
     }, 'image/png');
   });
 
-  // --- KRESLICÍ MECHANIKA (DVOUVRSTVÝ NEON TAH) ---
+  // --- DRAWING MECHANICS (TWO-LAYER NEON STROKE) ---
   function getPos(e) {
     const rect = drawCanvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -617,10 +746,10 @@
     return 1.3 - t * 0.7;
   }
 
-  function strokeSegment(x0, y0, x1, y1, sf) {
-    const w = Math.max(1.5, brushSize * sf);
+  function drawSegment(x0, y0, x1, y1, sf, color, size, erase) {
+    const w = Math.max(1.5, size * sf);
 
-    if (eraseMode) {
+    if (erase) {
       dctx.save();
       dctx.lineCap = 'round'; dctx.lineJoin = 'round';
       dctx.globalCompositeOperation = 'destination-out';
@@ -634,16 +763,16 @@
     dctx.save();
     dctx.lineCap = 'round'; dctx.lineJoin = 'round';
     dctx.globalCompositeOperation = 'source-over';
-    dctx.shadowColor = brushColor;
+    dctx.shadowColor = color;
     dctx.shadowBlur = w * 2;
-    dctx.strokeStyle = brushColor;
+    dctx.strokeStyle = color;
     dctx.lineWidth = w * 1.5;
     dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
     dctx.restore();
 
     dctx.save();
     dctx.lineCap = 'round'; dctx.lineJoin = 'round';
-    dctx.shadowColor = brushColor;
+    dctx.shadowColor = color;
     dctx.shadowBlur = w * 0.6;
     dctx.strokeStyle = '#ffffff';
     dctx.lineWidth = Math.max(1, w * 0.4);
@@ -651,7 +780,11 @@
     dctx.restore();
   }
 
-  // --- ČÁSTICE (SPARKLE TRAIL) ---
+  function strokeSegment(x0, y0, x1, y1, sf) {
+    drawSegment(x0, y0, x1, y1, sf, brushColor, brushSize, eraseMode);
+  }
+
+  // --- PARTICLES (SPARKLE TRAIL) ---
   function spawnParticles(x, y, count) {
     const scale = brushSize / 10;
     for (let i = 0; i < count; i++) {
@@ -685,14 +818,24 @@
       fctx.fill();
       fctx.restore();
     }
+    if (addPartMode && selRect) {
+      fctx.save();
+      fctx.strokeStyle = '#ff9900';
+      fctx.lineWidth = 1.5;
+      fctx.setLineDash([5, 4]);
+      fctx.strokeRect(selRect.x, selRect.y, selRect.w, selRect.h);
+      fctx.restore();
+    }
     requestAnimationFrame(animateParticles);
   }
   requestAnimationFrame(animateParticles);
 
-  // --- POINTER UDÁLOSTI (MYŠ, DOTYK I PERO JEDNOTNĚ) ---
+  // --- POINTER EVENTS (MOUSE, TOUCH, AND PEN UNIFIED) ---
   drawCanvas.addEventListener('contextmenu', e => e.preventDefault());
 
   function onPointerDown(e) {
+    if (isAnimating || isLive) return;
+    if (addPartMode) { onSelectPointerDown(e); return; }
     if (activePointerId !== null) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     activePointerId = e.pointerId;
@@ -701,6 +844,7 @@
     drawing = true;
     const p = getPos(e);
     lastX = p.x; lastY = p.y; lastT = performance.now();
+    currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, points: [{ x: p.x, y: p.y, t: 0 }] };
     strokeSegment(p.x, p.y, p.x + 0.5, p.y, 1);
     if (sparkleOn) spawnParticles(p.x, p.y, 4);
     if (navigator.vibrate) navigator.vibrate(12);
@@ -708,6 +852,7 @@
   }
 
   function onPointerMove(e) {
+    if (addPartMode) { onSelectPointerMove(e); return; }
     if (!drawing || e.pointerId !== activePointerId) return;
     const p = getPos(e);
     const now = performance.now();
@@ -715,14 +860,21 @@
     const sf = speedFactor(p.x - lastX, p.y - lastY, dt || 16);
     strokeSegment(lastX, lastY, p.x, p.y, sf);
     if (sparkleOn) spawnParticles(p.x, p.y, 2);
+    if (currentStroke) currentStroke.points.push({ x: p.x, y: p.y, t: now - lastT === 0 ? currentStroke.points[currentStroke.points.length - 1].t : (currentStroke.points[currentStroke.points.length - 1].t + dt) });
     lastX = p.x; lastY = p.y; lastT = now;
     e.preventDefault();
   }
 
   function endStroke(e) {
+    if (addPartMode) { onSelectPointerUp(e); return; }
     if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
     drawing = false;
     activePointerId = null;
+    if (currentStroke) {
+      strokes.push(currentStroke);
+      currentStroke = null;
+      updateAnimateBtns();
+    }
   }
 
   drawCanvas.addEventListener('pointerdown', onPointerDown);
@@ -730,7 +882,7 @@
   window.addEventListener('pointerup', endStroke);
   window.addEventListener('pointercancel', endStroke);
 
-  // --- FULLSCREEN (STEJNÁ LOGIKA JAKO V PLAYERU) ---
+  // --- FULLSCREEN (SAME LOGIC AS IN THE PLAYER) ---
   window.toggleFullscreen = function () {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
@@ -747,17 +899,403 @@
     resizeTimer = setTimeout(() => resizeAll(true), 160);
   });
 
-  // --- NÁVOD (INFO OVERLAY) ---
+  // --- HELP (INFO OVERLAY) ---
   window.toggleInfoOverlay = function (show) {
     document.getElementById('info-overlay').classList.toggle('show', show);
   };
   document.getElementById('btn-info').addEventListener('click', () => toggleInfoOverlay(true));
   document.getElementById('btn-info-close').addEventListener('click', () => toggleInfoOverlay(false));
   document.getElementById('info-overlay').addEventListener('click', e => { if (e.target.id === 'info-overlay') toggleInfoOverlay(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleInfoOverlay(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); if (addPartMode) exitAddPartMode(); } });
+
+  // --- ANIMATION: BUILD TIMELINE FROM RECORDED STROKES ---
+  function buildTimeline() {
+    const timeline = [];
+    let cum = 0;
+    strokes.forEach(stroke => {
+      const pts = stroke.points;
+      if (pts.length < 2) {
+        const p0 = pts[0];
+        timeline.push({ t: cum, draw: () => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, stroke.color, stroke.size, stroke.erase); if (sparkleOn) spawnParticles(p0.x, p0.y, 4); } });
+        cum += 60;
+      } else {
+        for (let i = 1; i < pts.length; i++) {
+          const p0 = pts[i - 1], p1 = pts[i];
+          const dt = Math.min(45, Math.max(6, p1.t - p0.t));
+          cum += dt;
+          timeline.push({
+            t: cum,
+            draw: () => {
+              const sf = speedFactor(p1.x - p0.x, p1.y - p0.y, dt);
+              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, stroke.color, stroke.size, stroke.erase);
+              if (sparkleOn) spawnParticles(p1.x, p1.y, 2);
+            }
+          });
+        }
+      }
+      cum += 100;
+    });
+    return timeline;
+  }
+
+  function setDrawingEnabled(enabled) {
+    stack.style.pointerEvents = enabled ? 'auto' : 'none';
+  }
+
+  function playAnimation(onFrame) {
+    if (isAnimating || !strokes.length) return;
+    isAnimating = true;
+    updateAnimateBtns();
+    setDrawingEnabled(false);
+    document.getElementById('btn-animate').textContent = '■ STOP';
+
+    dctx.save();
+    dctx.setTransform(1, 0, 0, 1, 0, 0);
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    dctx.restore();
+
+    const timeline = buildTimeline();
+    const totalT = timeline.length ? timeline[timeline.length - 1].t : 0;
+    const start = performance.now();
+    let idx = 0;
+
+    function frame(now) {
+      if (!isAnimating) return;
+      const elapsed = now - start;
+      while (idx < timeline.length && timeline[idx].t <= elapsed) {
+        timeline[idx].draw();
+        idx++;
+      }
+      if (onFrame) onFrame(elapsed, totalT);
+      if (idx < timeline.length) {
+        animRafId = requestAnimationFrame(frame);
+      } else {
+        finishAnimation();
+      }
+    }
+    animRafId = requestAnimationFrame(frame);
+  }
+
+  function finishAnimation() {
+    isAnimating = false;
+    if (animRafId) cancelAnimationFrame(animRafId);
+    animRafId = null;
+    setDrawingEnabled(true);
+    document.getElementById('btn-animate').textContent = '▶ ANIMATE';
+    updateAnimateBtns();
+  }
+
+  document.getElementById('btn-animate').addEventListener('click', () => {
+    if (isAnimating) {
+      // Jump straight to the final drawing and stop
+      isAnimating = false;
+      if (animRafId) cancelAnimationFrame(animRafId);
+      const timeline = buildTimeline();
+      dctx.save();
+      dctx.setTransform(1, 0, 0, 1, 0, 0);
+      dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+      dctx.restore();
+      timeline.forEach(item => item.draw());
+      finishAnimation();
+      showToast('STOPPED');
+      return;
+    }
+    playAnimation();
+    showToast('▶ PLAYING');
+  });
+
+  // --- EXPORT ANIMACE JAKO VIDEO (WEBM) ---
+  document.getElementById('btn-save-video').addEventListener('click', () => {
+    if (isAnimating || !strokes.length) return;
+    if (typeof MediaRecorder === 'undefined' || !drawCanvas.captureStream) {
+      showToast('VIDEO NOT SUPPORTED');
+      return;
+    }
+    try {
+      const stream = drawCanvas.captureStream(30);
+      let mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks = [];
+      recorder.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        a.href = url;
+        a.download = 'synthlucida-canvas-' + ts + '.webm';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        showToast('✓ VIDEO SAVED');
+      };
+      recorder.start();
+      showToast('● RECORDING');
+      playAnimation((elapsed, total) => {
+        if (elapsed >= total) {
+          setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 200);
+        }
+      });
+    } catch (err) {
+      showToast('VIDEO FAILED');
+    }
+  });
+
+  // --- BRING TO LIFE: MARK A PART (RECTANGLE SELECTION) ---
+  function onSelectPointerDown(e) {
+    if (activePointerId !== null) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    removeToolbar();
+    activePointerId = e.pointerId;
+    try { drawCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+    const p = getPos(e);
+    selStart = p;
+    selRect = { x: p.x, y: p.y, w: 0, h: 0 };
+    e.preventDefault();
+  }
+
+  function onSelectPointerMove(e) {
+    if (!selStart || e.pointerId !== activePointerId) return;
+    const p = getPos(e);
+    selRect = {
+      x: Math.min(selStart.x, p.x),
+      y: Math.min(selStart.y, p.y),
+      w: Math.abs(p.x - selStart.x),
+      h: Math.abs(p.y - selStart.y)
+    };
+    e.preventDefault();
+  }
+
+  function onSelectPointerUp(e) {
+    if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+    activePointerId = null;
+    selStart = null;
+    if (!selRect || selRect.w < 14 || selRect.h < 14) {
+      selRect = null;
+      return;
+    }
+    showPartToolbar();
+  }
+
+  function removeToolbar() {
+    if (partToolbarEl) { partToolbarEl.remove(); partToolbarEl = null; }
+  }
+
+  function showPartToolbar() {
+    removeToolbar();
+    const el = document.createElement('div');
+    el.className = 'part-toolbar';
+    const stackRect = stack.getBoundingClientRect();
+    let left = selRect.x + selRect.w / 2;
+    let top = selRect.y;
+    left = Math.min(Math.max(left, 55), Math.max(55, stackRect.width - 55));
+    top = Math.max(top, 34);
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    Object.keys(MOTION_META).forEach(key => {
+      const meta = MOTION_META[key];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = meta.icon + ' ' + meta.label;
+      btn.addEventListener('click', () => { addPart(key); exitAddPartMode(); });
+      el.appendChild(btn);
+    });
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'cancel';
+    cancelBtn.textContent = '✕';
+    cancelBtn.addEventListener('click', () => { selRect = null; exitAddPartMode(); });
+    el.appendChild(cancelBtn);
+    stack.appendChild(el);
+    partToolbarEl = el;
+  }
+
+  function addPart(motionKey) {
+    if (!selRect) return;
+    const stackRect = stack.getBoundingClientRect();
+    const cssW = stackRect.width, cssH = stackRect.height;
+    const fx = selRect.x / cssW, fy = selRect.y / cssH, fw = selRect.w / cssW, fh = selRect.h / cssH;
+    const cx = cssW / 2, cy = cssH / 2;
+    const rectCenterX = selRect.x + selRect.w / 2, rectCenterY = selRect.y + selRect.h / 2;
+    const edges = [
+      { side: 'left', mx: selRect.x, my: rectCenterY },
+      { side: 'right', mx: selRect.x + selRect.w, my: rectCenterY },
+      { side: 'top', mx: rectCenterX, my: selRect.y },
+      { side: 'bottom', mx: rectCenterX, my: selRect.y + selRect.h }
+    ];
+    let best = edges[0], bestDist = Infinity;
+    edges.forEach(edge => {
+      const d = Math.hypot(edge.mx - cx, edge.my - cy);
+      if (d < bestDist) { bestDist = d; best = edge; }
+    });
+    const meta = MOTION_META[motionKey];
+    livingParts.push({
+      id: partIdCounter++,
+      fx, fy, fw, fh,
+      pivot: motionKey === 'spin' ? 'center' : best.side,
+      motion: motionKey,
+      ampDeg: meta.ampDeg || 0,
+      ampPx: meta.ampPx || 0,
+      speed: meta.speed,
+      phase: Math.random() * Math.PI * 2
+    });
+    renderPartsList();
+    updateAnimateBtns();
+    showToast('ADDED: ' + meta.label);
+  }
+
+  function renderPartsList() {
+    const list = document.getElementById('parts-list');
+    list.innerHTML = '';
+    livingParts.forEach(part => {
+      const meta = MOTION_META[part.motion];
+      const chip = document.createElement('div');
+      chip.className = 'part-chip';
+      const label = document.createElement('span');
+      label.textContent = meta.icon + ' ' + meta.label;
+      chip.appendChild(label);
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.textContent = '✕';
+      rm.setAttribute('aria-label', 'Remove part');
+      rm.addEventListener('click', () => {
+        livingParts = livingParts.filter(p => p.id !== part.id);
+        renderPartsList();
+        updateAnimateBtns();
+      });
+      chip.appendChild(rm);
+      list.appendChild(chip);
+    });
+  }
+
+  function exitAddPartMode() {
+    addPartMode = false;
+    selStart = null;
+    selRect = null;
+    removeToolbar();
+    const btn = document.getElementById('btn-add-part');
+    btn.classList.remove('active');
+    btn.textContent = '➕ MARK PART';
+    updateAnimateBtns();
+  }
+
+  document.getElementById('btn-add-part').addEventListener('click', () => {
+    if (isAnimating || isLive) return;
+    if (addPartMode) { exitAddPartMode(); return; }
+    addPartMode = true;
+    selRect = null;
+    const btn = document.getElementById('btn-add-part');
+    btn.classList.add('active');
+    btn.textContent = '✕ CANCEL SELECTION';
+    updateAnimateBtns();
+    showToast('DRAG OVER A PART OF THE PICTURE');
+  });
+
+  // --- BRING TO LIFE: PLAYBACK (LIVE) ---
+  function startLive() {
+    if (isLive || isAnimating || !livingParts.length) return;
+    isLive = true;
+    updateAnimateBtns();
+    setDrawingEnabled(false);
+    const btn = document.getElementById('btn-live');
+    btn.classList.add('active');
+    btn.textContent = '■ STOP';
+
+    liveOriginalCanvas = document.createElement('canvas');
+    liveOriginalCanvas.width = drawCanvas.width;
+    liveOriginalCanvas.height = drawCanvas.height;
+    liveOriginalCanvas.getContext('2d').drawImage(drawCanvas, 0, 0);
+
+    liveBaseCanvas = document.createElement('canvas');
+    liveBaseCanvas.width = drawCanvas.width;
+    liveBaseCanvas.height = drawCanvas.height;
+    const bctx = liveBaseCanvas.getContext('2d');
+    bctx.drawImage(liveOriginalCanvas, 0, 0);
+
+    const stackRect = stack.getBoundingClientRect();
+    const cssW = stackRect.width, cssH = stackRect.height;
+
+    livePartCanvases = livingParts.map(part => {
+      const px = part.fx * cssW * dpr, py = part.fy * cssH * dpr;
+      const pw = part.fw * cssW * dpr, ph = part.fh * cssH * dpr;
+      const pc = document.createElement('canvas');
+      pc.width = Math.max(1, pw); pc.height = Math.max(1, ph);
+      pc.getContext('2d').drawImage(liveOriginalCanvas, px, py, pw, ph, 0, 0, pw, ph);
+      bctx.clearRect(px, py, pw, ph);
+      return { canvas: pc, part, px, py, pw, ph };
+    });
+
+    liveStart = performance.now();
+    liveRafId = requestAnimationFrame(liveFrame);
+  }
+
+  function liveFrame(now) {
+    if (!isLive) return;
+    const t = (now - liveStart) / 1000;
+    dctx.save();
+    dctx.setTransform(1, 0, 0, 1, 0, 0);
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    dctx.drawImage(liveBaseCanvas, 0, 0);
+    dctx.restore();
+
+    livePartCanvases.forEach(pc => {
+      const { canvas, part, px, py, pw, ph } = pc;
+      let pivotX, pivotY;
+      switch (part.pivot) {
+        case 'left': pivotX = px; pivotY = py + ph / 2; break;
+        case 'right': pivotX = px + pw; pivotY = py + ph / 2; break;
+        case 'top': pivotX = px + pw / 2; pivotY = py; break;
+        case 'bottom': pivotX = px + pw / 2; pivotY = py + ph; break;
+        default: pivotX = px + pw / 2; pivotY = py + ph / 2;
+      }
+      dctx.save();
+      dctx.setTransform(1, 0, 0, 1, 0, 0);
+      dctx.translate(pivotX, pivotY);
+      if (part.motion === 'flap' || part.motion === 'sway') {
+        const angle = (part.ampDeg * Math.PI / 180) * Math.sin(t * part.speed + part.phase);
+        dctx.rotate(angle);
+      } else if (part.motion === 'spin') {
+        dctx.rotate(t * part.speed);
+      } else if (part.motion === 'bob') {
+        dctx.translate(0, part.ampPx * dpr * Math.sin(t * part.speed + part.phase));
+      }
+      dctx.drawImage(canvas, px - pivotX, py - pivotY, pw, ph);
+      dctx.restore();
+    });
+
+    liveRafId = requestAnimationFrame(liveFrame);
+  }
+
+  function stopLive() {
+    if (!isLive) return;
+    isLive = false;
+    if (liveRafId) cancelAnimationFrame(liveRafId);
+    liveRafId = null;
+    dctx.save();
+    dctx.setTransform(1, 0, 0, 1, 0, 0);
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    if (liveOriginalCanvas) dctx.drawImage(liveOriginalCanvas, 0, 0);
+    dctx.restore();
+    setDrawingEnabled(true);
+    const btn = document.getElementById('btn-live');
+    btn.classList.remove('active');
+    btn.textContent = '🦋 LIVE';
+    updateAnimateBtns();
+  }
+
+  document.getElementById('btn-live').addEventListener('click', () => {
+    if (isLive) { stopLive(); showToast('STOPPED'); return; }
+    if (!livingParts.length) { showToast('MARK A PART FIRST'); return; }
+    startLive();
+    showToast('🦋 COMING TO LIFE...');
+  });
 
   // --- INICIALIZACE ---
   updateUndoBtn();
+  updateAnimateBtns();
+  renderPartsList();
 })();
 </script>
 </body>
