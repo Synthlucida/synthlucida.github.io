@@ -199,14 +199,6 @@
   .playlist li.unlocked .badge { color: #00ff88; border: 1px solid rgba(0,255,136,0.2); background: rgba(0,255,136,0.03); }
   .playlist li.locked .badge { color: #ff3333; border: 1px solid rgba(255,51,51,0.2); background: rgba(255,51,51,0.03); }
 
-  .btn-download {
-    flex-shrink: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
-    border-radius: 3px; border: 1px solid rgba(0,255,136,0.25); background: rgba(0,255,136,0.05);
-    color: #00ff88; font-size: 9px; line-height: 1; text-decoration: none; cursor: pointer; transition: 0.2s;
-  }
-  .btn-download:hover { background: #00ff88; color: #000; box-shadow: 0 0 6px #00ff88; }
-  .btn-download:active { transform: scale(0.9); }
-
   .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 8px; }
   .btn-ctrl { background: rgba(0,0,0,0.5); border: 1px solid var(--accent-color); color: var(--accent-color); width: 32px; height: 32px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; white-space: nowrap; }
   .btn-ctrl:active { transform: scale(0.95); }
@@ -353,7 +345,7 @@
     </ul>
 
     <h3>UNLOCKING TRACKS</h3>
-    <p>Switch between ASMR / PIANO / CHILL categories using the buttons above the board. Each track needs a set number of Career Lines to unlock. Once it shows ✓ READY, tap it to play, or tap ⬇ to download it to your device.</p>
+    <p>Switch between ASMR / PIANO / CHILL categories using the buttons above the board. Each track needs a set number of Career Lines to unlock. Once it shows ✓ READY, tap it to play.</p>
 
     <h3>BONUS ROUND &amp; BOMB</h3>
     <p>Every 20 Career Lines earns a 💣 BOMB charge and triggers a 60-second Bonus Round with 2x score. Use BOMB to drop a special piece that instantly clears the bottom 5 rows.</p>
@@ -621,45 +613,6 @@
     btn.classList.add('active'); updatePlaylistUI();
   };
 
-  function sanitizeFileName(name) {
-    return name.replace(/[\\/:*?"<>|]+/g, '').trim();
-  }
-
-  // --- UNIVERZÁLNÍ STAŽENÍ SKLADBY (funguje i uvnitř WebView aplikací) ---
-  // Mnoho vestavěných WebView komponent v aplikacích neumí zpracovat
-  // klasický <a download> odkaz na cizí doménu (např. GitHub) - prostě ho
-  // otevřou jako stránku. Řešení: soubor si stáhneme sami přes fetch(),
-  // převedeme na blob a ten pak "stáhneme" přes blob: URL, což je vždy
-  // stejný origin a WebView i normální prohlížeč to zvládnou stejně.
-  async function downloadTrackFile(track, btnEl) {
-    const originalIcon = btnEl.innerHTML;
-    btnEl.innerHTML = '⏳';
-    btnEl.style.pointerEvents = 'none';
-    try {
-      const response = await fetch(track.src, { mode: 'cors' });
-      if (!response.ok) throw new Error('Network response was not ok: ' + response.status);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = sanitizeFileName(track.title) + '.mp3';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-      btnEl.innerHTML = '✓';
-    } catch (err) {
-      // Fallback - fetch selhal (např. CORS nebo offline). Otevřeme
-      // přímý odkaz v novém okně/systémovém prohlížeči, kde má uživatel
-      // aspoň šanci soubor uložit ručně (dlouhý tisk / nabídka prohlížeče).
-      console.warn('Blob download failed, falling back to direct link:', err);
-      window.open(track.src, '_blank', 'noopener');
-      btnEl.innerHTML = '⚠';
-    } finally {
-      setTimeout(() => { btnEl.innerHTML = originalIcon; btnEl.style.pointerEvents = ''; }, 1500);
-    }
-  }
-
   function updatePlaylistUI() {
     playlistEl.innerHTML = ''; if (!activePlaylist) return;
     activePlaylist.forEach((track, index) => {
@@ -674,19 +627,6 @@
       li.appendChild(nameSpan); li.appendChild(badge);
       if(isUnlocked) {
         li.onclick = () => playTrack(index);
-        const dlBtn = document.createElement('a');
-        dlBtn.className = 'btn-download';
-        dlBtn.innerHTML = '⬇';
-        dlBtn.title = 'Stáhnout skladbu do zařízení';
-        dlBtn.href = track.src;
-        dlBtn.download = sanitizeFileName(track.title) + '.mp3';
-        dlBtn.rel = 'noopener';
-        dlBtn.onclick = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          downloadTrackFile(track, dlBtn);
-        };
-        li.appendChild(dlBtn);
       }
       playlistEl.appendChild(li);
     });
