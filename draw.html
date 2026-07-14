@@ -111,13 +111,14 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    gap: 15px;
-    max-width: 900px;
+    gap: 18px;
+    max-width: 1200px;
     margin: 0 auto;
     width: 100%;
     padding: 0 10px;
     flex-grow: 1;
     flex-wrap: wrap;
+    transition: max-width 0.3s ease;
   }
 
   @keyframes ambientGlow {
@@ -134,8 +135,9 @@
     padding: 8px;
     position: relative;
     animation: ambientGlow 4s ease-in-out infinite;
-    flex: 1 1 380px;
-    max-width: 560px;
+    flex: 1 1 480px;
+    max-width: 780px;
+    transition: max-width 0.3s ease;
   }
 
   .canvas-stack {
@@ -247,10 +249,38 @@
   @media (max-width: 800px) {
     body { height: auto; min-height: 100vh; overflow-y: auto; justify-content: flex-start; }
     .main-layout { flex-direction: column; align-items: center; padding-bottom: 10px; gap: 10px; }
-    .canvas-panel { width: 100%; max-width: 480px; flex-basis: auto; }
+    .canvas-panel { width: 100%; max-width: 620px; flex-basis: auto; }
     .side-panel { width: 100%; max-width: 290px; flex-basis: auto; }
     .hint-text { display: none; }
     .header { padding: 10px 10px 2px; }
+  }
+
+  /* --- FULLSCREEN REŽIM (stejný princip jako v playeru) --- */
+  .corner-btn-fullscreen { top: auto; bottom: 10px; right: 10px; left: auto; font-size: 14px; }
+
+  body.is-fullscreen {
+    justify-content: center;
+  }
+  body.is-fullscreen .header,
+  body.is-fullscreen .themes-container,
+  body.is-fullscreen .side-panel,
+  body.is-fullscreen .footer,
+  body.is-fullscreen .ambient-blobs,
+  body.is-fullscreen .corner-btn-left {
+    display: none !important;
+  }
+  body.is-fullscreen .main-layout {
+    max-width: none;
+    padding: 0;
+    height: 100vh;
+    height: 100dvh;
+    align-items: center;
+  }
+  body.is-fullscreen .canvas-panel {
+    max-width: 96vmin;
+    width: 96vmin;
+    padding: 4px;
+    animation: none;
   }
 </style>
 </head>
@@ -258,6 +288,7 @@
 
 <button class="corner-btn corner-btn-left" id="btn-info" title="How to draw" aria-label="How to draw">i</button>
 <a href="player.html" class="corner-btn corner-btn-right" id="btn-close" title="Close canvas" aria-label="Close canvas">✕</a>
+<button class="corner-btn corner-btn-fullscreen" id="btn-fullscreen" title="Fullscreen" aria-label="Fullscreen">⛶</button>
 
 <div id="info-overlay">
   <div class="info-panel">
@@ -698,6 +729,23 @@
   drawCanvas.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', endStroke);
   window.addEventListener('pointercancel', endStroke);
+
+  // --- FULLSCREEN (STEJNÁ LOGIKA JAKO V PLAYERU) ---
+  window.toggleFullscreen = function () {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.log(`Chyba fullscreenu: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  };
+  document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', () => {
+    document.body.classList.toggle('is-fullscreen', !!document.fullscreenElement);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => resizeAll(true), 160);
+  });
 
   // --- NÁVOD (INFO OVERLAY) ---
   window.toggleInfoOverlay = function (show) {
