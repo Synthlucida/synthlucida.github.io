@@ -1025,7 +1025,7 @@ setInterval(updateMoonPhase, 3600000);
   document.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; }, { passive: true });
 
   let audioCtx;
-  let globalMixer, sidechainGain; 
+  let globalMixer, sidechainGain, outputLimiter; 
   let oscL, oscR, gainL, gainR, merger;
   let currentToneIndex = 0;
   const tones = [
@@ -1049,7 +1049,20 @@ setInterval(updateMoonPhase, 3600000);
       
       globalMixer = audioCtx.createGain();
       globalMixer.gain.value = 1.0;
-      globalMixer.connect(audioCtx.destination);
+
+      // Safety limiter: binaural drone + sequencer + nature sounds + looper feedback
+      // can sum above 0dBFS when several layers peak together, which some phones'
+      // audio hardware/DSP clips into audible crackle while others tolerate it.
+      // This brick-walls any overs before they reach the output.
+      outputLimiter = audioCtx.createDynamicsCompressor();
+      outputLimiter.threshold.value = -6;
+      outputLimiter.knee.value = 12;
+      outputLimiter.ratio.value = 16;
+      outputLimiter.attack.value = 0.003;
+      outputLimiter.release.value = 0.15;
+
+      globalMixer.connect(outputLimiter);
+      outputLimiter.connect(audioCtx.destination);
       
       merger = audioCtx.createChannelMerger(2);
       merger.connect(globalMixer);
