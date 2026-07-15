@@ -31,6 +31,7 @@
   body.theme-matrix { --bg-color-1: #001a00; --bg-color-2: #000000; --accent-color: #00ff66; --accent-glow: #003311; }
   body.theme-amber { --bg-color-1: #3a1a00; --bg-color-2: #0a0500; --accent-color: #ff7700; --accent-glow: #993300; }
   body.theme-lavender { --bg-color-1: #20003b; --bg-color-2: #050010; --accent-color: #d400ff; --accent-glow: #550088; }
+  body.theme-zen { --bg-color-1: #1b2a2e; --bg-color-2: #0a1416; --accent-color: #9fd8c9; --accent-glow: #d9b8a3; }
 
   * { box-sizing: border-box; }
 
@@ -153,8 +154,8 @@
     user-select: none;
     cursor: crosshair;
   }
-  #draw-canvas, #fx-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  #fx-canvas { pointer-events: none; }
+  #draw-canvas, #template-canvas, #fx-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #template-canvas, #fx-canvas { pointer-events: none; }
 
   .side-panel {
     display: flex;
@@ -219,8 +220,8 @@
   .btn-live.active { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
 
   .part-toolbar {
-    position: absolute; z-index: 50; display: flex; gap: 4px; padding: 5px;
-    background: rgba(10,10,15,0.92); border: 1px solid var(--accent-color); border-radius: 10px;
+    position: absolute; z-index: 50; display: flex; flex-wrap: wrap; gap: 4px; padding: 5px;
+    max-width: 220px; background: rgba(10,10,15,0.92); border: 1px solid var(--accent-color); border-radius: 10px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 10px var(--accent-color); transform: translate(-50%, -100%);
   }
   .part-toolbar button {
@@ -231,6 +232,24 @@
   .part-toolbar button:hover { background: var(--accent-color); color: #000; }
   .part-toolbar button.cancel { color: #ff6666; }
   .part-toolbar button.cancel:hover { background: #ff3333; color: #fff; }
+
+  .brush-style-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .btn-brush-style {
+    flex: 1 1 auto; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    opacity: 0.65; font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 0.5px; padding: 6px 4px;
+    border-radius: 6px; cursor: pointer; transition: 0.2s;
+  }
+  .btn-brush-style:hover { opacity: 0.9; }
+  .btn-brush-style.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
+
+  .template-gallery { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .btn-template {
+    flex: 0 0 calc(25% - 5px); aspect-ratio: 1 / 1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; opacity: 0.7;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; cursor: pointer; transition: 0.2s;
+  }
+  .btn-template:hover { opacity: 1; transform: scale(1.05); }
+  .btn-template.active { opacity: 1; border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
 
   .vol-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 8px; color: var(--accent-color); }
   .size-label { font-size: 9px; color: var(--accent-color); opacity: 0.85; min-width: 32px; }
@@ -344,27 +363,42 @@
     <h2>HOW TO DRAW</h2>
 
     <h3>DRAWING</h3>
-    <p>Press and drag with your mouse or finger to paint glowing light trails. A single tap leaves a dot.</p>
+    <p>Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.</p>
 
     <h3>BRUSH</h3>
     <p>Pick a color from the palette and set the size with the slider. The "+" swatch opens a full custom color picker. Your last choice is remembered next time you visit.</p>
+
+    <h3>BRUSH FEEL</h3>
+    <ul>
+      <li>🌤 SOFT — a gentle, diffused watercolor wash, lovely for slow relaxed painting</li>
+      <li>🖋 INK — a tapered brush-pen stroke that deepens where lines overlap</li>
+      <li>🌾 CHALK — a dry, grainy pastel texture</li>
+      <li>✨ NEON — the original bright glowing light trail</li>
+    </ul>
+
+    <h3>COLORING PAGE</h3>
+    <p>Pick an outline from COLORING PAGE — a mandala, flower, butterfly and more — and simply paint inside the lines with any brush and color. Your color always stays under the outline, and CLEAR only wipes your painting, not the outline. Pick "✕" to go back to a blank canvas.</p>
 
     <h3>TOOLS</h3>
     <ul>
       <li>🧹 ERASER — erase instead of draw</li>
       <li>✨ SPARKLE — turn the glowing trail on or off</li>
+      <li>🔊 SOUND — turn ambient sound on or off (see AMBIENT SOUND below)</li>
       <li>↺ UNDO — step back one stroke</li>
-      <li>CLEAR — wipe the canvas (still undoable)</li>
+      <li>CLEAR — wipe your painting (still undoable; the coloring outline stays)</li>
       <li>▶ ANIMATE — replay your drawing stroke by stroke, in the order you drew it</li>
       <li>⬇ VIDEO — record the animated replay and download it as a WEBM video</li>
       <li>⬇ SAVE IMAGE — download your drawing as a PNG</li>
     </ul>
 
+    <h3>AMBIENT SOUND</h3>
+    <p>While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound "off" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND — your choice is remembered.</p>
+
     <h3>BRING THE PICTURE TO LIFE</h3>
-    <p>Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP (flapping), SWAY (gentle swaying), SPIN (rotation), or BOB (bouncing). Add as many parts as you like (both wings, a tail...) and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're "attached" to the body.</p>
+    <p>Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), or TWINKLE (a soft flicker, lovely for stars). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're "attached" to the body.</p>
 
     <h3>THEMES</h3>
-    <p>Pick a THEME from the row above the canvas to change the background mood. It doesn't change your brush color.</p>
+    <p>Pick a THEME from the row above the canvas to change the background mood, including the calm ZEN theme. It doesn't change your brush color.</p>
   </div>
 </div>
 
@@ -390,6 +424,7 @@
   <button class="btn-theme" data-theme="matrix" onclick="setVisualTheme('matrix', this)">MATRIX</button>
   <button class="btn-theme active" data-theme="amber" onclick="setVisualTheme('amber', this)">AMBER</button>
   <button class="btn-theme" data-theme="lavender" onclick="setVisualTheme('lavender', this)">LAVENDER</button>
+  <button class="btn-theme" data-theme="zen" onclick="setVisualTheme('zen', this)">ZEN</button>
 </div>
 
 <div class="main-layout">
@@ -397,6 +432,7 @@
   <div class="canvas-panel">
     <div class="canvas-stack" id="canvas-stack">
       <canvas id="draw-canvas"></canvas>
+      <canvas id="template-canvas"></canvas>
       <canvas id="fx-canvas"></canvas>
     </div>
   </div>
@@ -407,6 +443,14 @@
       <div class="panel-label">BRUSH COLOR</div>
       <div class="color-palette" id="color-palette"></div>
 
+      <div class="panel-label" style="margin-top:10px;">BRUSH FEEL</div>
+      <div class="brush-style-row" id="brush-style-row">
+        <button class="btn-brush-style" data-style="soft" type="button">🌤 SOFT</button>
+        <button class="btn-brush-style" data-style="ink" type="button">🖋 INK</button>
+        <button class="btn-brush-style" data-style="chalk" type="button">🌾 CHALK</button>
+        <button class="btn-brush-style" data-style="neon" type="button">✨ NEON</button>
+      </div>
+
       <div class="vol-row">
         <span class="size-label" id="size-value">10px</span>
         <input type="range" id="brush-size" min="2" max="44" value="10" aria-label="Brush size">
@@ -415,6 +459,7 @@
       <div class="controls">
         <button class="btn-ctrl-sub" id="btn-eraser" title="Eraser" aria-label="Eraser">🧹</button>
         <button class="btn-ctrl-sub" id="btn-sparkle" title="Sparkle trail" aria-label="Sparkle trail">✨</button>
+        <button class="btn-ctrl-sub" id="btn-sound" title="Ambient sound" aria-label="Ambient sound">🔊</button>
       </div>
     </div>
 
@@ -431,6 +476,21 @@
         <button class="btn-action btn-save" id="btn-save">⬇ SAVE IMAGE</button>
       </div>
       <a href="player.html" class="btn-action btn-player-link">▶ BACK TO PLAYER</a>
+    </div>
+
+    <div class="glass-section">
+      <div class="panel-label">COLORING PAGE</div>
+      <div class="parts-hint">Pick an outline to relax and color inside the lines. Your fills stay under the outline.</div>
+      <div class="template-gallery" id="template-gallery">
+        <button class="btn-template active" data-template="none" type="button" title="Blank canvas">✕</button>
+        <button class="btn-template" data-template="mandala" type="button" title="Mandala">❋</button>
+        <button class="btn-template" data-template="flower" type="button" title="Flower">✿</button>
+        <button class="btn-template" data-template="butterfly" type="button" title="Butterfly">🦋</button>
+        <button class="btn-template" data-template="leaf" type="button" title="Leaf">🍃</button>
+        <button class="btn-template" data-template="wave" type="button" title="Waves">🌊</button>
+        <button class="btn-template" data-template="heart" type="button" title="Heart">♡</button>
+        <button class="btn-template" data-template="moon" type="button" title="Moon &amp; stars">☾</button>
+      </div>
     </div>
 
     <div class="glass-section">
@@ -457,8 +517,10 @@
   const body = document.getElementById('body');
   const stack = document.getElementById('canvas-stack');
   const drawCanvas = document.getElementById('draw-canvas');
+  const templateCanvas = document.getElementById('template-canvas');
   const fxCanvas = document.getElementById('fx-canvas');
   const dctx = drawCanvas.getContext('2d');
+  const tctx = templateCanvas.getContext('2d');
   const fctx = fxCanvas.getContext('2d');
 
   const PALETTE = ['#00f0ff', '#ff00ff', '#00ff88', '#ffcc00', '#ff3333', '#d400ff', '#3388ff', '#ffffff', '#ff6600', '#ff0066', '#00ffaa', '#aaff00', '#ff8fc7', '#4fb8e8', '#e8a15c', '#8844ff', '#20e0c0', '#4b0082',
@@ -467,8 +529,11 @@
 
   let brushColor = '#ffcc00';
   let brushSize = 10;
+  let brushStyle = 'soft';
   let eraseMode = false;
   let sparkleOn = !reduceMotion;
+  let soundOn = true;
+  let activeTemplate = 'none';
 
   let dpr = Math.max(1, window.devicePixelRatio || 1);
   let drawing = false;
@@ -501,7 +566,11 @@
     flap: { icon: '🦋', label: 'FLAP', ampDeg: 32, speed: 7 },
     sway: { icon: '🌿', label: 'SWAY', ampDeg: 9, speed: 1.8 },
     spin: { icon: '↻', label: 'SPIN', speed: 1.6 },
-    bob: { icon: '〜', label: 'BOB', ampPx: 7, speed: 3.2 }
+    bob: { icon: '〜', label: 'BOB', ampPx: 7, speed: 3.2 },
+    pulse: { icon: '🫧', label: 'PULSE', ampScale: 0.14, speed: 1.4 },
+    fade: { icon: '☁', label: 'FADE', minAlpha: 0.25, speed: 1.1 },
+    drift: { icon: '🍂', label: 'DRIFT', ampPx: 6, speed: 0.7 },
+    twinkle: { icon: '✦', label: 'TWINKLE', minAlpha: 0.15, ampScale: 0.08, speed: 4.5 }
   };
 
   // --- SAVED PREFERENCES ---
@@ -513,10 +582,13 @@
       if (p.color) brushColor = p.color;
       if (p.size) brushSize = p.size;
       if (typeof p.sparkle === 'boolean') sparkleOn = p.sparkle;
+      if (typeof p.sound === 'boolean') soundOn = p.sound;
+      if (p.brushStyle) brushStyle = p.brushStyle;
+      if (p.template) activeTemplate = p.template;
     } catch (e) {}
   }
   function savePrefs() {
-    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, size: brushSize, sparkle: sparkleOn })); } catch (e) {}
+    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, size: brushSize, sparkle: sparkleOn, sound: soundOn, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
   }
   loadPrefs();
 
@@ -553,6 +625,7 @@
     }
 
     drawCanvas.width = w * dpr; drawCanvas.height = h * dpr;
+    templateCanvas.width = w * dpr; templateCanvas.height = h * dpr;
     fxCanvas.width = w * dpr; fxCanvas.height = h * dpr;
 
     if (backup) {
@@ -560,7 +633,9 @@
     }
 
     dctx.scale(dpr, dpr);
+    tctx.scale(dpr, dpr);
     fctx.scale(dpr, dpr);
+    if (typeof TEMPLATES !== 'undefined' && activeTemplate !== 'none') drawTemplateOutline(activeTemplate, true);
   }
   resizeAll(false);
 
@@ -620,6 +695,20 @@
     savePrefs();
   });
 
+  // --- BRUSH STYLE (FEEL) ---
+  const brushStyleBtns = document.querySelectorAll('.btn-brush-style');
+  function refreshBrushStyleBtns() {
+    brushStyleBtns.forEach(b => b.classList.toggle('active', b.dataset.style === brushStyle));
+  }
+  brushStyleBtns.forEach(b => {
+    b.addEventListener('click', () => {
+      brushStyle = b.dataset.style;
+      refreshBrushStyleBtns();
+      savePrefs();
+    });
+  });
+  refreshBrushStyleBtns();
+
   // --- ERASER / SPARKLE (TOGGLE BUTTONS) ---
   const btnEraser = document.getElementById('btn-eraser');
   btnEraser.addEventListener('click', () => {
@@ -633,6 +722,310 @@
     btnSparkle.classList.toggle('active', sparkleOn);
     savePrefs();
   });
+
+  // --- COLORING PAGE TEMPLATES (RELAXING OUTLINES TO PAINT INSIDE) ---
+  function outlineStyle() {
+    tctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    tctx.lineWidth = 2;
+    tctx.lineCap = 'round';
+    tctx.lineJoin = 'round';
+    tctx.shadowColor = 'rgba(255,255,255,0.25)';
+    tctx.shadowBlur = 2;
+  }
+
+  var TEMPLATES = {
+    mandala(w, h) {
+      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.42;
+      outlineStyle();
+      [0.25, 0.45, 0.65, 0.85, 1].forEach(f => { tctx.beginPath(); tctx.arc(cx, cy, R * f, 0, Math.PI * 2); tctx.stroke(); });
+      const petals = 12;
+      for (let i = 0; i < petals; i++) {
+        const a = (i / petals) * Math.PI * 2;
+        tctx.beginPath();
+        tctx.moveTo(cx + Math.cos(a) * R * 0.25, cy + Math.sin(a) * R * 0.25);
+        tctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+        tctx.stroke();
+        tctx.beginPath();
+        tctx.ellipse(cx + Math.cos(a) * R * 0.7, cy + Math.sin(a) * R * 0.7, R * 0.13, R * 0.065, a, 0, Math.PI * 2);
+        tctx.stroke();
+      }
+    },
+    flower(w, h) {
+      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.32;
+      outlineStyle();
+      const petals = 6;
+      for (let i = 0; i < petals; i++) {
+        const a = (i / petals) * Math.PI * 2;
+        tctx.beginPath();
+        tctx.ellipse(cx + Math.cos(a) * R * 0.62, cy + Math.sin(a) * R * 0.62, R * 0.55, R * 0.28, a, 0, Math.PI * 2);
+        tctx.stroke();
+      }
+      tctx.beginPath(); tctx.arc(cx, cy, R * 0.32, 0, Math.PI * 2); tctx.stroke();
+      const stemY = cy + R * 1.05;
+      tctx.beginPath(); tctx.moveTo(cx, stemY); tctx.quadraticCurveTo(cx - R * 0.1, cy + R * 1.7, cx, h * 0.92); tctx.stroke();
+      tctx.beginPath();
+      tctx.ellipse(cx - R * 0.28, cy + R * 1.35, R * 0.32, R * 0.14, -0.5, 0, Math.PI * 2);
+      tctx.stroke();
+    },
+    butterfly(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
+      outlineStyle();
+      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.5); tctx.lineTo(cx, cy + s * 0.6); tctx.stroke();
+      [1, -1].forEach(side => {
+        tctx.beginPath();
+        tctx.moveTo(cx, cy - s * 0.35);
+        tctx.bezierCurveTo(cx + side * s * 1.1, cy - s * 1.1, cx + side * s * 1.3, cy - s * 0.05, cx, cy + s * 0.05);
+        tctx.stroke();
+        tctx.beginPath();
+        tctx.moveTo(cx, cy + s * 0.08);
+        tctx.bezierCurveTo(cx + side * s * 0.9, cy + s * 0.2, cx + side * s * 0.8, cy + s * 0.95, cx, cy + s * 0.65);
+        tctx.stroke();
+      });
+      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.5); tctx.quadraticCurveTo(cx - s * 0.18, cy - s * 0.8, cx - s * 0.28, cy - s * 0.95); tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.5); tctx.quadraticCurveTo(cx + s * 0.18, cy - s * 0.8, cx + s * 0.28, cy - s * 0.95); tctx.stroke();
+    },
+    leaf(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.4;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx, cy - s * 0.75);
+      tctx.bezierCurveTo(cx + s * 0.8, cy - s * 0.5, cx + s * 0.8, cy + s * 0.55, cx, cy + s * 0.85);
+      tctx.bezierCurveTo(cx - s * 0.8, cy + s * 0.55, cx - s * 0.8, cy - s * 0.5, cx, cy - s * 0.75);
+      tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.7); tctx.lineTo(cx, cy + s * 0.82); tctx.stroke();
+      for (let i = 1; i <= 4; i++) {
+        const t = i / 5, y = cy - s * 0.6 + t * s * 1.3;
+        tctx.beginPath(); tctx.moveTo(cx, y); tctx.lineTo(cx + s * 0.45 * (1 - t * 0.5), y - s * 0.12); tctx.stroke();
+        tctx.beginPath(); tctx.moveTo(cx, y); tctx.lineTo(cx - s * 0.45 * (1 - t * 0.5), y - s * 0.12); tctx.stroke();
+      }
+    },
+    wave(w, h) {
+      outlineStyle();
+      const rows = 5;
+      for (let r = 0; r < rows; r++) {
+        const y = h * (0.22 + r * 0.15);
+        tctx.beginPath();
+        for (let x = 0; x <= w; x += 4) {
+          const yy = y + Math.sin((x / w) * Math.PI * 4 + r) * h * 0.035;
+          if (x === 0) tctx.moveTo(x, yy); else tctx.lineTo(x, yy);
+        }
+        tctx.stroke();
+      }
+    },
+    heart(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx, cy + s * 0.9);
+      tctx.bezierCurveTo(cx - s * 1.4, cy - s * 0.1, cx - s * 0.6, cy - s * 1.25, cx, cy - s * 0.55);
+      tctx.bezierCurveTo(cx + s * 0.6, cy - s * 1.25, cx + s * 1.4, cy - s * 0.1, cx, cy + s * 0.9);
+      tctx.stroke();
+    },
+    moon(w, h) {
+      const cx = w * 0.56, cy = h * 0.42, R = Math.min(w, h) * 0.28;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.arc(cx, cy, R, Math.PI * 0.15, Math.PI * 1.85);
+      tctx.arc(cx + R * 0.55, cy, R * 0.92, Math.PI * 1.9, Math.PI * 1.1, true);
+      tctx.stroke();
+      const stars = [[0.18, 0.22, 0.045], [0.28, 0.68, 0.03], [0.12, 0.5, 0.025], [0.75, 0.78, 0.035]];
+      stars.forEach(([fx, fy, fr]) => {
+        const sx = w * fx, sy = h * fy, r = Math.min(w, h) * fr;
+        tctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2;
+          tctx.moveTo(sx, sy);
+          tctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+        }
+        tctx.stroke();
+      });
+    }
+  };
+
+  function drawTemplateOutline(key, skipClearCheck) {
+    const rect = stack.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    tctx.save();
+    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tctx.clearRect(0, 0, w, h);
+    tctx.restore();
+    activeTemplate = key;
+    if (key !== 'none' && TEMPLATES[key]) TEMPLATES[key](w, h);
+    if (!skipClearCheck) savePrefs();
+  }
+
+  const templateBtns = document.querySelectorAll('.btn-template');
+  templateBtns.forEach(b => {
+    b.addEventListener('click', () => {
+      templateBtns.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      drawTemplateOutline(b.dataset.template);
+      showToast(b.dataset.template === 'none' ? 'BLANK CANVAS' : 'COLORING PAGE READY');
+    });
+  });
+
+  // --- AMBIENT SOUND WHILE DRAWING ---
+  let audioCtx = null, masterGain = null, reverbNode = null, reverbReturn = null, activeVoice = null;
+
+  // Gentle, always-consonant pentatonic scale (no note ever clashes) across two mellow octaves.
+  const SCALE_STEPS = [0, 2, 4, 7, 9];
+  const SCALE_ROOT = 196; // G3 — warm, not shrill
+  const SCALE_FREQS = (() => {
+    const out = [];
+    for (let oct = 0; oct < 2; oct++) {
+      SCALE_STEPS.forEach(iv => out.push(SCALE_ROOT * Math.pow(2, oct + iv / 12)));
+    }
+    return out;
+  })();
+
+  const STYLE_TIMBRE = {
+    soft:  { cutoff: 900,  detune: 4 },
+    ink:   { cutoff: 1100, detune: 5 },
+    chalk: { cutoff: 750,  detune: 7 },
+    neon:  { cutoff: 1300, detune: 3 }
+  };
+
+  function makeReverbImpulse(ctx, duration, decay) {
+    const rate = ctx.sampleRate;
+    const length = Math.max(1, Math.floor(rate * duration));
+    const impulse = ctx.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+      }
+    }
+    return impulse;
+  }
+
+  function ensureAudio() {
+    if (audioCtx) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioCtx = new Ctx();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.5;
+      masterGain.connect(audioCtx.destination);
+
+      reverbNode = audioCtx.createConvolver();
+      reverbNode.buffer = makeReverbImpulse(audioCtx, 2.8, 2.6);
+      reverbReturn = audioCtx.createGain();
+      reverbReturn.gain.value = 0.8;
+      reverbNode.connect(reverbReturn).connect(masterGain);
+    } catch (e) {}
+  }
+
+  function noteFreqFromY(y, h) {
+    const t = 1 - Math.max(0, Math.min(1, y / Math.max(1, h)));
+    const idx = Math.round(t * (SCALE_FREQS.length - 1));
+    return SCALE_FREQS[idx];
+  }
+
+  function startVoice(x, y, rect, erase) {
+    if (!soundOn) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    stopVoice(0.08);
+
+    const timbre = STYLE_TIMBRE[brushStyle] || STYLE_TIMBRE.soft;
+    const now = audioCtx.currentTime;
+    const f = erase ? SCALE_ROOT * 0.75 : noteFreqFromY(y, rect.height);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = erase ? 380 : timbre.cutoff;
+    filter.Q.value = 0.15;
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(erase ? 0.035 : 0.06, now + 0.5);
+
+    // Two pure sine voices, very slightly detuned, for a soft chorus-like warmth (no harsh overtones).
+    const osc1 = audioCtx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(f, now);
+    osc1.detune.setValueAtTime(-timbre.detune, now);
+
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(f, now);
+    osc2.detune.setValueAtTime(timbre.detune, now);
+
+    // Slow, subtle vibrato for an organic, breathing feel.
+    const lfo = audioCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.35;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 2.5;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc1.detune);
+    lfoGain.connect(osc2.detune);
+
+    const dryGain = audioCtx.createGain();
+    dryGain.gain.value = 0.55;
+    const wetGain = audioCtx.createGain();
+    wetGain.gain.value = 0.8;
+
+    let panner = null;
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    if (audioCtx.createStereoPanner) {
+      panner = audioCtx.createStereoPanner();
+      panner.pan.setValueAtTime(Math.max(-1, Math.min(1, (x / Math.max(1, rect.width)) * 2 - 1)), now);
+      gain.connect(panner);
+      panner.connect(dryGain).connect(masterGain);
+      panner.connect(wetGain).connect(reverbNode);
+    } else {
+      gain.connect(dryGain).connect(masterGain);
+      gain.connect(wetGain).connect(reverbNode);
+    }
+
+    osc1.start(now);
+    osc2.start(now);
+    lfo.start(now);
+    activeVoice = { osc1, osc2, lfo, gain, panner };
+  }
+
+  function updateVoice(x, y, rect) {
+    if (!activeVoice || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const f = noteFreqFromY(y, rect.height);
+    activeVoice.osc1.frequency.setTargetAtTime(f, now, 0.14);
+    activeVoice.osc2.frequency.setTargetAtTime(f, now, 0.14);
+    if (activeVoice.panner) {
+      activeVoice.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, (x / Math.max(1, rect.width)) * 2 - 1)), now, 0.15);
+    }
+  }
+
+  function stopVoice(release) {
+    if (!activeVoice || !audioCtx) return;
+    const { osc1, osc2, lfo, gain } = activeVoice;
+    const now = audioCtx.currentTime;
+    const rel = typeof release === 'number' ? release : 1.2;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0, now + rel);
+    try { osc1.stop(now + rel + 0.05); osc2.stop(now + rel + 0.05); lfo.stop(now + rel + 0.05); } catch (e) {}
+    activeVoice = null;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopVoice(0.1);
+  });
+
+  const btnSound = document.getElementById('btn-sound');
+  btnSound.classList.toggle('active', soundOn);
+  btnSound.addEventListener('click', () => {
+    soundOn = !soundOn;
+    btnSound.classList.toggle('active', soundOn);
+    btnSound.textContent = soundOn ? '🔊' : '🔇';
+    if (!soundOn) stopVoice(0.15);
+    savePrefs();
+  });
+  btnSound.textContent = soundOn ? '🔊' : '🔇';
 
   // --- TOAST MESSAGES ---
   let toastTimer = null;
@@ -681,7 +1074,7 @@
   document.getElementById('btn-clear').addEventListener('click', () => {
     if (isAnimating) return;
     if (isLive) stopLive();
-    if (addPartMode) cancelAddPart();
+    if (addPartMode) exitAddPartMode();
     pushUndo();
     dctx.save();
     dctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -746,7 +1139,8 @@
     return 1.3 - t * 0.7;
   }
 
-  function drawSegment(x0, y0, x1, y1, sf, color, size, erase) {
+  function drawSegment(x0, y0, x1, y1, sf, color, size, erase, style) {
+    style = style || 'soft';
     const w = Math.max(1.5, size * sf);
 
     if (erase) {
@@ -760,28 +1154,91 @@
       return;
     }
 
-    dctx.save();
-    dctx.lineCap = 'round'; dctx.lineJoin = 'round';
-    dctx.globalCompositeOperation = 'source-over';
-    dctx.shadowColor = color;
-    dctx.shadowBlur = w * 2;
-    dctx.strokeStyle = color;
-    dctx.lineWidth = w * 1.5;
-    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
-    dctx.restore();
+    if (style === 'neon') {
+      // Bright glowing light trail with a bright white core (the original look).
+      dctx.save();
+      dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+      dctx.globalCompositeOperation = 'source-over';
+      dctx.shadowColor = color;
+      dctx.shadowBlur = w * 2;
+      dctx.strokeStyle = color;
+      dctx.lineWidth = w * 1.5;
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.restore();
 
-    dctx.save();
-    dctx.lineCap = 'round'; dctx.lineJoin = 'round';
-    dctx.shadowColor = color;
-    dctx.shadowBlur = w * 0.6;
-    dctx.strokeStyle = '#ffffff';
-    dctx.lineWidth = Math.max(1, w * 0.4);
-    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
-    dctx.restore();
+      dctx.save();
+      dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+      dctx.shadowColor = color;
+      dctx.shadowBlur = w * 0.6;
+      dctx.strokeStyle = '#ffffff';
+      dctx.lineWidth = Math.max(1, w * 0.4);
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.restore();
+
+    } else if (style === 'soft') {
+      // Gentle watercolor-like wash: soft diffused edges, builds up softly where strokes overlap.
+      dctx.save();
+      dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+      dctx.globalCompositeOperation = 'source-over';
+      dctx.globalAlpha = 0.22;
+      dctx.shadowColor = color;
+      dctx.shadowBlur = w * 1.3;
+      dctx.strokeStyle = color;
+      dctx.lineWidth = w * 2.1;
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.restore();
+
+      dctx.save();
+      dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+      dctx.globalAlpha = 0.35;
+      dctx.shadowBlur = 0;
+      dctx.strokeStyle = color;
+      dctx.lineWidth = w;
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.restore();
+
+    } else if (style === 'chalk') {
+      // Dry, grainy pastel texture: a matte core plus scattered speckles for grain.
+      dctx.save();
+      dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+      dctx.globalAlpha = 0.55;
+      dctx.shadowBlur = 0;
+      dctx.strokeStyle = color;
+      dctx.lineWidth = w * 1.1;
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.restore();
+
+      const dist = Math.hypot(x1 - x0, y1 - y0);
+      const speckCount = Math.max(1, Math.round(dist / 3));
+      dctx.save();
+      dctx.fillStyle = color;
+      for (let i = 0; i < speckCount; i++) {
+        const t = Math.random();
+        const px = x0 + (x1 - x0) * t + (Math.random() - 0.5) * w * 0.9;
+        const py = y0 + (y1 - y0) * t + (Math.random() - 0.5) * w * 0.9;
+        dctx.globalAlpha = 0.12 + Math.random() * 0.25;
+        dctx.beginPath();
+        dctx.arc(px, py, Math.max(0.4, w * 0.12 * Math.random()), 0, Math.PI * 2);
+        dctx.fill();
+      }
+      dctx.restore();
+
+    } else if (style === 'ink') {
+      // Calligraphy-style brush pen: strongly tapered, deepens where strokes overlap.
+      dctx.save();
+      dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+      dctx.globalAlpha = 0.75;
+      dctx.shadowColor = color;
+      dctx.shadowBlur = w * 0.25;
+      dctx.strokeStyle = color;
+      dctx.lineWidth = Math.max(1, w * (0.55 + 0.9 * (sf > 1 ? 1 : sf)));
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.restore();
+    }
   }
 
   function strokeSegment(x0, y0, x1, y1, sf) {
-    drawSegment(x0, y0, x1, y1, sf, brushColor, brushSize, eraseMode);
+    drawSegment(x0, y0, x1, y1, sf, brushColor, brushSize, eraseMode, brushStyle);
   }
 
   // --- PARTICLES (SPARKLE TRAIL) ---
@@ -844,9 +1301,10 @@
     drawing = true;
     const p = getPos(e);
     lastX = p.x; lastY = p.y; lastT = performance.now();
-    currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, points: [{ x: p.x, y: p.y, t: 0 }] };
+    currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, style: brushStyle, points: [{ x: p.x, y: p.y, t: 0 }] };
     strokeSegment(p.x, p.y, p.x + 0.5, p.y, 1);
     if (sparkleOn) spawnParticles(p.x, p.y, 4);
+    startVoice(p.x, p.y, drawCanvas.getBoundingClientRect(), eraseMode);
     if (navigator.vibrate) navigator.vibrate(12);
     e.preventDefault();
   }
@@ -860,6 +1318,7 @@
     const sf = speedFactor(p.x - lastX, p.y - lastY, dt || 16);
     strokeSegment(lastX, lastY, p.x, p.y, sf);
     if (sparkleOn) spawnParticles(p.x, p.y, 2);
+    updateVoice(p.x, p.y, drawCanvas.getBoundingClientRect());
     if (currentStroke) currentStroke.points.push({ x: p.x, y: p.y, t: now - lastT === 0 ? currentStroke.points[currentStroke.points.length - 1].t : (currentStroke.points[currentStroke.points.length - 1].t + dt) });
     lastX = p.x; lastY = p.y; lastT = now;
     e.preventDefault();
@@ -870,6 +1329,7 @@
     if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
     drawing = false;
     activePointerId = null;
+    stopVoice();
     if (currentStroke) {
       strokes.push(currentStroke);
       currentStroke = null;
@@ -916,7 +1376,7 @@
       const pts = stroke.points;
       if (pts.length < 2) {
         const p0 = pts[0];
-        timeline.push({ t: cum, draw: () => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, stroke.color, stroke.size, stroke.erase); if (sparkleOn) spawnParticles(p0.x, p0.y, 4); } });
+        timeline.push({ t: cum, draw: () => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, stroke.color, stroke.size, stroke.erase, stroke.style); if (sparkleOn) spawnParticles(p0.x, p0.y, 4); } });
         cum += 60;
       } else {
         for (let i = 1; i < pts.length; i++) {
@@ -927,7 +1387,7 @@
             t: cum,
             draw: () => {
               const sf = speedFactor(p1.x - p0.x, p1.y - p0.y, dt);
-              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, stroke.color, stroke.size, stroke.erase);
+              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, stroke.color, stroke.size, stroke.erase, stroke.style);
               if (sparkleOn) spawnParticles(p1.x, p1.y, 2);
             }
           });
@@ -1131,13 +1591,16 @@
       if (d < bestDist) { bestDist = d; best = edge; }
     });
     const meta = MOTION_META[motionKey];
+    const centerPivot = (motionKey === 'spin' || motionKey === 'pulse' || motionKey === 'fade' || motionKey === 'drift' || motionKey === 'twinkle');
     livingParts.push({
       id: partIdCounter++,
       fx, fy, fw, fh,
-      pivot: motionKey === 'spin' ? 'center' : best.side,
+      pivot: centerPivot ? 'center' : best.side,
       motion: motionKey,
       ampDeg: meta.ampDeg || 0,
       ampPx: meta.ampPx || 0,
+      ampScale: meta.ampScale || 0,
+      minAlpha: typeof meta.minAlpha === 'number' ? meta.minAlpha : 1,
       speed: meta.speed,
       phase: Math.random() * Math.PI * 2
     });
@@ -1260,6 +1723,18 @@
         dctx.rotate(t * part.speed);
       } else if (part.motion === 'bob') {
         dctx.translate(0, part.ampPx * dpr * Math.sin(t * part.speed + part.phase));
+      } else if (part.motion === 'pulse' || part.motion === 'twinkle') {
+        const s = 1 + part.ampScale * Math.sin(t * part.speed + part.phase);
+        dctx.scale(s, s);
+      } else if (part.motion === 'drift') {
+        dctx.translate(
+          part.ampPx * dpr * Math.sin(t * part.speed + part.phase),
+          part.ampPx * dpr * 0.6 * Math.sin(t * part.speed * 0.6 + part.phase * 1.7)
+        );
+      }
+      if (part.motion === 'fade' || part.motion === 'twinkle') {
+        const span = 1 - part.minAlpha;
+        dctx.globalAlpha = part.minAlpha + span * (0.5 + 0.5 * Math.sin(t * part.speed + part.phase));
       }
       dctx.drawImage(canvas, px - pivotX, py - pivotY, pw, ph);
       dctx.restore();
@@ -1296,6 +1771,10 @@
   updateUndoBtn();
   updateAnimateBtns();
   renderPartsList();
+  if (activeTemplate && activeTemplate !== 'none' && TEMPLATES[activeTemplate]) {
+    templateBtns.forEach(b => b.classList.toggle('active', b.dataset.template === activeTemplate));
+    drawTemplateOutline(activeTemplate, true);
+  }
 })();
 </script>
 </body>
