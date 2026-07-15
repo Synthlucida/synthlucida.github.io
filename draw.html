@@ -865,7 +865,7 @@
   });
 
   // --- AMBIENT SOUND WHILE DRAWING ---
-  let audioCtx = null, masterGain = null, reverbNode = null, reverbReturn = null, activeVoice = null;
+  let audioCtx = null, masterGain = null, reverbNode = null, reverbReturn = null, activeVoice = null, outputLimiter = null;
 
   // Gentle, always-consonant pentatonic scale (no note ever clashes) across two mellow octaves.
   const SCALE_STEPS = [0, 2, 4, 7, 9];
@@ -906,7 +906,16 @@
       audioCtx = new Ctx();
       masterGain = audioCtx.createGain();
       masterGain.gain.value = 0.5;
-      masterGain.connect(audioCtx.destination);
+
+      outputLimiter = audioCtx.createDynamicsCompressor();
+      outputLimiter.threshold.value = -6;
+      outputLimiter.knee.value = 12;
+      outputLimiter.ratio.value = 16;
+      outputLimiter.attack.value = 0.003;
+      outputLimiter.release.value = 0.15;
+
+      masterGain.connect(outputLimiter);
+      outputLimiter.connect(audioCtx.destination);
 
       reverbNode = audioCtx.createConvolver();
       reverbNode.buffer = makeReverbImpulse(audioCtx, 2.8, 2.6);
