@@ -1045,7 +1045,11 @@ setInterval(updateMoonPhase, 3600000);
 
   function initAudio() {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // 'playback' asks for a larger hardware buffer than the default 'interactive' hint.
+      // This trades a little extra latency for much more headroom before a slow render
+      // cycle turns into an audible dropout/crackle - important on Android phones whose
+      // audio thread scheduling is less consistent than desktop or than other phones.
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
       
       globalMixer = audioCtx.createGain();
       globalMixer.gain.value = 1.0;
@@ -1354,7 +1358,8 @@ setInterval(updateMoonPhase, 3600000);
     filt.frequency.setValueAtTime(filterMax, now);
     const g = audioCtx.createGain();
     osc.connect(filt); filt.connect(g);
-    g.connect(tapMasterGain); g.connect(tapDelay); g.connect(tapReverbNode);
+    g.connect(tapMasterGain); g.connect(tapDelay);
+    if (tapReverbOn) g.connect(tapReverbNode);
     g.connect(looperGain);
     const safeAttack = Math.max(0.015, s.attack);
     g.gain.setValueAtTime(0.001, now);
@@ -1438,7 +1443,7 @@ setInterval(updateMoonPhase, 3600000);
     tapMasterGain.connect(sidechainGain);
 
     tapReverbNode = audioCtx.createConvolver();
-    const length = audioCtx.sampleRate * 3.5;
+    const length = audioCtx.sampleRate * 2.5;
     const revBuffer = audioCtx.createBuffer(2, length, audioCtx.sampleRate);
     for (let c = 0; c < 2; c++) {
       const data = revBuffer.getChannelData(c);
@@ -1551,7 +1556,8 @@ setInterval(updateMoonPhase, 3600000);
       noteFilter.connect(noteGain);
     }
     
-    noteGain.connect(tapMasterGain); noteGain.connect(tapDelay); noteGain.connect(tapReverbNode);
+    noteGain.connect(tapMasterGain); noteGain.connect(tapDelay);
+    if (tapReverbOn) noteGain.connect(tapReverbNode);
     noteGain.connect(looperGain); looperGain.connect(looperDelay);
 
     if (s.unison > 0) {
