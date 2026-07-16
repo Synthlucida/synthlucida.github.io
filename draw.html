@@ -866,6 +866,7 @@
 
   // --- AMBIENT SOUND WHILE DRAWING ---
   let audioCtx = null, masterGain = null, reverbNode = null, reverbReturn = null, activeVoice = null, outputLimiter = null;
+  let lastAudioUpdate = 0;
 
   // Gentle, always-consonant pentatonic scale (no note ever clashes) across two mellow octaves.
   const SCALE_STEPS = [0, 2, 4, 7, 9];
@@ -918,7 +919,9 @@
       outputLimiter.connect(audioCtx.destination);
 
       reverbNode = audioCtx.createConvolver();
-      reverbNode.buffer = makeReverbImpulse(audioCtx, 2.8, 2.6);
+      // Kratší impulse = mnohem méně CPU zátěže při konvoluci (hlavní zdroj praskání na slabších telefonech),
+      // zvuk zůstává jemný, jen s kratším "ohonem".
+      reverbNode.buffer = makeReverbImpulse(audioCtx, 1.3, 3.2);
       reverbReturn = audioCtx.createGain();
       reverbReturn.gain.value = 0.8;
       reverbNode.connect(reverbReturn).connect(masterGain);
@@ -995,7 +998,7 @@
     osc1.start(now);
     osc2.start(now);
     lfo.start(now);
-    activeVoice = { osc1, osc2, lfo, gain, panner };
+    activeVoice = { osc1, osc2, lfo, gain, filter, panner, dryGain, wetGain };
   }
 
   function updateVoice(x, y, rect) {
@@ -1011,13 +1014,20 @@
 
   function stopVoice(release) {
     if (!activeVoice || !audioCtx) return;
-    const { osc1, osc2, lfo, gain } = activeVoice;
+    const { osc1, osc2, lfo, gain, filter, panner, dryGain, wetGain } = activeVoice;
     const now = audioCtx.currentTime;
     const rel = typeof release === 'number' ? release : 1.2;
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.linearRampToValueAtTime(0, now + rel);
     try { osc1.stop(now + rel + 0.05); osc2.stop(now + rel + 0.05); lfo.stop(now + rel + 0.05); } catch (e) {}
+    // Uzly se po doznění musí explicitně odpojit — jinak na slabších telefonech
+    // postupně přibývají "tiché" uzly v audio grafu, které i tak zatěžují CPU
+    // a po delším kreslení způsobují praskání.
+    const cleanupNodes = [osc1, osc2, lfo, gain, filter, panner, dryGain, wetGain].filter(Boolean);
+    osc1.onended = () => {
+      cleanupNodes.forEach(n => { try { n.disconnect(); } catch (e) {} });
+    };
     activeVoice = null;
   }
 
@@ -1327,7 +1337,10 @@
     const sf = speedFactor(p.x - lastX, p.y - lastY, dt || 16);
     strokeSegment(lastX, lastY, p.x, p.y, sf);
     if (sparkleOn) spawnParticles(p.x, p.y, 2);
-    updateVoice(p.x, p.y, drawCanvas.getBoundingClientRect());
+    if (now - lastAudioUpdate >= 25) {
+      updateVoice(p.x, p.y, drawCanvas.getBoundingClientRect());
+      lastAudioUpdate = now;
+    }
     if (currentStroke) currentStroke.points.push({ x: p.x, y: p.y, t: now - lastT === 0 ? currentStroke.points[currentStroke.points.length - 1].t : (currentStroke.points[currentStroke.points.length - 1].t + dt) });
     lastX = p.x; lastY = p.y; lastT = now;
     e.preventDefault();

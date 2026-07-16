@@ -191,6 +191,17 @@ a.button:hover {
 
   <div class="news-feed">
 
+    <!-- News July 16, 2026 -->
+    <article class="news-item">
+      <time class="news-date" datetime="2026-07-16">July 16, 2026</time>
+      <h2 class="news-title">Relax Player: Audio Crackling Fix on Mobile</h2>
+      <div class="news-content">
+        A few days ago a limiter (DynamicsCompressor) was added to stop digital clipping when several sound layers stack up past 0dBFS — that part was already working fine. But some phones, notably the Xiaomi Redmi Note 15 Pro+ 5G, kept crackling occasionally even after that fix, while the same session ran clean on a PC or a Motorola. It turned out to be a completely different issue: a buffer underrun, where the phone's audio thread can't recompute the next block of samples in time, leaving an audible gap or click. A limiter can't fix that, since it's a performance problem, not a loudness one — and HyperOS/MIUI is known for handling background audio scheduling less consistently than closer-to-stock Android, even on a chip that's stronger on paper.<br><br>
+        Two real sources of unnecessary load were found in the code. The reverb (convolution) was running constantly even when switched off — every note and kick was still being sent through a 3.5-second convolution impulse regardless of the toggle, with the volume only zeroed out afterward. And the AudioContext wasn't given a latency hint, so the browser defaulted to the smallest, most sensitive buffer size, leaving almost no room for one slow frame before it became audible.<br><br>
+        What changed: the AudioContext now requests a "playback" latency hint for a larger internal buffer and much more headroom against the odd slow frame (latency goes up slightly, imperceptible on ambient pads); reverb is only routed into the mix when it's actually turned on, so switching it off now truly costs nothing; and the reverb's impulse response has been shortened from 3.5s to 2.5s — still a long, lush tail, just a bit lighter to compute when reverb is on.
+      </div>
+    </article>
+
     <!-- News July 15, 2026 -->
     <article class="news-item">
       <time class="news-date" datetime="2026-07-15">July 15, 2026</time>
