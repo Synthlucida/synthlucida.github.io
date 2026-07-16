@@ -904,7 +904,12 @@
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
-      audioCtx = new Ctx();
+      // 'playback' hint = prohlížeč si vezme větší interní buffer, takže jeden
+      // pomalejší snímek (typicky při náročnějším kreslení na slabším telefonu)
+      // nezpůsobí slyšitelný výpadek/lupnutí. Latence o pár desítek ms navíc
+      // je u plynulého ambientního tónu, co glissanduje mezi notami, neznatelná.
+      try { audioCtx = new Ctx({ latencyHint: 'playback' }); }
+      catch (e) { audioCtx = new Ctx(); }
       masterGain = audioCtx.createGain();
       masterGain.gain.value = 0.5;
 
@@ -919,9 +924,9 @@
       outputLimiter.connect(audioCtx.destination);
 
       reverbNode = audioCtx.createConvolver();
-      // Kratší impulse = mnohem méně CPU zátěže při konvoluci (hlavní zdroj praskání na slabších telefonech),
-      // zvuk zůstává jemný, jen s kratším "ohonem".
-      reverbNode.buffer = makeReverbImpulse(audioCtx, 1.3, 3.2);
+      // Ještě kratší impulse — konvoluce je jednoznačně nejdražší operace v celém
+      // audio grafu, čím kratší, tím méně práce na každý snímek zvuku.
+      reverbNode.buffer = makeReverbImpulse(audioCtx, 0.8, 3.5);
       reverbReturn = audioCtx.createGain();
       reverbReturn.gain.value = 0.8;
       reverbNode.connect(reverbReturn).connect(masterGain);
