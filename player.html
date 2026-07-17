@@ -391,6 +391,7 @@
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
   #btn-download { min-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #btn-install { min-width: 110px; white-space: nowrap; }
   /* Pevná min. šířka SAVE tlačítka - text se mění na "SAVED!" a bez toho poskakovala sousední tlačítka */
   button[onclick="saveSettings()"] { min-width: 58px; }
   /* Pevná min. šířka RAIN/SUNSET tlačítek - text se přepíná mezi "...: OFF" a "...: ON"/"NIGHT: ON" (různě dlouhé),
@@ -707,6 +708,7 @@
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   <button class="btn-feature" onclick="toggleFullscreen()">FULLSCREEN</button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
+  <button class="btn-feature" id="btn-install" onclick="installApp()" style="display:none;">📲 INSTALL APP</button>
   <span class="offline-status" id="offline-status"></span>
 </div>
 
@@ -969,7 +971,9 @@
   };
 
   let playlist = tracks['asmr'];
+  let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
+  let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
   let isPlaying = false;
   let shuffleEnabled = false;
   let repeatEnabled = false;
@@ -1625,13 +1629,39 @@
   };
 
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    const mainGuide = document.getElementById('main-guide');
-    if (mainGuide && mainGuide.classList.contains('visible')) { mainGuide.classList.remove('visible'); return; }
-    if (!breathingActive) return;
-    const guide = document.getElementById('breath-guide');
-    if (guide && guide.classList.contains('visible')) { guide.classList.remove('visible'); return; }
-    stopBreathing();
+    if (e.key === 'Escape') {
+      const mainGuide = document.getElementById('main-guide');
+      if (mainGuide && mainGuide.classList.contains('visible')) { mainGuide.classList.remove('visible'); return; }
+      if (!breathingActive) return;
+      const guide = document.getElementById('breath-guide');
+      if (guide && guide.classList.contains('visible')) { guide.classList.remove('visible'); return; }
+      stopBreathing();
+      return;
+    }
+
+    // Klávesové zkratky pro ovládání přehrávače - ignorováno při psaní do formulářového
+    // prvku (posuvníky hlasitosti mají vlastní ovládání šipkami skrz prohlížeč).
+    const targetTag = (e.target && e.target.tagName) || '';
+    if (targetTag === 'INPUT' || targetTag === 'TEXTAREA' || targetTag === 'SELECT') return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      playBtn.click();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (!isNaN(audio.duration)) audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      audio.currentTime = Math.max(0, audio.currentTime - 10);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      volumeSlider.value = Math.min(1, parseFloat(volumeSlider.value) + 0.05).toFixed(2);
+      volumeSlider.dispatchEvent(new Event('input'));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      volumeSlider.value = Math.max(0, parseFloat(volumeSlider.value) - 0.05).toFixed(2);
+      volumeSlider.dispatchEvent(new Event('input'));
+    }
   });
 
   volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; });
@@ -1741,6 +1771,7 @@
 
   window.setPlaylist = function(key, btn) {
     playlist = tracks[key];
+    currentPlaylistKey = key;
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updatePlaylistUI();
@@ -1777,6 +1808,12 @@
     document.getElementById('track-time').innerText = `${formatTime(current)} / -${formatTime(remaining)}`;
     const pct = (current / duration) * 100;
     progressBar.style.width = `${pct}%`;
+
+    if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && isFinite(duration) && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({ duration, playbackRate: audio.playbackRate || 1, position: Math.min(current, duration) });
+      } catch (e) { /* ignore */ }
+    }
   }
 
   audio.addEventListener('timeupdate', updateTrackTime);
@@ -1784,8 +1821,14 @@
 
   // Ambientní ekvalizér - reaguje na skutečný stav přehrávání (play/pause),
   // ne na reálnou frekvenční analýzu (ta by u cross-origin MP3 stejně nešla spolehlivě).
-  audio.addEventListener('play', () => eqEl.classList.add('playing'));
-  audio.addEventListener('pause', () => eqEl.classList.remove('playing'));
+  audio.addEventListener('play', () => {
+    eqEl.classList.add('playing');
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+  });
+  audio.addEventListener('pause', () => {
+    eqEl.classList.remove('playing');
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+  });
 
   // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál
   function showLoading() { spinnerEl.classList.add('active'); }
@@ -1796,8 +1839,26 @@
   audio.addEventListener('playing', hideLoading);
   audio.addEventListener('canplay', hideLoading);
   audio.addEventListener('seeked', hideLoading);
-  audio.addEventListener('error', hideLoading);
   audio.addEventListener('pause', hideLoading);
+
+  // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou
+  audio.addEventListener('playing', () => { consecutiveTrackErrors = 0; });
+
+  // Nedostupná/vadná skladba (mrtvý odkaz, výpadek sítě...) - dát vědět a automaticky
+  // zkusit další v pořadí, místo aby přehrávač tiše "zamrzl" beze zvuku.
+  audio.addEventListener('error', () => {
+    hideLoading();
+    if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
+    consecutiveTrackErrors++;
+    if (consecutiveTrackErrors > playlist.length) {
+      titleDiv.innerText = "Nelze přehrát – zkontroluj připojení";
+      isPlaying = false;
+      playBtn.innerText = "▶";
+      return;
+    }
+    titleDiv.innerText = "Skladba nedostupná, přeskakuji…";
+    setTimeout(() => { playNextTrack(); }, 800);
+  });
 
   progressContainer.addEventListener('click', (e) => {
     const duration = audio.duration;
@@ -1829,6 +1890,18 @@
     isPlaying = true;
     playBtn.innerText = "⏸";
 
+    // MediaSession - název skladby + ovládání na zamykací obrazovce / v notifikaci
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: 'SYNTHLUCIDA',
+          album: currentPlaylistKey.toUpperCase(),
+          artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }]
+        });
+      } catch (e) { /* ignore */ }
+    }
+
     // Once the track can play through (and has landed in the SW cache), refresh its badge
     audio.addEventListener('canplaythrough', function refreshBadgeOnce() {
       const badge = document.getElementById(`offline-badge-${index}`);
@@ -1854,6 +1927,36 @@
     }
   }
 
+  // Předchozí skladba - není v UI vlastní tlačítko, ale používá ji MediaSession
+  // (ovládání ⏮ na zamykací obrazovce / v notifikaci / na sluchátkách)
+  function playPrevTrack() {
+    if (shuffleEnabled) {
+      playTrack(Math.floor(Math.random() * playlist.length));
+    } else {
+      let prevIndex = currentTrackIndex - 1;
+      if (prevIndex < 0) prevIndex = playlist.length - 1;
+      playTrack(prevIndex);
+    }
+  }
+
+  // Zapamatování poslední přehrávané skladby a pozice v ní (bez autoplaye při dalším otevření)
+  function saveLastTrackPosition() {
+    if (currentTrackIndex === -1) return;
+    try {
+      localStorage.setItem('synthlucida_last_track', JSON.stringify({
+        playlist: currentPlaylistKey,
+        index: currentTrackIndex,
+        time: audio.currentTime || 0
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  setInterval(() => { if (isPlaying) saveLastTrackPosition(); }, 5000);
+  audio.addEventListener('pause', saveLastTrackPosition);
+  window.addEventListener('beforeunload', saveLastTrackPosition);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveLastTrackPosition();
+  });
+
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
       audio.pause();
@@ -1872,7 +1975,23 @@
   });
 
   nextBtn.addEventListener('click', () => { playNextTrack(); });
-  
+
+  // MediaSession - ovládání play/pause/předchozí/další/seek ze zamykací obrazovky,
+  // z notifikace nebo z bluetooth sluchátek.
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => { if (!isPlaying) playBtn.click(); });
+    navigator.mediaSession.setActionHandler('pause', () => { if (isPlaying) playBtn.click(); });
+    navigator.mediaSession.setActionHandler('previoustrack', () => { playPrevTrack(); });
+    navigator.mediaSession.setActionHandler('nexttrack', () => { playNextTrack(); });
+    try {
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined && !isNaN(audio.duration)) {
+          audio.currentTime = details.seekTime;
+        }
+      });
+    } catch (e) { /* seekto není všude podporované, není to kritické */ }
+  }
+
   audio.addEventListener('ended', () => {
       if (repeatEnabled) { playTrack(currentTrackIndex); } 
       else { playNextTrack(); }
@@ -2011,6 +2130,37 @@
             }
         }
     } catch (e) { console.error("Nelze načíst poslední playlist:", e); }
+
+    // Obnovení poslední přehrávané skladby a pozice v ní - připraví se, ale nespustí se
+    // (autoplay bez interakce stejně prohlížeče blokují), takže po stisku ▶ pokračuje odtud.
+    try {
+        const savedTrack = localStorage.getItem('synthlucida_last_track');
+        if (savedTrack) {
+            const info = JSON.parse(savedTrack);
+            if (info && info.playlist === currentPlaylistKey && tracks[info.playlist] && tracks[info.playlist][info.index]) {
+                currentTrackIndex = info.index;
+                const track = tracks[info.playlist][info.index];
+                titleDiv.innerText = track.title;
+                audio.src = track.src;
+                audio.addEventListener('loadedmetadata', function restoreLastTime() {
+                    if (info.time && info.time < audio.duration) {
+                        audio.currentTime = info.time;
+                    }
+                    audio.removeEventListener('loadedmetadata', restoreLastTime);
+                });
+                if ('mediaSession' in navigator) {
+                    try {
+                        navigator.mediaSession.metadata = new MediaMetadata({
+                            title: track.title,
+                            artist: 'SYNTHLUCIDA',
+                            album: currentPlaylistKey.toUpperCase(),
+                            artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }]
+                        });
+                    } catch (e) { /* ignore */ }
+                }
+            }
+        }
+    } catch (e) { console.error("Nelze načíst poslední skladbu:", e); }
   });
 
   // ==========================================
@@ -2081,6 +2231,44 @@
         .catch((err) => console.log('Registrace SW selhala:', err));
     });
   }
+
+  // ==========================================
+  // VLASTNÍ "ADD TO HOME SCREEN" TLAČÍTKO
+  // Chrome/Edge/Android nabízí instalační prompt přes beforeinstallprompt - zachytíme ho
+  // a místo spoléhání na prohlížečové UI ukážeme vlastní tlačítko. Na iOS Safari se tato
+  // událost nekoná (tam se appka přidává ručně přes Sdílet -> Přidat na plochu), takže se
+  // tam tlačítko prostě nikdy nezobrazí.
+  // ==========================================
+  let deferredInstallPrompt = null;
+  const installBtn = document.getElementById('btn-install');
+
+  function isRunningStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    if (isRunningStandalone()) return; // appka už běží nainstalovaná, není co nabízet
+    deferredInstallPrompt = e;
+    if (installBtn) installBtn.style.display = '';
+  });
+
+  window.installApp = async function() {
+    if (!deferredInstallPrompt) return;
+    installBtn.disabled = true;
+    deferredInstallPrompt.prompt();
+    try {
+      await deferredInstallPrompt.userChoice;
+    } catch (e) { /* ignore */ }
+    deferredInstallPrompt = null;
+    installBtn.style.display = 'none';
+    installBtn.disabled = false;
+  };
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (installBtn) installBtn.style.display = 'none';
+  });
 </script>
 </body>
 </html>
