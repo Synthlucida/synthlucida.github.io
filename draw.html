@@ -254,6 +254,7 @@
   .vol-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 8px; color: var(--accent-color); }
   .size-label { font-size: 9px; color: var(--accent-color); opacity: 0.85; min-width: 32px; }
   #brush-size { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
+  #sound-volume { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
 
   .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; }
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0; transition: 0.2s; }
@@ -392,7 +393,7 @@
     </ul>
 
     <h3>AMBIENT SOUND</h3>
-    <p>While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound "off" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND — your choice is remembered.</p>
+    <p>While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound "off" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.</p>
 
     <h3>BRING THE PICTURE TO LIFE</h3>
     <p>Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), or TWINKLE (a soft flicker, lovely for stars). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're "attached" to the body.</p>
@@ -460,6 +461,11 @@
         <button class="btn-ctrl-sub" id="btn-eraser" title="Eraser" aria-label="Eraser">🧹</button>
         <button class="btn-ctrl-sub" id="btn-sparkle" title="Sparkle trail" aria-label="Sparkle trail">✨</button>
         <button class="btn-ctrl-sub" id="btn-sound" title="Ambient sound" aria-label="Ambient sound">🔊</button>
+      </div>
+
+      <div class="vol-row">
+        <span class="size-label" id="sound-volume-value">40%</span>
+        <input type="range" id="sound-volume" min="0" max="100" value="40" aria-label="Ambient sound volume">
       </div>
     </div>
 
@@ -533,6 +539,7 @@
   let eraseMode = false;
   let sparkleOn = !reduceMotion;
   let soundOn = true;
+  let soundVolume = 0.4;
   let activeTemplate = 'none';
 
   let dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -583,12 +590,13 @@
       if (p.size) brushSize = p.size;
       if (typeof p.sparkle === 'boolean') sparkleOn = p.sparkle;
       if (typeof p.sound === 'boolean') soundOn = p.sound;
+      if (typeof p.volume === 'number' && isFinite(p.volume)) soundVolume = Math.max(0, Math.min(1, p.volume));
       if (p.brushStyle) brushStyle = p.brushStyle;
       if (p.template) activeTemplate = p.template;
     } catch (e) {}
   }
   function savePrefs() {
-    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, size: brushSize, sparkle: sparkleOn, sound: soundOn, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
+    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, size: brushSize, sparkle: sparkleOn, sound: soundOn, volume: soundVolume, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
   }
   loadPrefs();
 
@@ -911,7 +919,7 @@
       try { audioCtx = new Ctx({ latencyHint: 'playback' }); }
       catch (e) { audioCtx = new Ctx(); }
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 0.5;
+      masterGain.gain.value = soundVolume;
 
       outputLimiter = audioCtx.createDynamicsCompressor();
       outputLimiter.threshold.value = -6;
@@ -1050,6 +1058,17 @@
     savePrefs();
   });
   btnSound.textContent = soundOn ? '🔊' : '🔇';
+
+  const soundVolumeSlider = document.getElementById('sound-volume');
+  const soundVolumeValue = document.getElementById('sound-volume-value');
+  soundVolumeSlider.value = Math.round(soundVolume * 100);
+  soundVolumeValue.textContent = Math.round(soundVolume * 100) + '%';
+  soundVolumeSlider.addEventListener('input', () => {
+    soundVolume = parseInt(soundVolumeSlider.value, 10) / 100;
+    soundVolumeValue.textContent = Math.round(soundVolume * 100) + '%';
+    if (masterGain && audioCtx) masterGain.gain.setTargetAtTime(soundVolume, audioCtx.currentTime, 0.05);
+    savePrefs();
+  });
 
   // --- TOAST MESSAGES ---
   let toastTimer = null;
