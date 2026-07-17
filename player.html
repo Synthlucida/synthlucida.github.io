@@ -393,7 +393,7 @@
   #btn-download { min-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Pevná min. šířka SAVE tlačítka - text se mění na "SAVED!" a bez toho poskakovala sousední tlačítka */
   button[onclick="saveSettings()"] { min-width: 58px; }
-  /* Pevná min. šířka RAIN/SUNSET tlačítek - text se přepíná mezi "...: OFF" a "...: ON" (různě dlouhé),
+  /* Pevná min. šířka RAIN/SUNSET tlačítek - text se přepíná mezi "...: OFF" a "...: ON"/"NIGHT: ON" (různě dlouhé),
      bez toho při přepnutí poskakovala/přeskakovala sousední tlačítka na další řádek */
   #btn-rain { min-width: 84px; }
   #btn-sunset { min-width: 100px; }
@@ -784,7 +784,7 @@
 
     <div class="main-guide-section">
       <h4>Ambient effects</h4>
-      <p>RAIN overlays a soft falling-rain animation, and SUNSET blends the background into a warm gradient. Both effects can be combined with any visual theme, and are remembered when you save your settings.</p>
+      <p>RAIN overlays a soft falling-rain animation. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both RAIN and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.</p>
     </div>
 
     <div class="main-guide-section">
@@ -991,7 +991,7 @@
   
   let currentVisualTheme = 'amber';
   let stormEnabled = false; 
-  let sunsetEnabled = false;
+  let sunsetMode = 0; // 0 = vypnuto, 1 = sunset (teplý gradient), 2 = night (živá hvězdná obloha)
   let breathingActive = false;
   let breathingPaused = false;
   let breathLogoHidden = false;
@@ -1010,6 +1010,10 @@
   
   let rainDrops = [];
   let windLines = [];
+  let stars = [];
+  let shootingStar = null;
+  let shootingStarTimer = 260;
+  let nightFrame = 0;
 
   audio.volume = 0.3;
 
@@ -1026,13 +1030,33 @@
       for(let i=0; i<30; i++) {
           windLines.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, l: Math.random() * 40 + 20, v: Math.random() * 3 + 2 });
       }
+
+      // Hvězdná obloha pro NIGHT: hustota podle velikosti obrazovky, ale v rozumných mezích kvůli výkonu.
+      // Prvních pár hvězd je "glow" (jemná záře navíc) pro hloubku, zbytek jsou drobné tečky.
+      stars = [];
+      let starCount = Math.max(70, Math.min(150, Math.floor((canvas.width * canvas.height) / 9000)));
+      for(let i=0; i<starCount; i++) {
+          stars.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height * 0.92,
+              r: Math.random() * 1.2 + 0.5,
+              baseAlpha: Math.random() * 0.5 + 0.35,
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.025 + 0.01,
+              drift: (Math.random() - 0.5) * 0.015,
+              glow: i < 9,
+              warm: Math.random() < 0.15
+          });
+      }
+      shootingStar = null;
+      shootingStarTimer = Math.random() * 200 + 160;
   }
   
   initEffects();
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(breathingActive || (!stormEnabled && !sunsetEnabled)) {
+      if(breathingActive || (!stormEnabled && sunsetMode === 0)) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -1040,13 +1064,15 @@
       canvasLoopActive = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if(sunsetEnabled) {
+      if(sunsetMode === 1) {
           let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
           grad.addColorStop(0, 'rgba(255, 40, 100, 0.22)');
           grad.addColorStop(0.5, 'rgba(255, 110, 20, 0.15)');
           grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if(sunsetMode === 2) {
+          drawNightSky();
       }
 
       if(stormEnabled) {
@@ -1080,8 +1106,130 @@
       requestAnimationFrame(drawEffects);
   }
 
+  // ==========================================
+  // NIGHT — živá noční obloha jako druhý stupeň tlačítka SUNSET.
+  // Stejná stavba gradientu jako u sunset (jen studené tóny), navíc blikající hvězdy,
+  // měsíc co jemně "dýchá" (stejný princip jako pulzující logo) a občasná padající hvězda.
+  // ==========================================
+  function drawNightSky() {
+      nightFrame++;
+
+      let sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      sky.addColorStop(0, 'rgba(10, 8, 40, 0.5)');
+      sky.addColorStop(0.5, 'rgba(15, 10, 45, 0.28)');
+      sky.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for(let i=0; i<stars.length; i++) {
+          let s = stars[i];
+          s.phase += s.speed;
+          s.x += s.drift;
+          if(s.x < -5) s.x = canvas.width + 5;
+          if(s.x > canvas.width + 5) s.x = -5;
+
+          let tw = 0.55 + 0.45 * Math.sin(s.phase);
+          let alpha = s.baseAlpha * tw;
+
+          if(s.glow) {
+              let g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 7);
+              g.addColorStop(0, `rgba(210,225,255,${(alpha * 0.45).toFixed(3)})`);
+              g.addColorStop(1, 'rgba(210,225,255,0)');
+              ctx.fillStyle = g;
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, s.r * 7, 0, Math.PI * 2);
+              ctx.fill();
+          }
+
+          ctx.fillStyle = s.warm ? `rgba(255,244,214,${alpha.toFixed(3)})` : `rgba(255,255,255,${alpha.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+      }
+
+      let moonX = canvas.width * 0.83;
+      let moonY = canvas.height * 0.15;
+      let moonR = Math.max(18, Math.min(canvas.width, canvas.height) * 0.05);
+      let breathe = 0.5 + 0.5 * Math.sin(nightFrame * 0.012);
+
+      let haloR = moonR * (2.4 + breathe * 0.5);
+      let halo = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, haloR);
+      halo.addColorStop(0, `rgba(220,225,255,${(0.16 + 0.07 * breathe).toFixed(3)})`);
+      halo.addColorStop(1, 'rgba(220,225,255,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, haloR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Srpek měsíce: ořezáno na vlastní disk měsíce, aby "vykousnutí" nezasáhlo hvězdy okolo
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+      ctx.clip();
+
+      let moonBody = ctx.createRadialGradient(moonX - moonR * 0.3, moonY - moonR * 0.3, moonR * 0.15, moonX, moonY, moonR);
+      moonBody.addColorStop(0, '#fdfcff');
+      moonBody.addColorStop(1, '#c7cbe8');
+      ctx.fillStyle = moonBody;
+      ctx.fillRect(moonX - moonR, moonY - moonR, moonR * 2, moonR * 2);
+
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.beginPath();
+      ctx.arc(moonX + moonR * 0.46, moonY - moonR * 0.18, moonR * 0.94, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+
+      ctx.restore();
+
+      // Padající hvězda - vzácně, ať to nepřehltí klidnou atmosféru
+      if(!shootingStar) {
+          shootingStarTimer--;
+          if(shootingStarTimer <= 0) {
+              let angle = Math.PI * 0.2 + Math.random() * 0.15;
+              let speed = Math.random() * 6 + 9;
+              shootingStar = {
+                  x: canvas.width * 0.15 + Math.random() * canvas.width * 0.6,
+                  y: Math.random() * canvas.height * 0.22,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed,
+                  life: 0,
+                  maxLife: Math.random() * 20 + 26
+              };
+              shootingStarTimer = Math.random() * 500 + 340;
+          }
+      } else {
+          shootingStar.x += shootingStar.vx;
+          shootingStar.y += shootingStar.vy;
+          shootingStar.life++;
+          let progress = shootingStar.life / shootingStar.maxLife;
+          let fade = progress < 0.15 ? progress / 0.15 : Math.max(0, 1 - (progress - 0.15) / 0.85);
+
+          let tailX = shootingStar.x - shootingStar.vx * 6;
+          let tailY = shootingStar.y - shootingStar.vy * 6;
+          let trail = ctx.createLinearGradient(shootingStar.x, shootingStar.y, tailX, tailY);
+          trail.addColorStop(0, `rgba(255,255,255,${fade.toFixed(3)})`);
+          trail.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.strokeStyle = trail;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(shootingStar.x, shootingStar.y);
+          ctx.lineTo(tailX, tailY);
+          ctx.stroke();
+
+          ctx.fillStyle = `rgba(255,255,255,${fade.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(shootingStar.x, shootingStar.y, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+
+          if(shootingStar.life >= shootingStar.maxLife || shootingStar.x > canvas.width + 50 || shootingStar.y > canvas.height + 50) {
+              shootingStar = null;
+          }
+      }
+  }
+
   function updateCanvasState() {
-      let active = stormEnabled || sunsetEnabled;
+      let active = stormEnabled || sunsetMode !== 0;
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
   }
@@ -1094,12 +1242,26 @@
       updateCanvasState();
   };
 
-  window.toggleSunset = function() {
-      sunsetEnabled = !sunsetEnabled;
+  function applySunsetUI() {
       let btn = document.getElementById('btn-sunset');
-      btn.innerText = sunsetEnabled ? "SUNSET: ON" : "SUNSET: OFF";
-      btn.classList.toggle('active', sunsetEnabled);
+      if (sunsetMode === 0) {
+          btn.innerText = "SUNSET: OFF";
+          btn.classList.remove('active');
+      } else if (sunsetMode === 1) {
+          btn.innerText = "SUNSET: ON";
+          btn.classList.add('active');
+      } else {
+          btn.innerText = "NIGHT: ON";
+          btn.classList.add('active');
+      }
+      if (sunsetMode !== 2) shootingStar = null; // ať noční obloha při návratu nenaskočí s "obletlou" hvězdou
       updateCanvasState();
+  }
+
+  // Tlačítko SUNSET nyní prochází cyklem OFF -> SUNSET -> NIGHT -> OFF
+  window.toggleSunset = function() {
+      sunsetMode = (sunsetMode + 1) % 3;
+      applySunsetUI();
   };
 
   // ==========================================
@@ -1424,7 +1586,7 @@
     document.getElementById('breathing-overlay').classList.remove('breath-paused');
     const guide = document.getElementById('breath-guide');
     if (guide) guide.classList.remove('visible');
-    updateCanvasState(); // obnoví déšť/sunset canvas, pokud byl zapnutý
+    updateCanvasState(); // obnoví déšť/sunset/night canvas, pokud byl zapnutý
   };
 
   document.addEventListener('keydown', (e) => {
@@ -1718,7 +1880,7 @@
     const settings = {
         theme: currentVisualTheme,
         rain: stormEnabled,
-        sunset: sunsetEnabled,
+        sunset: sunsetMode,
         breathLogoHidden: breathLogoHidden
     };
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
@@ -1764,7 +1926,7 @@
   window.addEventListener('DOMContentLoaded', () => {
     let savedTheme = 'amber'; // výchozí
     let savedRain = false;
-    let savedSunset = false;
+    let savedSunsetMode = 0;
 
     try {
         const savedSettings = localStorage.getItem('synthlucida_settings');
@@ -1772,7 +1934,8 @@
             const settings = JSON.parse(savedSettings);
             if (settings.theme) savedTheme = settings.theme;
             if (settings.rain) savedRain = true;
-            if (settings.sunset) savedSunset = true;
+            if (settings.sunset === true) savedSunsetMode = 1; // zpětná kompatibilita se starším uložením (bool)
+            else if (typeof settings.sunset === 'number') savedSunsetMode = settings.sunset;
             if (settings.breathLogoHidden) breathLogoHidden = true;
             if (settings.vibrationEnabled === false) vibrationEnabled = false;
             if (settings.breathTechnique && BREATH_TECHNIQUES[settings.breathTechnique]) {
@@ -1797,8 +1960,9 @@
     if (savedRain) {
         toggleRain(); 
     }
-    if (savedSunset) {
-        toggleSunset();
+    if (savedSunsetMode > 0) {
+        sunsetMode = savedSunsetMode;
+        applySunsetUI();
     }
 
     // Obnovení posledně vybraného playlistu (funguje i po přechodu z jiné stránky, např. game.html/relax.html)
