@@ -286,9 +286,9 @@
     box-shadow: 0 0 15px var(--accent-color);
   }
 
-  .themes-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; padding: 0 10px;}
+  .themes-container { display: flex; justify-content: center; align-items: center; gap: 5px 7px; margin-bottom: 5px; flex-wrap: wrap; padding: 0 10px;}
   .effects-container { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; padding: 0 10px;}
-  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 9px; cursor: pointer; transition: 0.3s; padding: 2px 4px; letter-spacing: 1px; }
+  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 7.5px; cursor: pointer; transition: 0.3s; padding: 1px 3px; letter-spacing: 0.5px; }
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
 
   .crossfade-container { display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; padding: 0 10px; }
@@ -328,13 +328,13 @@
 
   /* Slogany pod vizuálem */
   .slogan-container {
-    min-height: 15px; 
-    font-size: 10px; 
+    min-height: 9px; 
+    font-size: 8px; 
     opacity: 0;
     transition: opacity 2.5s ease-in-out; 
-    margin: 0 auto 10px auto;
+    margin: 0 auto 4px auto;
     text-shadow: 0 0 8px var(--accent-color); 
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     font-weight: 400;
   }
@@ -2621,10 +2621,31 @@
   document.addEventListener('fullscreenchange', () => {
     if (document.fullscreenElement) {
         document.body.classList.add('is-fullscreen');
+        try { localStorage.setItem('synthlucida_fullscreen_pref', '1'); } catch (e) {}
     } else {
         document.body.classList.remove('is-fullscreen');
+        try { localStorage.setItem('synthlucida_fullscreen_pref', '0'); } catch (e) {}
     }
   });
+
+  // Obnovení fullscreenu při dalším spuštění: pokud uživatel appku naposledy
+  // zavřel ve fullscreenu, zkusíme fullscreen znovu zapnout. Prohlížeče ale
+  // vyžadují gesto uživatele, takže se to spustí při prvním doteku/kliknutí.
+  try {
+    if (localStorage.getItem('synthlucida_fullscreen_pref') === '1') {
+      const restoreFullscreenOnGesture = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log(`Chyba obnovení fullscreenu: ${err.message}`);
+            });
+        }
+        document.removeEventListener('click', restoreFullscreenOnGesture);
+        document.removeEventListener('touchend', restoreFullscreenOnGesture);
+      };
+      document.addEventListener('click', restoreFullscreenOnGesture, { once: true });
+      document.addEventListener('touchend', restoreFullscreenOnGesture, { once: true });
+    }
+  } catch (e) {}
 
   updatePlaylistUI();
 
