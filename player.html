@@ -429,9 +429,9 @@
   #btn-install { min-width: 110px; white-space: nowrap; }
   /* Pevná min. šířka SAVE tlačítka - text se mění na "SAVED!" a bez toho poskakovala sousední tlačítka */
   button[onclick="saveSettings()"] { min-width: 58px; }
-  /* Pevná min. šířka WEATHER/SUNSET tlačítek - text se přepíná mezi "...: OFF" a "...: SUN"/"...: RAIN"/"NIGHT: ON" (různě dlouhé),
+  /* Pevná min. šířka WEATHER/SUNSET tlačítek - text se přepíná mezi "...: OFF" a "...: SUN"/"...: RAIN"/"...: WINTER"/"NIGHT: ON" (různě dlouhé),
      bez toho při přepnutí poskakovala/přeskakovala sousední tlačítka na další řádek */
-  #btn-weather { min-width: 104px; }
+  #btn-weather { min-width: 122px; }
   #btn-sunset { min-width: 100px; }
 
   /* Odkazy (Explore website / Privacy / News) - nyní uvnitř sekce ⓘ */
@@ -854,7 +854,7 @@
 
     <div class="main-guide-section">
       <h4>Ambient effects</h4>
-      <p>WEATHER cycles through two states: a warm SUN scene with drifting light and birds crossing the sky, then a soft falling RAIN animation. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.</p>
+      <p>WEATHER cycles through three states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, then a quiet WINTER scene with gently falling snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1016,6 +1016,7 @@
     ],
     piano: [
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
+      { title: "SYNTHLUCIDA - Gentle Piano Breeze", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/gentle_piano_breeze.mp3" },
       { title: "SYNTHLUCIDA - Nebula Piano 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano2.mp3" },
       { title: "SYNTHLUCIDA - Children Dreams", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/children_dreams.mp3" },
       { title: "SYNTHLUCIDA - Ambient Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/piano1.mp3" },
@@ -1087,7 +1088,7 @@
   const spinnerEl = document.getElementById('mini-spinner');
   
   let currentVisualTheme = 'amber';
-  let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť)
+  let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť), 3 = winter (sněžení)
   let sunsetMode = 0; // 0 = vypnuto, 1 = sunset (teplý gradient), 2 = night (živá hvězdná obloha)
   let breathingActive = false;
   let breathingPaused = false;
@@ -1107,6 +1108,8 @@
   
   let rainDrops = [];
   let windLines = [];
+  let snowFlakes = [];
+  let winterFrame = 0;
   let stars = [];
   let shootingStar = null;
   let shootingStarTimer = 260;
@@ -1195,6 +1198,25 @@
           windLines.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, l: Math.random() * 40 + 20, v: Math.random() * 3 + 2 });
       }
 
+      // WEATHER: WINTER — padající sníh s pocitem hloubky: drobné vzdálené vločky jsou
+      // pomalejší, průsvitnější a téměř nehybné stranou, větší blízké padají rychleji
+      // a víc se komíhají do stran (vítr).
+      snowFlakes = [];
+      let snowCount = Math.max(70, Math.min(170, Math.floor((canvas.width * canvas.height) / 8500)));
+      for(let i=0; i<snowCount; i++) {
+          let depth = Math.random();
+          snowFlakes.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              r: depth * 2.4 + 0.7,
+              speed: depth * 1.15 + 0.3,
+              driftAmount: depth * 1.1 + 0.35,
+              driftPhase: Math.random() * Math.PI * 2,
+              driftSpeed: Math.random() * 0.02 + 0.008,
+              alpha: depth * 0.5 + 0.35
+          });
+      }
+
       // Hvězdná obloha pro NIGHT: hustota podle velikosti obrazovky, ale v rozumných mezích kvůli výkonu.
       // Prvních pár hvězd je "glow" (jemná záře navíc) pro hloubku, zbytek jsou drobné tečky.
       stars = [];
@@ -1260,6 +1282,10 @@
 
       if(weatherMode === 1) {
           drawSunAmbient();
+      }
+
+      if(weatherMode === 3) {
+          drawWinterAmbient();
       }
 
       if(sunsetMode === 1) {
@@ -1405,6 +1431,43 @@
       ctx.globalAlpha = alpha;
       ctx.drawImage(img, dx, dy, dw, dh);
       ctx.restore();
+  }
+
+
+  // ==========================================
+  // WEATHER: WINTER — třetí a poslední stupeň tlačítka WEATHER. Tichá zasněžená atmosféra:
+  // jemný studený nádech vzduchu a klidně padající sníh s pocitem hloubky — drobné vzdálené
+  // vločky jsou pomalé a téměř nehybné, větší blízké padají rychleji a víc se komíhají do
+  // stran, jako by je unášel slabý vítr. Žádné ostré linky ani blesky, jen tichý pád sněhu.
+  // ==========================================
+  function drawWinterAmbient() {
+      winterFrame++;
+
+      let chill = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      chill.addColorStop(0, 'rgba(170, 205, 255, 0.10)');
+      chill.addColorStop(0.55, 'rgba(150, 190, 245, 0.04)');
+      chill.addColorStop(1, 'rgba(210, 225, 255, 0.07)');
+      ctx.fillStyle = chill;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < snowFlakes.length; i++) {
+          let f = snowFlakes[i];
+          f.y += f.speed;
+          f.driftPhase += f.driftSpeed;
+          f.x += Math.sin(f.driftPhase) * f.driftAmount * 0.05;
+
+          if (f.y > canvas.height + 4) {
+              f.y = -4;
+              f.x = Math.random() * canvas.width;
+          }
+          if (f.x > canvas.width + 4) f.x = -4;
+          if (f.x < -4) f.x = canvas.width + 4;
+
+          ctx.fillStyle = `rgba(255, 255, 255, ${f.alpha.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+      }
   }
 
 
@@ -1556,16 +1619,19 @@
       } else if (weatherMode === 1) {
           btn.innerText = "WEATHER: SUN";
           btn.classList.add('active');
-      } else {
+      } else if (weatherMode === 2) {
           btn.innerText = "WEATHER: RAIN";
+          btn.classList.add('active');
+      } else {
+          btn.innerText = "WEATHER: WINTER";
           btn.classList.add('active');
       }
       updateCanvasState();
   }
 
-  // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> OFF (stejný princip jako u SUNSET)
+  // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> OFF (stejný princip jako u SUNSET)
   window.toggleWeather = function() {
-      weatherMode = (weatherMode + 1) % 3;
+      weatherMode = (weatherMode + 1) % 4;
       applyWeatherUI();
   };
 
