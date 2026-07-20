@@ -324,7 +324,7 @@
   .icon-btn:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
   .icon-btn:disabled { opacity: 0.2; cursor: default; box-shadow: none; border-color: rgba(255,255,255,0.2); color: #fff; }
 
-  .queue-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: center; }
+  .queue-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: center; flex-wrap: wrap; }
 
   /* Slogany pod vizuálem */
   .slogan-container {
@@ -407,6 +407,11 @@
   .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
   .offline-badge { font-size: 9px; opacity: 0.6; flex-shrink: 0; color: var(--accent-color); }
   .offline-status { font-size: 8px; opacity: 0.45; display: inline-block; min-width: 60px; text-align: left; }
+
+  /* Heart button to add a track directly from the main playlist to MY PLAYLIST */
+  .heart-btn { background: none; border: none; font-size: 13px; opacity: 0.5; box-shadow: none; }
+  .heart-btn:hover { opacity: 1; border-color: transparent; color: #ff4d8d; box-shadow: none; }
+  .heart-btn.active { opacity: 1; color: #ff4d8d; text-shadow: 0 0 6px #ff4d8d; }
 
   .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 8px; }
   .btn-ctrl { background: rgba(0,0,0,0.5); border: 2px solid var(--accent-color); color: var(--accent-color); width: 50px; height: 50px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 0 6px rgba(0,0,0,0.2); }
@@ -876,14 +881,17 @@
   <button class="main-guide-close" onclick="toggleCustomQueue()" aria-label="Close my playlist">✖</button>
   <div class="main-guide-inner">
     <h3>My Playlist</h3>
-    <p class="main-guide-intro">Tap the + next to any track in HISTORY to add it here. Reorder with ▲▼, then hit PLAY to listen through your own list, in exactly the order you built it.</p>
+    <p class="main-guide-intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼, then hit PLAY to listen through your own list, in exactly the order you built it.</p>
     <p class="main-guide-note" id="queue-empty-note" style="display:none;">Your playlist is empty. Add tracks from HISTORY.</p>
     <ul class="history-list" id="queue-list"></ul>
     <div class="queue-actions">
       <button class="btn-feature" onclick="playCustomQueueFromStart()">▶ PLAY</button>
       <button class="btn-feature" onclick="exportCustomQueue()">📄 EXPORT TXT</button>
+      <button class="btn-feature" onclick="exportCustomQueueFile()">💾 EXPORT PLAYLIST</button>
+      <button class="btn-feature" onclick="triggerImportCustomQueue()">📂 IMPORT PLAYLIST</button>
       <button class="btn-feature" onclick="clearCustomQueue()">CLEAR</button>
     </div>
+    <input type="file" id="queue-import-input" accept=".json,application/json" style="display:none;" onchange="importCustomQueueFile(event)">
   </div>
 </div>
 
@@ -945,7 +953,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_myplaylist">My Playlist</h4>
-      <p data-i18n="p_myplaylist">Tap + next to any track in HISTORY to add it to 🎵 MY PLAYLIST. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save your list as a text file to your device.</p>
+      <p data-i18n="p_myplaylist">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.</p>
     </div>
 
     <div class="main-guide-section">
@@ -2135,8 +2143,22 @@
       badge.id = `offline-badge-${index}`;
       badge.innerText = '';
 
+      const heartBtn = document.createElement('button');
+      heartBtn.className = 'icon-btn heart-btn';
+      heartBtn.id = `heart-btn-${index}`;
+      const likedNow = isTrackInCustomQueue(currentPlaylistKey, index);
+      heartBtn.innerText = likedNow ? '♥' : '♡';
+      heartBtn.classList.toggle('active', likedNow);
+      heartBtn.title = likedNow ? 'Remove from My Playlist' : 'Add to My Playlist';
+      heartBtn.setAttribute('aria-label', 'Add to My Playlist');
+      heartBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleTrackLike(currentPlaylistKey, index);
+      });
+
       li.appendChild(nameSpan);
       li.appendChild(badge);
+      li.appendChild(heartBtn);
       li.onclick = () => { playTrack(index); };
       playlistEl.appendChild(li);
 
@@ -2238,7 +2260,7 @@
     h_history: { en: "History", cz: "Historie" },
     p_history: { en: "🕘 HISTORY shows the tracks you've recently played, with the playlist and time. Tap a track name to play it again, use 📄 EXPORT TXT to save the list as a text file to your device, or CLEAR HISTORY to reset it.", cz: "🕘 HISTORY zobrazuje naposledy přehrané skladby spolu s playlistem a časem. Klepnutím na název skladby ji spustíte znovu, tlačítkem 📄 EXPORT TXT uložíte seznam jako textový soubor do zařízení a tlačítkem CLEAR HISTORY historii vymažete." },
     h_myplaylist: { en: "My Playlist", cz: "Můj playlist" },
-    p_myplaylist: { en: "Tap + next to any track in HISTORY to add it to 🎵 MY PLAYLIST. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save your list as a text file to your device.", cz: "Klepnutím na + u libovolné skladby v HISTORY ji přidáte do 🎵 MY PLAYLIST. Pořadí skladeb změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte seznam jako textový soubor do zařízení." },
+    p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist." },
     h_save: { en: "Save & fullscreen", cz: "Uložení a celá obrazovka" },
     p_save: { en: "SAVE stores your current theme, effects and other preferences so they load automatically the next time you visit. FULLSCREEN hides the browser interface for a cleaner, distraction-free view.", cz: "SAVE uloží aktuální motiv, efekty a další předvolby, které se při příští návštěvě automaticky načtou. FULLSCREEN skryje rozhraní prohlížeče pro čistší zobrazení bez rušivých prvků." },
     h_offline: { en: "Offline listening", cz: "Poslech offline" },
@@ -2281,9 +2303,9 @@
   // EXPORT DO TXT (My Playlist i historie)
   // Sdílené pomocné funkce pro uložení seznamu skladeb jako .txt souboru do zařízení.
   // ==========================================
-  function downloadTextFile(filename, text) {
+  function downloadTextFile(filename, text, mime) {
     try {
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -2801,7 +2823,51 @@
     saveCustomQueue();
     renderCustomQueue();
     updateQueueCountBadge();
+    refreshPlaylistHeartIcons();
     showToast(`Added to My Playlist: ${track.title}`, '✓');
+  };
+
+  // Whether a given track (by playlist + index) is currently part of MY PLAYLIST
+  function isTrackInCustomQueue(playlistKey, index) {
+    return customQueue.some(e => e.playlist === playlistKey && e.index === index);
+  }
+
+  // Re-paints the ♥/♡ icons in the currently visible main playlist without a full re-render,
+  // so they stay in sync whenever MY PLAYLIST changes (add, remove, import, clear...).
+  function refreshPlaylistHeartIcons() {
+    playlist.forEach((track, index) => {
+      const heart = document.getElementById(`heart-btn-${index}`);
+      if (!heart) return;
+      const liked = isTrackInCustomQueue(currentPlaylistKey, index);
+      heart.innerText = liked ? '♥' : '♡';
+      heart.classList.toggle('active', liked);
+      heart.title = liked ? 'Remove from My Playlist' : 'Add to My Playlist';
+    });
+  }
+
+  // Toggles a track in/out of MY PLAYLIST from the ♥ icon in the main playlist.
+  // The liked state persists across sessions because MY PLAYLIST itself is saved to localStorage.
+  window.toggleTrackLike = function(playlistKey, index) {
+    if (!tracks[playlistKey] || !tracks[playlistKey][index]) return;
+    const pos = customQueue.findIndex(e => e.playlist === playlistKey && e.index === index);
+    let liked;
+    if (pos >= 0) {
+      customQueue.splice(pos, 1);
+      if (customQueueActive) {
+        if (pos < customQueueIndex) customQueueIndex--;
+        else if (pos === customQueueIndex) customQueueIndex = -1;
+      }
+      liked = false;
+    } else {
+      const track = tracks[playlistKey][index];
+      customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index });
+      liked = true;
+    }
+    saveCustomQueue();
+    renderCustomQueue();
+    updateQueueCountBadge();
+    refreshPlaylistHeartIcons();
+    showToast(liked ? `Added to My Playlist: ${tracks[playlistKey][index].title}` : 'Removed from My Playlist', liked ? '♥' : '✓');
   };
 
   window.removeFromCustomQueue = function(pos) {
@@ -2813,6 +2879,7 @@
     saveCustomQueue();
     renderCustomQueue();
     updateQueueCountBadge();
+    refreshPlaylistHeartIcons();
   };
 
   window.moveCustomQueueItem = function(pos, dir) {
@@ -2836,6 +2903,7 @@
     saveCustomQueue();
     renderCustomQueue();
     updateQueueCountBadge();
+    refreshPlaylistHeartIcons();
   };
 
   window.exportCustomQueue = function() {
@@ -2848,6 +2916,62 @@
     ];
     customQueue.forEach((entry, i) => lines.push(`${i + 1}. ${entry.title} (${entry.playlist.toUpperCase()})`));
     downloadTextFile(`synthlucida_my_playlist_${dateStampForFilename(now)}.txt`, lines.join('\n'));
+  };
+
+  // Saves MY PLAYLIST as a re-importable .json file, so it can be backed up or moved to another device.
+  window.exportCustomQueueFile = function() {
+    if (!customQueue.length) { alert('Your playlist is empty. Add tracks from HISTORY.'); return; }
+    const now = new Date();
+    const payload = {
+      app: 'SYNTHLUCIDA',
+      type: 'my-playlist',
+      exported: now.toISOString(),
+      tracks: customQueue.map(e => ({ title: e.title, src: e.src, playlist: e.playlist, index: e.index }))
+    };
+    downloadTextFile(`synthlucida_my_playlist_${dateStampForFilename(now)}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  };
+
+  // Opens the hidden file picker used to import a previously exported playlist file.
+  window.triggerImportCustomQueue = function() {
+    const input = document.getElementById('queue-import-input');
+    if (input) { input.value = ''; input.click(); }
+  };
+
+  // Reads the chosen .json file and loads its tracks into MY PLAYLIST.
+  window.importCustomQueueFile = function(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const importedTracks = Array.isArray(data) ? data : data.tracks;
+        if (!Array.isArray(importedTracks) || !importedTracks.length) {
+          alert('This file does not contain a valid playlist.');
+          return;
+        }
+        const valid = importedTracks.filter(t => t && typeof t.title === 'string' && typeof t.src === 'string' && typeof t.playlist === 'string' && typeof t.index === 'number');
+        if (!valid.length) {
+          alert('This file does not contain a valid playlist.');
+          return;
+        }
+        const appendInstead = customQueue.length
+          ? !confirm('Replace your current My Playlist with the imported one?\n\nPress OK to replace, or Cancel to add the imported tracks to the end instead.')
+          : false;
+        const cleanTracks = valid.map(t => ({ title: t.title, src: t.src, playlist: t.playlist, index: t.index }));
+        customQueue = appendInstead ? customQueue.concat(cleanTracks) : cleanTracks;
+        customQueueActive = false;
+        customQueueIndex = -1;
+        saveCustomQueue();
+        renderCustomQueue();
+        updateQueueCountBadge();
+        refreshPlaylistHeartIcons();
+        showToast('Playlist imported', '📂');
+      } catch (e) {
+        alert('Could not read this playlist file.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   function playCustomQueueAt(pos) {
@@ -3129,6 +3253,7 @@
 
     loadCustomQueue();
     updateQueueCountBadge();
+    refreshPlaylistHeartIcons();
 
     try {
         const savedLang = localStorage.getItem('synthlucida_guide_lang');
