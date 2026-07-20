@@ -292,6 +292,13 @@
     cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; transition: 0.2s;
   }
   .info-close:hover { border-color: var(--accent-color); color: var(--accent-color); }
+  .info-lang-toggle {
+    position: absolute; top: 10px; left: 10px; min-width: 22px; height: 22px; padding: 0 8px; border-radius: 11px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+    font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;
+  }
+  .info-lang-toggle:hover { border-color: var(--accent-color); color: var(--accent-color); }
 
   .footer { padding: 6px 10px; font-size: 8px; opacity: 0.25; }
 
@@ -325,36 +332,37 @@
 <div id="info-overlay">
   <div class="info-panel">
     <button class="info-close" id="btn-info-close" aria-label="Close">✕</button>
-    <h2>HOW TO PLAY</h2>
+    <button class="info-lang-toggle" id="info-lang-toggle" onclick="toggleInfoLanguage()" aria-label="Switch language">CZ</button>
+    <h2 data-i18n="title">HOW TO PLAY</h2>
 
-    <h3>GOAL</h3>
-    <p>Clear horizontal lines on the grid. Every line you clear adds to your permanent Career Lines total — that's what unlocks new SYNTHLUCIDA ambient tracks.</p>
+    <h3 data-i18n="h_goal">GOAL</h3>
+    <p data-i18n="p_goal">Clear horizontal lines on the grid. Every line you clear adds to your permanent Career Lines total — that's what unlocks new SYNTHLUCIDA ambient tracks.</p>
 
-    <h3>CONTROLS — DESKTOP</h3>
+    <h3 data-i18n="h_desktop">CONTROLS — DESKTOP</h3>
     <ul>
-      <li>← → : Move left / right</li>
-      <li>↑ : Rotate</li>
-      <li>↓ : Soft drop</li>
+      <li data-i18n="li_desktop_1">← → : Move left / right</li>
+      <li data-i18n="li_desktop_2">↑ : Rotate</li>
+      <li data-i18n="li_desktop_3">↓ : Soft drop</li>
     </ul>
 
-    <h3>CONTROLS — MOBILE</h3>
+    <h3 data-i18n="h_mobile">CONTROLS — MOBILE</h3>
     <ul>
-      <li>◀ ▶ : Move left / right</li>
-      <li>↻ : Rotate</li>
-      <li>▼ : Soft drop (hold for continuous)</li>
+      <li data-i18n="li_mobile_1">◀ ▶ : Move left / right</li>
+      <li data-i18n="li_mobile_2">↻ : Rotate</li>
+      <li data-i18n="li_mobile_3">▼ : Soft drop (hold for continuous)</li>
     </ul>
 
-    <h3>UNLOCKING TRACKS</h3>
-    <p>Switch between ASMR / PIANO / CHILL categories using the buttons above the board. Each track needs a set number of Career Lines to unlock. Once it shows ✓ READY, tap it to play.</p>
+    <h3 data-i18n="h_unlock">UNLOCKING TRACKS</h3>
+    <p data-i18n="p_unlock">Switch between ASMR / PIANO / CHILL categories using the buttons above the board. Each track needs a set number of Career Lines to unlock. Once it shows ✓ READY, tap it to play.</p>
 
-    <h3>BONUS ROUND &amp; BOMB</h3>
-    <p>Every 20 Career Lines earns a 💣 BOMB charge and triggers a 60-second Bonus Round with 2x score. Use BOMB to drop a special piece that instantly clears the bottom 5 rows.</p>
+    <h3 data-i18n="h_bonus">BONUS ROUND &amp; BOMB</h3>
+    <p data-i18n="p_bonus">Every 20 Career Lines earns a 💣 BOMB charge and triggers a 60-second Bonus Round with 2x score. Use BOMB to drop a special piece that instantly clears the bottom 5 rows.</p>
 
-    <h3>LEVELS &amp; SCORE</h3>
-    <p>Clearing several lines at once scores extra points. Every 10 lines in a run raises your Level and speeds up the falling blocks.</p>
+    <h3 data-i18n="h_levels">LEVELS &amp; SCORE</h3>
+    <p data-i18n="p_levels">Clearing several lines at once scores extra points. Every 10 lines in a run raises your Level and speeds up the falling blocks.</p>
 
-    <h3>OTHER CONTROLS</h3>
-    <p>SAVE stores your progress manually (it also autosaves). RESIZE toggles fullscreen. PAUSE pauses the game. Pick a visual THEME from the row above the board. Career Lines are permanent and are never lost, even after Game Over.</p>
+    <h3 data-i18n="h_other">OTHER CONTROLS</h3>
+    <p data-i18n="p_other">SAVE stores your progress manually (it also autosaves). RESIZE toggles fullscreen. PAUSE pauses the game. Pick a visual THEME from the row above the board. Career Lines are permanent and are never lost, even after Game Over.</p>
   </div>
 </div>
 
@@ -1015,6 +1023,54 @@
     if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(err => console.log(err.message)); } 
     else { if (document.exitFullscreen) document.exitFullscreen(); }
   };
+
+  // --- CZ/EN PŘEKLAD panelu ⓘ (HOW TO PLAY) — sdílí stejné localStorage klíč jako v Relax Playeru,
+  // takže volba jazyka je napříč aplikací jednotná. ---
+  const GUIDE_LANG_KEY = 'synthlucida_guide_lang';
+  let guideLang = 'en';
+
+  const i18nText = {
+    title: { en: "HOW TO PLAY", cz: "JAK HRÁT" },
+    h_goal: { en: "GOAL", cz: "CÍL" },
+    p_goal: { en: "Clear horizontal lines on the grid. Every line you clear adds to your permanent Career Lines total — that's what unlocks new SYNTHLUCIDA ambient tracks.", cz: "Mažte vodorovné řady na hrací ploše. Každá smazaná řada se přičte k vašemu trvalému součtu Career Lines — právě ten odemyká nové ambientní skladby SYNTHLUCIDA." },
+    h_desktop: { en: "CONTROLS — DESKTOP", cz: "OVLÁDÁNÍ — POČÍTAČ" },
+    li_desktop_1: { en: "← → : Move left / right", cz: "← → : Pohyb vlevo / vpravo" },
+    li_desktop_2: { en: "↑ : Rotate", cz: "↑ : Otočení" },
+    li_desktop_3: { en: "↓ : Soft drop", cz: "↓ : Zrychlený pád" },
+    h_mobile: { en: "CONTROLS — MOBILE", cz: "OVLÁDÁNÍ — MOBIL" },
+    li_mobile_1: { en: "◀ ▶ : Move left / right", cz: "◀ ▶ : Pohyb vlevo / vpravo" },
+    li_mobile_2: { en: "↻ : Rotate", cz: "↻ : Otočení" },
+    li_mobile_3: { en: "▼ : Soft drop (hold for continuous)", cz: "▼ : Zrychlený pád (podržte pro plynulý pád)" },
+    h_unlock: { en: "UNLOCKING TRACKS", cz: "ODEMYKÁNÍ SKLADEB" },
+    p_unlock: { en: "Switch between ASMR / PIANO / CHILL categories using the buttons above the board. Each track needs a set number of Career Lines to unlock. Once it shows ✓ READY, tap it to play.", cz: "Pomocí tlačítek nad hrací plochou přepínejte mezi kategoriemi ASMR / PIANO / CHILL. Každá skladba potřebuje k odemčení určený počet Career Lines. Jakmile se zobrazí ✓ READY, klepnutím ji spustíte." },
+    h_bonus: { en: "BONUS ROUND & BOMB", cz: "BONUSOVÉ KOLO A BOMBA" },
+    p_bonus: { en: "Every 20 Career Lines earns a 💣 BOMB charge and triggers a 60-second Bonus Round with 2x score. Use BOMB to drop a special piece that instantly clears the bottom 5 rows.", cz: "Každých 20 Career Lines vám přinese nabití 💣 BOMBY a spustí 60sekundové bonusové kolo s dvojnásobným skóre. Pomocí BOMBY spustíte speciální díl, který okamžitě smaže spodních 5 řad." },
+    h_levels: { en: "LEVELS & SCORE", cz: "ÚROVNĚ A SKÓRE" },
+    p_levels: { en: "Clearing several lines at once scores extra points. Every 10 lines in a run raises your Level and speeds up the falling blocks.", cz: "Smazání více řad najednou přináší bonusové body. Každých 10 řad v jedné hře zvýší vaši úroveň a zrychlí padající kostky." },
+    h_other: { en: "OTHER CONTROLS", cz: "DALŠÍ OVLÁDÁNÍ" },
+    p_other: { en: "SAVE stores your progress manually (it also autosaves). RESIZE toggles fullscreen. PAUSE pauses the game. Pick a visual THEME from the row above the board. Career Lines are permanent and are never lost, even after Game Over.", cz: "SAVE ručně uloží váš postup (hra se ale ukládá i automaticky). RESIZE přepíná celoobrazovkový režim. PAUSE hru pozastaví. Vizuální motiv (THEME) vyberte z řady nad hrací plochou. Career Lines jsou trvalé a nikdy se neztratí, ani po Game Over." }
+  };
+
+  function applyGuideLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const entry = i18nText[el.getAttribute('data-i18n')];
+      if (entry) el.textContent = entry[guideLang] || entry.en;
+    });
+    const btn = document.getElementById('info-lang-toggle');
+    if (btn) btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
+  }
+
+  window.toggleInfoLanguage = function() {
+    guideLang = guideLang === 'en' ? 'cz' : 'en';
+    try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) { /* ignore */ }
+    applyGuideLanguage();
+  };
+
+  try {
+    const savedLang = localStorage.getItem(GUIDE_LANG_KEY);
+    if (savedLang === 'cz' || savedLang === 'en') guideLang = savedLang;
+  } catch (e) { /* ignore */ }
+  applyGuideLanguage();
 
   // --- NÁVOD (INFO OVERLAY) ---
   window.toggleInfoOverlay = function(show) {
