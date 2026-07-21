@@ -3,7 +3,7 @@
 // v30 - offline cache for audio (MP3), CORS-safe (no manual byte slicing)
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v146';
+const APP_CACHE_NAME = 'synthlucida-app-v150';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
@@ -21,7 +21,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(APP_CACHE_NAME).then((cache) => {
       console.log('[SW] Caching app shell');
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Nepoužíváme cache.addAll() - ten je "vše nebo nic": kdyby se
+      // nepodařilo stáhnout byť jediný soubor (404, chyba sítě, špatný
+      // název/case na GitHub Pages...), celá instalace by selhala a
+      // appka by zůstala navždy na staré verzi, i přes zvýšení čísla cache.
+      // Místo toho přidáváme soubory jednotlivě a chybu jednoho souboru
+      // jen zalogujeme, ale instalaci to nezastaví.
+      return Promise.all(
+        ASSETS_TO_CACHE.map((url) =>
+          cache.add(url).catch((err) => {
+            console.log('[SW] Nepodařilo se zacachovat:', url, err);
+          })
+        )
+      );
     })
   );
   self.skipWaiting();
