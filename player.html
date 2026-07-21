@@ -3420,8 +3420,34 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then((reg) => console.log('Service Worker zaregistrován:', reg))
+        .then((reg) => {
+          console.log('Service Worker zaregistrován:', reg);
+          // Rovnou při startu appky se zeptáme, jestli není na serveru novější sw.js
+          reg.update().catch(() => {});
+        })
         .catch((err) => console.log('Registrace SW selhala:', err));
+    });
+
+    // Jakmile nový Service Worker (vyšší verze cache) převezme kontrolu nad stránkou,
+    // znamená to, že je nainstalovaná nová verze appky. U nainstalované appky (Add to
+    // Home Screen) Android stránku sám neobnoví - jen ji uspí/probudí - takže bez
+    // tohoto reloadu by v paměti dál běžel starý JS/HTML, i když cache je už nová.
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
+    });
+
+    // Nainstalovaná appka se po návratu z pozadí (multitasking) typicky jen "probudí",
+    // neproběhne nová navigace ani fetch appshellu. Proto při každém návratu appky do
+    // popředí ručně zkontrolujeme, jestli není k dispozici nová verze sw.js.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg) reg.update().catch(() => {});
+        });
+      }
     });
   }
 
