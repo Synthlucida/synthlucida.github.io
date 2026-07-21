@@ -356,6 +356,22 @@
   }
 
   .track-title { font-size: 14px; font-weight: 600; color: var(--accent-color); margin-bottom: 0; text-shadow: 0 0 10px var(--accent-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ============================================
+     MARQUEE - skrolování dlouhých názvů skladeb
+     Výchozí stav = normální ellipsis ("…"), stejné jako doteď.
+     Aktivace (třída .marquee-on na rodiči), přidaná přes JS teprve
+     když se text skutečně nevejde => plynulé skrolování tam a zpět.
+     ============================================ */
+  .marquee-inner { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: top; }
+  .marquee-on .marquee-inner { overflow: visible; text-overflow: clip; animation: marqueeScroll var(--marquee-dur, 6s) ease-in-out infinite alternate; }
+  @keyframes marqueeScroll {
+    0%, 10% { transform: translateX(0); }
+    90%, 100% { transform: translateX(var(--marquee-shift, 0px)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-on .marquee-inner { animation: none !important; }
+  }
   .track-time { font-size: 11px; color: var(--accent-color); opacity: 0.8; margin-bottom: 0; text-shadow: 0 0 5px var(--accent-color); letter-spacing: 1px; }
 
   /* Řádek s názvem skladby + ambientní ekvalizér, aby přehrávač nerostl do výšky */
@@ -1161,6 +1177,64 @@
   let customQueueActive = false;
   let customQueueIndex = -1;
   const titleDiv = document.getElementById('track-title');
+
+  // ==========================================
+  // MARQUEE - automatické/hover skrolování dlouhých názvů
+  // ==========================================
+  function marqueeWrap(el) {
+    let inner = el.querySelector(':scope > .marquee-inner');
+    if (!inner) {
+      const text = el.textContent;
+      el.textContent = '';
+      inner = document.createElement('span');
+      inner.className = 'marquee-inner';
+      inner.textContent = text;
+      el.appendChild(inner);
+    }
+    return inner;
+  }
+
+  function marqueeActivate(el) {
+    const inner = el.querySelector(':scope > .marquee-inner');
+    if (!inner) return;
+    inner.style.maxWidth = 'none'; // dočasně bez omezení, ať jde změřit skutečná šířka textu
+    const overflow = inner.scrollWidth - el.clientWidth;
+    if (overflow > 6) {
+      const duration = Math.max(2.5, overflow / 40); // ~40px/s
+      el.style.setProperty('--marquee-shift', `-${overflow}px`);
+      el.style.setProperty('--marquee-dur', `${duration}s`);
+      el.classList.add('marquee-on');
+    } else {
+      inner.style.maxWidth = '';
+    }
+  }
+
+  function marqueeDeactivate(el) {
+    el.classList.remove('marquee-on');
+    const inner = el.querySelector(':scope > .marquee-inner');
+    if (inner) inner.style.maxWidth = '';
+  }
+
+  // Použití u položek v playlistu/tracklistech - skroluje jen při hoveru (desktop) / tapu (dotyk)
+  function setupHoverMarquee(el) {
+    marqueeWrap(el);
+    el.addEventListener('mouseenter', () => marqueeActivate(el));
+    el.addEventListener('mouseleave', () => marqueeDeactivate(el));
+    el.addEventListener('touchstart', () => marqueeActivate(el), { passive: true });
+  }
+
+  // Použití u aktuálně hrané skladby - skroluje automaticky, jakmile se název nevejde
+  function setupAutoMarquee(el) {
+    marqueeWrap(el);
+    marqueeActivate(el);
+  }
+
+  // Nastaví název aktuálně hrané skladby a zajistí marquee skrolování, pokud se nevejde
+  function setTrackTitle(text) {
+    titleDiv.classList.remove('marquee-on');
+    titleDiv.textContent = text;
+    setupAutoMarquee(titleDiv);
+  }
   const playBtn = document.getElementById('btn-play');
   const nextBtn = document.getElementById('btn-next');
   const body = document.getElementById('body');
@@ -2145,6 +2219,7 @@
       const nameSpan = document.createElement('span');
       nameSpan.className = 'track-name';
       nameSpan.innerText = track.title;
+      setupHoverMarquee(nameSpan);
 
       const badge = document.createElement('span');
       badge.className = 'offline-badge';
@@ -2430,12 +2505,12 @@
     if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
     consecutiveTrackErrors++;
     if (consecutiveTrackErrors > playlist.length) {
-      titleDiv.innerText = "Nelze přehrát – zkontroluj připojení";
+      setTrackTitle("Nelze přehrát – zkontroluj připojení");
       isPlaying = false;
       playBtn.innerText = "▶";
       return;
     }
-    titleDiv.innerText = "Skladba nedostupná, přeskakuji…";
+    setTrackTitle("Skladba nedostupná, přeskakuji…");
     setTimeout(() => { playNextTrack(); }, 800);
   });
 
@@ -2457,7 +2532,7 @@
     const track = playlist[index];
     showLoading();
     audio.src = track.src;
-    titleDiv.innerText = track.title;
+    setTrackTitle(track.title);
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     
@@ -2625,7 +2700,7 @@
       currentTrackIndex = target.pos;
     }
 
-    titleDiv.innerText = target.title;
+    setTrackTitle(target.title);
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     showLoading();
@@ -2735,6 +2810,7 @@
       nameSpan.innerText = entry.title;
       nameSpan.title = 'Tap to play now';
       nameSpan.onclick = () => playFromHistory(entry.playlist, entry.index);
+      setupHoverMarquee(nameSpan);
 
       const metaSpan = document.createElement('span');
       metaSpan.className = 'history-meta';
@@ -2992,7 +3068,7 @@
 
     showLoading();
     audio.src = entry.src;
-    titleDiv.innerText = entry.title;
+    setTrackTitle(entry.title);
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     audio.volume = parseFloat(volumeSlider.value);
@@ -3045,6 +3121,7 @@
       nameSpan.innerText = `${pos + 1}. ${entry.title}`;
       nameSpan.title = 'Tap to play from here';
       nameSpan.onclick = () => playCustomQueueAt(pos);
+      setupHoverMarquee(nameSpan);
 
       const metaSpan = document.createElement('span');
       metaSpan.className = 'history-meta';
@@ -3335,7 +3412,7 @@
             if (info && info.playlist === currentPlaylistKey && tracks[info.playlist] && tracks[info.playlist][info.index]) {
                 currentTrackIndex = info.index;
                 const track = tracks[info.playlist][info.index];
-                titleDiv.innerText = track.title;
+                setTrackTitle(track.title);
                 audio.src = track.src;
                 audio.addEventListener('loadedmetadata', function restoreLastTime() {
                     if (info.time && info.time < audio.duration) {
