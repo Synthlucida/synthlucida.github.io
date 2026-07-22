@@ -104,7 +104,8 @@
   body.is-fullscreen .brand-name,
   body.is-fullscreen .desc-text,
   body.is-fullscreen .main-guide-btn,
-  body.is-fullscreen .main-donate-btn {
+  body.is-fullscreen .main-donate-btn,
+  body.is-fullscreen .main-stats-btn {
     display: none !important;
   }
 
@@ -192,6 +193,39 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
   .main-donate-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  /* ============================================
+     STATS (AJ) — tlačítko S v pravém horním rohu hlavní stránky
+     ============================================ */
+  .main-stats-btn {
+    position: fixed;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 13px; font-weight: 600; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent; z-index: 50;
+  }
+  .main-stats-btn:hover, .main-stats-btn:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+  .main-stats-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  .stats-grid {
+    display: flex; flex-direction: column; gap: 10px; margin: 4px 0 22px;
+  }
+  .stats-card {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stats-card-label {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.65;
+  }
+  .stats-card-value {
+    font-size: 15px; font-weight: 700; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color);
+    white-space: nowrap;
+  }
 
   .main-donate {
     position: fixed; inset: 0; z-index: 9998; display: none;
@@ -821,6 +855,7 @@
 
 <button class="main-guide-btn" onclick="toggleMainGuide()" aria-label="User guide">ⓘ</button>
 <button class="main-donate-btn" onclick="toggleMainDonate()" aria-label="Support the project">D</button>
+<button class="main-stats-btn" onclick="toggleMainStats()" aria-label="Your statistics">S</button>
 
 <div class="ambient-blobs">
   <div class="blob blob-1"></div>
@@ -1047,6 +1082,19 @@
   </div>
 </div>
 
+<div class="main-guide" id="main-stats">
+  <button class="main-guide-close" onclick="toggleMainStats()" aria-label="Close statistics">✖</button>
+  <div class="main-guide-inner">
+    <h3>Your Statistics</h3>
+    <p class="main-guide-intro">A quiet look at your listening and breathing habits over time, kept only on this device.</p>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="queue-actions">
+      <button class="btn-feature" onclick="resetStats()">RESET STATISTICS</button>
+    </div>
+    <p class="main-guide-note">Stats are stored locally in your browser and are never sent anywhere.</p>
+  </div>
+</div>
+
 <div class="main-donate" id="main-donate">
   <button class="main-donate-close" onclick="toggleMainDonate()" aria-label="Close support options">✖</button>
   <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
@@ -1219,7 +1267,7 @@
   // hrající skladby i jako tečka na tlačítku ASMR/PIANO/CHILL) automaticky
   // zobrazí "NEW" štítek - pak sám zmizí, není třeba nic ručně mazat.
   // ==========================================
-  const NEW_TRACK_DAYS = 30;
+  const NEW_TRACK_DAYS = 15;
 
   function isTrackNew(track) {
     if (!track || !track.added) return false;
@@ -2112,6 +2160,9 @@
     breathPhaseIndex = 0;
     document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
 
+    stats.breathingSessions = (stats.breathingSessions || 0) + 1;
+    saveStats();
+
     // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav, pak teprve spustit plynulý cyklus
     lastBreathVisual = OUT_VISUAL;
     setBreathTransitionDuration(0);
@@ -2576,6 +2627,18 @@
   }
 
   function updateTrackTime() {
+    // Sčítání odposlechnutého času pro statistiky - jen malé přírůstky, aby seek/skip nevytvořil skok
+    if (!audio.paused) {
+      const now = Date.now();
+      if (statsLastTick !== null) {
+        const delta = (now - statsLastTick) / 1000;
+        if (delta > 0 && delta < 5) addListenSeconds(delta);
+      }
+      statsLastTick = now;
+    } else {
+      statsLastTick = null;
+    }
+
     const current = audio.currentTime;
     const duration = audio.duration;
     if (isNaN(duration)) {
@@ -2613,6 +2676,16 @@
   audio.addEventListener('pause', () => {
     eqEl.classList.remove('playing');
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    statsLastTick = null;
+    if (statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
+  });
+
+  // Bezpečnostní síť - uložit statistiky i při zavření karty nebo přepnutí pryč z appky
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
+  });
+  window.addEventListener('pagehide', () => {
+    if (statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
   });
 
   // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál
@@ -2891,6 +2964,113 @@
   // uživatel mohl kdykoliv prohlédnout, co poslouchal, a znovu to pustit -
   // nebo si z nich poskládat vlastní playlist (viz MY PLAYLIST níže).
   // ==========================================
+  // ============================================
+  // STATS (AJ) — jednoduché lokální statistiky poslechu a dechových cvičení,
+  // uložené v localStorage. Nic se nikam neposílá, žije to jen v prohlížeči.
+  // ============================================
+  const STATS_KEY = 'synthlucida_stats';
+
+  function loadStats() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(STATS_KEY) || 'null'); } catch (e) { /* ignore */ }
+    if (!s || typeof s !== 'object') {
+      s = {
+        totalListenSeconds: 0,
+        totalTracksPlayed: 0,
+        playsByPlaylist: {},
+        breathingSessions: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        lastActiveDate: null
+      };
+    }
+    if (!s.playsByPlaylist || typeof s.playsByPlaylist !== 'object') s.playsByPlaylist = {};
+    return s;
+  }
+
+  let stats = loadStats();
+
+  function saveStats() {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) { /* ignore */ }
+  }
+
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // Zavolá se jednou při startu appky - spočítá denní streak (dny po sobě, kdy appka byla otevřená)
+  function recordDailyActivity() {
+    const today = todayStr();
+    if (stats.lastActiveDate === today) return;
+    if (stats.lastActiveDate) {
+      const diffDays = Math.round((new Date(today) - new Date(stats.lastActiveDate)) / 86400000);
+      stats.currentStreak = diffDays === 1 ? (stats.currentStreak || 0) + 1 : 1;
+    } else {
+      stats.currentStreak = 1;
+    }
+    stats.longestStreak = Math.max(stats.longestStreak || 0, stats.currentStreak);
+    stats.lastActiveDate = today;
+    saveStats();
+  }
+
+  // Odposlechnutý čas se počítá průběžně přes 'timeupdate' (viz níže u audio elementu)
+  let statsLastTick = null;
+  let statsUnsavedSeconds = 0;
+
+  function addListenSeconds(sec) {
+    stats.totalListenSeconds = (stats.totalListenSeconds || 0) + sec;
+    statsUnsavedSeconds += sec;
+    if (statsUnsavedSeconds >= 10) { saveStats(); statsUnsavedSeconds = 0; }
+  }
+
+  function formatStatsDuration(totalSeconds) {
+    const s = Math.round(totalSeconds || 0);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m`;
+    return `${s}s`;
+  }
+
+  function topPlaylistLabel() {
+    const entries = Object.entries(stats.playsByPlaylist || {});
+    if (!entries.length) return '—';
+    entries.sort((a, b) => b[1] - a[1]);
+    const [key, count] = entries[0];
+    return `${key.toUpperCase()} (${count})`;
+  }
+
+  function renderStats() {
+    const grid = document.getElementById('stats-grid');
+    if (!grid) return;
+    const rows = [
+      ['Total listening time', formatStatsDuration(stats.totalListenSeconds)],
+      ['Tracks played', String(stats.totalTracksPlayed || 0)],
+      ['Favorite playlist', topPlaylistLabel()],
+      ['Breathing sessions', String(stats.breathingSessions || 0)],
+      ['Current streak', `${stats.currentStreak || 0} day${(stats.currentStreak || 0) === 1 ? '' : 's'}`],
+      ['Longest streak', `${stats.longestStreak || 0} day${(stats.longestStreak || 0) === 1 ? '' : 's'}`]
+    ];
+    grid.innerHTML = rows.map(([label, value]) =>
+      `<div class="stats-card"><span class="stats-card-label">${label}</span><span class="stats-card-value">${value}</span></div>`
+    ).join('');
+  }
+
+  window.toggleMainStats = function() {
+    const panel = document.getElementById('main-stats');
+    if (!panel) return;
+    const willOpen = !panel.classList.contains('visible');
+    if (willOpen) renderStats();
+    panel.classList.toggle('visible');
+  };
+
+  window.resetStats = function() {
+    stats = { totalListenSeconds: 0, totalTracksPlayed: 0, playsByPlaylist: {}, breathingSessions: 0, currentStreak: 0, longestStreak: 0, lastActiveDate: todayStr() };
+    saveStats();
+    renderStats();
+  };
+
   const HISTORY_KEY = 'synthlucida_history';
   const HISTORY_LIMIT = 50;
 
@@ -2909,6 +3089,10 @@
       if (history.length > HISTORY_LIMIT) history = history.slice(0, HISTORY_LIMIT);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     } catch (e) { /* ignore */ }
+
+    stats.totalTracksPlayed = (stats.totalTracksPlayed || 0) + 1;
+    stats.playsByPlaylist[playlistKey] = (stats.playsByPlaylist[playlistKey] || 0) + 1;
+    saveStats();
   }
 
   function formatHistoryTime(ts) {
@@ -3463,6 +3647,7 @@
   } catch (e) {}
 
   updatePlaylistUI();
+  recordDailyActivity();
 
   // Nové načítání z localStorage místo výchozího nastavení
   window.addEventListener('DOMContentLoaded', () => {
