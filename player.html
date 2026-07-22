@@ -277,6 +277,7 @@
     display: flex; justify-content: center; gap: 5px; margin-bottom: 5px; padding: 0 10px; flex-wrap: wrap;
   }
   .btn-atmos {
+    position: relative;
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
     color: #fff; padding: 6px 7px; border-radius: 8px; font-family: 'Orbitron', sans-serif; font-size: 9px;
     cursor: pointer; transition: 0.3s;
@@ -284,6 +285,17 @@
   .btn-atmos.active {
     border-color: var(--accent-color);
     box-shadow: 0 0 15px var(--accent-color);
+  }
+
+  /* Tečka na ASMR/PIANO/CHILL, když v té kategorii přibyla nová skladba (viz "added" u tracku) */
+  .btn-atmos.has-new-track::after {
+    content: '';
+    position: absolute;
+    top: -3px; right: -3px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #ffcc00;
+    box-shadow: 0 0 6px rgba(255, 204, 0, 0.9);
   }
 
   .themes-container { display: flex; justify-content: center; align-items: center; gap: 5px 7px; margin-bottom: 4px; flex-wrap: wrap; padding: 0 10px;}
@@ -371,12 +383,39 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .marquee-on .marquee-inner { animation: none !important; }
+    .now-playing-new-flag.visible { animation: none !important; }
   }
   .track-time { font-size: 11px; color: var(--accent-color); opacity: 0.8; margin-bottom: 0; text-shadow: 0 0 5px var(--accent-color); letter-spacing: 1px; }
 
   /* Řádek s názvem skladby + ambientní ekvalizér, aby přehrávač nerostl do výšky */
-  .now-playing-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
+  .now-playing-row { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
   .now-playing-row .track-title { flex: 1 1 auto; min-width: 0; }
+
+  /* NEW štítek u právě hrající skladby - viditelný, jen když je aktuální skladba označená jako nová */
+  .now-playing-new-flag {
+    position: absolute;
+    top: -3px; left: 2px;
+    font-size: 7.5px; font-weight: 700; letter-spacing: 0.5px;
+    color: #1a0033;
+    background: #ffcc00;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transform: rotate(-11deg) scale(0.85);
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.65);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 3;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .now-playing-new-flag.visible {
+    opacity: 1;
+    transform: rotate(-11deg) scale(1);
+    animation: newFlagGlow 2.6s ease-in-out infinite;
+  }
+  @keyframes newFlagGlow {
+    0%, 100% { box-shadow: 0 0 6px rgba(255, 204, 0, 0.55); }
+    50% { box-shadow: 0 0 13px rgba(255, 204, 0, 0.9); }
+  }
 
   .eq { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 13px; opacity: 0.25; transition: opacity 0.4s ease; flex-shrink: 0; }
   .eq span { display: block; width: 3px; height: 13px; border-radius: 2px; background: var(--accent-color); box-shadow: 0 0 4px var(--accent-color); transform: scaleY(0.22); transform-origin: bottom; animation: eqBounce 1.1s ease-in-out infinite; animation-play-state: paused; will-change: transform; }
@@ -422,6 +461,19 @@
   .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
   .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
   .offline-badge { font-size: 9px; opacity: 0.6; flex-shrink: 0; color: var(--accent-color); }
+
+  /* NEW štítek u skladby přímo v seznamu playlistu */
+  .new-flag-inline {
+    display: inline-block;
+    font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+    color: #1a0033;
+    background: #ffcc00;
+    padding: 1px 5px;
+    border-radius: 3px;
+    transform: rotate(-8deg);
+    flex-shrink: 0;
+    box-shadow: 0 0 5px rgba(255, 204, 0, 0.55);
+  }
   .offline-status { font-size: 8px; opacity: 0.45; display: inline-block; min-width: 60px; text-align: left; }
 
   /* Heart button to add a track directly from the main playlist to MY PLAYLIST */
@@ -844,6 +896,7 @@
 <div class="player-section">
   <div class="now-playing-row">
     <div class="track-title" id="track-title">SELECT TRACK</div>
+    <span class="now-playing-new-flag" id="now-playing-new-flag" aria-label="Newly added track">NEW</span>
     <div class="eq" id="eq-visualizer" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   </div>
   <div class="track-time-row">
@@ -1115,13 +1168,13 @@
     ],
     piano: [
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
-      { title: "SYNTHLUCIDA - Gentle Piano Breeze", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/gentle_piano_breeze.mp3" },
+      { title: "SYNTHLUCIDA - Gentle Piano Breeze", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/gentle_piano_breeze.mp3", added: "2026-07-19" },
       { title: "SYNTHLUCIDA - Nebula Piano 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano2.mp3" },
       { title: "SYNTHLUCIDA - Children Dreams", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/children_dreams.mp3" },
       { title: "SYNTHLUCIDA - Ambient Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/piano1.mp3" },
       { title: "SYNTHLUCIDA - Ambient Piano 2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/piano2.mp3" },
       { title: "SYNTHLUCIDA - Polaris", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/polaris.mp3" },
-      { title: "SYNTHLUCIDA - Crying Dirty Piano", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/crying_dirty_piano.mp3" },
+      { title: "SYNTHLUCIDA - Crying Dirty Piano", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/crying_dirty_piano.mp3", added: "2026-07-21" },
       { title: "SYNTHLUCIDA - Mo leannan Seònaid", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/jane.mp3" },
     ],
     chill: [
@@ -1156,6 +1209,40 @@
     ]
   };
 
+  // ==========================================
+  // OZNAČENÍ NOVÉ SKLADBY (NEW štítek)
+  // Když přidáš novou skladbu do asmr/piano/chill výše, stačí k ní přidat pole
+  // "added" s datem přidání ve formátu RRRR-MM-DD, např.:
+  //   { title: "...", src: "...", added: "2026-07-22" }
+  // Po dobu NEW_TRACK_DAYS dní od tohoto data se u skladby (v seznamu, u právě
+  // hrající skladby i jako tečka na tlačítku ASMR/PIANO/CHILL) automaticky
+  // zobrazí "NEW" štítek - pak sám zmizí, není třeba nic ručně mazat.
+  // ==========================================
+  const NEW_TRACK_DAYS = 30;
+
+  function isTrackNew(track) {
+    if (!track || !track.added) return false;
+    const addedTime = new Date(track.added + 'T00:00:00').getTime();
+    if (isNaN(addedTime)) return false;
+    const daysSince = (Date.now() - addedTime) / 86400000;
+    return daysSince >= 0 && daysSince <= NEW_TRACK_DAYS;
+  }
+
+  function getTrackByRef(playlistKey, index) {
+    return (tracks[playlistKey] && tracks[playlistKey][index]) || null;
+  }
+
+  // Tečka na ASMR/PIANO/CHILL, pokud daná kategorie obsahuje aspoň jednu novou skladbu
+  function updateAtmosNewIndicators() {
+    document.querySelectorAll('.btn-atmos').forEach(btn => {
+      const key = btn.textContent.trim().toLowerCase();
+      if (tracks[key]) {
+        btn.classList.toggle('has-new-track', tracks[key].some(isTrackNew));
+      }
+    });
+  }
+  updateAtmosNewIndicators();
+
   let playlist = tracks['asmr'];
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
@@ -1178,6 +1265,7 @@
   let customQueueActive = false;
   let customQueueIndex = -1;
   const titleDiv = document.getElementById('track-title');
+  const nowPlayingNewFlag = document.getElementById('now-playing-new-flag');
 
   // ==========================================
   // MARQUEE - automatické/hover skrolování dlouhých názvů
@@ -1231,10 +1319,11 @@
   }
 
   // Nastaví název aktuálně hrané skladby a zajistí marquee skrolování, pokud se nevejde
-  function setTrackTitle(text) {
+  function setTrackTitle(text, isNew = false) {
     titleDiv.classList.remove('marquee-on');
     titleDiv.textContent = text;
     setupAutoMarquee(titleDiv);
+    if (nowPlayingNewFlag) nowPlayingNewFlag.classList.toggle('visible', !!isNew);
   }
   const playBtn = document.getElementById('btn-play');
   const nextBtn = document.getElementById('btn-next');
@@ -2241,6 +2330,13 @@
       });
 
       li.appendChild(nameSpan);
+      if (isTrackNew(track)) {
+        const newFlag = document.createElement('span');
+        newFlag.className = 'new-flag-inline';
+        newFlag.innerText = 'NEW';
+        newFlag.setAttribute('aria-label', 'Newly added track');
+        li.appendChild(newFlag);
+      }
       li.appendChild(badge);
       li.appendChild(heartBtn);
       li.onclick = () => { playTrack(index); };
@@ -2533,7 +2629,7 @@
     const track = playlist[index];
     showLoading();
     audio.src = track.src;
-    setTrackTitle(track.title);
+    setTrackTitle(track.title, isTrackNew(track));
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     
@@ -2701,7 +2797,10 @@
       currentTrackIndex = target.pos;
     }
 
-    setTrackTitle(target.title);
+    const targetTrackRef = target.kind === 'queue'
+      ? getTrackByRef(target.playlist, target.index)
+      : getTrackByRef(currentPlaylistKey, target.pos);
+    setTrackTitle(target.title, isTrackNew(targetTrackRef));
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     showLoading();
@@ -3069,7 +3168,7 @@
 
     showLoading();
     audio.src = entry.src;
-    setTrackTitle(entry.title);
+    setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, entry.index)));
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     audio.volume = parseFloat(volumeSlider.value);
@@ -3413,7 +3512,7 @@
             if (info && info.playlist === currentPlaylistKey && tracks[info.playlist] && tracks[info.playlist][info.index]) {
                 currentTrackIndex = info.index;
                 const track = tracks[info.playlist][info.index];
-                setTrackTitle(track.title);
+                setTrackTitle(track.title, isTrackNew(track));
                 audio.src = track.src;
                 audio.addEventListener('loadedmetadata', function restoreLastTime() {
                     if (info.time && info.time < audio.duration) {
