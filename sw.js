@@ -113,3 +113,19 @@ async function handleAudioRequest(request) {
     });
   }
 }
+
+// ==========================================
+// Kliknutí na lokální notifikaci (připomínky) - zavře notifikaci a přepne
+// na už otevřenou appku, nebo ji otevře, pokud zrovna neběží.
+// ==========================================
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((allClients) => {
+      if (allClients.length > 0) {
+        return allClients[0].focus();
+      }
+      return self.clients.openWindow('./player.html');
+    })
+  );
+});
