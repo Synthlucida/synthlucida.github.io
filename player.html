@@ -57,6 +57,12 @@
   body.theme-sakura { --bg-color-1: #2a0a1f; --bg-color-2: #0a0308; --accent-color: #ff8fc7; --accent-glow: #ff5599; }
   body.theme-frost { --bg-color-1: #041826; --bg-color-2: #00060d; --accent-color: #aeeaff; --accent-glow: #4fb8e8; }
   body.theme-rosegold { --bg-color-1: #2b1210; --bg-color-2: #0d0505; --accent-color: #ffb3a0; --accent-glow: #e8a15c; }
+  body.theme-royal { --bg-color-1: #0d0033; --bg-color-2: #000018; --accent-color: #ffd700; --accent-glow: #4b0082; }
+  body.theme-coral { --bg-color-1: #330011; --bg-color-2: #0d0004; --accent-color: #ff6f61; --accent-glow: #ff9a76; }
+  body.theme-toxic { --bg-color-1: #0a1a00; --bg-color-2: #030a00; --accent-color: #ccff00; --accent-glow: #66ff00; }
+  body.theme-plasma { --bg-color-1: #1a0033; --bg-color-2: #05000d; --accent-color: #ff00e6; --accent-glow: #9d00ff; }
+  body.theme-mint { --bg-color-1: #00291f; --bg-color-2: #000a08; --accent-color: #00ffbf; --accent-glow: #00cc99; }
+  body.theme-solar { --bg-color-1: #331400; --bg-color-2: #0d0500; --accent-color: #ff9500; --accent-glow: #ffcc00; }
 
   /* AURORA - jediné animované téma (kromě neon), barvy plynule přecházejí jako polární záře */
   @keyframes auroraShift {
@@ -969,7 +975,7 @@
 <canvas id="rain-canvas"></canvas>
 
 <div class="header">
-  <img src="logo.jpg" alt="SYNTHLUCIDA" class="logo" onerror="this.style.display='none'">
+  <img src="logo.jpg" alt="SYNTHLUCIDA" id="logo-img" class="logo" onerror="this.style.display='none'" onclick="handleLogoClick()">
   <div class="brand-name">SYNTHLUCIDA</div>
 </div>
 
@@ -999,6 +1005,12 @@
   <button class="btn-theme" onclick="setVisualTheme('sakura', this)">SAKURA</button>
   <button class="btn-theme" onclick="setVisualTheme('frost', this)">FROST</button>
   <button class="btn-theme" onclick="setVisualTheme('rosegold', this)">ROSEGOLD</button>
+  <button class="btn-theme" onclick="setVisualTheme('royal', this)">ROYAL</button>
+  <button class="btn-theme" onclick="setVisualTheme('coral', this)">CORAL</button>
+  <button class="btn-theme" onclick="setVisualTheme('toxic', this)">TOXIC</button>
+  <button class="btn-theme" onclick="setVisualTheme('plasma', this)">PLASMA</button>
+  <button class="btn-theme" onclick="setVisualTheme('mint', this)">MINT</button>
+  <button class="btn-theme" onclick="setVisualTheme('solar', this)">SOLAR</button>
 </div>
 
 <div class="crossfade-container">
@@ -1150,7 +1162,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_ambient">Ambient effects</h4>
-      <p data-i18n="p_ambient">WEATHER cycles through three states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, then a quiet WINTER scene with gently falling snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.</p>
+      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1608,8 +1620,124 @@
   const spinnerEl = document.getElementById('mini-spinner');
   
   let currentVisualTheme = 'amber';
-  let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť), 3 = winter (sněžení)
+  let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť), 3 = winter (sněžení), 4 = winter II (vánice s větrem)
   let sunsetMode = 0; // 0 = vypnuto, 1 = sunset (teplý gradient), 2 = night (živá hvězdná obloha)
+
+  // ==========================================
+  // VÁNOČNÍ ATMOSFÉRA — automaticky se aktivuje od 1. do 31. prosince (Silvestr) a jemně
+  // se přidá ke zvolenému tématu/počasí formou poletujících barevných světýlek girlandy.
+  // christmasOverride: null = automatický režim podle data, true/false = vývojářské vynucení.
+  // Aktivace/deaktivace vynuceného režimu: 5x klik na logo SYNTHLUCIDA do 2 vteřin.
+  // ==========================================
+  let christmasOverride = null;
+  let christmasLogoClicks = 0;
+  let christmasLogoClickTimer = null;
+  let christmasLights = [];
+  let christmasFrame = 0;
+
+  function isChristmasSeason() {
+      return new Date().getMonth() === 11; // prosinec (0 = leden ... 11 = prosinec)
+  }
+
+  function isChristmasActive() {
+      return christmasOverride === null ? isChristmasSeason() : christmasOverride;
+  }
+
+  try {
+      const savedOverride = localStorage.getItem('synthlucida_christmas_override');
+      if (savedOverride === 'true') christmasOverride = true;
+      else if (savedOverride === 'false') christmasOverride = false;
+  } catch (e) { /* ignore */ }
+
+  window.handleLogoClick = function() {
+      christmasLogoClicks++;
+      if (christmasLogoClickTimer) clearTimeout(christmasLogoClickTimer);
+      christmasLogoClickTimer = setTimeout(() => { christmasLogoClicks = 0; }, 2000);
+
+      if (christmasLogoClicks >= 5) {
+          christmasLogoClicks = 0;
+          clearTimeout(christmasLogoClickTimer);
+          // Cyklus: automaticky (podle data) -> vynuceně ZAPNUTO -> vynuceně VYPNUTO -> automaticky ...
+          if (christmasOverride === null) christmasOverride = true;
+          else if (christmasOverride === true) christmasOverride = false;
+          else christmasOverride = null;
+
+          try {
+              if (christmasOverride === null) localStorage.removeItem('synthlucida_christmas_override');
+              else localStorage.setItem('synthlucida_christmas_override', String(christmasOverride));
+          } catch (e) { /* ignore */ }
+
+          const label = christmasOverride === null ? 'AUTO (dle data)' : (christmasOverride ? 'VYNUCENĚ ZAPNUTO' : 'VYNUCENĚ VYPNUTO');
+          if (typeof showToast === 'function') showToast('🎄 Vánoční atmosféra: ' + label, '🎄');
+          updateCanvasState();
+      }
+  };
+
+  function initChristmasLights() {
+      christmasLights = [];
+      const colors = ['#ff3b3b', '#ffd93b', '#3bff6e', '#3bb0ff', '#ff3bd6'];
+      const count = Math.max(18, Math.min(40, Math.floor(canvas.width / 30)));
+      for (let i = 0; i < count; i++) {
+          christmasLights.push({
+              x: (canvas.width / count) * i + (Math.random() * 20 - 10),
+              yBase: canvas.height * 0.02 + Math.sin(i * 0.9) * 10,
+              color: colors[i % colors.length],
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.04 + 0.02
+          });
+      }
+  }
+
+  // Jemné padající "confetti" vločky/hvězdičky ve vánočních barvách, doplňující zvolené WEATHER
+  let christmasSnow = [];
+  function initChristmasSnow() {
+      christmasSnow = [];
+      const count = Math.max(20, Math.min(50, Math.floor((canvas.width * canvas.height) / 22000)));
+      for (let i = 0; i < count; i++) {
+          christmasSnow.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              r: Math.random() * 1.8 + 1,
+              speed: Math.random() * 0.5 + 0.3,
+              alpha: Math.random() * 0.35 + 0.25
+          });
+      }
+  }
+
+  function drawChristmasOverlay() {
+      christmasFrame++;
+
+      // Girlanda světýlek v horní části obrazovky, jemně blikající
+      for (let i = 0; i < christmasLights.length; i++) {
+          let l = christmasLights[i];
+          l.phase += l.speed;
+          let tw = 0.5 + 0.5 * Math.sin(l.phase);
+          let y = l.yBase + Math.sin(christmasFrame * 0.01 + i) * 3;
+          let r = ctx.createRadialGradient(l.x, y, 0, l.x, y, 8);
+          r.addColorStop(0, l.color);
+          r.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.save();
+          ctx.globalAlpha = 0.25 + tw * 0.45;
+          ctx.fillStyle = r;
+          ctx.beginPath();
+          ctx.arc(l.x, y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+      }
+
+      // Tichá padající vánoční "confetti" - pouze pokud aktuální WEATHER nekreslí vlastní sníh/déšť
+      if (weatherMode === 0) {
+          for (let i = 0; i < christmasSnow.length; i++) {
+              let s = christmasSnow[i];
+              s.y += s.speed;
+              if (s.y > canvas.height + 4) { s.y = -4; s.x = Math.random() * canvas.width; }
+              ctx.fillStyle = `rgba(255, 245, 230, ${s.alpha.toFixed(3)})`;
+              ctx.beginPath();
+              ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+              ctx.fill();
+          }
+      }
+  }
   let breathingActive = false;
   let breathingSessionStartTime = null; // pro ochranu XP - počítá se jen skutečně odcvičený čas, ne kliknutí na start
   let breathingPaused = false;
@@ -1821,13 +1949,16 @@
               speed: Math.random() * 0.035 + 0.015
           });
       }
+
+      initChristmasLights();
+      initChristmasSnow();
   }
   
   initEffects();
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(breathingActive || (weatherMode === 0 && sunsetMode === 0)) {
+      if(breathingActive || (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive())) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -1835,12 +1966,20 @@
       canvasLoopActive = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      if(isChristmasActive()) {
+          drawChristmasOverlay();
+      }
+
       if(weatherMode === 1) {
           drawSunAmbient();
       }
 
       if(weatherMode === 3) {
           drawWinterAmbient();
+      }
+
+      if(weatherMode === 4) {
+          drawWinterAmbient2();
       }
 
       if(sunsetMode === 1) {
@@ -2027,6 +2166,53 @@
 
 
   // ==========================================
+  // WEATHER: WINTER II — čtvrtý stupeň tlačítka WEATHER. Druhá zimní varianta: silnější
+  // vánice s citelným větrem — vločky letí šikmo, rychleji a s mírným "svištěním" (jemné
+  // vodorovné čáry), atmosféra je chladnější a o něco tmavší než klidné WINTER.
+  // ==========================================
+  function drawWinterAmbient2() {
+      winterFrame++;
+
+      let chill = ctx.createLinearGradient(0, 0, canvas.width * 0.3, canvas.height);
+      chill.addColorStop(0, 'rgba(150, 190, 255, 0.14)');
+      chill.addColorStop(0.55, 'rgba(120, 160, 230, 0.06)');
+      chill.addColorStop(1, 'rgba(180, 205, 255, 0.09)');
+      ctx.fillStyle = chill;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const windAngle = 0.55; // šikmý pád vlivem větru
+      for (let i = 0; i < snowFlakes.length; i++) {
+          let f = snowFlakes[i];
+          let windSpeed = f.speed * 1.7;
+          f.y += windSpeed;
+          f.x += windSpeed * windAngle;
+          f.driftPhase += f.driftSpeed;
+          f.x += Math.sin(f.driftPhase) * f.driftAmount * 0.08;
+
+          if (f.y > canvas.height + 4) {
+              f.y = -4;
+              f.x = Math.random() * canvas.width * 0.6 - canvas.width * 0.2;
+          }
+          if (f.x > canvas.width + 4) f.x = -4;
+          if (f.x < -4) f.x = canvas.width + 4;
+
+          // Lehký "svišť" pruh za vločkou - dojem větru
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(f.alpha * 0.5).toFixed(3)})`;
+          ctx.lineWidth = Math.max(0.6, f.r * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(f.x, f.y);
+          ctx.lineTo(f.x - windSpeed * windAngle * 1.4, f.y - windSpeed * 1.4);
+          ctx.stroke();
+
+          ctx.fillStyle = `rgba(255, 255, 255, ${f.alpha.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+      }
+  }
+
+
+  // ==========================================
   // NIGHT — živá noční obloha jako druhý stupeň tlačítka SUNSET.
   // Stejná stavba gradientu jako u sunset (jen studené tóny), navíc blikající hvězdy,
   // měsíc co jemně "dýchá" (stejný princip jako pulzující logo) a občasná padající hvězda.
@@ -2161,9 +2347,10 @@
   }
 
   function updateCanvasState() {
-      let active = weatherMode !== 0 || sunsetMode !== 0;
+      let active = weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive();
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
+      else if (!active) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   function applyWeatherUI() {
@@ -2177,16 +2364,19 @@
       } else if (weatherMode === 2) {
           btn.innerText = "WEATHER: RAIN";
           btn.classList.add('active');
-      } else {
+      } else if (weatherMode === 3) {
           btn.innerText = "WEATHER: WINTER";
+          btn.classList.add('active');
+      } else {
+          btn.innerText = "WEATHER: WINTER II";
           btn.classList.add('active');
       }
       updateCanvasState();
   }
 
-  // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> OFF (stejný princip jako u SUNSET)
+  // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> WINTER II -> OFF (stejný princip jako u SUNSET)
   window.toggleWeather = function() {
-      weatherMode = (weatherMode + 1) % 4;
+      weatherMode = (weatherMode + 1) % 5;
       applyWeatherUI();
   };
 
@@ -2897,7 +3087,7 @@
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Choose from NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST and ROSEGOLD to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Vyberte si z motivů NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST a ROSEGOLD a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
-    p_ambient: { en: "WEATHER cycles through three states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, then a quiet WINTER scene with gently falling snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.", cz: "Tlačítko WEATHER prochází třemi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN a tichá zimní scéna WINTER s pomalu padajícím sněhem. SUNSET prochází dvěma stavy: teplý gradient západu slunce a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními." },
+    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází dvěma stavy: teplý gradient západu slunce a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.", cz: "Klepnutím na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
