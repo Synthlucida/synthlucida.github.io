@@ -1152,7 +1152,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_gamification">XP, levels & unlocking downloads</h4>
-      <p data-i18n="p_gamification">Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you play, 20 XP for each finished BREATHE session, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 100 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.</p>
+      <p data-i18n="p_gamification">Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you listen to for at least 20 seconds (quickly skipping through tracks won't earn XP), 20 XP for every BREATHE session you keep going for at least a minute, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 180 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them, costing 270 XP per unlock. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1182,7 +1182,7 @@
     <p class="main-guide-intro" data-i18n="stats_intro">A quiet look at your listening and breathing habits over time, kept only on this device.</p>
     <div class="main-guide-section">
       <h4 data-i18n="h_gamification">XP, levels & unlocking downloads</h4>
-      <p data-i18n="p_gamification">Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you play, 20 XP for each finished BREATHE session, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 100 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.</p>
+      <p data-i18n="p_gamification">Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you listen to for at least 20 seconds (quickly skipping through tracks won't earn XP), 20 XP for every BREATHE session you keep going for at least a minute, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 180 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them, costing 270 XP per unlock. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.</p>
     </div>
     <div class="stats-grid" id="stats-grid"></div>
     <div class="xp-bar-wrap" id="xp-bar-wrap">
@@ -1549,6 +1549,7 @@
   let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť), 3 = winter (sněžení)
   let sunsetMode = 0; // 0 = vypnuto, 1 = sunset (teplý gradient), 2 = night (živá hvězdná obloha)
   let breathingActive = false;
+  let breathingSessionStartTime = null; // pro ochranu XP - počítá se jen skutečně odcvičený čas, ne kliknutí na start
   let breathingPaused = false;
   let breathLogoHidden = false;
   let currentBreathTechnique = '478';
@@ -2322,8 +2323,7 @@
     breathPhaseIndex = 0;
     document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
 
-    stats.breathingSessions = (stats.breathingSessions || 0) + 1;
-    saveStats();
+    breathingSessionStartTime = Date.now(); // XP se přizná až při stopBreathing, pokud cvičení trvalo dost dlouho
 
     // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav, pak teprve spustit plynulý cyklus
     lastBreathVisual = OUT_VISUAL;
@@ -2467,6 +2467,17 @@
     if (!breathingActive) return;
     breathingActive = false;
     breathingPaused = false;
+
+    // XP za dokončené cvičení - jen pokud reálně trvalo aspoň BREATHING_XP_MIN_SECONDS,
+    // aby nešlo nasbírat XP rychlým klikáním start/stop
+    if (breathingSessionStartTime !== null) {
+      const elapsed = (Date.now() - breathingSessionStartTime) / 1000;
+      if (elapsed >= BREATHING_XP_MIN_SECONDS) {
+        stats.breathingSessions = (stats.breathingSessions || 0) + 1;
+        saveStats();
+      }
+      breathingSessionStartTime = null;
+    }
     clearTimeout(breathPhaseTimeout);
     clearInterval(breathCountdownInterval);
     clearTimeout(breathSloganTimeout);
@@ -2694,7 +2705,7 @@
     h_myplaylist: { en: "My Playlist", cz: "Můj playlist" },
     p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist." },
     h_gamification: { en: "XP, levels & unlocking downloads", cz: "XP, úrovně a odemykání stažení" },
-    p_gamification: { en: "Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you play, 20 XP for each finished BREATHE session, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 100 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.", cz: "Pouhým používáním SYNTHLUCIDA získáváte XP: přibližně 2 XP za minutu poslechu, 4 XP za každou přehranou skladbu, 20 XP za každé dokončené dechové cvičení BREATHE a bonus 30 XP za každý nový den, kdy appku otevřete — takže se vyplatí appku navštěvovat denně a udržovat si sérii. Každých 100 XP vás posune o úroveň výš. Jakmile skladbu označíte srdíčkem (♥) do 🎵 MY PLAYLIST, vaše rostoucí XP ji postupně odemkne ke skutečnému stažení ⬇ MP3 souboru do zařízení — vždy jednu skladbu po druhé, v pořadí, v jakém jste je přidali. Skladby, které přidáte z vlastních nahraných souborů v Mých souborech, se do tohoto systému nepočítají — už je totiž máte v zařízení, takže zůstávají vždy odemčené a nezabírají místo ve frontě na odemčení. V panelu S (tlačítko S) uvidíte svou úroveň, postup XP i to, které skladby jsou už odemčené.", },
+    p_gamification: { en: "Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you listen to for at least 20 seconds (quickly skipping through tracks won't earn XP), 20 XP for every BREATHE session you keep going for at least a minute, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 180 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them, costing 270 XP per unlock. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.", cz: "Pouhým používáním SYNTHLUCIDA získáváte XP: přibližně 2 XP za minutu poslechu, 4 XP za každou skladbu, kterou posloucháte alespoň 20 sekund (rychlé proklikávání skladeb žádné XP nepřinese), 20 XP za každé dechové cvičení BREATHE, které vydržíte alespoň minutu, a bonus 30 XP za každý nový den, kdy appku otevřete — takže se vyplatí appku navštěvovat denně a udržovat si sérii. Každých 180 XP vás posune o úroveň výš. Jakmile skladbu označíte srdíčkem (♥) do 🎵 MY PLAYLIST, vaše rostoucí XP ji postupně odemkne ke skutečnému stažení ⬇ MP3 souboru do zařízení — vždy jednu skladbu po druhé, v pořadí, v jakém jste je přidali, za cenu 270 XP na odemčení. Skladby, které přidáte z vlastních nahraných souborů v Mých souborech, se do tohoto systému nepočítají — už je totiž máte v zařízení, takže zůstávají vždy odemčené a nezabírají místo ve frontě na odemčení. V panelu S (tlačítko S) uvidíte svou úroveň, postup XP i to, které skladby jsou už odemčené.", },
     h_myfiles: { en: "My Files", cz: "Vlastní soubory" },
     p_myfiles: { en: "Tap the F button to open My Files. Use ＋ ADD AUDIO FILES to upload your own tracks from your device, then CREATE a playlist and build a mixed playlist by adding both your own files and SYNTHLUCIDA tracks to it, right there in the F section. Tap the ▶ next to a playlist (or ▶ PLAY once it's expanded) to play it immediately with the regular player controls, including shuffle, repeat and crossfade. You can also tap the ♥ on any playing track to add it to MY PLAYLIST on the home screen, so picks from different playlists - your own files included - can be combined into one running order. Your files and playlists stay only on this device and are never uploaded anywhere.", cz: "Klepnutím na tlačítko F otevřete Vlastní soubory. Tlačítkem ＋ ADD AUDIO FILES nahrajete vlastní skladby ze zařízení, poté tlačítkem CREATE vytvoříte playlist a přímo v sekci F do něj přidáte jak vlastní soubory, tak skladby SYNTHLUCIDA - vznikne tak smíchaný playlist. Klepnutím na ▶ vedle playlistu (nebo na ▶ PLAY po jeho rozkliknutí) ho ihned spustíte pomocí běžného ovládání přehrávače, včetně shuffle, repeat i crossfade. Klepnutím na ♥ u právě hrající skladby ji navíc přidáte do MY PLAYLIST na hlavní stránce, takže lze zkombinovat výběr z různých playlistů - včetně vlastních souborů - do jednoho pořadí přehrávání. Vaše soubory a playlisty zůstávají pouze v tomto zařízení a nikam se neodesílají." },
     myfiles_guide_title: { en: "How To: Your Own Tracks & Mixing", cz: "Návod: Vlastní skladby a mixování" },
@@ -3701,6 +3712,7 @@
       s = {
         totalListenSeconds: 0,
         totalTracksPlayed: 0,
+        xpEligibleTracksPlayed: 0,
         playsByPlaylist: {},
         breathingSessions: 0,
         currentStreak: 0,
@@ -3711,6 +3723,7 @@
     }
     if (!s.playsByPlaylist || typeof s.playsByPlaylist !== 'object') s.playsByPlaylist = {};
     if (typeof s.daysVisited !== 'number') s.daysVisited = 0;
+    if (typeof s.xpEligibleTracksPlayed !== 'number') s.xpEligibleTracksPlayed = 0;
     return s;
   }
 
@@ -3752,8 +3765,10 @@
   const XP_PER_TRACK_PLAYED = 4;
   const XP_PER_BREATHING_SESSION = 20;
   const XP_PER_DAY_VISITED = 30;
-  const XP_PER_LEVEL = 100;
-  const DOWNLOAD_XP_STEP = 150; // kolik XP je potřeba na odemčení dalšího downloadu v MY PLAYLIST
+  const XP_PER_LEVEL = 180; // zvýšeno o 80 % (bylo 100), aby postup levelem trval déle
+  const TRACK_XP_MIN_LISTEN_SECONDS = 20; // skladba se pro XP počítá až po min. 20s reálného poslechu, ne hned po kliknutí
+  const BREATHING_XP_MIN_SECONDS = 60; // dechové cvičení se pro XP počítá až po min. 60s, ne hned po spuštění
+  const DOWNLOAD_XP_STEP = 270; // zvýšeno o 80 % (bylo 150) - kolik XP je potřeba na odemčení dalšího downloadu v MY PLAYLIST
 
   // Vlastní nahrané soubory (z panelu F / My Files) se do gamifikace (odemykání stahování)
   // nepočítají - uživatel je má na zařízení už tak, takže nezabírají místo ve frontě na
@@ -3764,7 +3779,7 @@
 
   function computeXP(s) {
     const listenXP = Math.floor((s.totalListenSeconds || 0) / 60) * XP_PER_MINUTE_LISTENED;
-    const trackXP = (s.totalTracksPlayed || 0) * XP_PER_TRACK_PLAYED;
+    const trackXP = (s.xpEligibleTracksPlayed || 0) * XP_PER_TRACK_PLAYED;
     const breathXP = (s.breathingSessions || 0) * XP_PER_BREATHING_SESSION;
     const dayXP = (s.daysVisited || 0) * XP_PER_DAY_VISITED;
     return listenXP + trackXP + breathXP + dayXP;
@@ -3781,9 +3796,24 @@
   let statsLastTick = null;
   let statsUnsavedSeconds = 0;
 
+  // Ochrana proti "ochcávání" XP rychlým proklikáváním skladeb: XP za skladbu se
+  // nepřičítá hned při kliknutí, ale až když u ní posluchač skutečně stráví
+  // TRACK_XP_MIN_LISTEN_SECONDS. Nový track (viz addToHistory) tento odpočet vždy vynuluje.
+  let pendingTrackXPListenSeconds = 0;
+  let pendingTrackXPAwarded = true; // true = pro aktuální skladbu už není co odemykat
+
   function addListenSeconds(sec) {
     stats.totalListenSeconds = (stats.totalListenSeconds || 0) + sec;
     statsUnsavedSeconds += sec;
+
+    if (!pendingTrackXPAwarded) {
+      pendingTrackXPListenSeconds += sec;
+      if (pendingTrackXPListenSeconds >= TRACK_XP_MIN_LISTEN_SECONDS) {
+        stats.xpEligibleTracksPlayed = (stats.xpEligibleTracksPlayed || 0) + 1;
+        pendingTrackXPAwarded = true;
+      }
+    }
+
     if (statsUnsavedSeconds >= 10) { saveStats(); statsUnsavedSeconds = 0; }
   }
 
@@ -3868,7 +3898,7 @@
   };
 
   window.resetStats = function() {
-    stats = { totalListenSeconds: 0, totalTracksPlayed: 0, playsByPlaylist: {}, breathingSessions: 0, currentStreak: 0, longestStreak: 0, daysVisited: 0, lastActiveDate: todayStr() };
+    stats = { totalListenSeconds: 0, totalTracksPlayed: 0, xpEligibleTracksPlayed: 0, playsByPlaylist: {}, breathingSessions: 0, currentStreak: 0, longestStreak: 0, daysVisited: 0, lastActiveDate: todayStr() };
     saveStats();
     renderStats();
   };
@@ -3894,6 +3924,9 @@
 
     stats.totalTracksPlayed = (stats.totalTracksPlayed || 0) + 1;
     stats.playsByPlaylist[playlistKey] = (stats.playsByPlaylist[playlistKey] || 0) + 1;
+    // Nová skladba = nový odpočet pro XP; XP se přizná jen při skutečném poslechu (viz addListenSeconds)
+    pendingTrackXPListenSeconds = 0;
+    pendingTrackXPAwarded = false;
     saveStats();
   }
 
