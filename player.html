@@ -230,6 +230,21 @@
   }
   .main-files-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
 
+  /* Nápověda (?) k My Files - v levém horním rohu panelu F, po vzoru main-guide-close */
+  .myfiles-help-btn {
+    position: fixed;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 15px; font-weight: 600; opacity: 0.55; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent; z-index: 9999;
+  }
+  .myfiles-help-btn:hover, .myfiles-help-btn:active {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
+  }
+  .myfiles-help-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
   /* Obsah panelu My Files - vlastní vstupy, karty playlistů */
   .myfiles-subhead {
     font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.6; margin: 18px 0 8px;
@@ -1153,6 +1168,7 @@
 
 <div class="main-guide" id="main-files">
   <button class="main-guide-close" onclick="toggleMainFiles()" aria-label="Close my files">✖</button>
+  <button class="myfiles-help-btn" onclick="toggleMyFilesGuide()" aria-label="How to use My Files">?</button>
   <div class="main-guide-inner">
     <h3>My Files &amp; Playlists</h3>
     <p class="main-guide-intro">Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.</p>
@@ -1175,6 +1191,37 @@
     <div id="myfiles-playlists"></div>
 
     <p class="main-guide-note">Uploaded files and playlists are stored locally in your browser and are never sent anywhere.</p>
+  </div>
+</div>
+
+<div class="main-guide" id="myfiles-guide">
+  <button class="main-guide-close" onclick="toggleMyFilesGuide()" aria-label="Close how-to guide">✖</button>
+  <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
+  <div class="main-guide-inner">
+    <h3 data-i18n="myfiles_guide_title">How To: Your Own Tracks &amp; Mixing</h3>
+    <p class="main-guide-intro" data-i18n="myfiles_guide_intro">Everything below happens on the F panel (My Files &amp; Playlists) - here's exactly how to add your own audio, mix it with SYNTHLUCIDA tracks, and build your own playlists.</p>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_myfiles_step1">1. Add your own audio files</h4>
+      <p data-i18n="p_myfiles_step1">Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under "Your Files". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to).</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_myfiles_step2">2. Build a playlist that mixes your files with SYNTHLUCIDA</h4>
+      <p data-i18n="p_myfiles_step2">Under "Your Playlists", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_myfiles_step3">3. Mix your files into MY PLAYLIST with ♥</h4>
+      <p data-i18n="p_myfiles_step3">There's a second, simpler way to mix: play one of your own files (or open any SYNTHLUCIDA playlist), then tap the ♥ next to a track to add it to MY PLAYLIST - the same heart-based playlist you use for SYNTHLUCIDA tracks. Add a few of your own files and a few SYNTHLUCIDA favorites this way, and a single MY PLAYLIST run will shuffle or play through both together.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_myfiles_step4">4. Everything else still works</h4>
+      <p data-i18n="p_myfiles_step4">Playlists built from your own files play through the exact same engine as the rest of the app - Shuffle, Repeat, Crossfade, and the sleep timer all work with them too, and the last one you played is remembered the next time you open the app.</p>
+    </div>
+
+    <p class="main-guide-note" data-i18n="myfiles_guide_note">Uploaded files, your playlists, and MY PLAYLIST are all stored only on this device and are never uploaded anywhere.</p>
   </div>
 </div>
 
@@ -1475,6 +1522,7 @@
   let breathLogoHidden = false;
   let currentBreathTechnique = '478';
   let vibrationEnabled = true;
+  let breathSaveBtnResetTimer = null;
   let breathPhaseIndex = 0;
   let breathPhaseTimeout = null;
   let breathCountdownInterval = null;
@@ -2334,12 +2382,16 @@
 
     const btn = document.getElementById('breath-save-btn');
     if (btn) {
-      const oldText = btn.innerText;
+      // Zruší předchozí odpočet, pokud uživatel klikne na SAVE vícekrát rychle za sebou -
+      // jinak by starší setTimeout přepsal text/lesk dřív, než ten aktuální doběhne,
+      // a tlačítko by mohlo zůstat trvale svítit s textem "SAVED!".
+      if (breathSaveBtnResetTimer) clearTimeout(breathSaveBtnResetTimer);
       btn.innerText = 'SAVED!';
       btn.classList.add('active');
-      setTimeout(() => {
-        btn.innerText = oldText;
-        btn.classList.toggle('active', !breathLogoHidden);
+      breathSaveBtnResetTimer = setTimeout(() => {
+        btn.innerText = 'SAVE';
+        btn.classList.remove('active');
+        breathSaveBtnResetTimer = null;
       }, 2000);
     }
   };
@@ -2612,6 +2664,17 @@
     p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist." },
     h_myfiles: { en: "My Files", cz: "Vlastní soubory" },
     p_myfiles: { en: "Tap the F button to open My Files. Use ＋ ADD AUDIO FILES to upload your own tracks from your device, then CREATE a playlist and build a mixed playlist by adding both your own files and SYNTHLUCIDA tracks to it, right there in the F section. Tap the ▶ next to a playlist (or ▶ PLAY once it's expanded) to play it immediately with the regular player controls, including shuffle, repeat and crossfade. You can also tap the ♥ on any playing track to add it to MY PLAYLIST on the home screen, so picks from different playlists - your own files included - can be combined into one running order. Your files and playlists stay only on this device and are never uploaded anywhere.", cz: "Klepnutím na tlačítko F otevřete Vlastní soubory. Tlačítkem ＋ ADD AUDIO FILES nahrajete vlastní skladby ze zařízení, poté tlačítkem CREATE vytvoříte playlist a přímo v sekci F do něj přidáte jak vlastní soubory, tak skladby SYNTHLUCIDA - vznikne tak smíchaný playlist. Klepnutím na ▶ vedle playlistu (nebo na ▶ PLAY po jeho rozkliknutí) ho ihned spustíte pomocí běžného ovládání přehrávače, včetně shuffle, repeat i crossfade. Klepnutím na ♥ u právě hrající skladby ji navíc přidáte do MY PLAYLIST na hlavní stránce, takže lze zkombinovat výběr z různých playlistů - včetně vlastních souborů - do jednoho pořadí přehrávání. Vaše soubory a playlisty zůstávají pouze v tomto zařízení a nikam se neodesílají." },
+    myfiles_guide_title: { en: "How To: Your Own Tracks & Mixing", cz: "Návod: Vlastní skladby a mixování" },
+    myfiles_guide_intro: { en: "Everything below happens on the F panel (My Files & Playlists) - here's exactly how to add your own audio, mix it with SYNTHLUCIDA tracks, and build your own playlists.", cz: "Vše níže se odehrává v panelu F (Vlastní soubory a playlisty) - tady je přesný postup, jak přidat vlastní zvukové soubory, namixovat je se skladbami SYNTHLUCIDA a vytvořit si vlastní playlisty." },
+    h_myfiles_step1: { en: "1. Add your own audio files", cz: "1. Přidání vlastních audio souborů" },
+    p_myfiles_step1: { en: "Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under \"Your Files\". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to).", cz: "Otevřete panel F a klepněte na ＋ ADD AUDIO FILES. Vyberte jeden nebo více audio souborů ze svého zařízení - nahrají se okamžitě a nikam se přitom neodesílají; každý soubor se uloží pouze lokálně ve vašem prohlížeči a objeví se v seznamu „Your Files\". Klepnutím na název souboru ho rovnou samostatně přehrajete, klepnutím na ✕ ho smažete (tím se odebere i ze všech playlistů, kam byl přidán)." },
+    h_myfiles_step2: { en: "2. Build a playlist that mixes your files with SYNTHLUCIDA", cz: "2. Vytvoření playlistu mixujícího vaše soubory se SYNTHLUCIDA" },
+    p_myfiles_step2: { en: "Under \"Your Playlists\", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.", cz: "V sekci „Your Playlists\" napište název a klepněte na CREATE. Otevřete kartu nového playlistu a pomocí rozbalovací nabídky do něj postupně přidávejte položky - nabídka obsahuje jak vaše nahrané soubory, tak všechny skladby SYNTHLUCIDA, takže si vlastní zvuky můžete libovolně prokládat se skladbami z ASMR, PIANO nebo CHILL v libovolném pořadí. Pořadí položek změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕. Klepnutím na ▶ PLAY na kartě playlistu ho spustíte přesně v pořadí, jak jste si ho poskládali." },
+    h_myfiles_step3: { en: "3. Mix your files into MY PLAYLIST with ♥", cz: "3. Namixování vlastních souborů do MY PLAYLIST pomocí ♥" },
+    p_myfiles_step3: { en: "There's a second, simpler way to mix: play one of your own files (or open any SYNTHLUCIDA playlist), then tap the ♥ next to a track to add it to MY PLAYLIST - the same heart-based playlist you use for SYNTHLUCIDA tracks. Add a few of your own files and a few SYNTHLUCIDA favorites this way, and a single MY PLAYLIST run will shuffle or play through both together.", cz: "Existuje i druhý, jednodušší způsob mixování: spusťte jeden ze svých vlastních souborů (nebo otevřete libovolný playlist SYNTHLUCIDA) a klepněte na ♥ u skladby, čímž ji přidáte do MY PLAYLIST - stejného playlistu na srdíčka, který používáte pro skladby SYNTHLUCIDA. Takto přidejte pár vlastních souborů a pár oblíbených skladeb SYNTHLUCIDA a jedno spuštění MY PLAYLIST je pak přehraje dohromady, ať už v pořadí nebo přes shuffle." },
+    h_myfiles_step4: { en: "4. Everything else still works", cz: "4. Vše ostatní funguje jako obvykle" },
+    p_myfiles_step4: { en: "Playlists built from your own files play through the exact same engine as the rest of the app - Shuffle, Repeat, Crossfade, and the sleep timer all work with them too, and the last one you played is remembered the next time you open the app.", cz: "Playlisty sestavené z vašich vlastních souborů běží přes úplně stejné přehrávací jádro jako zbytek appky - funguje s nimi Shuffle, Repeat, Crossfade i sleep timer, a naposledy přehrávaný playlist si appka zapamatuje i při dalším spuštění." },
+    myfiles_guide_note: { en: "Uploaded files, your playlists, and MY PLAYLIST are all stored only on this device and are never uploaded anywhere.", cz: "Nahrané soubory, vaše playlisty i MY PLAYLIST se ukládají pouze v tomto zařízení a nikam se neodesílají." },
     h_save: { en: "Save & fullscreen", cz: "Uložení a celá obrazovka" },
     p_save: { en: "SAVE stores your current theme, effects and other preferences so they load automatically the next time you visit. FULLSCREEN hides the browser interface for a cleaner, distraction-free view.", cz: "SAVE uloží aktuální motiv, efekty a další předvolby, které se při příští návštěvě automaticky načtou. FULLSCREEN skryje rozhraní prohlížeče pro čistší zobrazení bez rušivých prvků." },
     h_offline: { en: "Offline listening", cz: "Poslech offline" },
@@ -2785,6 +2848,12 @@
   }
 
   // Otevření/zavření panelu My Files
+  // Nápověda (?) v panelu My Files - jak přidávat vlastní skladby a mixovat je se SYNTHLUCIDA
+  window.toggleMyFilesGuide = function() {
+    const guide = document.getElementById('myfiles-guide');
+    if (guide) guide.classList.toggle('visible');
+  };
+
   window.toggleMainFiles = function() {
     const panel = document.getElementById('main-files');
     if (!panel) return;
@@ -2829,6 +2898,9 @@
       pl.items = pl.items.filter(it => !(it.type === 'file' && it.fileId === fileId));
     });
     saveMyPlaylistsToStorage();
+    const beforeLen = customQueue.length;
+    customQueue = customQueue.filter(e => e.fileId !== fileId);
+    if (customQueue.length !== beforeLen) { saveCustomQueue(); renderCustomQueue(); updateQueueCountBadge(); refreshPlaylistHeartIcons(); }
     await refreshMyFilesLibrary();
     renderMyFiles();
   };
@@ -2932,7 +3004,7 @@
     for (const item of pl.items) {
       if (item.type === 'file') {
         const url = await getMyFileBlobUrl(item.fileId);
-        if (url) resolved.push({ title: item.title, src: url });
+        if (url) resolved.push({ title: item.title, src: url, fileId: item.fileId });
       } else if (item.type === 'track') {
         const track = getTrackByRef(item.playlist, item.index);
         if (track) resolved.push({ title: track.title, src: track.src, added: track.added });
@@ -3805,10 +3877,35 @@
     if (badge) badge.innerText = customQueue.length ? `(${customQueue.length})` : '';
   }
 
+  // Blob URL vlastních souborů (URL.createObjectURL) platí jen po dobu běhu appky/stránky
+  // - po zavření a novém otevření appky jsou neplatné. Skladby v MY PLAYLIST, které pocházejí
+  // z vlastního nahraného souboru, si proto nesou fileId a při startu appky si zde nechají
+  // vygenerovat čerstvé, platné URL z IndexedDB - jinak by přehrávání jen tiše přeskočilo.
+  async function repairCustomQueueBlobUrls() {
+    let changed = false;
+    for (const entry of customQueue) {
+      if (!entry.fileId) continue;
+      try {
+        const url = await getMyFileBlobUrl(entry.fileId);
+        if (url && entry.src !== url) { entry.src = url; changed = true; }
+      } catch (e) { /* soubor už možná neexistuje, necháme beze změny */ }
+    }
+    if (changed) { renderCustomQueue(); refreshPlaylistHeartIcons(); }
+  }
+
+  // Pro skladby pocházející z vlastního nahraného souboru zjistí ID záznamu v IndexedDB,
+  // aby šlo při příštím spuštění appky vytvořit nové (platné) blob URL - to staré totiž
+  // po zavření appky/prohlížeče přestane fungovat a přehrávání by jen přeskočilo.
+  function fileIdForQueueEntry(playlistKey, track) {
+    if (playlistKey.indexOf('custom:file:') === 0) return playlistKey.slice('custom:file:'.length);
+    if (track && track.fileId) return track.fileId;
+    return null;
+  }
+
   window.addToCustomQueue = function(playlistKey, index) {
     if (!tracks[playlistKey] || index < 0 || !tracks[playlistKey][index]) return;
     const track = tracks[playlistKey][index];
-    customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index });
+    customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index, fileId: fileIdForQueueEntry(playlistKey, track) });
     saveCustomQueue();
     renderCustomQueue();
     updateQueueCountBadge();
@@ -3849,7 +3946,7 @@
       liked = false;
     } else {
       const track = tracks[playlistKey][index];
-      customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index });
+      customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index, fileId: fileIdForQueueEntry(playlistKey, track) });
       liked = true;
     }
     saveCustomQueue();
@@ -4247,7 +4344,7 @@
     refreshPlaylistHeartIcons();
 
     loadMyPlaylistsFromStorage();
-    refreshMyFilesLibrary();
+    refreshMyFilesLibrary().then(repairCustomQueueBlobUrls);
 
     try {
         const savedLang = localStorage.getItem('synthlucida_guide_lang');
