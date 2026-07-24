@@ -185,6 +185,45 @@ h2 {
   margin-top: 20px;
   border: 1px solid rgba(0, 240, 255, 0.3);
   box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* christmas atmosphere overlay */
+#christmas-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9998;
+  display: none;
+}
+
+#christmas-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(10, 10, 15, 0.92);
+  color: #d7d7d7;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#christmas-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* spotify section */
@@ -597,7 +636,7 @@ Thank you for your time and visit.
 
 Dave - SYNTHLUCIDA rec.
 
-<img src="dazante.jpg" alt="foto" class="thank-you-image" loading="lazy" style="display: block; margin: 20px auto 0 auto;">
+<img id="thank-you-photo" src="dazante.jpg" alt="foto" class="thank-you-image" loading="lazy" style="display: block; margin: 20px auto 0 auto;">
 
 </div>
 
@@ -771,6 +810,9 @@ CONTACT - David Zanta
 
 </main>
 
+<canvas id="christmas-canvas"></canvas>
+<div id="christmas-toast"></div>
+
 <script>
   const playlist = [
     { title: "SYNTHLUCIDA - Everything", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/everything.mp3" },
@@ -881,6 +923,169 @@ CONTACT - David Zanta
 
   statusDiv.innerText = "Radio Ready";
   titleDiv.innerText = "Press Play to Shuffle Demos";
+
+  // ==========================================
+  // VÁNOČNÍ ATMOSFÉRA — stejný princip jako v player.html: automaticky se
+  // aktivuje od 1. do 31. prosince a jemně přidá poletující barevná světýlka
+  // girlandy a tichý padající "confetti" sníh přes celou stránku.
+  // christmasOverride: null = automatický režim podle data, true/false = vývojářské vynucení.
+  // Aktivace/deaktivace vynuceného režimu: 5x klik na fotku pod úvodním textem do 2 vteřin.
+  // ==========================================
+  let christmasOverride = null;
+  let christmasPhotoClicks = 0;
+  let christmasPhotoClickTimer = null;
+  let christmasLights = [];
+  let christmasSnow = [];
+  let christmasFrame = 0;
+  let christmasCanvasLoopActive = false;
+
+  const christmasCanvas = document.getElementById('christmas-canvas');
+  const christmasCtx = christmasCanvas.getContext('2d');
+  const christmasToastEl = document.getElementById('christmas-toast');
+  const thankYouPhoto = document.getElementById('thank-you-photo');
+
+  function isChristmasSeason() {
+      return new Date().getMonth() === 11; // prosinec (0 = leden ... 11 = prosinec)
+  }
+
+  function isChristmasActive() {
+      return christmasOverride === null ? isChristmasSeason() : christmasOverride;
+  }
+
+  try {
+      const savedOverride = localStorage.getItem('synthlucida_christmas_override');
+      if (savedOverride === 'true') christmasOverride = true;
+      else if (savedOverride === 'false') christmasOverride = false;
+  } catch (e) { /* ignore */ }
+
+  let christmasToastTimer = null;
+  function showChristmasToast(text) {
+      christmasToastEl.innerText = text;
+      christmasToastEl.classList.add('visible');
+      if (christmasToastTimer) clearTimeout(christmasToastTimer);
+      christmasToastTimer = setTimeout(() => {
+          christmasToastEl.classList.remove('visible');
+      }, 2600);
+  }
+
+  function resizeChristmasCanvas() {
+      christmasCanvas.width = window.innerWidth;
+      christmasCanvas.height = window.innerHeight;
+      initChristmasLights();
+      initChristmasSnow();
+  }
+
+  function initChristmasLights() {
+      christmasLights = [];
+      const colors = ['#ff3b3b', '#ffd93b', '#3bff6e', '#3bb0ff', '#ff3bd6'];
+      const count = Math.max(18, Math.min(40, Math.floor(christmasCanvas.width / 30)));
+      for (let i = 0; i < count; i++) {
+          christmasLights.push({
+              x: (christmasCanvas.width / count) * i + (Math.random() * 20 - 10),
+              yBase: christmasCanvas.height * 0.02 + Math.sin(i * 0.9) * 10,
+              color: colors[i % colors.length],
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.04 + 0.02
+          });
+      }
+  }
+
+  function initChristmasSnow() {
+      christmasSnow = [];
+      const count = Math.max(25, Math.min(70, Math.floor((christmasCanvas.width * christmasCanvas.height) / 20000)));
+      for (let i = 0; i < count; i++) {
+          christmasSnow.push({
+              x: Math.random() * christmasCanvas.width,
+              y: Math.random() * christmasCanvas.height,
+              r: Math.random() * 1.8 + 1,
+              speed: Math.random() * 0.5 + 0.3,
+              alpha: Math.random() * 0.35 + 0.25
+          });
+      }
+  }
+
+  function drawChristmasOverlay() {
+      christmasCtx.clearRect(0, 0, christmasCanvas.width, christmasCanvas.height);
+      christmasFrame++;
+
+      // girlanda světýlek v horní části obrazovky, jemně blikající
+      for (let i = 0; i < christmasLights.length; i++) {
+          let l = christmasLights[i];
+          l.phase += l.speed;
+          let tw = 0.5 + 0.5 * Math.sin(l.phase);
+          let y = l.yBase + Math.sin(christmasFrame * 0.01 + i) * 3;
+          let r = christmasCtx.createRadialGradient(l.x, y, 0, l.x, y, 8);
+          r.addColorStop(0, l.color);
+          r.addColorStop(1, 'rgba(0,0,0,0)');
+          christmasCtx.save();
+          christmasCtx.globalAlpha = 0.25 + tw * 0.45;
+          christmasCtx.fillStyle = r;
+          christmasCtx.beginPath();
+          christmasCtx.arc(l.x, y, 8, 0, Math.PI * 2);
+          christmasCtx.fill();
+          christmasCtx.restore();
+      }
+
+      // tichý padající vánoční "confetti" sníh
+      for (let i = 0; i < christmasSnow.length; i++) {
+          let s = christmasSnow[i];
+          s.y += s.speed;
+          if (s.y > christmasCanvas.height + 4) { s.y = -4; s.x = Math.random() * christmasCanvas.width; }
+          christmasCtx.fillStyle = `rgba(255, 245, 230, ${s.alpha.toFixed(3)})`;
+          christmasCtx.beginPath();
+          christmasCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          christmasCtx.fill();
+      }
+
+      if (christmasCanvasLoopActive) requestAnimationFrame(drawChristmasOverlay);
+  }
+
+  function updateChristmasCanvasState() {
+      if (isChristmasActive()) {
+          christmasCanvas.style.display = 'block';
+          resizeChristmasCanvas();
+          if (!christmasCanvasLoopActive) {
+              christmasCanvasLoopActive = true;
+              drawChristmasOverlay();
+          }
+      } else {
+          christmasCanvasLoopActive = false;
+          christmasCanvas.style.display = 'none';
+          christmasCtx.clearRect(0, 0, christmasCanvas.width, christmasCanvas.height);
+      }
+  }
+
+  window.addEventListener('resize', () => {
+      if (isChristmasActive()) resizeChristmasCanvas();
+  });
+
+  if (thankYouPhoto) {
+      thankYouPhoto.addEventListener('click', () => {
+          christmasPhotoClicks++;
+          if (christmasPhotoClickTimer) clearTimeout(christmasPhotoClickTimer);
+          christmasPhotoClickTimer = setTimeout(() => { christmasPhotoClicks = 0; }, 2000);
+
+          if (christmasPhotoClicks >= 5) {
+              christmasPhotoClicks = 0;
+              clearTimeout(christmasPhotoClickTimer);
+              // Cyklus: automaticky (podle data) -> vynuceně ZAPNUTO -> vynuceně VYPNUTO -> automaticky ...
+              if (christmasOverride === null) christmasOverride = true;
+              else if (christmasOverride === true) christmasOverride = false;
+              else christmasOverride = null;
+
+              try {
+                  if (christmasOverride === null) localStorage.removeItem('synthlucida_christmas_override');
+                  else localStorage.setItem('synthlucida_christmas_override', String(christmasOverride));
+              } catch (e) { /* ignore */ }
+
+              const label = christmasOverride === null ? 'AUTO (dle data)' : (christmasOverride ? 'VYNUCENĚ ZAPNUTO' : 'VYNUCENĚ VYPNUTO');
+              showChristmasToast('🎄 Vánoční atmosféra: ' + label);
+              updateChristmasCanvasState();
+          }
+      });
+  }
+
+  updateChristmasCanvasState();
 </script>
 
 </body>
