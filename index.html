@@ -747,51 +747,48 @@ header {
 
 /* On very small screens / narrow displays, the header buttons (Microsoft
    Store, Demo Music, Relax Player, Review, Android App) get regrouped into
-   a single centered row above the title — but always keep their text
-   labels, not just icons, so it stays clear what each button does. */
+   a fixed 2-column grid above the title — same principle as the
+   News/Download/Bio/Services grid below, so it lays out the same way on
+   every phone instead of wrapping unpredictably. Text labels always stay
+   visible. */
 @media (max-width: 460px) {
-  /* Icon-only mode: instead of 2 badges pinned top-left, 2 pinned
-     top-right, and the Android button off on its own further down,
-     lay all 5 out together in a single centered row at the top of the
-     header. header-topleft/topright and app-toggle-btn are all direct
-     children of <header>, so this is done by turning header itself
-     into a wrapping flex row and pulling those three ahead of the
-     title/subtitle/quick-links via `order`. */
   header {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(106px, auto));
     justify-content: center;
     align-items: center;
     gap: 8px;
     padding: 26px 16px 50px;
+    /* header-topleft/topright switch to display:contents below, which
+       drops their own box (and the transform that used to force a GPU
+       layer on them). Force it on header itself instead, so the anti-
+       vanish-on-scroll fix still protects all the buttons inside it. */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
   }
+  /* header-topleft/topright are just grouping wrappers in the markup —
+     display:contents removes their own box so their two buttons each
+     (MS Store + Demo Music, Relax Player + Review) become direct grid
+     items and land in the 2x2 grid above. */
   .header-topleft,
   .header-topright {
-    position: static;
-    top: auto;
-    left: auto;
-    right: auto;
-    flex-direction: row;
+    display: contents;
   }
-  .header-topleft { order: 1; }
-  .header-topright { order: 2; }
   .app-toggle-btn {
-    order: 3;
+    grid-column: 1 / -1;
+    justify-self: center;
     margin-top: 0;
   }
   .hero-title {
-    order: 4;
-    flex-basis: 100%;
+    grid-column: 1 / -1;
     margin-top: 10px;
   }
   .subtitle {
-    order: 5;
-    flex-basis: 100%;
+    grid-column: 1 / -1;
   }
   .quick-links {
-    order: 6;
-    flex-basis: 100%;
+    grid-column: 1 / -1;
   }
 }
 
