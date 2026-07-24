@@ -244,6 +244,22 @@ body.tab-hidden .ambient-controls .ctrl-led {
   animation-play-state: paused;
 }
 
+/* Same idea, but while actively (especially fast) scrolling on mobile:
+   these two animated layers are the heaviest continuous repaint/compositor
+   load on the page, and fast fling-scrolling on Chrome/Edge mobile can
+   make the browser drop other layers (like the header buttons) under that
+   load. Pausing them for the duration of the scroll frees up headroom.
+   Toggled via the 'is-scrolling' class on <body> (see scroll listener). */
+body.is-scrolling::before {
+  animation-play-state: paused;
+}
+
+body.is-scrolling .ambient-controls .ctrl-knob,
+body.is-scrolling .ambient-controls .ctrl-fader::after,
+body.is-scrolling .ambient-controls .ctrl-led {
+  animation-play-state: paused;
+}
+
 @media (max-width: 700px) {
   .ambient-controls {
     top: auto;
@@ -778,13 +794,10 @@ header {
   .app-toggle-btn {
     grid-column: 1 / -1;
     justify-self: center;
-    margin-top: 0;
-    /* Without an explicit order, grid auto-placement would put this
-       button where it sits in the HTML — after Quick Links, at the very
-       bottom — since header-topleft/topright's children (order: 0,
-       default) come earlier in the markup. Force it right after the 2x2
-       badge grid instead. */
-    order: 1;
+    margin-top: 12px;
+    /* Keep it after Quick Links (bottom, centered) — matching where it
+       sits on wider screens — instead of up near the top badges. */
+    order: 5;
   }
   .hero-title {
     grid-column: 1 / -1;
@@ -2569,24 +2582,41 @@ Privacy Policy
 <script>
   // Safety net for a Chrome/Edge-on-mobile rendering glitch where the
   // header buttons (top badges, quick links, Android App) occasionally
-  // fail to repaint after a scroll and stay invisible until something
-  // else forces a repaint. This nudges the header's transform by a
-  // fraction of a pixel right after scrolling settles, which is enough
-  // to make the browser recomposite it without any visible jump.
+  // fail to repaint after a scroll — especially a fast one — and stay
+  // invisible until something else forces a repaint. Two parts:
+  // 1) while actively scrolling, pause the heavy decorative animations
+  //    (rotating background glow, synth control strip) so the browser's
+  //    compositor has less to juggle during the scroll itself;
+  // 2) once scrolling/resizing settles, nudge each header element's own
+  //    transform by a fraction of a pixel to force a fresh repaint.
+  // Runs on both scroll and resize since on mobile Chrome/Edge the
+  // address bar hiding/showing fires a resize, not just a scroll.
   (function () {
-    const header = document.querySelector('header');
-    if (!header) return;
-    let scrollTimer = null;
+    const targets = Array.from(document.querySelectorAll(
+      'header, .header-topleft, .header-topright, .quick-links, .app-toggle-btn'
+    ));
+    if (!targets.length) return;
+    let timer = null;
     function nudge() {
-      header.style.transform = 'translateZ(0.01px)';
+      targets.forEach(function (el) {
+        el.style.transform = 'translateZ(0.01px)';
+      });
       requestAnimationFrame(function () {
-        header.style.transform = 'translateZ(0)';
+        targets.forEach(function (el) {
+          el.style.transform = 'translateZ(0)';
+        });
       });
     }
-    window.addEventListener('scroll', function () {
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(nudge, 150);
-    }, { passive: true });
+    function schedule() {
+      document.body.classList.add('is-scrolling');
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        document.body.classList.remove('is-scrolling');
+        nudge();
+      }, 150);
+    }
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
   })();
 </script>
 
