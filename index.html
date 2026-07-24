@@ -1138,17 +1138,18 @@ CONTACT - David Zanta
 <script>
   // ==========================================
   // SHARED STAR RATING WIDGET
-  // Uses CountAPI (a free, key-free public counter service) to store two
-  // running totals - a rating sum and a vote count - so the SAME average is
-  // shown to every visitor, not just saved in one browser's localStorage.
-  // Note: CountAPI is an unauthenticated third-party service, so this is a
+  // Uses CountAPI (countapi.mileshilliard.com — a free, key-free public
+  // counter service and the actively maintained successor to the now-dead
+  // api.countapi.xyz) to store two running totals - a rating sum and a vote
+  // count - so the SAME average is shown to every visitor, not just saved
+  // in one browser's localStorage.
+  // Note: this is an unauthenticated third-party service, so this is a
   // lightweight community rating, not a tamper-proof one.
   // ==========================================
   (function() {
-    const RATING_API = 'https://api.countapi.xyz';
-    const RATING_NAMESPACE = 'synthlucida-player';
-    const RATING_SUM_KEY = 'rating-sum';
-    const RATING_COUNT_KEY = 'rating-count';
+    const RATING_API = 'https://countapi.mileshilliard.com/api/v1';
+    const RATING_SUM_KEY = 'synthlucida_player_rating_sum';
+    const RATING_COUNT_KEY = 'synthlucida_player_rating_count';
     const RATING_STORAGE_KEY = 'synthlucida_player_rating_voted';
 
     function renderRatingSummary(sum, count) {
@@ -1169,6 +1170,23 @@ CONTACT - David Zanta
       });
     }
 
+    // Reads a counter's current value. Treats a missing key (never voted
+    // on yet, anywhere) as 0 instead of erroring out.
+    function getCounter(key) {
+      return fetch(RATING_API + '/get/' + key)
+        .then(function(r) { return r.ok ? r.json() : { value: 0 }; })
+        .then(function(data) { return parseInt(data.value, 10) || 0; })
+        .catch(function() { return 0; });
+    }
+
+    function setCounter(key, value) {
+      return fetch(RATING_API + '/set/' + key + '?value=' + value).catch(function(){});
+    }
+
+    function hitCounter(key) {
+      return fetch(RATING_API + '/hit/' + key).catch(function(){});
+    }
+
     function initRatingWidget() {
       const widget = document.getElementById('rating-widget');
       if (!widget) return;
@@ -1176,25 +1194,18 @@ CONTACT - David Zanta
       let hasVoted = !!localStorage.getItem(RATING_STORAGE_KEY);
       if (hasVoted) widget.classList.add('voted');
 
-      // Self-initializing counters: creates them on first-ever visit site-wide,
-      // silently ignored (409) on every visit after that.
-      fetch(RATING_API + '/create?namespace=' + RATING_NAMESPACE + '&key=' + RATING_SUM_KEY + '&value=0&update_lowerbound=0&update_upperbound=5').catch(function(){});
-      fetch(RATING_API + '/create?namespace=' + RATING_NAMESPACE + '&key=' + RATING_COUNT_KEY + '&value=0&update_lowerbound=0&update_upperbound=1').catch(function(){});
-
       function loadCurrent() {
-        Promise.all([
-          fetch(RATING_API + '/get/' + RATING_NAMESPACE + '/' + RATING_SUM_KEY).then(function(r){ return r.json(); }).catch(function(){ return { value: 0 }; }),
-          fetch(RATING_API + '/get/' + RATING_NAMESPACE + '/' + RATING_COUNT_KEY).then(function(r){ return r.json(); }).catch(function(){ return { value: 0 }; })
-        ]).then(function(results) {
-          const sum = results[0].value || 0;
-          const count = results[1].value || 0;
-          renderRatingSummary(sum, count);
-          if (hasVoted) {
-            fillStars(parseInt(localStorage.getItem(RATING_STORAGE_KEY), 10));
-          } else if (count > 0) {
-            fillStars(Math.round(sum / count));
-          }
-        });
+        Promise.all([getCounter(RATING_SUM_KEY), getCounter(RATING_COUNT_KEY)])
+          .then(function(results) {
+            const sum = results[0];
+            const count = results[1];
+            renderRatingSummary(sum, count);
+            if (hasVoted) {
+              fillStars(parseInt(localStorage.getItem(RATING_STORAGE_KEY), 10));
+            } else if (count > 0) {
+              fillStars(Math.round(sum / count));
+            }
+          });
       }
 
       loadCurrent();
@@ -1212,8 +1223,10 @@ CONTACT - David Zanta
           widget.classList.add('voted');
           localStorage.setItem(RATING_STORAGE_KEY, String(value));
           fillStars(value);
-          fetch(RATING_API + '/update/' + RATING_NAMESPACE + '/' + RATING_SUM_KEY + '?amount=' + value)
-            .then(function() { return fetch(RATING_API + '/hit/' + RATING_NAMESPACE + '/' + RATING_COUNT_KEY); })
+          // Read-modify-write the running sum, then bump the vote count by 1.
+          getCounter(RATING_SUM_KEY)
+            .then(function(currentSum) { return setCounter(RATING_SUM_KEY, currentSum + value); })
+            .then(function() { return hitCounter(RATING_COUNT_KEY); })
             .then(function() { loadCurrent(); })
             .catch(function() { /* ignore network errors */ });
         });
