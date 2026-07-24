@@ -185,9 +185,10 @@ h2 {
   margin-top: 20px;
   border: 1px solid rgba(0, 240, 255, 0.3);
   box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
-  cursor: pointer;
+  cursor: default;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* christmas atmosphere overlay */
@@ -978,14 +979,30 @@ CONTACT - David Zanta
   function initChristmasLights() {
       christmasLights = [];
       const colors = ['#ff3b3b', '#ffd93b', '#3bff6e', '#3bb0ff', '#ff3bd6'];
-      const count = Math.max(18, Math.min(40, Math.floor(christmasCanvas.width / 30)));
+
+      // horní girlanda (o něco hustší než dřív)
+      const count = Math.max(24, Math.min(52, Math.floor(christmasCanvas.width / 22)));
       for (let i = 0; i < count; i++) {
           christmasLights.push({
               x: (christmasCanvas.width / count) * i + (Math.random() * 20 - 10),
               yBase: christmasCanvas.height * 0.02 + Math.sin(i * 0.9) * 10,
               color: colors[i % colors.length],
               phase: Math.random() * Math.PI * 2,
-              speed: Math.random() * 0.04 + 0.02
+              speed: Math.random() * 0.04 + 0.02,
+              radius: 8
+          });
+      }
+
+      // jemně roztroušená světýlka po celé ploše stránky
+      const scatteredCount = Math.max(15, Math.min(35, Math.floor((christmasCanvas.width * christmasCanvas.height) / 45000)));
+      for (let i = 0; i < scatteredCount; i++) {
+          christmasLights.push({
+              x: Math.random() * christmasCanvas.width,
+              yBase: Math.random() * christmasCanvas.height,
+              color: colors[Math.floor(Math.random() * colors.length)],
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.03 + 0.015,
+              radius: Math.random() * 2 + 3
           });
       }
   }
@@ -1014,14 +1031,15 @@ CONTACT - David Zanta
           l.phase += l.speed;
           let tw = 0.5 + 0.5 * Math.sin(l.phase);
           let y = l.yBase + Math.sin(christmasFrame * 0.01 + i) * 3;
-          let r = christmasCtx.createRadialGradient(l.x, y, 0, l.x, y, 8);
+          let radius = l.radius || 8;
+          let r = christmasCtx.createRadialGradient(l.x, y, 0, l.x, y, radius);
           r.addColorStop(0, l.color);
           r.addColorStop(1, 'rgba(0,0,0,0)');
           christmasCtx.save();
           christmasCtx.globalAlpha = 0.25 + tw * 0.45;
           christmasCtx.fillStyle = r;
           christmasCtx.beginPath();
-          christmasCtx.arc(l.x, y, 8, 0, Math.PI * 2);
+          christmasCtx.arc(l.x, y, radius, 0, Math.PI * 2);
           christmasCtx.fill();
           christmasCtx.restore();
       }
