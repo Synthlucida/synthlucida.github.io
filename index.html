@@ -91,8 +91,9 @@ body::before {
   height: 200%;
   background:
     radial-gradient(circle, rgba(0,255,255,0.07), transparent 60%),
-    radial-gradient(circle, rgba(255,0,255,0.07), transparent 60%);
-  animation: move 18s linear infinite;
+    radial-gradient(circle, rgba(255,0,255,0.07), transparent 60%),
+    radial-gradient(circle, rgba(140,0,255,0.06), transparent 55%);
+  animation: move 18s linear infinite, colorDrift 34s ease-in-out infinite;
   z-index: -1;
 }
 
@@ -102,6 +103,17 @@ body::before {
   }
   100% {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes colorDrift {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(35deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
   }
 }
 
@@ -204,6 +216,196 @@ body::before {
   }
 }
 
+/* ambient background synth control strip — decorative knobs & faders, no function */
+.ambient-controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 38vh;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 4vw, 46px);
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.16;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+
+.ambient-controls .ctrl-knob {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 35% 30%, rgba(0,240,255,0.3), rgba(150,90,255,0.12) 60%, rgba(0,0,0,0.3) 100%);
+  border: 1px solid rgba(0,240,255,0.35);
+  box-shadow: 0 0 10px rgba(0,240,255,0.25);
+  animation-name: ctrlKnobTurn;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.ambient-controls .ctrl-knob::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 2px;
+  height: 8px;
+  background: rgba(0,240,255,0.8);
+  transform: translateX(-50%);
+  border-radius: 2px;
+  box-shadow: 0 0 4px rgba(0,240,255,0.6);
+}
+
+@keyframes ctrlKnobTurn {
+  0%, 100% { transform: rotate(-50deg); }
+  50% { transform: rotate(50deg); }
+}
+
+.ambient-controls .ctrl-fader {
+  width: 10px;
+  height: 64px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  position: relative;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(0,240,255,0.05));
+  border: 1px solid rgba(0,240,255,0.25);
+  box-shadow: 0 0 8px rgba(0,240,255,0.15);
+}
+
+.ambient-controls .ctrl-fader::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 16px;
+  height: 8px;
+  margin-left: -8px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, rgba(0,240,255,0.9), rgba(150,90,255,0.6));
+  box-shadow: 0 0 8px rgba(0,240,255,0.5);
+  animation-name: ctrlFaderSlide;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-duration: var(--fd, 9s);
+  animation-delay: var(--fdelay, 0s);
+  will-change: transform;
+}
+
+@keyframes ctrlFaderSlide {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(46px); }
+}
+
+.ambient-controls .ctrl-led {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,255,180,0.95), rgba(0,255,180,0.15) 70%);
+  box-shadow: 0 0 6px rgba(0,255,180,0.7);
+  animation-name: ctrlLedBlink;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes ctrlLedBlink {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-controls .ctrl-knob,
+  .ambient-controls .ctrl-fader::after,
+  .ambient-controls .ctrl-led {
+    animation: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .ambient-controls {
+    top: auto;
+    bottom: 36vh;
+    height: 70px;
+  }
+  .ambient-controls .ctrl-fader {
+    height: 48px;
+  }
+  @keyframes ctrlFaderSlide {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(30px); }
+  }
+}
+
+/* ambient floating colour dust — soft glowing motes drifting upward, pure atmosphere */
+.ambient-dust {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-dust span {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  opacity: 0;
+  animation-name: dustFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  filter: blur(0.3px);
+}
+
+@keyframes dustFloat {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--dust-opacity, 0.5);
+  }
+  50% {
+    transform: translate(var(--dust-drift, 12px), -52vh);
+  }
+  90% {
+    opacity: var(--dust-opacity, 0.5);
+  }
+  100% {
+    transform: translate(calc(var(--dust-drift, 12px) * 2), -104vh);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-dust {
+    display: none;
+  }
+}
+
+/* faint synthwave horizon grid at the very bottom — sits behind the equalizer */
+.ambient-horizon {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26vh;
+  min-height: 130px;
+  z-index: -4;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image:
+    repeating-linear-gradient(to top, rgba(0,240,255,0.5) 0px, rgba(0,240,255,0.5) 1px, transparent 1px, transparent 26px),
+    linear-gradient(to top, rgba(255,0,200,0.12), transparent 70%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  mask-image: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+}
+
 main.container {
   max-width: 920px;
   margin: auto;
@@ -286,7 +488,7 @@ header {
   opacity: 1;
 }
 
-/* Top-left cluster in header: Microsoft Store icon (kept small/ambient, mirrors header-topright) */
+/* Top-left cluster in header: Microsoft Store button (mirrors header-topright pill style) */
 .header-topleft {
   position: absolute;
   top: calc(14px + env(safe-area-inset-top, 0px));
@@ -298,34 +500,53 @@ header {
 .ms-store-badge {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  gap: 8px;
+  padding: 7px 14px 7px 10px;
+  border-radius: 30px;
   text-decoration: none;
-  background: radial-gradient(circle at 35% 30%, rgba(0,240,255,0.18), rgba(0,0,0,0.45) 70%);
+  background: rgba(0,0,0,0.5);
   border: 1px solid rgba(0,240,255,0.4);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 0 16px rgba(0,240,255,0.25), inset 0 0 10px rgba(0,240,255,0.08);
+  box-shadow: 0 0 14px rgba(0,240,255,0.25);
   color: #00f0ff;
-  opacity: 0.9;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  font-family: 'Orbitron', sans-serif;
+  opacity: 0.95;
   transition: all 0.25s ease;
   cursor: pointer;
 }
 
-.ms-store-badge .badge-icon {
-  font-size: 19px;
-  line-height: 1;
-  filter: drop-shadow(0 0 5px rgba(0,240,255,0.7));
+.ms-store-badge .ms-logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.06);
+  filter: drop-shadow(0 0 3px rgba(0,240,255,0.5));
+}
+
+.ms-store-badge .ms-logo-icon svg {
+  display: block;
 }
 
 .ms-store-badge:hover {
-  transform: translateY(-2px) scale(1.08);
-  box-shadow: 0 0 24px rgba(0,240,255,0.55), inset 0 0 12px rgba(0,240,255,0.15);
-  background: radial-gradient(circle at 35% 30%, rgba(0,240,255,0.3), rgba(0,0,0,0.7) 70%);
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 0 22px rgba(0,240,255,0.5);
+  background: rgba(0,0,0,0.65);
   border-color: rgba(0,240,255,0.65);
   opacity: 1;
+}
+
+@media (max-width: 420px) {
+  .ms-store-badge .ms-label-full {
+    display: none;
+  }
 }
 
 /* platforms section - unified, collapsible links to social/store platforms */
@@ -1099,9 +1320,12 @@ footer {
 
 <body>
 
+<div class="ambient-horizon" aria-hidden="true"></div>
+<div class="ambient-dust" id="ambient-dust" aria-hidden="true"></div>
 <div class="ambient-eq" id="ambient-eq" aria-hidden="true"></div>
 <div class="ambient-wave wave-1" aria-hidden="true"></div>
 <div class="ambient-wave wave-2" aria-hidden="true"></div>
+<div class="ambient-controls" id="ambient-controls" aria-hidden="true"></div>
 
 <main class="container">
 
@@ -1109,7 +1333,15 @@ footer {
 
 <div class="header-topleft">
 <a class="ms-store-badge" href="https://apps.microsoft.com/detail/9nbv1tn33b57?cid=DevShareMCLPCS&hl=cs-CZ&gl=CZ" target="_blank" rel="noopener noreferrer" aria-label="Get SYNTHLUCIDA on Microsoft Store" title="Microsoft Store">
-<span class="badge-icon">🪟</span>
+<span class="ms-logo-icon">
+<svg viewBox="0 0 21 21" width="12" height="12" aria-hidden="true">
+<rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+<rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+<rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+<rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+</svg>
+</span>
+<span class="ms-label-full">Microsoft Store</span>
 </a>
 </div>
 
@@ -1864,6 +2096,104 @@ rel="noopener noreferrer">
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(buildBars, 300);
+    });
+  })();
+</script>
+
+<script>
+  // Ambient decorative synth control strip (knobs / faders / LEDs) —
+  // purely visual background element, no functionality.
+  (function () {
+    const wrap = document.getElementById('ambient-controls');
+    if (!wrap) return;
+
+    const pattern = ['knob', 'fader', 'knob', 'led', 'fader', 'knob', 'led', 'fader', 'knob'];
+
+    function buildControls() {
+      const count = window.innerWidth < 480 ? 6 : (window.innerWidth < 900 ? 8 : 11);
+      wrap.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const kind = pattern[i % pattern.length];
+        const el = document.createElement('div');
+        el.className = 'ctrl-' + kind;
+
+        if (kind === 'knob') {
+          const duration = (6 + Math.random() * 5).toFixed(2);
+          const delay = (Math.random() * -8).toFixed(2);
+          el.style.animationDuration = duration + 's';
+          el.style.animationDelay = delay + 's';
+        } else if (kind === 'fader') {
+          const duration = (7 + Math.random() * 5).toFixed(2);
+          const delay = (Math.random() * -9).toFixed(2);
+          el.style.setProperty('--fd', duration + 's');
+          el.style.setProperty('--fdelay', delay + 's');
+        } else if (kind === 'led') {
+          const duration = (1.6 + Math.random() * 2.2).toFixed(2);
+          const delay = (Math.random() * -3).toFixed(2);
+          el.style.animationDuration = duration + 's';
+          el.style.animationDelay = delay + 's';
+        }
+        wrap.appendChild(el);
+      }
+    }
+
+    buildControls();
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(buildControls, 300);
+    });
+  })();
+</script>
+
+<script>
+  // Ambient floating colour dust — soft glowing motes drifting slowly upward.
+  // Purely atmospheric, no interaction, respects prefers-reduced-motion via CSS.
+  (function () {
+    const wrap = document.getElementById('ambient-dust');
+    if (!wrap) return;
+
+    const colors = [
+      'rgba(0,240,255,0.9)',
+      'rgba(255,0,200,0.85)',
+      'rgba(150,90,255,0.85)',
+      'rgba(0,255,180,0.8)',
+      'rgba(255,180,60,0.75)'
+    ];
+
+    function buildDust() {
+      const count = window.innerWidth < 480 ? 12 : (window.innerWidth < 900 ? 18 : 24);
+      wrap.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('span');
+        const size = (2 + Math.random() * 3).toFixed(1);
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const duration = (14 + Math.random() * 16).toFixed(2);
+        const delay = (Math.random() * -28).toFixed(2);
+        const drift = (Math.random() * 60 - 30).toFixed(0);
+        const opacityMax = (0.25 + Math.random() * 0.35).toFixed(2);
+
+        dot.style.left = (Math.random() * 100).toFixed(1) + '%';
+        dot.style.width = size + 'px';
+        dot.style.height = size + 'px';
+        dot.style.background = color;
+        dot.style.boxShadow = '0 0 ' + (size * 2.5).toFixed(1) + 'px ' + color;
+        dot.style.animationDuration = duration + 's';
+        dot.style.animationDelay = delay + 's';
+        dot.style.setProperty('--dust-drift', drift + 'px');
+        dot.style.setProperty('--dust-opacity', opacityMax);
+
+        wrap.appendChild(dot);
+      }
+    }
+
+    buildDust();
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(buildDust, 300);
     });
   })();
 </script>
