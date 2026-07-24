@@ -333,6 +333,7 @@ header {
   transition: all 0.25s ease;
   font-family: 'Orbitron', sans-serif;
   cursor: pointer;
+  min-width: 132px;
 }
 
 .review-toggle-btn,
@@ -378,14 +379,26 @@ header {
    SYNTHLUCIDA heading, styled and behaving just like the Demo Music /
    Relax Player / Review badges above (see shared .quick-link-btn rules). */
 .quick-links {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 10px 14px;
   margin-top: 64px;
   position: relative;
   z-index: 1;
+  /* Same GPU-layer fix as .header-topright/.header-topleft below — without
+     it, these buttons can lose their compositing layer during mobile
+     scroll-bounce repaint and vanish until something else forces a
+     repaint. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+}
+
+.quick-link-btn {
+  justify-self: center;
+  min-width: 132px;
 }
 
 /* Top-left cluster in header: Microsoft Store button + Demo Music toggle, stacked */
@@ -425,6 +438,7 @@ header {
   opacity: 0.95;
   transition: all 0.25s ease;
   cursor: pointer;
+  min-width: 132px;
 }
 
 .ms-store-badge .ms-logo-icon {
@@ -531,6 +545,12 @@ header {
   margin-top: 18px;
   position: relative;
   z-index: 1;
+  /* Same GPU-layer fix as .header-topright/.header-topleft — without it,
+     this button can lose its compositing layer during mobile scroll-bounce
+     repaint and vanish until something else forces a repaint. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
 .app-download-wrap {
@@ -698,6 +718,7 @@ header {
   .app-toggle-btn {
     padding: 6px 11px;
     font-size: 9.5px;
+    min-width: 106px;
   }
   .relax-player-badge .badge-icon,
   .review-toggle-btn .badge-icon,
@@ -707,6 +728,9 @@ header {
   .quick-links {
     gap: 7px;
     margin-top: 46px;
+  }
+  .quick-link-btn {
+    min-width: 106px;
   }
   .ms-store-badge .ms-logo-icon {
     width: 13px;
@@ -721,38 +745,11 @@ header {
   }
 }
 
-/* On very small screens / narrow displays, collapse all four header
-   buttons (Microsoft Store, Demo Music, Relax Player, Review) down to
-   plain round icon buttons — matching the Microsoft Store badge's own
-   behavior. Text labels reappear automatically above this width. */
-@media (max-width: 420px) {
-  .ms-store-badge .ms-label-full,
-  .relax-player-badge .label-full,
-  .review-toggle-btn .label-full,
-  .demo-toggle-btn .label-full,
-  .quick-link-btn .label-full,
-  .app-toggle-btn .label-full {
-    display: none;
-  }
-  .ms-store-badge,
-  .relax-player-badge,
-  .review-toggle-btn,
-  .demo-toggle-btn,
-  .quick-link-btn,
-  .app-toggle-btn {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    gap: 0;
-  }
-  .relax-player-badge .badge-icon,
-  .review-toggle-btn .badge-icon,
-  .demo-toggle-btn .badge-icon,
-  .quick-link-btn .badge-icon,
-  .app-toggle-btn .badge-icon {
-    font-size: 15px;
-  }
-
+/* On very small screens / narrow displays, the header buttons (Microsoft
+   Store, Demo Music, Relax Player, Review, Android App) get regrouped into
+   a single centered row above the title — but always keep their text
+   labels, not just icons, so it stays clear what each button does. */
+@media (max-width: 460px) {
   /* Icon-only mode: instead of 2 badges pinned top-left, 2 pinned
      top-right, and the Android button off on its own further down,
      lay all 5 out together in a single centered row at the top of the
