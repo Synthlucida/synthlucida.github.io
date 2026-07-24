@@ -301,6 +301,65 @@ h2 {
   text-align: right;
 }
 
+/* shared star rating widget - same numbers for every visitor, not just this browser */
+.rating-widget {
+  margin: 6px 0 24px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+}
+
+.rating-label {
+  font-size: 11px;
+  color: #b0b0b0;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.rating-stars {
+  font-size: 30px;
+  letter-spacing: 6px;
+  line-height: 1;
+  margin-bottom: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rating-star {
+  display: inline-block;
+  color: rgba(255,255,255,0.22);
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.rating-star:hover {
+  transform: scale(1.12);
+}
+
+.rating-star.filled {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.55);
+}
+
+.rating-widget.voted .rating-star {
+  cursor: default;
+}
+
+.rating-widget.voted .rating-star:hover {
+  transform: none;
+}
+
+.rating-summary {
+  font-size: 12px;
+  color: #999999;
+  letter-spacing: 0.4px;
+}
+
+.rating-summary strong {
+  color: #00f0ff;
+}
+
 .review-cta-wrap {
   text-align: center;
   margin-top: 22px;
@@ -856,6 +915,14 @@ Thanks for taking the time to read all this — and even more for giving the Rel
 
 <p class="review-signoff">— Dave, SYNTHLUCIDA</p>
 
+<div class="rating-widget" id="rating-widget">
+<div class="rating-label">Rate the Relax Player</div>
+<div class="rating-stars" id="rating-stars" role="radiogroup" aria-label="Rate the Relax Player from 1 to 5 stars">
+<span class="rating-star" data-value="1">★</span><span class="rating-star" data-value="2">★</span><span class="rating-star" data-value="3">★</span><span class="rating-star" data-value="4">★</span><span class="rating-star" data-value="5">★</span>
+</div>
+<div class="rating-summary" id="rating-summary">Loading ratings…</div>
+</div>
+
 <div class="review-cta-wrap">
 <a class="review-cta" href="https://synthlucida.com/player.html" target="_blank" rel="noopener noreferrer">🎧 TRY THE RELAX PLAYER</a>
 </div>
@@ -1069,7 +1136,103 @@ CONTACT - David Zanta
 <div id="christmas-toast"></div>
 
 <script>
-  // Review panel toggle - shows/hides the "My Honest Take on the Relax Player" section
+  // ==========================================
+  // SHARED STAR RATING WIDGET
+  // Uses CountAPI (a free, key-free public counter service) to store two
+  // running totals - a rating sum and a vote count - so the SAME average is
+  // shown to every visitor, not just saved in one browser's localStorage.
+  // Note: CountAPI is an unauthenticated third-party service, so this is a
+  // lightweight community rating, not a tamper-proof one.
+  // ==========================================
+  (function() {
+    const RATING_API = 'https://api.countapi.xyz';
+    const RATING_NAMESPACE = 'synthlucida-player';
+    const RATING_SUM_KEY = 'rating-sum';
+    const RATING_COUNT_KEY = 'rating-count';
+    const RATING_STORAGE_KEY = 'synthlucida_player_rating_voted';
+
+    function renderRatingSummary(sum, count) {
+      const summaryEl = document.getElementById('rating-summary');
+      if (!summaryEl) return;
+      if (!count || count <= 0) {
+        summaryEl.textContent = 'No ratings yet — be the first!';
+        return;
+      }
+      const avg = sum / count;
+      summaryEl.innerHTML = '<strong>' + avg.toFixed(1) + '★</strong> average from ' + count + ' rating' + (count === 1 ? '' : 's');
+    }
+
+    function fillStars(upToValue) {
+      document.querySelectorAll('#rating-stars .rating-star').forEach(function(star) {
+        const val = parseInt(star.getAttribute('data-value'), 10);
+        star.classList.toggle('filled', val <= upToValue);
+      });
+    }
+
+    function initRatingWidget() {
+      const widget = document.getElementById('rating-widget');
+      if (!widget) return;
+      const stars = widget.querySelectorAll('.rating-star');
+      let hasVoted = !!localStorage.getItem(RATING_STORAGE_KEY);
+      if (hasVoted) widget.classList.add('voted');
+
+      // Self-initializing counters: creates them on first-ever visit site-wide,
+      // silently ignored (409) on every visit after that.
+      fetch(RATING_API + '/create?namespace=' + RATING_NAMESPACE + '&key=' + RATING_SUM_KEY + '&value=0&update_lowerbound=0&update_upperbound=5').catch(function(){});
+      fetch(RATING_API + '/create?namespace=' + RATING_NAMESPACE + '&key=' + RATING_COUNT_KEY + '&value=0&update_lowerbound=0&update_upperbound=1').catch(function(){});
+
+      function loadCurrent() {
+        Promise.all([
+          fetch(RATING_API + '/get/' + RATING_NAMESPACE + '/' + RATING_SUM_KEY).then(function(r){ return r.json(); }).catch(function(){ return { value: 0 }; }),
+          fetch(RATING_API + '/get/' + RATING_NAMESPACE + '/' + RATING_COUNT_KEY).then(function(r){ return r.json(); }).catch(function(){ return { value: 0 }; })
+        ]).then(function(results) {
+          const sum = results[0].value || 0;
+          const count = results[1].value || 0;
+          renderRatingSummary(sum, count);
+          if (hasVoted) {
+            fillStars(parseInt(localStorage.getItem(RATING_STORAGE_KEY), 10));
+          } else if (count > 0) {
+            fillStars(Math.round(sum / count));
+          }
+        });
+      }
+
+      loadCurrent();
+      if (hasVoted) return;
+
+      stars.forEach(function(star) {
+        star.addEventListener('mouseenter', function() {
+          if (hasVoted) return;
+          fillStars(parseInt(star.getAttribute('data-value'), 10));
+        });
+        star.addEventListener('click', function() {
+          if (hasVoted) return;
+          const value = parseInt(star.getAttribute('data-value'), 10);
+          hasVoted = true;
+          widget.classList.add('voted');
+          localStorage.setItem(RATING_STORAGE_KEY, String(value));
+          fillStars(value);
+          fetch(RATING_API + '/update/' + RATING_NAMESPACE + '/' + RATING_SUM_KEY + '?amount=' + value)
+            .then(function() { return fetch(RATING_API + '/hit/' + RATING_NAMESPACE + '/' + RATING_COUNT_KEY); })
+            .then(function() { loadCurrent(); })
+            .catch(function() { /* ignore network errors */ });
+        });
+      });
+
+      widget.addEventListener('mouseleave', function() {
+        if (hasVoted) return;
+        loadCurrent();
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initRatingWidget);
+    } else {
+      initRatingWidget();
+    }
+  })();
+
+  // Review panel toggle - shows/hides the "Inside the Relax Player" article
   function toggleReview() {
     const panel = document.getElementById('review-panel');
     const btn = document.getElementById('review-toggle-btn');
