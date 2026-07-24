@@ -228,6 +228,23 @@ body::before {
   }
 }
 
+/* Pause purely decorative animations while the browser tab is in the
+   background — they add nothing when nobody can see them, and letting
+   them keep running wastes battery/GPU. Toggled via the 'tab-hidden'
+   class on <body> (see visibilitychange listener in JS). Deliberately
+   NOT applied to the footer logo pulse or the Christmas overlay, which
+   are handled on their own. */
+body.tab-hidden::before {
+  animation-play-state: paused;
+}
+
+body.tab-hidden .ambient-controls .ctrl-knob,
+body.tab-hidden .ambient-controls .ctrl-fader::after,
+body.tab-hidden .ambient-controls .ctrl-led,
+body.tab-hidden .header-equalizer span {
+  animation-play-state: paused;
+}
+
 @media (max-width: 700px) {
   .ambient-controls {
     top: auto;
@@ -275,9 +292,6 @@ header {
   background-position: center;
   padding: 80px 20px;
   border-radius: 18px;
-  border: 1px solid rgba(0, 240, 255, 0.2);
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
-  animation: sectionGlow 7s ease-in-out infinite;
 }
 
 /* Top-right cluster in header: Relax Player badge + review toggle, stacked */
@@ -407,18 +421,6 @@ header {
   opacity: 1;
 }
 
-@media (max-width: 420px) {
-  .ms-store-badge .ms-label-full {
-    display: none;
-  }
-  .ms-store-badge {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    gap: 0;
-  }
-}
-
 /* platforms section - unified, collapsible links to social/store platforms */
 .platforms {
   margin-top: 45px;
@@ -546,6 +548,33 @@ header {
   }
 }
 
+/* On very small screens / narrow displays, collapse all four header
+   buttons (Microsoft Store, Demo Music, Relax Player, Review) down to
+   plain round icon buttons — matching the Microsoft Store badge's own
+   behavior. Text labels reappear automatically above this width. */
+@media (max-width: 420px) {
+  .ms-store-badge .ms-label-full,
+  .relax-player-badge .label-full,
+  .review-toggle-btn .label-full,
+  .demo-toggle-btn .label-full {
+    display: none;
+  }
+  .ms-store-badge,
+  .relax-player-badge,
+  .review-toggle-btn,
+  .demo-toggle-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    gap: 0;
+  }
+  .relax-player-badge .badge-icon,
+  .review-toggle-btn .badge-icon,
+  .demo-toggle-btn .badge-icon {
+    font-size: 15px;
+  }
+}
+
 h1 {
   font-size: clamp(30px, 9vw, 72px);
   font-weight: 600;
@@ -566,6 +595,50 @@ h1 {
   margin-bottom: 0;
   line-height: 1.6;
   text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+/* subtle ambient equalizer under the header title — purely decorative,
+   fills the empty space below "SYNTHLUCIDA" without competing with it */
+.header-equalizer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 5px;
+  height: 34px;
+  margin: 26px auto 0;
+  width: 100%;
+  max-width: 100%;
+  opacity: 0.4;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%);
+}
+
+.header-equalizer span {
+  flex: 1 1 auto;
+  min-width: 2px;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to top, #00f0ff, #ff00ff);
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+  transform-origin: bottom;
+  transform: scaleY(0.18);
+  animation-name: eqBounce;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes eqBounce {
+  0%, 100% { transform: scaleY(0.15); }
+  50% { transform: scaleY(0.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-equalizer span {
+    animation: none;
+    transform: scaleY(0.45);
+  }
 }
 
 h2 {
@@ -773,6 +846,40 @@ a.review-cta:hover {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+.gear-heading {
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #00f0ff;
+  margin: 30px 0 16px;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+}
+
+/* Visually hides content while keeping it in the DOM for search engines
+   and screen readers — NOT display:none / visibility:hidden, which are
+   removed from the accessibility tree and can be ignored by crawlers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.gear-photo {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 15px;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
 }
 
 /* christmas atmosphere overlay */
@@ -1213,6 +1320,25 @@ footer {
 
 }
 
+/* backdrop-filter (frosted-glass blur) is one of the more expensive CSS
+   effects to composite, especially on low-end/mobile GPUs. Drop it on
+   small screens — the underlying rgba() backgrounds already give enough
+   contrast without it — while keeping the nicer glass look on desktop. */
+@media (max-width: 480px) {
+  .relax-player-badge,
+  .review-toggle-btn,
+  .demo-toggle-btn,
+  .ms-store-badge,
+  .review-card,
+  .info-section,
+  .spotify,
+  .platforms-panel,
+  .app-download {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 </style>
 
 </head>
@@ -1238,17 +1364,17 @@ footer {
 </span>
 <span class="ms-label-full">Microsoft Store</span>
 </a>
-<button class="demo-toggle-btn" id="demo-toggle-btn" onclick="toggleDemo()" aria-expanded="false" aria-controls="radio-section">
-<span class="badge-icon">🎵</span>Demo Music
+<button class="demo-toggle-btn" id="demo-toggle-btn" onclick="toggleDemo()" aria-expanded="false" aria-controls="radio-section" aria-label="Demo Music" title="Demo Music">
+<span class="badge-icon">🎵</span><span class="label-full">Demo Music</span>
 </button>
 </div>
 
 <div class="header-topright">
-<a class="relax-player-badge" href="player.html" aria-label="Open the SYNTHLUCIDA Relax Player">
-<span class="badge-icon">🎧</span>Relax Player
+<a class="relax-player-badge" href="player.html" aria-label="Open the SYNTHLUCIDA Relax Player" title="Relax Player">
+<span class="badge-icon">🎧</span><span class="label-full">Relax Player</span>
 </a>
-<button class="review-toggle-btn" id="review-toggle-btn" onclick="toggleReview()" aria-expanded="false" aria-controls="review-panel">
-<span class="badge-icon">★</span>Review
+<button class="review-toggle-btn" id="review-toggle-btn" onclick="toggleReview()" aria-expanded="false" aria-controls="review-panel" aria-label="Review" title="Review">
+<span class="badge-icon">★</span><span class="label-full">Review</span>
 </button>
 </div>
 
@@ -1256,6 +1382,37 @@ footer {
 
 <div class="subtitle">
 Electronic Music Producer • Chillout • Ambient • Progressive
+</div>
+
+<div class="header-equalizer" aria-hidden="true">
+<span style="animation-duration:3.11s; animation-delay:-0.55s;"></span>
+<span style="animation-duration:3.83s; animation-delay:-0.37s;"></span>
+<span style="animation-duration:3.58s; animation-delay:-1.37s;"></span>
+<span style="animation-duration:2.53s; animation-delay:-1.33s;"></span>
+<span style="animation-duration:2.48s; animation-delay:-1.13s;"></span>
+<span style="animation-duration:2.55s; animation-delay:-0.32s;"></span>
+<span style="animation-duration:3.33s; animation-delay:-2.77s;"></span>
+<span style="animation-duration:2.67s; animation-delay:-0.67s;"></span>
+<span style="animation-duration:3.78s; animation-delay:-3.59s;"></span>
+<span style="animation-duration:3.67s; animation-delay:-1.52s;"></span>
+<span style="animation-duration:4.55s; animation-delay:-0.31s;"></span>
+<span style="animation-duration:4.29s; animation-delay:-1.31s;"></span>
+<span style="animation-duration:2.72s; animation-delay:-0.41s;"></span>
+<span style="animation-duration:3.08s; animation-delay:-2.53s;"></span>
+<span style="animation-duration:2.8s; animation-delay:-1.67s;"></span>
+<span style="animation-duration:3.81s; animation-delay:-1.48s;"></span>
+<span style="animation-duration:3.61s; animation-delay:-0.32s;"></span>
+<span style="animation-duration:2.53s; animation-delay:-0.6s;"></span>
+<span style="animation-duration:3.9s; animation-delay:-1.72s;"></span>
+<span style="animation-duration:3.09s; animation-delay:-1.85s;"></span>
+<span style="animation-duration:3.4s; animation-delay:-1.09s;"></span>
+<span style="animation-duration:4.15s; animation-delay:-2.93s;"></span>
+<span style="animation-duration:2.94s; animation-delay:-1.73s;"></span>
+<span style="animation-duration:3.56s; animation-delay:-3.13s;"></span>
+<span style="animation-duration:4.0s; animation-delay:-1.22s;"></span>
+<span style="animation-duration:4.56s; animation-delay:-0.63s;"></span>
+<span style="animation-duration:3.32s; animation-delay:-2.54s;"></span>
+<span style="animation-duration:2.73s; animation-delay:-1.39s;"></span>
 </div>
 
 </header>
@@ -1383,6 +1540,10 @@ We offer music and sounds for various purposes, from relaxation to commercial pr
 
 We are focused on independent music production.
 
+<h3 class="gear-heading visually-hidden">Studio & Sound Design Gear</h3>
+
+<img src="nord-lead-4.jpg" alt="Nord Lead 4 analog modeling synthesizer on the SYNTHLUCIDA studio desk, used for sound design and patch programming" class="gear-photo" loading="lazy" width="1600" height="900">
+
 <br><br>
 
 Thank you for your time and visit.
@@ -1391,7 +1552,7 @@ Thank you for your time and visit.
 
 Dave - SYNTHLUCIDA rec.
 
-<img id="thank-you-photo" src="dazante.jpg" alt="foto" class="thank-you-image" loading="lazy" style="display: block; margin: 20px auto 0 auto;">
+<img id="thank-you-photo" src="dazante.jpg" alt="Dave, the producer behind SYNTHLUCIDA, in his home studio" class="thank-you-image" loading="lazy" style="display: block; margin: 20px auto 0 auto;">
 
 </div>
 
@@ -1541,6 +1702,26 @@ rel="noopener noreferrer">
 
 <script>
   // ==========================================
+  // Shared helper for talking to the third-party CountAPI service
+  // (used by both the rating widget and the visitor stats below).
+  // A plain fetch() has no timeout of its own — if the free service
+  // is slow or unreachable, the request can hang indefinitely and
+  // leave the UI stuck showing "…" forever. This wraps fetch with an
+  // AbortController so any call gives up after a fixed time and falls
+  // back to the normal .catch() handling instead of hanging.
+  // ==========================================
+  function fetchWithTimeout(url, timeoutMs) {
+    timeoutMs = timeoutMs || 6000;
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+    return fetch(url, { signal: controller.signal }).finally(function () {
+      clearTimeout(timer);
+    });
+  }
+</script>
+
+<script>
+  // ==========================================
   // SHARED STAR RATING WIDGET
   // Uses CountAPI (countapi.mileshilliard.com — a free, key-free public
   // counter service and the actively maintained successor to the now-dead
@@ -1577,18 +1758,18 @@ rel="noopener noreferrer">
     // Reads a counter's current value. Treats a missing key (never voted
     // on yet, anywhere) as 0 instead of erroring out.
     function getCounter(key) {
-      return fetch(RATING_API + '/get/' + key)
+      return fetchWithTimeout(RATING_API + '/get/' + key)
         .then(function(r) { return r.ok ? r.json() : { value: 0 }; })
         .then(function(data) { return parseInt(data.value, 10) || 0; })
         .catch(function() { return 0; });
     }
 
     function setCounter(key, value) {
-      return fetch(RATING_API + '/set/' + key + '?value=' + value).catch(function(){});
+      return fetchWithTimeout(RATING_API + '/set/' + key + '?value=' + value).catch(function(){});
     }
 
     function hitCounter(key) {
-      return fetch(RATING_API + '/hit/' + key).catch(function(){});
+      return fetchWithTimeout(RATING_API + '/hit/' + key).catch(function(){});
     }
 
     function initRatingWidget() {
@@ -1974,6 +2155,21 @@ rel="noopener noreferrer">
 </script>
 
 <script>
+  // Pause decorative, always-running animations (background drift +
+  // synth control strip) while this tab isn't visible, to save
+  // battery/GPU. Christmas overlay and the footer logo pulse are left
+  // alone — the Christmas canvas already manages its own render loop,
+  // and the logo pulse was asked to keep running as-is.
+  (function () {
+    function applyVisibility() {
+      document.body.classList.toggle('tab-hidden', document.hidden);
+    }
+    document.addEventListener('visibilitychange', applyVisibility);
+    applyVisibility();
+  })();
+</script>
+
+<script>
   // Ambient decorative synth control strip (knobs / faders / LEDs) —
   // purely visual background element, no functionality.
   (function () {
@@ -2043,7 +2239,7 @@ rel="noopener noreferrer">
     }
 
     function hit(key) {
-      return fetch(STATS_API + '/hit/' + key)
+      return fetchWithTimeout(STATS_API + '/hit/' + key)
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) { return data && typeof data.value !== 'undefined' ? data.value : null; })
         .catch(function () { return null; });
