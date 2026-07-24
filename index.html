@@ -301,6 +301,13 @@ header {
   align-items: flex-end;
   gap: 8px;
   z-index: 2;
+  /* Forces its own GPU compositing layer. Without this, mobile browsers
+     (mainly iOS Safari) can drop the layer for absolutely-positioned +
+     backdrop-filter elements during scroll-bounce repaint, making them
+     vanish until something else forces a repaint. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
 .relax-player-badge,
@@ -317,8 +324,6 @@ header {
   text-decoration: none;
   background: rgba(0,0,0,0.5);
   border: 1px solid rgba(0,240,255,0.4);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 0 14px rgba(0,240,255,0.25);
   color: #00f0ff;
   font-size: 11px;
@@ -393,6 +398,11 @@ header {
   align-items: flex-start;
   gap: 8px;
   z-index: 2;
+  /* See .header-topright for why this is here — fixes icons vanishing
+     on mobile after scrolling to the bottom and back up. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
 .ms-store-badge {
@@ -405,8 +415,6 @@ header {
   text-decoration: none;
   background: rgba(0,0,0,0.5);
   border: 1px solid rgba(0,240,255,0.4);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 0 14px rgba(0,240,255,0.25);
   color: #00f0ff;
   font-size: 11px;
@@ -743,6 +751,50 @@ header {
   .quick-link-btn .badge-icon,
   .app-toggle-btn .badge-icon {
     font-size: 15px;
+  }
+
+  /* Icon-only mode: instead of 2 badges pinned top-left, 2 pinned
+     top-right, and the Android button off on its own further down,
+     lay all 5 out together in a single centered row at the top of the
+     header. header-topleft/topright and app-toggle-btn are all direct
+     children of <header>, so this is done by turning header itself
+     into a wrapping flex row and pulling those three ahead of the
+     title/subtitle/quick-links via `order`. */
+  header {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 26px 16px 50px;
+  }
+  .header-topleft,
+  .header-topright {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    flex-direction: row;
+  }
+  .header-topleft { order: 1; }
+  .header-topright { order: 2; }
+  .app-toggle-btn {
+    order: 3;
+    margin-top: 0;
+  }
+  .hero-title {
+    order: 4;
+    flex-basis: 100%;
+    margin-top: 10px;
+  }
+  .subtitle {
+    order: 5;
+    flex-basis: 100%;
+  }
+  .quick-links {
+    order: 6;
+    flex-basis: 100%;
   }
 }
 
