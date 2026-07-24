@@ -779,16 +779,25 @@ header {
     grid-column: 1 / -1;
     justify-self: center;
     margin-top: 0;
+    /* Without an explicit order, grid auto-placement would put this
+       button where it sits in the HTML — after Quick Links, at the very
+       bottom — since header-topleft/topright's children (order: 0,
+       default) come earlier in the markup. Force it right after the 2x2
+       badge grid instead. */
+    order: 1;
   }
   .hero-title {
     grid-column: 1 / -1;
     margin-top: 10px;
+    order: 2;
   }
   .subtitle {
     grid-column: 1 / -1;
+    order: 3;
   }
   .quick-links {
     grid-column: 1 / -1;
+    order: 4;
   }
 }
 
@@ -2554,6 +2563,30 @@ Privacy Policy
     } else {
       initLogoToggle();
     }
+  })();
+</script>
+
+<script>
+  // Safety net for a Chrome/Edge-on-mobile rendering glitch where the
+  // header buttons (top badges, quick links, Android App) occasionally
+  // fail to repaint after a scroll and stay invisible until something
+  // else forces a repaint. This nudges the header's transform by a
+  // fraction of a pixel right after scrolling settles, which is enough
+  // to make the browser recomposite it without any visible jump.
+  (function () {
+    const header = document.querySelector('header');
+    if (!header) return;
+    let scrollTimer = null;
+    function nudge() {
+      header.style.transform = 'translateZ(0.01px)';
+      requestAnimationFrame(function () {
+        header.style.transform = 'translateZ(0)';
+      });
+    }
+    window.addEventListener('scroll', function () {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(nudge, 150);
+    }, { passive: true });
   })();
 </script>
 
