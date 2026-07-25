@@ -2580,39 +2580,31 @@ Privacy Policy
 </script>
 
 <script>
-  // Safety net for a Chrome/Edge-on-mobile rendering glitch where the
-  // header buttons (top badges, quick links, Android App) occasionally
-  // fail to repaint after a scroll — especially a fast one — and stay
-  // invisible until something else forces a repaint. Two parts:
-  // 1) while actively scrolling, pause the heavy decorative animations
-  //    (rotating background glow, synth control strip) so the browser's
-  //    compositor has less to juggle during the scroll itself;
-  // 2) once scrolling/resizing settles, nudge each header element's own
-  //    transform by a fraction of a pixel to force a fresh repaint.
-  // Runs on both scroll and resize since on mobile Chrome/Edge the
-  // address bar hiding/showing fires a resize, not just a scroll.
+  // Safety net for a Chrome/Edge-on-mobile rendering glitch: scroll all
+  // the way down, then scroll fast back up, and part of the header —
+  // sometimes a button, sometimes even the SYNTHLUCIDA title itself —
+  // can stay blank. This looks like the browser evicting/failing to
+  // re-rasterize the header's tiles once it scrolls back into view,
+  // rather than just a compositing-layer issue, so a plain transform
+  // nudge (recompose only) isn't enough — this forces an actual
+  // re-render by briefly removing the header from layout and putting it
+  // straight back, synchronously, so there's no visible flash.
   (function () {
-    const targets = Array.from(document.querySelectorAll(
-      'header, .header-topleft, .header-topright, .quick-links, .app-toggle-btn'
-    ));
-    if (!targets.length) return;
+    const header = document.querySelector('header');
+    if (!header) return;
     let timer = null;
-    function nudge() {
-      targets.forEach(function (el) {
-        el.style.transform = 'translateZ(0.01px)';
-      });
-      requestAnimationFrame(function () {
-        targets.forEach(function (el) {
-          el.style.transform = 'translateZ(0)';
-        });
-      });
+    function forceRepaint() {
+      const prevDisplay = header.style.display;
+      header.style.display = 'none';
+      void header.offsetHeight; // forces the browser to apply it before we undo it
+      header.style.display = prevDisplay;
     }
     function schedule() {
       document.body.classList.add('is-scrolling');
       clearTimeout(timer);
       timer = setTimeout(function () {
         document.body.classList.remove('is-scrolling');
-        nudge();
+        forceRepaint();
       }, 150);
     }
     window.addEventListener('scroll', schedule, { passive: true });
