@@ -93,7 +93,7 @@ body::before {
     radial-gradient(circle, rgba(0,255,255,0.07), transparent 60%),
     radial-gradient(circle, rgba(255,0,255,0.07), transparent 60%),
     radial-gradient(circle, rgba(140,0,255,0.06), transparent 55%);
-  animation: move 18s linear infinite, colorDrift 34s ease-in-out infinite;
+  animation: move 18s linear infinite;
   z-index: -1;
 }
 
@@ -104,11 +104,6 @@ body::before {
   100% {
     transform: rotate(360deg);
   }
-}
-
-@keyframes colorDrift {
-  0%, 100% { filter: hue-rotate(0deg); }
-  50% { filter: hue-rotate(35deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2328,45 +2323,6 @@ Privacy Policy
     } else {
       initLogoToggle();
     }
-  })();
-</script>
-
-<script>
-  // Safety net for a Chrome/Edge-on-mobile rendering glitch: scroll all
-  // the way down, then scroll fast back up, and part of the header —
-  // sometimes a button, sometimes even the SYNTHLUCIDA title itself —
-  // can stay blank. This looks like the browser evicting/failing to
-  // re-rasterize the header's tiles once it scrolls back into view,
-  // rather than just a compositing-layer issue, so a plain transform
-  // nudge (recompose only) isn't enough — this forces an actual
-  // re-render by briefly removing the header from layout and putting it
-  // straight back, synchronously, so there's no visible flash.
-  (function () {
-    const header = document.querySelector('header');
-    if (!header) return;
-    // Only run on mobile/touch devices — this is where the rendering
-    // glitch actually happens. On desktop, briefly hiding the header
-    // shrinks the page height and can make the browser clamp/jump the
-    // scroll position, so we skip it there entirely.
-    const isMobile = window.matchMedia('(pointer: coarse)').matches;
-    if (!isMobile) return;
-    let timer = null;
-    function forceRepaint() {
-      const prevDisplay = header.style.display;
-      header.style.display = 'none';
-      void header.offsetHeight; // forces the browser to apply it before we undo it
-      header.style.display = prevDisplay;
-    }
-    function schedule() {
-      document.body.classList.add('is-scrolling');
-      clearTimeout(timer);
-      timer = setTimeout(function () {
-        document.body.classList.remove('is-scrolling');
-        forceRepaint();
-      }, 150);
-    }
-    window.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule, { passive: true });
   })();
 </script>
 
