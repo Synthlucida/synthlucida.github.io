@@ -840,25 +840,40 @@ header::after {
 }
 
 /* On very small screens / narrow displays, the button row below the
-   header regroups into a fixed 2-column grid so it lays out the same
+   header regroups into a fixed 2-column layout so it lays out the same
    way on every phone instead of wrapping unpredictably. Text labels
-   always stay visible. */
+   always stay visible.
+   NOTE: deliberately kept as flexbox (not CSS grid) here. The wrapper
+   elements (.header-topleft/.header-topright/.quick-links) use
+   `display: contents` to flatten their buttons into this row, and that
+   combination is unreliable with `display: grid` on mobile Safari —
+   buttons could render clipped down to a sliver after being tapped.
+   Flexbox + display:contents does not have that bug, so 2-per-row is
+   achieved with flex-basis instead of grid-template-columns. */
 @media (max-width: 460px) {
   header {
     padding: 26px 16px 34px;
   }
   .header-menu-panel {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(106px, auto));
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 8px;
   }
   .header-menu-panel.open {
     max-height: 1400px;
   }
+  .header-menu-panel .ms-store-badge,
+  .header-menu-panel .relax-player-badge,
+  .header-menu-panel .review-toggle-btn,
+  .header-menu-panel .demo-toggle-btn,
+  .header-menu-panel .quick-link-btn {
+    flex: 0 1 calc(50% - 4px);
+    min-width: 0;
+  }
   .header-menu-panel .app-toggle-btn {
-    grid-column: 1 / -1;
-    justify-self: center;
+    flex: 0 1 100%;
+    justify-content: center;
   }
 }
 
