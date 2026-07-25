@@ -117,162 +117,11 @@ body::before {
   }
 }
 
-/* ambient background synth control strip — decorative knobs & faders, no function */
-.ambient-controls {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 38vh;
-  height: 90px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(16px, 4vw, 46px);
-  z-index: -2;
-  pointer-events: none;
-  opacity: 0.16;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
-}
-
-.ambient-controls .ctrl-knob {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  position: relative;
-  background: radial-gradient(circle at 35% 30%, rgba(0,240,255,0.3), rgba(150,90,255,0.12) 60%, rgba(0,0,0,0.3) 100%);
-  border: 1px solid rgba(0,240,255,0.35);
-  box-shadow: 0 0 10px rgba(0,240,255,0.25);
-  animation-name: ctrlKnobTurn;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  will-change: transform;
-}
-
-.ambient-controls .ctrl-knob::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  width: 2px;
-  height: 8px;
-  background: rgba(0,240,255,0.8);
-  transform: translateX(-50%);
-  border-radius: 2px;
-  box-shadow: 0 0 4px rgba(0,240,255,0.6);
-}
-
-@keyframes ctrlKnobTurn {
-  0%, 100% { transform: rotate(-50deg); }
-  50% { transform: rotate(50deg); }
-}
-
-.ambient-controls .ctrl-fader {
-  width: 10px;
-  height: 64px;
-  flex: 0 0 auto;
-  border-radius: 6px;
-  position: relative;
-  background: linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(0,240,255,0.05));
-  border: 1px solid rgba(0,240,255,0.25);
-  box-shadow: 0 0 8px rgba(0,240,255,0.15);
-}
-
-.ambient-controls .ctrl-fader::after {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  width: 16px;
-  height: 8px;
-  margin-left: -8px;
-  border-radius: 3px;
-  background: linear-gradient(to bottom, rgba(0,240,255,0.9), rgba(150,90,255,0.6));
-  box-shadow: 0 0 8px rgba(0,240,255,0.5);
-  animation-name: ctrlFaderSlide;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-duration: var(--fd, 9s);
-  animation-delay: var(--fdelay, 0s);
-  will-change: transform;
-}
-
-@keyframes ctrlFaderSlide {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(46px); }
-}
-
-.ambient-controls .ctrl-led {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0,255,180,0.95), rgba(0,255,180,0.15) 70%);
-  box-shadow: 0 0 6px rgba(0,255,180,0.7);
-  animation-name: ctrlLedBlink;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-@keyframes ctrlLedBlink {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ambient-controls .ctrl-knob,
-  .ambient-controls .ctrl-fader::after,
-  .ambient-controls .ctrl-led {
-    animation: none;
-  }
-}
-
-/* Pause purely decorative animations while the browser tab is in the
-   background — they add nothing when nobody can see them, and letting
-   them keep running wastes battery/GPU. Toggled via the 'tab-hidden'
-   class on <body> (see visibilitychange listener in JS). Deliberately
-   NOT applied to the footer logo pulse or the Christmas overlay, which
-   are handled on their own. */
-body.tab-hidden::before {
-  animation-play-state: paused;
-}
-
-body.tab-hidden .ambient-controls .ctrl-knob,
-body.tab-hidden .ambient-controls .ctrl-fader::after,
-body.tab-hidden .ambient-controls .ctrl-led {
-  animation-play-state: paused;
-}
-
-/* Same idea, but while actively (especially fast) scrolling on mobile:
-   these two animated layers are the heaviest continuous repaint/compositor
-   load on the page, and fast fling-scrolling on Chrome/Edge mobile can
-   make the browser drop other layers (like the header buttons) under that
-   load. Pausing them for the duration of the scroll frees up headroom.
-   Toggled via the 'is-scrolling' class on <body> (see scroll listener). */
+/* Pause the ambient background drift while the browser tab is in the
+   background, and while actively scrolling on mobile — see JS listeners. */
+body.tab-hidden::before,
 body.is-scrolling::before {
   animation-play-state: paused;
-}
-
-body.is-scrolling .ambient-controls .ctrl-knob,
-body.is-scrolling .ambient-controls .ctrl-fader::after,
-body.is-scrolling .ambient-controls .ctrl-led {
-  animation-play-state: paused;
-}
-
-@media (max-width: 700px) {
-  .ambient-controls {
-    top: auto;
-    bottom: 36vh;
-    height: 70px;
-  }
-  .ambient-controls .ctrl-fader {
-    height: 48px;
-  }
-  @keyframes ctrlFaderSlide {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(30px); }
-  }
 }
 
 /* faint synthwave horizon grid at the very bottom — sits behind the equalizer */
@@ -828,54 +677,6 @@ h1 {
     0 0 42px rgba(255,0,255,0.18);
   overflow-wrap: break-word;
   max-width: 100%;
-}
-
-/* retro synthwave "sun" behind the title, in the site's own cyan/purple/
-   magenta palette rather than the classic orange — sits centered behind
-   SYNTHLUCIDA, low-opacity so the text stays readable and calm */
-.hero-title {
-  position: relative;
-}
-
-.synth-sun {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: clamp(150px, 34vw, 280px);
-  height: clamp(150px, 34vw, 280px);
-  border-radius: 50%;
-  background: linear-gradient(180deg, #00f0ff 0%, #8c3bff 55%, #ff2fd0 100%);
-  opacity: 0.28;
-  overflow: hidden;
-  box-shadow: 0 0 50px rgba(0,240,255,0.3), 0 0 90px rgba(255,0,255,0.18);
-  pointer-events: none;
-  z-index: 0;
-  animation: synthSunPulse 7s ease-in-out infinite;
-}
-
-.synth-sun::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0px, transparent 7px,
-    rgba(5,0,20,0.65) 7px, rgba(5,0,20,0.65) 11px
-  );
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 42%, black 48%, black 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, transparent 42%, black 48%, black 100%);
-}
-
-@keyframes synthSunPulse {
-  0%, 100% { opacity: 0.24; }
-  50% { opacity: 0.36; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .synth-sun {
-    animation: none;
-  }
 }
 
 .subtitle {
@@ -1593,7 +1394,6 @@ footer {
 <body>
 
 <div class="ambient-horizon" aria-hidden="true"></div>
-<div class="ambient-controls" id="ambient-controls" aria-hidden="true"></div>
 
 <main class="container">
 
@@ -1626,7 +1426,6 @@ footer {
 </div>
 
 <div class="hero-title">
-<div class="synth-sun" aria-hidden="true"></div>
 <h1>SYNTHLUCIDA</h1>
 </div>
 
@@ -2447,53 +2246,6 @@ Privacy Policy
 </script>
 
 <script>
-  // Ambient decorative synth control strip (knobs / faders / LEDs) —
-  // purely visual background element, no functionality.
-  (function () {
-    const wrap = document.getElementById('ambient-controls');
-    if (!wrap) return;
-
-    const pattern = ['knob', 'fader', 'knob', 'led', 'fader', 'knob', 'led', 'fader', 'knob'];
-
-    function buildControls() {
-      const count = window.innerWidth < 480 ? 6 : (window.innerWidth < 900 ? 8 : 11);
-      wrap.innerHTML = '';
-      for (let i = 0; i < count; i++) {
-        const kind = pattern[i % pattern.length];
-        const el = document.createElement('div');
-        el.className = 'ctrl-' + kind;
-
-        if (kind === 'knob') {
-          const duration = (6 + Math.random() * 5).toFixed(2);
-          const delay = (Math.random() * -8).toFixed(2);
-          el.style.animationDuration = duration + 's';
-          el.style.animationDelay = delay + 's';
-        } else if (kind === 'fader') {
-          const duration = (7 + Math.random() * 5).toFixed(2);
-          const delay = (Math.random() * -9).toFixed(2);
-          el.style.setProperty('--fd', duration + 's');
-          el.style.setProperty('--fdelay', delay + 's');
-        } else if (kind === 'led') {
-          const duration = (1.6 + Math.random() * 2.2).toFixed(2);
-          const delay = (Math.random() * -3).toFixed(2);
-          el.style.animationDuration = duration + 's';
-          el.style.animationDelay = delay + 's';
-        }
-        wrap.appendChild(el);
-      }
-    }
-
-    buildControls();
-
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(buildControls, 300);
-    });
-  })();
-</script>
-
-<script>
   // ==========================================
   // VISITOR STATS — hidden page-view counter.
   // Uses the same free, key-free CountAPI service already used by the
@@ -2592,6 +2344,12 @@ Privacy Policy
   (function () {
     const header = document.querySelector('header');
     if (!header) return;
+    // Only run on mobile/touch devices — this is where the rendering
+    // glitch actually happens. On desktop, briefly hiding the header
+    // shrinks the page height and can make the browser clamp/jump the
+    // scroll position, so we skip it there entirely.
+    const isMobile = window.matchMedia('(pointer: coarse)').matches;
+    if (!isMobile) return;
     let timer = null;
     function forceRepaint() {
       const prevDisplay = header.style.display;
