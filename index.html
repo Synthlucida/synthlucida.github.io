@@ -387,6 +387,25 @@ header::after {
   opacity: 0.85;
 }
 
+/* Drifting flock of birds gliding across the synth sun — a soft,
+   silhouette-style detail that gives the header a slow, breathing
+   sunset atmosphere. Each bird is an absolutely-positioned box that
+   drifts left→right (via left/top so percentages resolve against the
+   header, not the bird itself) while its inner SVG wings flap on a
+   quick separate loop. Placed above the sun (z-index 2) so the birds
+   read as flying in front of it, in front of the star field. Kept
+   slow and few in number so it stays ambient background, not a
+   distraction. */
+.sun-birds-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* Visually hide content while keeping it in the DOM for SEO/screen
    readers — used for the original keyword-rich subtitle line. */
 .visually-hidden {
@@ -1723,6 +1742,8 @@ footer {
 <div class="synth-sun-disc"></div>
 </div>
 
+<canvas class="sun-birds-canvas" id="sunBirdsCanvas" aria-hidden="true"></canvas>
+
 <div class="hero-title">
 <h1>SYNTHLUCIDA</h1>
 </div>
@@ -2829,6 +2850,148 @@ Privacy Policy
   } else {
     initLang();
   }
+</script>
+
+<script>
+  // ==========================================
+  // Header "sun birds" — a small canvas overlay drawn behind/around the
+  // synth sun, using the exact same bird math as the WEATHER: SUN
+  // ambient effect in the Relax Player (drifting flock + curved,
+  // flapping-wing strokes + soft glints), just scoped to the header
+  // instead of the whole viewport. Kept as its own tiny rAF loop so it
+  // doesn't depend on anything else on this page.
+  // ==========================================
+  (function () {
+    const canvas = document.getElementById('sunBirdsCanvas');
+    if (!canvas) return;
+    const header = canvas.closest('header');
+    const ctx = canvas.getContext('2d');
+
+    let birds = [];
+    let glints = [];
+    let frame = 0;
+    let running = true;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function initFlock() {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const birdCount = Math.max(3, Math.min(7, Math.floor(w / 160)));
+      birds = [];
+      for (let i = 0; i < birdCount; i++) {
+        const size = Math.random() * 8 + 4; // 4–12: keeps birds small in the header
+        birds.push({
+          x: Math.random() * w * 1.4 - w * 0.2,
+          y: h * (0.1 + Math.random() * 0.5),
+          speed: (Math.random() * 0.45 + 0.12) * (size < 7 ? 1.4 : 1),
+          size: size,
+          flap: Math.random() * Math.PI * 2,
+          flapSpeed: Math.random() * 0.06 + 0.05,
+          bobPhase: Math.random() * Math.PI * 2,
+          bobAmount: Math.random() * 6 + 3
+        });
+      }
+
+      const glintCount = Math.max(10, Math.min(26, Math.floor(w / 30)));
+      glints = [];
+      for (let i = 0; i < glintCount; i++) {
+        glints.push({
+          x: Math.random() * w,
+          yRatio: 0.7 + Math.random() * 0.28,
+          r: Math.random() * 1.2 + 0.4,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.035 + 0.015
+        });
+      }
+    }
+
+    function resize() {
+      const rect = header ? header.getBoundingClientRect() : canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      initFlock();
+    }
+
+    // Soft glints of reflected light, low in the header — echoes the
+    // water-glint layer from the player's SUN ambient effect.
+    function drawGlints() {
+      for (let i = 0; i < glints.length; i++) {
+        const g = glints[i];
+        g.phase += g.speed;
+        const tw = Math.max(0, Math.sin(g.phase));
+        if (tw <= 0.03) continue;
+        const gy = canvas.height * g.yRatio;
+        ctx.fillStyle = `rgba(255, 224, 180, ${(tw * 0.35).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(g.x, gy, g.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Same curved, flapping-wing bird silhouette as the player: a single
+    // quadratic-curve stroke per wing, wings flap via a sine offset, and
+    // the whole bird bobs gently up and down as it drifts across.
+    function drawBirds() {
+      for (let i = 0; i < birds.length; i++) {
+        const b = birds[i];
+        b.x += b.speed;
+        b.flap += b.flapSpeed;
+        if (b.x > canvas.width + 30) {
+          b.x = -30 - Math.random() * 120;
+          b.y = canvas.height * (0.1 + Math.random() * 0.5);
+          b.size = Math.random() * 8 + 4;
+          b.speed = (Math.random() * 0.45 + 0.12) * (b.size < 7 ? 1.4 : 1);
+          b.flapSpeed = Math.random() * 0.06 + 0.05;
+        }
+        const bob = Math.sin(frame * 0.02 + b.bobPhase) * b.bobAmount * 0.15;
+        const wing = Math.sin(b.flap) * b.size * 0.6;
+        const by = b.y + bob;
+        ctx.strokeStyle = 'rgba(35, 20, 18, 0.5)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(b.x - b.size, by + wing);
+        ctx.quadraticCurveTo(b.x - b.size * 0.4, by - b.size * 0.5, b.x, by);
+        ctx.quadraticCurveTo(b.x + b.size * 0.4, by - b.size * 0.5, b.x + b.size, by + wing);
+        ctx.stroke();
+      }
+    }
+
+    function draw() {
+      if (!running) return;
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGlints();
+      drawBirds();
+      requestAnimationFrame(draw);
+    }
+
+    // Pause with the rest of the page's ambient motion — same triggers
+    // used elsewhere on this page (hidden tab, active mobile scroll) —
+    // and respect prefers-reduced-motion by never starting at all.
+    function pause() {
+      if (!running) return;
+      running = false;
+    }
+    function resume() {
+      if (running || prefersReducedMotion) return;
+      running = true;
+      requestAnimationFrame(draw);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) pause(); else resume();
+    });
+
+    if (prefersReducedMotion) {
+      resize();
+      return;
+    }
+
+    window.addEventListener('resize', resize, { passive: true });
+    resize();
+    requestAnimationFrame(draw);
+  })();
 </script>
 
 </body>
