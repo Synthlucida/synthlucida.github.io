@@ -219,6 +219,16 @@
   .btn-add-part.active { opacity: 1; border-color: var(--accent-glow); color: var(--accent-glow); box-shadow: 0 0 8px var(--accent-glow); }
   .btn-live.active { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
 
+  .btn-action.active { border-color: var(--accent-color); color: var(--accent-color); background: rgba(255,255,255,0.08); box-shadow: 0 0 8px var(--accent-color); }
+
+  .text-input-overlay {
+    position: absolute; z-index: 55; transform: translate(-50%, -50%);
+    background: rgba(10,10,15,0.92); border: 1px solid var(--accent-color); border-radius: 8px;
+    color: #fff; font-family: 'Orbitron', sans-serif; font-size: 13px; padding: 7px 10px;
+    min-width: 110px; max-width: 240px; box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 10px var(--accent-color);
+    outline: none;
+  }
+
   .part-toolbar {
     position: absolute; z-index: 50; display: flex; flex-wrap: wrap; gap: 4px; padding: 5px;
     max-width: 220px; background: rgba(10,10,15,0.92); border: 1px solid var(--accent-color); border-radius: 10px;
@@ -264,7 +274,7 @@
   #brush-size { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
   #sound-volume { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
 
-  .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; }
+  .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0; transition: 0.2s; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
 
@@ -405,8 +415,12 @@
       <li data-i18n="li_tools_5">CLEAR — wipe your painting (still undoable; the coloring outline stays)</li>
       <li data-i18n="li_tools_6">▶ ANIMATE — replay your drawing stroke by stroke, in the order you drew it</li>
       <li data-i18n="li_tools_7">⬇ VIDEO — record the animated replay and download it as a WEBM video</li>
+      <li data-i18n="li_tools_9">⬇ GIF — record the animated replay and download it as an animated GIF</li>
       <li data-i18n="li_tools_8">⬇ SAVE IMAGE — download your drawing as a PNG</li>
     </ul>
+
+    <h3 data-i18n="h_textemoji">TEXT &amp; EMOJI</h3>
+    <p data-i18n="p_textemoji">Press 🔤 TEXT, then tap anywhere on the canvas to write a word in your current brush color. Press 😀 EMOJI to open the emoji picker, choose one, then tap the canvas to drop it there. Both are added to your drawing's history, so they replay with ▶ ANIMATE and appear in your VIDEO and GIF exports too.</p>
 
     <h3 data-i18n="h_sound">AMBIENT SOUND</h3>
     <p data-i18n="p_sound">While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound "off" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.</p>
@@ -492,7 +506,10 @@
       </div>
       <div class="actions-row">
         <button class="btn-action" id="btn-animate" disabled>▶ ANIMATE</button>
+      </div>
+      <div class="actions-row">
         <button class="btn-action" id="btn-save-video" disabled>⬇ VIDEO</button>
+        <button class="btn-action" id="btn-save-gif" disabled>⬇ GIF</button>
       </div>
       <div class="actions-row">
         <button class="btn-action btn-save" id="btn-save">⬇ SAVE IMAGE</button>
@@ -530,7 +547,27 @@
         <button class="btn-template" data-template="seashell" type="button" title="Seashell">🐚</button>
         <button class="btn-template" data-template="mushroom" type="button" title="Mushroom">🍄</button>
         <button class="btn-template" data-template="rainbow" type="button" title="Rainbow">🌈</button>
+        <button class="btn-template" data-template="rocket" type="button" title="Rocket">🚀</button>
+        <button class="btn-template" data-template="whale" type="button" title="Whale">🐳</button>
+        <button class="btn-template" data-template="turtle" type="button" title="Turtle">🐢</button>
+        <button class="btn-template" data-template="crown" type="button" title="Crown">👑</button>
+        <button class="btn-template" data-template="sailboat" type="button" title="Sailboat">⛵</button>
+        <button class="btn-template" data-template="icecream" type="button" title="Ice cream">🍦</button>
+        <button class="btn-template" data-template="dragonfly" type="button" title="Dragonfly">🐉</button>
+        <button class="btn-template" data-template="robot" type="button" title="Robot">🤖</button>
+        <button class="btn-template" data-template="panda" type="button" title="Panda">🐼</button>
+        <button class="btn-template" data-template="balloon" type="button" title="Balloon">🎈</button>
       </div>
+    </div>
+
+    <div class="glass-section">
+      <div class="panel-label">TEXT &amp; EMOJI</div>
+      <div class="parts-hint" data-i18n="p_textemoji_hint">Write a word in your brush color, or drop an emoji anywhere on the canvas.</div>
+      <div class="actions-row">
+        <button class="btn-action" id="btn-text-mode" type="button">🔤 TEXT</button>
+        <button class="btn-action" id="btn-emoji-toggle" type="button" aria-expanded="false">😀 EMOJI</button>
+      </div>
+      <div class="template-gallery" id="emoji-gallery"></div>
     </div>
 
     <div class="glass-section">
@@ -603,6 +640,16 @@
   let liveBaseCanvas = null;
   let livePartCanvases = [];
   let partIdCounter = 1;
+
+  // --- TEXT & EMOJI STAMPS ---
+  let textMode = false;
+  let emojiMode = false;
+  let selectedEmoji = null;
+  let textInputEl = null;
+  let gifJsPromise = null;
+  let gifWorkerUrl = null;
+  let gifExporting = false;
+
   const MOTION_META = {
     flap: { icon: '🦋', label: 'FLAP', ampDeg: 32, speed: 7 },
     sway: { icon: '🌿', label: 'SWAY', ampDeg: 9, speed: 1.8 },
@@ -1129,6 +1176,211 @@
           tctx.stroke();
         });
       });
+    },
+    rocket(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx, cy - s * 1.3);
+      tctx.bezierCurveTo(cx + s * 0.55, cy - s * 0.75, cx + s * 0.45, cy + s * 0.6, cx + s * 0.32, cy + s * 0.95);
+      tctx.lineTo(cx - s * 0.32, cy + s * 0.95);
+      tctx.bezierCurveTo(cx - s * 0.45, cy + s * 0.6, cx - s * 0.55, cy - s * 0.75, cx, cy - s * 1.3);
+      tctx.stroke();
+      tctx.beginPath(); tctx.arc(cx, cy - s * 0.2, s * 0.2, 0, Math.PI * 2); tctx.stroke();
+      [-1, 1].forEach(side => {
+        tctx.beginPath();
+        tctx.moveTo(cx + side * s * 0.3, cy + s * 0.45);
+        tctx.lineTo(cx + side * s * 0.7, cy + s * 1.05);
+        tctx.lineTo(cx + side * s * 0.28, cy + s * 0.95);
+        tctx.closePath(); tctx.stroke();
+      });
+      [-0.14, 0, 0.14].forEach(f => {
+        tctx.beginPath();
+        tctx.moveTo(cx + s * f, cy + s * 0.95);
+        tctx.lineTo(cx + s * f * 1.6, cy + s * (1.3 + Math.random() * 0.15));
+        tctx.stroke();
+      });
+    },
+    whale(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.32;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx - s * 1.1, cy - s * 0.1);
+      tctx.bezierCurveTo(cx - s * 1.15, cy - s * 0.7, cx - s * 0.4, cy - s * 0.85, cx + s * 0.15, cy - s * 0.55);
+      tctx.bezierCurveTo(cx + s * 0.6, cy - s * 0.75, cx + s * 0.95, cy - s * 0.35, cx + s * 0.85, cy + s * 0.05);
+      tctx.bezierCurveTo(cx + s * 0.7, cy + s * 0.45, cx + s * 0.1, cy + s * 0.55, cx - s * 0.5, cy + s * 0.4);
+      tctx.bezierCurveTo(cx - s * 0.85, cy + s * 0.32, cx - s * 1.05, cy + s * 0.2, cx - s * 1.1, cy - s * 0.1);
+      tctx.stroke();
+      tctx.beginPath();
+      tctx.moveTo(cx + s * 0.85, cy + s * 0.02);
+      tctx.lineTo(cx + s * 1.2, cy - s * 0.22);
+      tctx.lineTo(cx + s * 1.18, cy + s * 0.2);
+      tctx.closePath(); tctx.stroke();
+      tctx.beginPath(); tctx.arc(cx - s * 0.75, cy - s * 0.28, s * 0.05, 0, Math.PI * 2); tctx.stroke();
+      tctx.beginPath();
+      tctx.moveTo(cx - s * 0.15, cy - s * 0.85);
+      tctx.quadraticCurveTo(cx - s * 0.1, cy - s * 1.15, cx - s * 0.22, cy - s * 1.3);
+      tctx.moveTo(cx, cy - s * 0.85);
+      tctx.quadraticCurveTo(cx + s * 0.05, cy - s * 1.2, cx - s * 0.05, cy - s * 1.4);
+      tctx.stroke();
+    },
+    turtle(w, h) {
+      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.3;
+      outlineStyle();
+      tctx.beginPath(); tctx.arc(cx, cy, R, 0, Math.PI * 2); tctx.stroke();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        tctx.beginPath();
+        tctx.arc(cx + Math.cos(a) * R * 0.5, cy + Math.sin(a) * R * 0.5, R * 0.32, 0, Math.PI * 2);
+        tctx.stroke();
+      }
+      tctx.beginPath(); tctx.arc(cx + R * 1.15, cy, R * 0.22, 0, Math.PI * 2); tctx.stroke();
+      [[0.55,0.75],[0.55,-0.75],[-0.7,0.85],[-0.7,-0.85]].forEach(([fx,fy]) => {
+        tctx.beginPath();
+        tctx.ellipse(cx + R * fx, cy + R * fy, R * 0.22, R * 0.12, Math.atan2(fy,fx), 0, Math.PI * 2);
+        tctx.stroke();
+      });
+    },
+    crown(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx - s, cy + s * 0.5);
+      tctx.lineTo(cx - s, cy - s * 0.1);
+      tctx.lineTo(cx - s * 0.55, cy + s * 0.25);
+      tctx.lineTo(cx - s * 0.28, cy - s * 0.55);
+      tctx.lineTo(cx, cy + s * 0.1);
+      tctx.lineTo(cx + s * 0.28, cy - s * 0.55);
+      tctx.lineTo(cx + s * 0.55, cy + s * 0.25);
+      tctx.lineTo(cx + s, cy - s * 0.1);
+      tctx.lineTo(cx + s, cy + s * 0.5);
+      tctx.closePath();
+      tctx.stroke();
+      [[-s, cy - s * 0.1], [-s * 0.28, cy - s * 0.55], [s * 0.28, cy - s * 0.55], [s, cy - s * 0.1]].forEach(([px, py]) => {
+        tctx.beginPath(); tctx.arc(cx + px, py, s * 0.08, 0, Math.PI * 2); tctx.stroke();
+      });
+      tctx.beginPath(); tctx.arc(cx, cy + s * 0.18, s * 0.11, 0, Math.PI * 2); tctx.stroke();
+    },
+    sailboat(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx - s * 0.9, cy + s * 0.55);
+      tctx.lineTo(cx + s * 0.9, cy + s * 0.55);
+      tctx.lineTo(cx + s * 0.6, cy + s * 0.95);
+      tctx.lineTo(cx - s * 0.6, cy + s * 0.95);
+      tctx.closePath(); tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(cx, cy + s * 0.55); tctx.lineTo(cx, cy - s * 1.1); tctx.stroke();
+      tctx.beginPath();
+      tctx.moveTo(cx + s * 0.05, cy - s * 1.05);
+      tctx.lineTo(cx + s * 0.75, cy + s * 0.35);
+      tctx.lineTo(cx + s * 0.05, cy + s * 0.5);
+      tctx.closePath(); tctx.stroke();
+      tctx.beginPath();
+      tctx.moveTo(cx - s * 0.05, cy - s * 0.55);
+      tctx.lineTo(cx - s * 0.55, cy + s * 0.4);
+      tctx.lineTo(cx - s * 0.05, cy + s * 0.5);
+      tctx.closePath(); tctx.stroke();
+      const wy = cy + s * 1.15;
+      tctx.beginPath();
+      for (let x = -s * 1.2; x <= s * 1.2; x += s * 0.15) {
+        const yy = wy + Math.sin((x / s) * 3) * s * 0.05;
+        if (x === -s * 1.2) tctx.moveTo(cx + x, yy); else tctx.lineTo(cx + x, yy);
+      }
+      tctx.stroke();
+    },
+    icecream(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx - s * 0.42, cy + s * 0.1);
+      tctx.lineTo(cx, cy + s * 1.35);
+      tctx.lineTo(cx + s * 0.42, cy + s * 0.1);
+      tctx.closePath(); tctx.stroke();
+      for (let f = -1; f <= 1; f++) {
+        tctx.beginPath();
+        tctx.moveTo(cx + f * s * 0.32, cy + s * 0.25);
+        tctx.lineTo(cx + f * s * 0.12, cy + s * 0.95);
+        tctx.stroke();
+      }
+      [[0, -0.75, 0.5], [-0.32, -0.35, 0.42], [0.32, -0.35, 0.42]].forEach(([fx, fy, fr]) => {
+        tctx.beginPath();
+        tctx.arc(cx + s * fx, cy + s * fy, s * fr, 0, Math.PI * 2);
+        tctx.stroke();
+      });
+    },
+    dragonfly(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.moveTo(cx, cy - s * 0.9);
+      tctx.quadraticCurveTo(cx + s * 0.12, cy + s * 0.1, cx, cy + s * 1.0);
+      tctx.quadraticCurveTo(cx - s * 0.12, cy + s * 0.1, cx, cy - s * 0.9);
+      tctx.stroke();
+      for (let i = 0; i < 5; i++) {
+        const y = cy + s * (0.1 + i * 0.16);
+        tctx.beginPath(); tctx.moveTo(cx - s * 0.08, y); tctx.lineTo(cx + s * 0.08, y); tctx.stroke();
+      }
+      tctx.beginPath(); tctx.arc(cx, cy - s * 1.05, s * 0.14, 0, Math.PI * 2); tctx.stroke();
+      [[-1, -0.15], [1, -0.15], [-1, 0.15], [1, 0.15]].forEach(([side, dy]) => {
+        tctx.beginPath();
+        tctx.ellipse(cx + side * s * 0.55, cy + s * dy, s * 0.55, s * 0.18, side * 0.15, 0, Math.PI * 2);
+        tctx.stroke();
+      });
+    },
+    robot(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
+      outlineStyle();
+      tctx.strokeRect(cx - s * 0.55, cy - s * 1.1, s * 1.1, s * 0.8);
+      [-1, 1].forEach(side => {
+        tctx.beginPath(); tctx.arc(cx + side * s * 0.22, cy - s * 0.72, s * 0.11, 0, Math.PI * 2); tctx.stroke();
+      });
+      tctx.beginPath(); tctx.moveTo(cx, cy - s * 1.1); tctx.lineTo(cx, cy - s * 1.35); tctx.stroke();
+      tctx.beginPath(); tctx.arc(cx, cy - s * 1.42, s * 0.08, 0, Math.PI * 2); tctx.stroke();
+      tctx.strokeRect(cx - s * 0.7, cy - s * 0.15, s * 1.4, s * 1.0);
+      [-1, 1].forEach(side => {
+        tctx.beginPath();
+        tctx.moveTo(cx + side * s * 0.7, cy);
+        tctx.lineTo(cx + side * s * 1.05, cy + s * 0.35);
+        tctx.stroke();
+      });
+      [-1, 1].forEach(side => {
+        tctx.beginPath();
+        tctx.moveTo(cx + side * s * 0.35, cy + s * 0.85);
+        tctx.lineTo(cx + side * s * 0.35, cy + s * 1.25);
+        tctx.stroke();
+      });
+    },
+    panda(w, h) {
+      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.32;
+      outlineStyle();
+      tctx.beginPath(); tctx.arc(cx, cy, R, 0, Math.PI * 2); tctx.stroke();
+      [-1, 1].forEach(side => {
+        tctx.beginPath(); tctx.arc(cx + side * R * 0.75, cy - R * 0.72, R * 0.24, 0, Math.PI * 2); tctx.stroke();
+        tctx.beginPath();
+        tctx.ellipse(cx + side * R * 0.42, cy - R * 0.12, R * 0.24, R * 0.3, side * 0.25, 0, Math.PI * 2);
+        tctx.stroke();
+        tctx.beginPath(); tctx.arc(cx + side * R * 0.4, cy - R * 0.1, R * 0.08, 0, Math.PI * 2); tctx.stroke();
+      });
+      tctx.beginPath(); tctx.ellipse(cx, cy + R * 0.25, R * 0.1, R * 0.07, 0, 0, Math.PI * 2); tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(cx, cy + R * 0.32); tctx.quadraticCurveTo(cx, cy + R * 0.45, cx - R * 0.14, cy + R * 0.48); tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(cx, cy + R * 0.32); tctx.quadraticCurveTo(cx, cy + R * 0.45, cx + R * 0.14, cy + R * 0.48); tctx.stroke();
+    },
+    balloon(w, h) {
+      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
+      outlineStyle();
+      tctx.beginPath();
+      tctx.ellipse(cx, cy - s * 0.3, s * 0.6, s * 0.75, 0, 0, Math.PI * 2);
+      tctx.stroke();
+      tctx.beginPath();
+      tctx.moveTo(cx - s * 0.12, cy + s * 0.42);
+      tctx.lineTo(cx + s * 0.12, cy + s * 0.42);
+      tctx.lineTo(cx, cy + s * 0.58);
+      tctx.closePath(); tctx.stroke();
+      tctx.beginPath();
+      tctx.moveTo(cx, cy + s * 0.58);
+      tctx.bezierCurveTo(cx + s * 0.3, cy + s * 0.85, cx - s * 0.3, cy + s * 1.1, cx, cy + s * 1.4);
+      tctx.stroke();
     }
   };
 
@@ -1168,6 +1420,159 @@
       setGalleryOpen(false);
     });
   });
+
+  // --- TEXT TOOL (WRITE LETTERS IN THE CURRENT BRUSH COLOR) ---
+  function stampFont(kind, px) {
+    return kind === 'emoji' ? (px + 'px sans-serif') : ('600 ' + px + 'px "Orbitron", sans-serif');
+  }
+
+  function drawTextStamp(text, x, y, color, px, kind) {
+    dctx.save();
+    dctx.font = stampFont(kind, px);
+    dctx.textAlign = 'center';
+    dctx.textBaseline = 'middle';
+    if (kind !== 'emoji') {
+      dctx.fillStyle = color;
+      dctx.shadowColor = color;
+      dctx.shadowBlur = px * 0.18;
+    }
+    dctx.fillText(text, x, y);
+    dctx.restore();
+  }
+
+  function removeTextInput() {
+    if (textInputEl) { textInputEl.remove(); textInputEl = null; }
+  }
+
+  function placeText(text, x, y) {
+    if (!text || !text.trim()) return;
+    pushUndo();
+    const fontPx = Math.max(18, Math.round(brushSize * 3.2));
+    const trimmed = text.trim();
+    drawTextStamp(trimmed, x, y, brushColor, fontPx, 'text');
+    strokes.push({ type: 'stamp', kind: 'text', text: trimmed, x, y, color: brushColor, fontPx });
+    if (sparkleOn) spawnParticles(x, y, 6);
+    updateUndoBtn();
+    updateAnimateBtns();
+    showToast('✓ TEXT ADDED');
+  }
+
+  function showTextInput(x, y) {
+    removeTextInput();
+    const el = document.createElement('input');
+    el.type = 'text';
+    el.className = 'text-input-overlay';
+    el.maxLength = 40;
+    el.placeholder = 'Aa';
+    el.autocomplete = 'off';
+    el.style.left = Math.min(Math.max(x, 60), Math.max(60, stack.getBoundingClientRect().width - 60)) + 'px';
+    el.style.top = Math.min(Math.max(y, 18), Math.max(18, stack.getBoundingClientRect().height - 18)) + 'px';
+    el.style.color = brushColor;
+    stack.appendChild(el);
+    textInputEl = el;
+    requestAnimationFrame(() => el.focus());
+    let committed = false;
+    function commit() {
+      if (committed) return;
+      committed = true;
+      const val = el.value;
+      removeTextInput();
+      placeText(val, x, y);
+    }
+    el.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); committed = true; removeTextInput(); }
+    });
+    el.addEventListener('blur', () => commit());
+  }
+
+  function onTextPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const p = getPos(e);
+    showTextInput(p.x, p.y);
+    e.preventDefault();
+  }
+
+  const btnTextMode = document.getElementById('btn-text-mode');
+  function exitTextMode() {
+    textMode = false;
+    btnTextMode.classList.remove('active');
+    removeTextInput();
+  }
+  btnTextMode.addEventListener('click', () => {
+    if (isAnimating || isLive) return;
+    if (textMode) { exitTextMode(); return; }
+    exitEmojiMode();
+    if (addPartMode) exitAddPartMode();
+    textMode = true;
+    btnTextMode.classList.add('active');
+    showToast('TAP THE CANVAS TO WRITE');
+  });
+
+  // --- EMOJI TOOL (DROP AN EMOJI ANYWHERE ON THE CANVAS) ---
+  const EMOJIS = ['😀', '😂', '😍', '😎', '🤩', '😴', '🥳', '😉', '🙃', '🤔',
+    '👍', '👏', '🙌', '❤️', '💛', '⭐', '🔥', '🌟', '🎉', '🌈',
+    '☀️', '🌙', '⚡', '❄️', '🍀', '🌸', '🌻', '🦋', '🐱', '🐶',
+    '🐰', '🐬', '🐢', '🚀', '🎈', '🎵', '✨', '💧', '🍭', '🍩'];
+  const emojiGallery = document.getElementById('emoji-gallery');
+  EMOJIS.forEach(em => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-template';
+    b.textContent = em;
+    b.title = em;
+    b.addEventListener('click', () => {
+      if (isAnimating || isLive) return;
+      exitTextMode();
+      if (addPartMode) exitAddPartMode();
+      emojiMode = true;
+      selectedEmoji = em;
+      document.querySelectorAll('#emoji-gallery .btn-template').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      btnEmojiToggle.classList.add('active');
+      setEmojiGalleryOpen(false);
+      showToast('TAP THE CANVAS TO PLACE ' + em);
+    });
+    emojiGallery.appendChild(b);
+  });
+
+  const btnEmojiToggle = document.getElementById('btn-emoji-toggle');
+  function setEmojiGalleryOpen(open) {
+    emojiGallery.classList.toggle('open', open);
+    btnEmojiToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!emojiMode) btnEmojiToggle.classList.toggle('active', open);
+  }
+  function exitEmojiMode() {
+    emojiMode = false;
+    selectedEmoji = null;
+    document.querySelectorAll('#emoji-gallery .btn-template').forEach(x => x.classList.remove('active'));
+    btnEmojiToggle.classList.remove('active');
+    setEmojiGalleryOpen(false);
+  }
+  btnEmojiToggle.addEventListener('click', () => {
+    if (isAnimating || isLive) return;
+    if (emojiMode) { exitEmojiMode(); return; }
+    setEmojiGalleryOpen(!emojiGallery.classList.contains('open'));
+  });
+
+  function placeEmoji(emoji, x, y) {
+    if (!emoji) return;
+    pushUndo();
+    const fontPx = Math.max(24, Math.round(brushSize * 4.5));
+    drawTextStamp(emoji, x, y, brushColor, fontPx, 'emoji');
+    strokes.push({ type: 'stamp', kind: 'emoji', text: emoji, x, y, color: brushColor, fontPx });
+    if (sparkleOn) spawnParticles(x, y, 6);
+    updateUndoBtn();
+    updateAnimateBtns();
+    showToast('✓ EMOJI ADDED');
+  }
+
+  function onEmojiPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const p = getPos(e);
+    placeEmoji(selectedEmoji, p.x, p.y);
+    e.preventDefault();
+  }
 
   // --- AMBIENT SOUND WHILE DRAWING ---
   let audioCtx = null, masterGain = null, reverbNode = null, reverbReturn = null, activeVoice = null, outputLimiter = null;
@@ -1392,10 +1797,13 @@
   }
   function updateAnimateBtns() {
     const has = strokes.length > 0 && !isAnimating && !isLive;
-    document.getElementById('btn-animate').disabled = !has;
+    document.getElementById('btn-animate').disabled = (strokes.length === 0 && !isAnimating) || isLive;
     document.getElementById('btn-save-video').disabled = !has || typeof MediaRecorder === 'undefined';
+    document.getElementById('btn-save-gif').disabled = !has || typeof Worker === 'undefined' || gifExporting;
     document.getElementById('btn-add-part').disabled = !(strokes.length > 0) || isAnimating || isLive;
     document.getElementById('btn-live').disabled = !(strokes.length > 0 && livingParts.length > 0) || isAnimating || addPartMode;
+    document.getElementById('btn-text-mode').disabled = isAnimating || isLive;
+    document.getElementById('btn-emoji-toggle').disabled = isAnimating || isLive;
   }
   document.getElementById('btn-undo').addEventListener('click', () => {
     if (!undoStack.length || isAnimating || isLive) return;
@@ -1639,6 +2047,8 @@
   function onPointerDown(e) {
     if (isAnimating || isLive) return;
     if (addPartMode) { onSelectPointerDown(e); return; }
+    if (textMode) { onTextPointerDown(e); return; }
+    if (emojiMode) { onEmojiPointerDown(e); return; }
     if (activePointerId !== null) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     activePointerId = e.pointerId;
@@ -1734,7 +2144,11 @@
     li_tools_5: { en: "CLEAR — wipe your painting (still undoable; the coloring outline stays)", cz: "CLEAR — smaže vaši malbu (lze vrátit zpět; obrys omalovánky zůstane)" },
     li_tools_6: { en: "▶ ANIMATE — replay your drawing stroke by stroke, in the order you drew it", cz: "▶ ANIMATE — přehraje vaši kresbu tah po tahu, v pořadí, jak jste ji kreslili" },
     li_tools_7: { en: "⬇ VIDEO — record the animated replay and download it as a WEBM video", cz: "⬇ VIDEO — nahraje animované přehrání a stáhne ho jako video WEBM" },
+    li_tools_9: { en: "⬇ GIF — record the animated replay and download it as an animated GIF", cz: "⬇ GIF — nahraje animované přehrání a stáhne ho jako animovaný GIF" },
     li_tools_8: { en: "⬇ SAVE IMAGE — download your drawing as a PNG", cz: "⬇ SAVE IMAGE — stáhne vaši kresbu jako PNG" },
+    h_textemoji: { en: "TEXT & EMOJI", cz: "TEXT A EMOJI" },
+    p_textemoji: { en: "Press 🔤 TEXT, then tap anywhere on the canvas to write a word in your current brush color. Press 😀 EMOJI to open the emoji picker, choose one, then tap the canvas to drop it there. Both are added to your drawing's history, so they replay with ▶ ANIMATE and appear in your VIDEO and GIF exports too.", cz: "Stiskněte 🔤 TEXT a poté klepněte kamkoli na plátno — napíšete slovo aktuální barvou štětce. Stiskněte 😀 EMOJI, otevřete výběr emoji, vyberte jedno a klepnutím na plátno ho tam umístíte. Obojí se přidá do historie kresby, takže se přehraje i v ▶ ANIMATE a objeví se i ve vašich exportech VIDEO a GIF." },
+    p_textemoji_hint: { en: "Write a word in your brush color, or drop an emoji anywhere on the canvas.", cz: "Napište slovo barvou svého štětce, nebo kamkoli na plátno umístěte emoji." },
     h_sound: { en: "AMBIENT SOUND", cz: "AMBIENTNÍ ZVUK" },
     p_sound: { en: "While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound \"off\" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.", cz: "Zatímco kreslíte, tichý ambientní tón jemně sleduje váš štětec. Vždy je naladěn na klidnou pětitónovou stupnici, takže nikdy nemůže znít „mimo“ — výš na plátně zní vyšší tón, níž hlubší, a mezi nimi plynule klouže podle vašeho pohybu. Tón se posouvá vlevo a vpravo podle polohy štětce, pomalu se rozvine a při zvednutí prstu pomalu odezní, a má jemný nádech reverbu pro měkký, prostorový pocit. Každý styl štětce (BRUSH FEEL) mu dodá mírně jinou barvu tónu a gumování hraje svůj vlastní tichý, tlumený tón. Kdykoli ho přepnete tlačítkem 🔊 SOUND a posuvníkem vedle něj nastavíte hlasitost (výchozích 40 %) — obě volby se zapamatují." },
     h_life: { en: "BRING THE PICTURE TO LIFE", cz: "OŽIVTE SVŮJ OBRÁZEK" },
@@ -1772,13 +2186,25 @@
   document.getElementById('btn-info').addEventListener('click', () => toggleInfoOverlay(true));
   document.getElementById('btn-info-close').addEventListener('click', () => toggleInfoOverlay(false));
   document.getElementById('info-overlay').addEventListener('click', e => { if (e.target.id === 'info-overlay') toggleInfoOverlay(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); if (addPartMode) exitAddPartMode(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); if (addPartMode) exitAddPartMode(); if (textMode) exitTextMode(); if (emojiMode) exitEmojiMode(); } });
 
   // --- ANIMATION: BUILD TIMELINE FROM RECORDED STROKES ---
   function buildTimeline() {
     const timeline = [];
     let cum = 0;
     strokes.forEach(stroke => {
+      if (stroke.type === 'stamp') {
+        cum += 120;
+        timeline.push({
+          t: cum,
+          draw: () => {
+            drawTextStamp(stroke.text, stroke.x, stroke.y, stroke.color, stroke.fontPx, stroke.kind);
+            if (sparkleOn) spawnParticles(stroke.x, stroke.y, 8);
+          }
+        });
+        cum += 220;
+        return;
+      }
       const pts = stroke.points;
       if (pts.length < 2) {
         const p0 = pts[0];
@@ -1810,6 +2236,8 @@
 
   function playAnimation(onFrame) {
     if (isAnimating || !strokes.length) return;
+    if (textMode) exitTextMode();
+    if (emojiMode) exitEmojiMode();
     isAnimating = true;
     updateAnimateBtns();
     setDrawingEnabled(false);
@@ -1907,6 +2335,141 @@
     } catch (err) {
       showToast('VIDEO FAILED');
     }
+  });
+
+  // --- EXPORT ANIMACE JAKO GIF (VLASTNÍ POZADÍ MOTIVU) ---
+  function loadGifJs() {
+    if (gifJsPromise) return gifJsPromise;
+    gifJsPromise = new Promise((resolve, reject) => {
+      function afterScript() {
+        fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js')
+          .then(r => { if (!r.ok) throw new Error('worker fetch failed'); return r.blob(); })
+          .then(blob => {
+            gifWorkerUrl = URL.createObjectURL(blob);
+            resolve(window.GIF);
+          })
+          .catch(reject);
+      }
+      if (window.GIF) { afterScript(); return; }
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js';
+      script.onload = afterScript;
+      script.onerror = () => reject(new Error('gif.js load failed'));
+      document.head.appendChild(script);
+    });
+    return gifJsPromise;
+  }
+
+  document.getElementById('btn-save-gif').addEventListener('click', () => {
+    if (isAnimating || !strokes.length || gifExporting) return;
+    if (typeof Worker === 'undefined') { showToast('GIF NOT SUPPORTED'); return; }
+    gifExporting = true;
+    updateAnimateBtns();
+    showToast('LOADING GIF ENGINE…');
+    loadGifJs().then(GIF => {
+      if (!GIF) throw new Error('GIF unavailable');
+      const fullW = drawCanvas.width, fullH = drawCanvas.height;
+      // Encode at a capped resolution — gif.js is pure JS and gets extremely slow
+      // (or appears to hang) on full retina-resolution canvases.
+      const MAX_DIM = 480;
+      const scale = Math.min(1, MAX_DIM / Math.max(fullW, fullH));
+      const gw = Math.max(1, Math.round(fullW * scale));
+      const gh = Math.max(1, Math.round(fullH * scale));
+
+      const style = getComputedStyle(body);
+      const c1 = style.getPropertyValue('--bg-color-1').trim() || '#1a0033';
+      const c2 = style.getPropertyValue('--bg-color-2').trim() || '#000010';
+      const compose = document.createElement('canvas');
+      compose.width = gw; compose.height = gh;
+      const cctx = compose.getContext('2d');
+      function drawBgFrame() {
+        const grad = cctx.createRadialGradient(gw / 2, gh * 0.15, 0, gw / 2, gh / 2, Math.max(gw, gh) * 0.75);
+        grad.addColorStop(0, c1);
+        grad.addColorStop(1, c2);
+        cctx.fillStyle = grad;
+        cctx.fillRect(0, 0, gw, gh);
+        cctx.drawImage(drawCanvas, 0, 0, fullW, fullH, 0, 0, gw, gh);
+      }
+
+      // Cap total captured frames so encoding stays fast regardless of how long the drawing took.
+      const estTotal = buildTimeline().reduce((m, item) => Math.max(m, item.t), 0) || 800;
+      const MAX_FRAMES = 40;
+      const CAPTURE_INTERVAL = Math.max(80, Math.ceil(estTotal / MAX_FRAMES));
+
+      let gif;
+      let watchdog = null;
+      let settled = false;
+
+      function cleanupFail(msg) {
+        if (settled) return;
+        settled = true;
+        if (watchdog) clearTimeout(watchdog);
+        gifExporting = false;
+        showToast(msg || 'GIF FAILED');
+        updateAnimateBtns();
+      }
+
+      try {
+        gif = new GIF({ workers: 3, quality: 14, workerScript: gifWorkerUrl, width: gw, height: gh });
+      } catch (err) {
+        cleanupFail('GIF FAILED');
+        return;
+      }
+
+      gif.on('progress', p => {
+        if (settled) return;
+        showToast('ENCODING GIF… ' + Math.round(p * 100) + '%');
+      });
+
+      gif.on('finished', blob => {
+        if (settled) return;
+        settled = true;
+        if (watchdog) clearTimeout(watchdog);
+        gifExporting = false;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        a.href = url;
+        a.download = 'synthlucida-canvas-' + ts + '.gif';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        showToast('✓ GIF SAVED');
+        updateAnimateBtns();
+      });
+
+      if (typeof gif.on === 'function') {
+        gif.on('abort', () => cleanupFail('GIF FAILED'));
+      }
+
+      let lastCapture = -Infinity;
+      let renderCalled = false;
+
+      showToast('● RECORDING GIF');
+      playAnimation((elapsed, total) => {
+        if (settled || renderCalled) return;
+        if (elapsed - lastCapture >= CAPTURE_INTERVAL) {
+          drawBgFrame();
+          gif.addFrame(cctx, { copy: true, delay: CAPTURE_INTERVAL });
+          lastCapture = elapsed;
+        }
+        if (elapsed >= total) {
+          renderCalled = true;
+          drawBgFrame();
+          gif.addFrame(cctx, { copy: true, delay: 700 });
+          showToast('ENCODING GIF…');
+          try {
+            gif.render();
+          } catch (err) {
+            cleanupFail('GIF FAILED');
+            return;
+          }
+          // Safety net: if gif.js never fires finished/progress (e.g. worker blocked), fail gracefully instead of hanging forever.
+          watchdog = setTimeout(() => cleanupFail('GIF TIMED OUT'), 45000);
+        }
+      });
+    }).catch(() => { gifExporting = false; showToast('GIF FAILED'); updateAnimateBtns(); });
   });
 
   // --- BRING TO LIFE: MARK A PART (RECTANGLE SELECTION) ---
@@ -2065,6 +2628,8 @@
   // --- BRING TO LIFE: PLAYBACK (LIVE) ---
   function startLive() {
     if (isLive || isAnimating || !livingParts.length) return;
+    if (textMode) exitTextMode();
+    if (emojiMode) exitEmojiMode();
     isLive = true;
     updateAnimateBtns();
     setDrawingEnabled(false);
