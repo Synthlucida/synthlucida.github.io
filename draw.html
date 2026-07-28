@@ -234,6 +234,7 @@
     max-width: 220px; background: rgba(10,10,15,0.92); border: 1px solid var(--accent-color); border-radius: 10px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 10px var(--accent-color); transform: translate(-50%, -100%);
   }
+  .part-toolbar.part-toolbar--down { transform: translate(-50%, 0); }
   .part-toolbar button {
     background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2); color: #fff;
     font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 0.5px; padding: 6px 5px; border-radius: 6px;
@@ -292,8 +293,6 @@
   .btn-save { background: rgba(0, 240, 255, 0.08); border-color: var(--accent-color); color: var(--accent-color); }
   .btn-save:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 8px var(--accent-color); }
 
-  .btn-player-link { display: block; text-decoration: none; background: rgba(0, 240, 255, 0.08); border: 1px solid var(--accent-color); color: var(--accent-color); padding: 7px; font-size: 9px; border-radius: 6px; text-align: center; font-weight: 600; letter-spacing: 0.5px; transition: 0.2s; }
-  .btn-player-link:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 8px var(--accent-color); }
 
   .hint-text { font-size: 8px; opacity: 0.4; text-align: center; margin-top: 4px; }
 
@@ -514,7 +513,6 @@
       <div class="actions-row">
         <button class="btn-action btn-save" id="btn-save">⬇ SAVE IMAGE</button>
       </div>
-      <a href="player.html" class="btn-action btn-player-link">▶ BACK TO PLAYER</a>
     </div>
 
     <div class="glass-section">
@@ -562,10 +560,13 @@
 
     <div class="glass-section">
       <div class="panel-label">TEXT &amp; EMOJI</div>
-      <div class="parts-hint" data-i18n="p_textemoji_hint">Write a word in your brush color, or drop an emoji anywhere on the canvas.</div>
+      <div class="parts-hint" data-i18n="p_textemoji_hint">Write a word in your brush color, or drop an emoji anywhere on the canvas. Turn on ✨ ANIMATE TEXT to make your words move.</div>
       <div class="actions-row">
         <button class="btn-action" id="btn-text-mode" type="button">🔤 TEXT</button>
         <button class="btn-action" id="btn-emoji-toggle" type="button" aria-expanded="false">😀 EMOJI</button>
+      </div>
+      <div class="actions-row">
+        <button class="btn-action" id="btn-text-animate" type="button" aria-pressed="false">✨ ANIMATE TEXT</button>
       </div>
       <div class="template-gallery" id="emoji-gallery"></div>
     </div>
@@ -645,6 +646,7 @@
   let textMode = false;
   let emojiMode = false;
   let selectedEmoji = null;
+  let textAnimateOn = false;
   let textInputEl = null;
   let gifJsPromise = null;
   let gifWorkerUrl = null;
@@ -658,7 +660,9 @@
     pulse: { icon: '🫧', label: 'PULSE', ampScale: 0.14, speed: 1.4 },
     fade: { icon: '☁', label: 'FADE', minAlpha: 0.25, speed: 1.1 },
     drift: { icon: '🍂', label: 'DRIFT', ampPx: 6, speed: 0.7 },
-    twinkle: { icon: '✦', label: 'TWINKLE', minAlpha: 0.15, ampScale: 0.08, speed: 4.5 }
+    twinkle: { icon: '✦', label: 'TWINKLE', minAlpha: 0.15, ampScale: 0.08, speed: 4.5 },
+    shake: { icon: '💫', label: 'SHAKE', ampPx: 3.5, speed: 13 },
+    rainbow: { icon: '🌈', label: 'RAINBOW', speed: 0.5 }
   };
 
   // --- SAVED PREFERENCES ---
@@ -1454,7 +1458,30 @@
     if (sparkleOn) spawnParticles(x, y, 6);
     updateUndoBtn();
     updateAnimateBtns();
-    showToast('✓ TEXT ADDED');
+    if (textAnimateOn) {
+      offerTextAnimation(trimmed, x, y, fontPx);
+    } else {
+      showToast('✓ TEXT ADDED');
+    }
+  }
+
+  // Auto-select the just-placed text's bounding box and pop up the same
+  // motion picker used by MARK PART, so a word can be brought to life
+  // right away without having to drag a selection box over it afterwards.
+  function offerTextAnimation(text, x, y, fontPx) {
+    dctx.save();
+    dctx.font = stampFont('text', fontPx);
+    const tw = dctx.measureText(text).width;
+    dctx.restore();
+    const padX = fontPx * 0.3, padY = fontPx * 0.35;
+    const w = tw + padX * 2;
+    const h = fontPx + padY * 2;
+    const stackRect = stack.getBoundingClientRect();
+    const rx = Math.max(0, Math.min(x - w / 2, Math.max(0, stackRect.width - w)));
+    const ry = Math.max(0, Math.min(y - h / 2, Math.max(0, stackRect.height - h)));
+    selRect = { x: rx, y: ry, w, h };
+    showToast('PICK A MOTION FOR YOUR TEXT');
+    showPartToolbar();
   }
 
   function showTextInput(x, y) {
@@ -1509,11 +1536,23 @@
     showToast('TAP THE CANVAS TO WRITE');
   });
 
+  const btnTextAnimate = document.getElementById('btn-text-animate');
+  btnTextAnimate.addEventListener('click', () => {
+    if (isAnimating || isLive) return;
+    textAnimateOn = !textAnimateOn;
+    btnTextAnimate.classList.toggle('active', textAnimateOn);
+    btnTextAnimate.setAttribute('aria-pressed', textAnimateOn ? 'true' : 'false');
+    showToast(textAnimateOn ? 'NEW TEXT WILL OFFER A MOTION' : 'ANIMATE TEXT OFF');
+  });
+
   // --- EMOJI TOOL (DROP AN EMOJI ANYWHERE ON THE CANVAS) ---
   const EMOJIS = ['😀', '😂', '😍', '😎', '🤩', '😴', '🥳', '😉', '🙃', '🤔',
     '👍', '👏', '🙌', '❤️', '💛', '⭐', '🔥', '🌟', '🎉', '🌈',
     '☀️', '🌙', '⚡', '❄️', '🍀', '🌸', '🌻', '🦋', '🐱', '🐶',
-    '🐰', '🐬', '🐢', '🚀', '🎈', '🎵', '✨', '💧', '🍭', '🍩'];
+    '🐰', '🐬', '🐢', '🚀', '🎈', '🎵', '✨', '💧', '🍭', '🍩',
+    '🥰', '😇', '🤗', '😋', '🥲', '💜', '💚', '💙', '🧡', '🤍',
+    '🌺', '🌼', '🍄', '🌵', '🌊', '🦄', '🐨', '🦁', '🐼', '🐸',
+    '🍎', '🍓', '🍦', '🎂', '🍕', '🎨', '🎸', '⚽', '🎁', '🧩'];
   const emojiGallery = document.getElementById('emoji-gallery');
   EMOJIS.forEach(em => {
     const b = document.createElement('button');
@@ -1804,6 +1843,7 @@
     document.getElementById('btn-live').disabled = !(strokes.length > 0 && livingParts.length > 0) || isAnimating || addPartMode;
     document.getElementById('btn-text-mode').disabled = isAnimating || isLive;
     document.getElementById('btn-emoji-toggle').disabled = isAnimating || isLive;
+    document.getElementById('btn-text-animate').disabled = isAnimating || isLive;
   }
   document.getElementById('btn-undo').addEventListener('click', () => {
     if (!undoStack.length || isAnimating || isLive) return;
@@ -2147,12 +2187,12 @@
     li_tools_9: { en: "⬇ GIF — record the animated replay and download it as an animated GIF", cz: "⬇ GIF — nahraje animované přehrání a stáhne ho jako animovaný GIF" },
     li_tools_8: { en: "⬇ SAVE IMAGE — download your drawing as a PNG", cz: "⬇ SAVE IMAGE — stáhne vaši kresbu jako PNG" },
     h_textemoji: { en: "TEXT & EMOJI", cz: "TEXT A EMOJI" },
-    p_textemoji: { en: "Press 🔤 TEXT, then tap anywhere on the canvas to write a word in your current brush color. Press 😀 EMOJI to open the emoji picker, choose one, then tap the canvas to drop it there. Both are added to your drawing's history, so they replay with ▶ ANIMATE and appear in your VIDEO and GIF exports too.", cz: "Stiskněte 🔤 TEXT a poté klepněte kamkoli na plátno — napíšete slovo aktuální barvou štětce. Stiskněte 😀 EMOJI, otevřete výběr emoji, vyberte jedno a klepnutím na plátno ho tam umístíte. Obojí se přidá do historie kresby, takže se přehraje i v ▶ ANIMATE a objeví se i ve vašich exportech VIDEO a GIF." },
-    p_textemoji_hint: { en: "Write a word in your brush color, or drop an emoji anywhere on the canvas.", cz: "Napište slovo barvou svého štětce, nebo kamkoli na plátno umístěte emoji." },
+    p_textemoji: { en: "Press 🔤 TEXT, then tap anywhere on the canvas to write a word in your current brush color. Press 😀 EMOJI to open the emoji picker, choose one, then tap the canvas to drop it there. Both are added to your drawing's history, so they replay with ▶ ANIMATE and appear in your VIDEO and GIF exports too. Turn on ✨ ANIMATE TEXT before writing a word and you'll get to pick a motion for it right away, the same way you do with ➕ MARK PART.", cz: "Stiskněte 🔤 TEXT a poté klepněte kamkoli na plátno — napíšete slovo aktuální barvou štětce. Stiskněte 😀 EMOJI, otevřete výběr emoji, vyberte jedno a klepnutím na plátno ho tam umístíte. Obojí se přidá do historie kresby, takže se přehraje i v ▶ ANIMATE a objeví se i ve vašich exportech VIDEO a GIF. Zapněte ✨ ANIMATE TEXT ještě před napsáním slova a hned si pro něj budete moct vybrat pohyb, stejně jako u ➕ MARK PART." },
+    p_textemoji_hint: { en: "Write a word in your brush color, or drop an emoji anywhere on the canvas. Turn on ✨ ANIMATE TEXT to make your words move.", cz: "Napište slovo barvou svého štětce, nebo kamkoli na plátno umístěte emoji. Zapněte ✨ ANIMATE TEXT, aby se vaše slova hýbala." },
     h_sound: { en: "AMBIENT SOUND", cz: "AMBIENTNÍ ZVUK" },
     p_sound: { en: "While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound \"off\" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.", cz: "Zatímco kreslíte, tichý ambientní tón jemně sleduje váš štětec. Vždy je naladěn na klidnou pětitónovou stupnici, takže nikdy nemůže znít „mimo“ — výš na plátně zní vyšší tón, níž hlubší, a mezi nimi plynule klouže podle vašeho pohybu. Tón se posouvá vlevo a vpravo podle polohy štětce, pomalu se rozvine a při zvednutí prstu pomalu odezní, a má jemný nádech reverbu pro měkký, prostorový pocit. Každý styl štětce (BRUSH FEEL) mu dodá mírně jinou barvu tónu a gumování hraje svůj vlastní tichý, tlumený tón. Kdykoli ho přepnete tlačítkem 🔊 SOUND a posuvníkem vedle něj nastavíte hlasitost (výchozích 40 %) — obě volby se zapamatují." },
     h_life: { en: "BRING THE PICTURE TO LIFE", cz: "OŽIVTE SVŮJ OBRÁZEK" },
-    p_life: { en: "Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), or TWINKLE (a soft flicker, lovely for stars). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're \"attached\" to the body.", cz: "Nakreslete obrázek (např. ptáka), poté stiskněte ➕ MARK PART a přetáhněte přes část, kterou chcete rozhýbat (např. křídlo). Vyberte pohyb — FLAP, SWAY, SPIN, BOB, PULSE (jemné dýchání), FADE (jemné dýchání průhlednosti), DRIFT (pomalé plutí) nebo TWINKLE (jemné blikání, skvělé pro hvězdy). Přidejte tolik částí, kolik chcete, a stiskněte 🦋 LIVE — zbytek obrázku zůstane nehybný, zatímco označené části se pohybují kolem bodu, kde jsou „připojené“ k tělu." },
+    p_life: { en: "Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), TWINKLE (a soft flicker, lovely for stars), SHAKE (a playful jitter), or RAINBOW (slowly cycling colors). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're \"attached\" to the body.", cz: "Nakreslete obrázek (např. ptáka), poté stiskněte ➕ MARK PART a přetáhněte přes část, kterou chcete rozhýbat (např. křídlo). Vyberte pohyb — FLAP, SWAY, SPIN, BOB, PULSE (jemné dýchání), FADE (jemné dýchání průhlednosti), DRIFT (pomalé plutí), TWINKLE (jemné blikání, skvělé pro hvězdy), SHAKE (hravé chvění) nebo RAINBOW (pomalu se měnící barvy). Přidejte tolik částí, kolik chcete, a stiskněte 🦋 LIVE — zbytek obrázku zůstane nehybný, zatímco označené části se pohybují kolem bodu, kde jsou „připojené“ k tělu." },
     btn_choose_outline: { en: "CHOOSE OUTLINE", cz: "VYBRAT OBRYS" },
     h_themes: { en: "THEMES", cz: "MOTIVY" },
     p_themes: { en: "Pick a THEME from the row above the canvas to change the background mood, including the calm ZEN theme. It doesn't change your brush color.", cz: "Vyberte THEME z řady nad plátnem a změňte tak náladu pozadí, včetně klidného motivu ZEN. Barvu vašeho štětce to nijak nemění." }
@@ -2186,7 +2226,7 @@
   document.getElementById('btn-info').addEventListener('click', () => toggleInfoOverlay(true));
   document.getElementById('btn-info-close').addEventListener('click', () => toggleInfoOverlay(false));
   document.getElementById('info-overlay').addEventListener('click', e => { if (e.target.id === 'info-overlay') toggleInfoOverlay(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); if (addPartMode) exitAddPartMode(); if (textMode) exitTextMode(); if (emojiMode) exitEmojiMode(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); exitAddPartMode(); if (textMode) exitTextMode(); if (emojiMode) exitEmojiMode(); } });
 
   // --- ANIMATION: BUILD TIMELINE FROM RECORDED STROKES ---
   function buildTimeline() {
@@ -2516,13 +2556,7 @@
     removeToolbar();
     const el = document.createElement('div');
     el.className = 'part-toolbar';
-    const stackRect = stack.getBoundingClientRect();
-    let left = selRect.x + selRect.w / 2;
-    let top = selRect.y;
-    left = Math.min(Math.max(left, 55), Math.max(55, stackRect.width - 55));
-    top = Math.max(top, 34);
-    el.style.left = left + 'px';
-    el.style.top = top + 'px';
+    el.style.visibility = 'hidden';
     Object.keys(MOTION_META).forEach(key => {
       const meta = MOTION_META[key];
       const btn = document.createElement('button');
@@ -2539,6 +2573,34 @@
     el.appendChild(cancelBtn);
     stack.appendChild(el);
     partToolbarEl = el;
+
+    // Measure the toolbar's real rendered size (it grows taller as more motion
+    // options are added) and position it so it always stays fully inside the
+    // canvas — canvas-stack clips anything outside it, which is why the menu
+    // used to seem to "vanish" when marking a part near the top.
+    const stackRect = stack.getBoundingClientRect();
+    const tw = el.offsetWidth;
+    const th = el.offsetHeight;
+    const margin = 10;
+
+    let left = selRect.x + selRect.w / 2;
+    left = Math.min(Math.max(left, tw / 2 + margin), Math.max(tw / 2 + margin, stackRect.width - tw / 2 - margin));
+
+    // Not enough room to open upward above the selection? Open it downward instead.
+    const openDown = selRect.y < th + margin;
+    el.classList.toggle('part-toolbar--down', openDown);
+
+    let top;
+    if (openDown) {
+      top = selRect.y + selRect.h + margin;
+      top = Math.min(top, Math.max(margin, stackRect.height - th - margin));
+    } else {
+      top = Math.max(selRect.y - margin, th + margin);
+    }
+
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.visibility = '';
   }
 
   function addPart(motionKey) {
@@ -2560,7 +2622,7 @@
       if (d < bestDist) { bestDist = d; best = edge; }
     });
     const meta = MOTION_META[motionKey];
-    const centerPivot = (motionKey === 'spin' || motionKey === 'pulse' || motionKey === 'fade' || motionKey === 'drift' || motionKey === 'twinkle');
+    const centerPivot = (motionKey === 'spin' || motionKey === 'pulse' || motionKey === 'fade' || motionKey === 'drift' || motionKey === 'twinkle' || motionKey === 'shake' || motionKey === 'rainbow');
     livingParts.push({
       id: partIdCounter++,
       fx, fy, fw, fh,
@@ -2702,10 +2764,18 @@
           part.ampPx * dpr * Math.sin(t * part.speed + part.phase),
           part.ampPx * dpr * 0.6 * Math.sin(t * part.speed * 0.6 + part.phase * 1.7)
         );
+      } else if (part.motion === 'shake') {
+        dctx.translate(
+          part.ampPx * dpr * Math.sin(t * part.speed + part.phase),
+          part.ampPx * dpr * 0.5 * Math.sin(t * part.speed * 1.9 + part.phase * 2.3)
+        );
       }
       if (part.motion === 'fade' || part.motion === 'twinkle') {
         const span = 1 - part.minAlpha;
         dctx.globalAlpha = part.minAlpha + span * (0.5 + 0.5 * Math.sin(t * part.speed + part.phase));
+      }
+      if (part.motion === 'rainbow') {
+        dctx.filter = 'hue-rotate(' + ((t * part.speed * 360) % 360).toFixed(1) + 'deg) saturate(1.5)';
       }
       dctx.drawImage(canvas, px - pivotX, py - pivotY, pw, ph);
       dctx.restore();
