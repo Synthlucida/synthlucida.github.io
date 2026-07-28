@@ -1026,6 +1026,8 @@
 
 <div class="effects-container">
   <button class="btn-feature" id="btn-weather" onclick="toggleWeather()">WEATHER: OFF</button>
+  <button class="btn-feature" id="btn-sun-photo" onclick="triggerSunPhotoUpload()" title="Add your own photos to the WEATHER: SUN rotation">＋ PHOTO</button>
+  <input type="file" id="sun-photo-input" accept="image/*" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
   <button class="btn-feature" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
   <button class="btn-feature" id="btn-history" onclick="toggleHistory()">🕘 HISTORY</button>
@@ -1162,7 +1164,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_ambient">Ambient effects</h4>
-      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.</p>
+      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1851,6 +1853,59 @@
   let sunPhotoFrame = 0;
   const SUN_PHOTO_HOLD = 1500;   // snímků, jak dlouho fotka zůstane samotná (~při 60fps cca 25s)
   const SUN_PHOTO_FADE = 240;    // snímků na plynulé prolnutí (~4s)
+
+  // WEATHER: SUN — přidání vlastní fotky do rotace sunPhotos. Fotka se připojí na konec pole,
+  // takže se zobrazí až po těch vestavěných a doplní je ve stejném pořadí, v jakém byly přidány.
+  // Neovlivňuje aktuálně běžící index/prolínání (sunPhotoIndex, sunPhotoFrame zůstávají beze změny).
+  function addCustomSunPhoto(url) {
+      const img = new Image();
+      let loaded = false;
+      let aspect = 16 / 9;
+      img.onload = function() {
+          loaded = true;
+          aspect = img.naturalWidth / img.naturalHeight;
+      };
+      img.src = url;
+      sunPhotos.push({ img, get loaded() { return loaded; }, get aspect() { return aspect; } });
+  }
+
+  // Při startu appky načte dřív uložené vlastní fotky uživatele z IndexedDB (seřazené podle
+  // toho, kdy byly přidány) a doplní je do rotace SUN za vestavěné fotky.
+  (async function loadCustomSunPhotosOnStart() {
+      try {
+          const records = await sunPhotoDbGetAll();
+          records.sort((a, b) => a.addedAt - b.addedAt);
+          for (const r of records) {
+              if (!r.blob) continue;
+              addCustomSunPhoto(URL.createObjectURL(r.blob));
+          }
+      } catch (e) { console.error('Nelze načíst vlastní SUN fotky:', e); }
+  })();
+
+  // Nahrání nové vlastní fotky (nebo víc najednou) uživatelem do sekce WEATHER: SUN.
+  window.triggerSunPhotoUpload = function() {
+      const input = document.getElementById('sun-photo-input');
+      if (input) input.click();
+  };
+
+  window.handleSunPhotoUpload = async function(event) {
+      const input = event.target;
+      const files = Array.from(input.files || []);
+      input.value = ''; // aby šlo znovu vybrat stejný soubor příště
+      if (!files.length) return;
+
+      for (const file of files) {
+          if (!file.type || file.type.indexOf('image/') !== 0) continue;
+          const id = myFilesGenId();
+          try {
+              await sunPhotoDbPut({ id, name: file.name, addedAt: Date.now(), blob: file });
+              addCustomSunPhoto(URL.createObjectURL(file));
+          } catch (e) {
+              console.error('Nelze uložit SUN fotku:', e);
+              alert('Could not save one of the photos on this device.');
+          }
+      }
+  };
 
 
   function updateMoonPhase() {
@@ -3090,7 +3145,7 @@
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Choose from NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST and ROSEGOLD to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Vyberte si z motivů NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST a ROSEGOLD a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
-    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází dvěma stavy: teplý gradient západu slunce a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními." },
+    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází dvěma stavy: teplý gradient západu slunce a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.", cz: "Klepnutím na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
@@ -3194,6 +3249,9 @@
   const MYFILES_DB_NAME = 'synthlucida_files_db';
   const MYFILES_STORE = 'files';
   const MYFILES_PLAYLISTS_KEY = 'synthlucida_custom_playlists';
+  // WEATHER: SUN — vlastní fotky uživatele pro sekci SUN se ukládají do stejné IndexedDB
+  // (jiný object store), aby přežily i po zavření appky/prohlížeče, stejně jako u hudby výše.
+  const SUN_PHOTOS_STORE = 'sun_photos';
 
   let myFilesDbPromise = null;
   let myFilesLibrary = [];       // [{ id, name, type, size, addedAt }] (bez blobu - jen metadata pro UI)
@@ -3205,11 +3263,14 @@
     if (myFilesDbPromise) return myFilesDbPromise;
     myFilesDbPromise = new Promise((resolve, reject) => {
       if (!('indexedDB' in window)) { reject(new Error('IndexedDB not supported')); return; }
-      const req = indexedDB.open(MYFILES_DB_NAME, 1);
+      const req = indexedDB.open(MYFILES_DB_NAME, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(MYFILES_STORE)) {
           db.createObjectStore(MYFILES_STORE, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(SUN_PHOTOS_STORE)) {
+          db.createObjectStore(SUN_PHOTOS_STORE, { keyPath: 'id' });
         }
       };
       req.onsuccess = () => resolve(req.result);
@@ -3260,6 +3321,26 @@
       tx.objectStore(MYFILES_STORE).delete(id);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function sunPhotoDbPut(record) {
+    const db = await openMyFilesDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SUN_PHOTOS_STORE, 'readwrite');
+      tx.objectStore(SUN_PHOTOS_STORE).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function sunPhotoDbGetAll() {
+    const db = await openMyFilesDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SUN_PHOTOS_STORE, 'readonly');
+      const req = tx.objectStore(SUN_PHOTOS_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
     });
   }
 
