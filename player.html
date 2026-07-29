@@ -381,6 +381,26 @@
   .main-guide-note {
     font-size: 9px; opacity: 0.35; line-height: 1.6; margin-top: 24px; letter-spacing: 0.5px; text-align: center;
   }
+  /* "Your Statistics" heading doubles as a hidden 5-click trigger for the
+     visitor-stats panel below — kept looking like plain text (no pointer
+     cursor, no selection highlight) so it stays an Easter egg. */
+  #stats-title-heading { cursor: default; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  /* hidden visitor stats panel — revealed by clicking the "Your Statistics" heading 5x */
+  .visitor-stats-panel {
+    display: none;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--accent-color) 30%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent-color) 6%, transparent);
+    font-size: 10.5px;
+    letter-spacing: 0.5px;
+    color: color-mix(in srgb, var(--accent-color) 65%, #ffffff);
+    text-align: center;
+    line-height: 1.9;
+  }
+  .visitor-stats-panel.visible { display: block; }
+  .visitor-stats-panel strong { color: var(--accent-color); font-size: 14px; letter-spacing: 0; }
   .main-guide-close {
     position: fixed;
     top: calc(16px + env(safe-area-inset-top, 0px));
@@ -1261,7 +1281,7 @@
   <button class="main-guide-close" onclick="toggleMainStats()" aria-label="Close statistics">✖</button>
   <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
   <div class="main-guide-inner">
-    <h3 data-i18n="stats_title">Your Statistics</h3>
+    <h3 data-i18n="stats_title" id="stats-title-heading">Your Statistics</h3>
     <p class="main-guide-intro" data-i18n="stats_intro">A quiet look at your listening and breathing habits over time, kept only on this device.</p>
     <div class="main-guide-section">
       <h4 data-i18n="h_gamification">XP, levels & unlocking downloads</h4>
@@ -1277,6 +1297,11 @@
       <button class="btn-feature" onclick="resetStats()">RESET STATISTICS</button>
     </div>
     <p class="main-guide-note" data-i18n="stats_note">Stats are stored locally in your browser and are never sent anywhere.</p>
+
+    <div class="visitor-stats-panel" id="visitor-stats-panel" aria-hidden="true">
+      <div>Zobrazení stránky celkem: <strong id="visitor-stats-total">…</strong></div>
+      <div>Zobrazení dnes: <strong id="visitor-stats-today">…</strong></div>
+    </div>
   </div>
 </div>
 
@@ -5387,6 +5412,104 @@
     deferredInstallPrompt = null;
     if (installBtn) installBtn.style.display = 'none';
   });
+</script>
+
+<script>
+  // ==========================================
+  // VISITOR STATS — hidden page-view counter for the player app.
+  // Same mechanism as the one on the promo site (index.html): uses the
+  // free, key-free CountAPI service to "hit" (increment) a running total
+  // and a per-day counter on every page load — that's the visit
+  // registration. Kept as its own counter (synthlucida_player_views_*)
+  // so it reflects traffic to the player specifically, separate from
+  // the promo site's numbers. The counts are only revealed by clicking
+  // the "Your Statistics" heading 5 times in a row inside the S panel
+  // (and hidden again the same way) — the heading itself stays plain
+  // text (no pointer cursor) so this stays a hidden Easter egg.
+  // ==========================================
+  (function () {
+    const STATS_API = 'https://countapi.mileshilliard.com/api/v1';
+    const STATS_TOTAL_KEY = 'synthlucida_player_views_total';
+
+    function fetchWithTimeout(url, timeoutMs) {
+      timeoutMs = timeoutMs || 6000;
+      const controller = new AbortController();
+      const timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+      return fetch(url, { signal: controller.signal }).finally(function () {
+        clearTimeout(timer);
+      });
+    }
+
+    function todayKey() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return 'synthlucida_player_views_' + y + '-' + m + '-' + day;
+    }
+
+    function hit(key) {
+      return fetchWithTimeout(STATS_API + '/hit/' + key)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { return data && typeof data.value !== 'undefined' ? data.value : null; })
+        .catch(function () { return null; });
+    }
+
+    function formatNumber(n) {
+      return n.toLocaleString('cs-CZ');
+    }
+
+    // Record this page view once on load, and remember the resulting
+    // counts so opening the panel later doesn't inflate them further.
+    let cachedTotal = null;
+    let cachedToday = null;
+    const statsReady = Promise.all([hit(STATS_TOTAL_KEY), hit(todayKey())]).then(function (results) {
+      cachedTotal = results[0];
+      cachedToday = results[1];
+    });
+
+    function renderVisitorStats() {
+      const totalEl = document.getElementById('visitor-stats-total');
+      const todayEl = document.getElementById('visitor-stats-today');
+      if (!totalEl || !todayEl) return;
+      totalEl.textContent = '…';
+      todayEl.textContent = '…';
+      statsReady.then(function () {
+        totalEl.textContent = cachedTotal !== null ? formatNumber(cachedTotal) : '—';
+        todayEl.textContent = cachedToday !== null ? formatNumber(cachedToday) : '—';
+      });
+    }
+
+    function initStatsTitleToggle() {
+      const heading = document.getElementById('stats-title-heading');
+      const panel = document.getElementById('visitor-stats-panel');
+      if (!heading || !panel) return;
+
+      let clicks = 0;
+      let clickTimer = null;
+
+      heading.addEventListener('click', function () {
+        clicks++;
+        if (clickTimer) clearTimeout(clickTimer);
+        clickTimer = setTimeout(function () { clicks = 0; }, 2000);
+
+        if (clicks >= 5) {
+          clicks = 0;
+          clearTimeout(clickTimer);
+          const willShow = !panel.classList.contains('visible');
+          panel.classList.toggle('visible');
+          panel.setAttribute('aria-hidden', willShow ? 'false' : 'true');
+          if (willShow) renderVisitorStats();
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initStatsTitleToggle);
+    } else {
+      initStatsTitleToggle();
+    }
+  })();
 </script>
 
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
