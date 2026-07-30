@@ -4303,12 +4303,20 @@
         currentStreak: 0,
         longestStreak: 0,
         daysVisited: 0,
-        lastActiveDate: null
+        lastActiveDate: null,
+        xpSpent: 0,
+        unlockedDownloads: {}
       };
     }
     if (!s.playsByPlaylist || typeof s.playsByPlaylist !== 'object') s.playsByPlaylist = {};
     if (typeof s.daysVisited !== 'number') s.daysVisited = 0;
     if (typeof s.xpEligibleTracksPlayed !== 'number') s.xpEligibleTracksPlayed = 0;
+    // Gamifikace: XP utracené za odemčená stažení - dřív se nikde needukalo, proto
+    // stahování reálně "nestálo" žádné XP. Level (computeXP) zůstává čistě na
+    // celoživotně nasbíraném XP a tímto se nikdy neponižuje - klesá jen "utratitelný"
+    // zůstatek (viz computeAvailableXP).
+    if (typeof s.xpSpent !== 'number') s.xpSpent = 0;
+    if (!s.unlockedDownloads || typeof s.unlockedDownloads !== 'object') s.unlockedDownloads = {};
     return s;
   }
 
@@ -4377,6 +4385,31 @@
     return { level, intoLevel, xpToNext: XP_PER_LEVEL - intoLevel, pct };
   }
 
+  // Gamifikace: computeXP() = CELOŽIVOTNÍ nasbírané XP - používá se výhradně pro
+  // level (ten už se stažením nikdy nesnižuje). Stahování skladeb funguje jako
+  // utrácení "měny": každé odemčené stažení odečte DOWNLOAD_XP_STEP z utratitelného
+  // zůstatku (computeAvailableXP), ale nijak nemění celoživotní XP ani level.
+  function computeAvailableXP(s) {
+    return Math.max(0, computeXP(s) - (s.xpSpent || 0));
+  }
+
+  // Jednou zaplacená (stažená) skladba zůstává natrvalo odemčená a nezabírá už
+  // žádný další "slot" v utratitelném zůstatku.
+  function isDownloadUnlockedKey(s, key) {
+    return !!(s.unlockedDownloads && s.unlockedDownloads[key]);
+  }
+
+  // Odečte XP za odemčení stažení konkrétní skladby (jen pokud ještě nebyla zaplacená)
+  // a natrvalo si ji označí jako odemčenou. Vrací true, pokud k odečtení došlo.
+  function spendXPForDownload(key) {
+    if (!key || isDownloadUnlockedKey(stats, key)) return false;
+    stats.xpSpent = (stats.xpSpent || 0) + DOWNLOAD_XP_STEP;
+    if (!stats.unlockedDownloads || typeof stats.unlockedDownloads !== 'object') stats.unlockedDownloads = {};
+    stats.unlockedDownloads[key] = true;
+    saveStats();
+    return true;
+  }
+
   // Odposlechnutý čas se počítá průběžně přes 'timeupdate' (viz níže u audio elementu)
   let statsLastTick = null;
   let statsUnsavedSeconds = 0;
@@ -4430,6 +4463,7 @@
     daysVisited: { en: 'Days visited', cz: 'Navštívené dny' },
     level: { en: 'Level', cz: 'Úroveň' },
     xpTotal: { en: 'Total XP', cz: 'Celkem XP' },
+    xpAvailable: { en: 'XP to spend', cz: 'XP k utracení' },
     day: { en: 'day', cz: 'den' },
     days: { en: 'days', cz: 'dní' }
   };
@@ -4443,6 +4477,7 @@
     const rows = [
       [stL('level'), String(xpLevelInfo(xp).level)],
       [stL('xpTotal'), `${xp} XP`],
+      [stL('xpAvailable'), `${computeAvailableXP(stats)} XP`],
       [stL('listen'), formatStatsDuration(stats.totalListenSeconds)],
       [stL('tracks'), String(stats.totalTracksPlayed || 0)],
       [stL('favPlaylist'), topPlaylistLabel()],
@@ -4479,12 +4514,16 @@
     const info = xpLevelInfo(xp);
     labelEl.innerHTML = `<span>${stL('level')} ${info.level}</span><span>${info.intoLevel}/${XP_PER_LEVEL} XP</span>`;
     fillEl.style.width = `${info.pct}%`;
-    const gamifiedTotal = gamifiedQueueEntries().length;
-    const unlocked = Math.min(Math.floor(xp / DOWNLOAD_XP_STEP), gamifiedTotal);
-    const nextIn = DOWNLOAD_XP_STEP - (xp % DOWNLOAD_XP_STEP);
+    const gamifiedEntries = gamifiedQueueEntries();
+    const gamifiedTotal = gamifiedEntries.length;
+    const purchasedCount = gamifiedEntries.filter(e => isDownloadUnlockedKey(stats, e.src)).length;
+    const availableXP = computeAvailableXP(stats);
+    const affordableMore = Math.min(Math.floor(availableXP / DOWNLOAD_XP_STEP), Math.max(0, gamifiedTotal - purchasedCount));
+    const unlocked = Math.min(purchasedCount + affordableMore, gamifiedTotal);
+    const nextIn = DOWNLOAD_XP_STEP - (availableXP % DOWNLOAD_XP_STEP);
     const unlockMsg = guideLang === 'cz'
-      ? `Odemčeno ke stažení: ${unlocked}/${gamifiedTotal} skladeb v MY PLAYLIST. Další odemčení za ${nextIn} XP.`
-      : `Unlocked for download: ${unlocked}/${gamifiedTotal} tracks in MY PLAYLIST. Next unlock in ${nextIn} XP.`;
+      ? `Odemčeno ke stažení: ${unlocked}/${gamifiedTotal} skladeb v MY PLAYLIST (${availableXP} XP k utracení). Další odemčení za ${nextIn} XP.`
+      : `Unlocked for download: ${unlocked}/${gamifiedTotal} tracks in MY PLAYLIST (${availableXP} XP to spend). Next unlock in ${nextIn} XP.`;
     subEl.innerText = unlockMsg;
   }
 
@@ -4497,7 +4536,7 @@
   };
 
   window.resetStats = function() {
-    stats = { totalListenSeconds: 0, totalTracksPlayed: 0, xpEligibleTracksPlayed: 0, playsByPlaylist: {}, breathingSessions: 0, currentStreak: 0, longestStreak: 0, daysVisited: 0, lastActiveDate: todayStr() };
+    stats = { totalListenSeconds: 0, totalTracksPlayed: 0, xpEligibleTracksPlayed: 0, playsByPlaylist: {}, breathingSessions: 0, currentStreak: 0, longestStreak: 0, daysVisited: 0, lastActiveDate: todayStr(), xpSpent: 0, unlockedDownloads: {} };
     saveStats();
     renderStats();
   };
@@ -4889,12 +4928,14 @@
     }
     if (emptyNote) emptyNote.style.display = 'none';
 
-    // Gamifikace: XP postupně odemyká stažení skladeb v pořadí, v jakém byly do MY PLAYLIST přidány.
-    // Vlastní nahrané soubory (entry.fileId) do gamifikace nepatří - viz gamifiedQueueEntries().
-    const queueXP = computeXP(stats);
-    const gamifiedTotal = gamifiedQueueEntries().length;
-    const unlockedCount = Math.min(Math.floor(queueXP / DOWNLOAD_XP_STEP), gamifiedTotal);
-    let gamifiedPos = -1; // index skladby jen mezi negamifikovanými (SYNTHLUCIDA) skladbami
+    // Gamifikace: dostupné (utratitelné) XP postupně odemyká stažení skladeb, v pořadí,
+    // v jakém byly do MY PLAYLIST přidány. Jakmile je skladba jednou zaplacená/stažená,
+    // zůstává natrvalo odemčená a dál se nepočítá do fronty čekající na odemčení -
+    // viz spendXPForDownload(). Vlastní nahrané soubory (entry.fileId) do gamifikace
+    // nepatří - viz gamifiedQueueEntries().
+    const availableXP = computeAvailableXP(stats);
+    let creditsLeft = Math.floor(availableXP / DOWNLOAD_XP_STEP);
+    let notPurchasedIndex = -1; // pořadí jen mezi dosud NEzaplacenými gamifikovanými skladbami
 
     customQueue.forEach((entry, pos) => {
       const li = document.createElement('li');
@@ -4945,18 +4986,33 @@
           : "Your own file - not gated by XP";
         dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadTrackFile(entry.src, entry.title); });
       } else {
-        gamifiedPos++;
-        const isUnlocked = gamifiedPos < unlockedCount;
-        dlBtn.innerText = isUnlocked ? '⬇' : '🔒';
-        if (isUnlocked) {
+        const alreadyPurchased = isDownloadUnlockedKey(stats, entry.src);
+        if (alreadyPurchased) {
+          dlBtn.innerText = '⬇';
           dlBtn.title = guideLang === 'cz' ? 'Stáhnout MP3 do zařízení' : 'Download MP3 to your device';
           dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadTrackFile(entry.src, entry.title); });
         } else {
-          const neededXP = (gamifiedPos + 1) * DOWNLOAD_XP_STEP;
-          dlBtn.disabled = true;
-          dlBtn.title = guideLang === 'cz'
-            ? `Odemkne se při ${neededXP} XP (nyní ${queueXP} XP)`
-            : `Unlocks at ${neededXP} XP (you have ${queueXP} XP)`;
+          notPurchasedIndex++;
+          const isAffordable = notPurchasedIndex < creditsLeft;
+          dlBtn.innerText = isAffordable ? '⬇' : '🔒';
+          if (isAffordable) {
+            dlBtn.title = guideLang === 'cz'
+              ? `Stáhnout MP3 (odečte ${DOWNLOAD_XP_STEP} XP)`
+              : `Download MP3 (costs ${DOWNLOAD_XP_STEP} XP)`;
+            dlBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              spendXPForDownload(entry.src);
+              downloadTrackFile(entry.src, entry.title);
+              renderCustomQueue();
+              renderStats();
+            });
+          } else {
+            const neededXP = (notPurchasedIndex + 1) * DOWNLOAD_XP_STEP - availableXP;
+            dlBtn.disabled = true;
+            dlBtn.title = guideLang === 'cz'
+              ? `Odemkne se za ${neededXP} XP (nyní ${availableXP} XP k utracení)`
+              : `Unlocks in ${neededXP} more XP (you have ${availableXP} XP to spend)`;
+          }
         }
       }
 
