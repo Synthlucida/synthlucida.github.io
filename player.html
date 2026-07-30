@@ -476,6 +476,7 @@
   }
   .icon-btn:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
   .icon-btn:disabled { opacity: 0.2; cursor: default; box-shadow: none; border-color: rgba(255,255,255,0.2); color: #fff; }
+  .sun-photos-list .sun-photo-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.15); }
 
   .queue-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: center; flex-wrap: wrap; }
 
@@ -1078,7 +1079,7 @@
 
 <div class="effects-container">
   <button class="btn-feature" id="btn-weather" onclick="toggleWeather()">WEATHER: OFF</button>
-  <button class="btn-feature" id="btn-sun-photo" onclick="triggerSunPhotoUpload()" title="Add your own photos to the WEATHER: SUN rotation">＋ PHOTO</button>
+  <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation">＋ PHOTO</button>
   <input type="file" id="sun-photo-input" accept="image/*" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
   <button class="btn-feature" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
@@ -1177,6 +1178,19 @@
       <button class="btn-feature" onclick="clearCustomQueue()">CLEAR</button>
     </div>
     <input type="file" id="queue-import-input" accept=".json,application/json" style="display:none;" onchange="importCustomQueueFile(event)">
+  </div>
+</div>
+
+<div class="main-guide" id="sun-photos-panel">
+  <button class="main-guide-close" onclick="toggleSunPhotosPanel()" aria-label="Close photo manager">✖</button>
+  <div class="main-guide-inner">
+    <h3 data-i18n="sun_photos_title">My SUN Photos</h3>
+    <p class="main-guide-intro" data-i18n="sun_photos_intro">Add, remove or reorder your own photos in the WEATHER: SUN rotation. Originals stay untouched and are stored only on this device.</p>
+    <p class="main-guide-note" id="sun-photos-empty-note" style="display:none;" data-i18n="sun_photos_empty">You haven't added any photos yet.</p>
+    <ul class="history-list sun-photos-list" id="sun-photos-list"></ul>
+    <div class="queue-actions">
+      <button class="btn-feature" data-i18n="sun_photos_add_btn" onclick="triggerSunPhotoUpload()">＋ ADD PHOTOS</button>
+    </div>
   </div>
 </div>
 
@@ -1918,7 +1932,23 @@
   // WEATHER: SUN — přidání vlastní fotky do rotace sunPhotos. Fotka se připojí na konec pole,
   // takže se zobrazí až po těch vestavěných a doplní je ve stejném pořadí, v jakém byly přidány.
   // Neovlivňuje aktuálně běžící index/prolínání (sunPhotoIndex, sunPhotoFrame zůstávají beze změny).
-  function addCustomSunPhoto(url) {
+  // Vestavěné fotky se v poli sunPhotos nikdy nepřesouvají ani nemažou - vlastní fotky
+  // uživatele se drží zvlášť v customSunPhotoEntries (ve stejném pořadí, v jakém je má
+  // uživatel seřazené) a pole sunPhotos se po každé změně (přidání/odebrání/přeřazení)
+  // znovu poskládá jako vestavěné + vlastní, beze změny originálního souboru/blobu.
+  const BUILTIN_SUN_PHOTO_COUNT = sunPhotos.length;
+  let customSunPhotoEntries = []; // [{ id, name, url, img, loaded, aspect }] v pořadí zobrazení
+  let sunPhotoOrderCounter = 0;
+
+  function rebuildSunPhotosArray() {
+      sunPhotos.length = BUILTIN_SUN_PHOTO_COUNT;
+      for (const entry of customSunPhotoEntries) sunPhotos.push(entry);
+      if (sunPhotoIndex >= sunPhotos.length) sunPhotoIndex = 0;
+  }
+
+  // Vytvoří runtime záznam (Image + metadata) pro jednu vlastní fotku a přidá ho na konec
+  // customSunPhotoEntries - samotný obrázek/blob se tím nijak neupravuje, jen se načte pro zobrazení.
+  function addCustomSunPhotoEntry(id, name, url) {
       const img = new Image();
       let loaded = false;
       let aspect = 16 / 9;
@@ -1927,21 +1957,37 @@
           aspect = img.naturalWidth / img.naturalHeight;
       };
       img.src = url;
-      sunPhotos.push({ img, get loaded() { return loaded; }, get aspect() { return aspect; } });
+      const entry = { id, name, url, img, get loaded() { return loaded; }, get aspect() { return aspect; } };
+      customSunPhotoEntries.push(entry);
+      rebuildSunPhotosArray();
+      return entry;
   }
 
   // Při startu appky načte dřív uložené vlastní fotky uživatele z IndexedDB (seřazené podle
-  // toho, kdy byly přidány) a doplní je do rotace SUN za vestavěné fotky.
+  // vlastního pořadí, případně podle data přidání u starších záznamů) a doplní je do rotace
+  // SUN za vestavěné fotky.
   (async function loadCustomSunPhotosOnStart() {
       try {
           const records = await sunPhotoDbGetAll();
-          records.sort((a, b) => a.addedAt - b.addedAt);
+          records.sort((a, b) => (a.order ?? a.addedAt) - (b.order ?? b.addedAt));
+          records.forEach((r, i) => { r.order = i; });
+          sunPhotoOrderCounter = records.length;
           for (const r of records) {
               if (!r.blob) continue;
-              addCustomSunPhoto(URL.createObjectURL(r.blob));
+              addCustomSunPhotoEntry(r.id, r.name, URL.createObjectURL(r.blob));
+              try { await sunPhotoDbPut(r); } catch (e) { /* normalizace pořadí není kritická */ }
           }
       } catch (e) { console.error('Nelze načíst vlastní SUN fotky:', e); }
   })();
+
+  // Otevře/zavře samostatnou sekci pro správu vlastních fotek (přidání, odebrání, přeřazení).
+  window.toggleSunPhotosPanel = function() {
+      const panel = document.getElementById('sun-photos-panel');
+      if (!panel) return;
+      const willShow = !panel.classList.contains('visible');
+      panel.classList.toggle('visible', willShow);
+      if (willShow) renderSunPhotosPanel();
+  };
 
   // Nahrání nové vlastní fotky (nebo víc najednou) uživatelem do sekce WEATHER: SUN.
   window.triggerSunPhotoUpload = function() {
@@ -1955,18 +2001,115 @@
       input.value = ''; // aby šlo znovu vybrat stejný soubor příště
       if (!files.length) return;
 
+      let addedCount = 0;
       for (const file of files) {
           if (!file.type || file.type.indexOf('image/') !== 0) continue;
           const id = myFilesGenId();
+          const order = sunPhotoOrderCounter++;
           try {
-              await sunPhotoDbPut({ id, name: file.name, addedAt: Date.now(), blob: file });
-              addCustomSunPhoto(URL.createObjectURL(file));
+              await sunPhotoDbPut({ id, name: file.name, addedAt: Date.now(), order, blob: file });
+              addCustomSunPhotoEntry(id, file.name, URL.createObjectURL(file));
+              addedCount++;
           } catch (e) {
               console.error('Nelze uložit SUN fotku:', e);
               alert('Could not save one of the photos on this device.');
           }
       }
+
+      if (addedCount > 0 && typeof showToast === 'function') {
+          const msg = addedCount === 1
+              ? (i18nText.sun_photo_toast_added_one[guideLang] || i18nText.sun_photo_toast_added_one.en)
+              : (guideLang === 'cz' ? `Přidáno fotek: ${addedCount}` : `${addedCount} photos added`);
+          showToast(msg, '✓');
+      }
+      renderSunPhotosPanel();
   };
+
+  // Odebrání jedné vlastní fotky (z IndexedDB i z běžící rotace SUN).
+  window.removeSunPhoto = async function(id) {
+      const idx = customSunPhotoEntries.findIndex((e) => e.id === id);
+      if (idx === -1) return;
+      customSunPhotoEntries.splice(idx, 1);
+      rebuildSunPhotosArray();
+      renderSunPhotosPanel();
+      try { await sunPhotoDbDelete(id); } catch (e) { console.error('Nelze smazat SUN fotku:', e); }
+  };
+
+  // Přeřazení vlastní fotky o jednu pozici nahoru/dolů (direction: -1 nebo 1). Přeřazují se
+  // jen pořadová čísla / pozice v poli - samotný originální soubor se nijak nemění.
+  window.moveSunPhoto = async function(id, direction) {
+      const idx = customSunPhotoEntries.findIndex((e) => e.id === id);
+      const targetIdx = idx + direction;
+      if (idx === -1 || targetIdx < 0 || targetIdx >= customSunPhotoEntries.length) return;
+      const tmp = customSunPhotoEntries[idx];
+      customSunPhotoEntries[idx] = customSunPhotoEntries[targetIdx];
+      customSunPhotoEntries[targetIdx] = tmp;
+      rebuildSunPhotosArray();
+      renderSunPhotosPanel();
+      try {
+          const a = customSunPhotoEntries[idx];
+          const b = customSunPhotoEntries[targetIdx];
+          const recordA = await sunPhotoDbGet(a.id);
+          const recordB = await sunPhotoDbGet(b.id);
+          if (recordA) { recordA.order = idx; await sunPhotoDbPut(recordA); }
+          if (recordB) { recordB.order = targetIdx; await sunPhotoDbPut(recordB); }
+      } catch (e) { console.error('Nelze uložit nové pořadí SUN fotek:', e); }
+  };
+
+  // Vykreslí seznam vlastních SUN fotek v panelu se správou (miniatura, název, ▲▼ a ✕).
+  function renderSunPhotosPanel() {
+      const listEl = document.getElementById('sun-photos-list');
+      const emptyNote = document.getElementById('sun-photos-empty-note');
+      if (!listEl) return;
+
+      listEl.innerHTML = '';
+      if (!customSunPhotoEntries.length) {
+          if (emptyNote) emptyNote.style.display = '';
+          return;
+      }
+      if (emptyNote) emptyNote.style.display = 'none';
+
+      customSunPhotoEntries.forEach((entry, pos) => {
+          const li = document.createElement('li');
+
+          const thumb = document.createElement('img');
+          thumb.className = 'sun-photo-thumb';
+          thumb.src = entry.url;
+          thumb.alt = entry.name || '';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'history-name';
+          nameSpan.innerText = entry.name || `Photo ${pos + 1}`;
+          setupHoverMarquee(nameSpan);
+
+          const upBtn = document.createElement('button');
+          upBtn.className = 'icon-btn';
+          upBtn.title = 'Move up';
+          upBtn.innerText = '▲';
+          upBtn.disabled = pos === 0;
+          upBtn.addEventListener('click', (e) => { e.stopPropagation(); moveSunPhoto(entry.id, -1); });
+
+          const downBtn = document.createElement('button');
+          downBtn.className = 'icon-btn';
+          downBtn.title = 'Move down';
+          downBtn.innerText = '▼';
+          downBtn.disabled = pos === customSunPhotoEntries.length - 1;
+          downBtn.addEventListener('click', (e) => { e.stopPropagation(); moveSunPhoto(entry.id, 1); });
+
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'icon-btn';
+          removeBtn.title = 'Remove';
+          removeBtn.innerText = '✕';
+          removeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeSunPhoto(entry.id); });
+
+          li.appendChild(thumb);
+          li.appendChild(nameSpan);
+          li.appendChild(upBtn);
+          li.appendChild(downBtn);
+          li.appendChild(removeBtn);
+          listEl.appendChild(li);
+      });
+  }
 
 
   function updateMoonPhase() {
@@ -3298,7 +3441,12 @@
     breath_calm_text: { en: "Inhale for 4s, exhale for 6s, making the out-breath longer than the in-breath. A longer exhale stimulates the vagus nerve and slows the heart rate — a quick way to downshift after a stressful moment.", cz: "Nádech na 4 s, výdech na 6 s — výdech je tedy delší než nádech. Delší výdech stimuluje bloudivý nerv a zpomaluje srdeční tep — rychlý způsob, jak se zklidnit po stresující chvíli." },
     breath_sigh_title: { en: "Sigh — Huberman Lab", cz: "Sigh — Huberman Lab" },
     breath_sigh_text: { en: "Two inhales through the nose (one long, one short \"sip\" on top of it), followed by one long, slow exhale through the mouth. Studied at Stanford's Huberman Lab as one of the fastest ways to lower physiological stress in real time.", cz: "Dva nádechy nosem (jeden dlouhý a na něj navazující krátký „doušek“ vzduchu navíc), následované jedním dlouhým, pomalým výdechem ústy. Ve Stanfordské laboratoři Huberman Lab je tato technika zkoumána jako jeden z nejrychlejších způsobů, jak v reálném čase snížit fyziologický stres." },
-    breath_guide_note: { en: "General relaxation information only — not medical advice. If you feel dizzy or unwell, breathe normally and stop.", cz: "Pouze obecné informace pro uvolnění — nejedná se o lékařskou radu. Pokud se vám udělá špatně nebo pocítíte závrať, dýchejte normálně a přestaňte cvičit." }
+    breath_guide_note: { en: "General relaxation information only — not medical advice. If you feel dizzy or unwell, breathe normally and stop.", cz: "Pouze obecné informace pro uvolnění — nejedná se o lékařskou radu. Pokud se vám udělá špatně nebo pocítíte závrať, dýchejte normálně a přestaňte cvičit." },
+    sun_photos_title: { en: "My SUN Photos", cz: "Moje fotky pro SUN" },
+    sun_photos_intro: { en: "Add, remove or reorder your own photos in the WEATHER: SUN rotation. Originals stay untouched and are stored only on this device.", cz: "Přidávejte, odebírejte nebo měňte pořadí vlastních fotek v rotaci WEATHER: SUN. Originály zůstávají nedotčené a jsou uloženy jen ve vašem zařízení." },
+    sun_photos_empty: { en: "You haven't added any photos yet.", cz: "Zatím jste nepřidali žádné fotky." },
+    sun_photos_add_btn: { en: "＋ ADD PHOTOS", cz: "＋ PŘIDAT FOTKY" },
+    sun_photo_toast_added_one: { en: "Photo added", cz: "Fotka přidána" }
   };
 
   function applyGuideLanguage() {
@@ -3426,6 +3574,26 @@
       const req = tx.objectStore(SUN_PHOTOS_STORE).getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function sunPhotoDbGet(id) {
+    const db = await openMyFilesDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SUN_PHOTOS_STORE, 'readonly');
+      const req = tx.objectStore(SUN_PHOTOS_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function sunPhotoDbDelete(id) {
+    const db = await openMyFilesDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SUN_PHOTOS_STORE, 'readwrite');
+      tx.objectStore(SUN_PHOTOS_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   }
 
