@@ -1966,7 +1966,13 @@
   // Při startu appky načte dřív uložené vlastní fotky uživatele z IndexedDB (seřazené podle
   // vlastního pořadí, případně podle data přidání u starších záznamů) a doplní je do rotace
   // SUN za vestavěné fotky.
-  (async function loadCustomSunPhotosOnStart() {
+  // POZN.: definováno jako pojmenovaná funkce a volané až z DOMContentLoaded (viz níže) -
+  // dřív se volalo okamžitě (IIFE) hned na tomto místě v souboru, ale konstanty
+  // MYFILES_DB_NAME/SUN_PHOTOS_STORE apod. jsou deklarované přes const až o pár tisíc řádků
+  // níž, takže v okamžiku okamžitého volání ještě nebyly inicializované (byly v tzv. temporal
+  // dead zone) a načtení tiše selhávalo s chybou v konzoli - fotky se sice uložily do
+  // IndexedDB správně, ale po dalším spuštění appky se už nenačetly zpátky.
+  async function loadCustomSunPhotosOnStart() {
       try {
           const records = await sunPhotoDbGetAll();
           records.sort((a, b) => (a.order ?? a.addedAt) - (b.order ?? b.addedAt));
@@ -1978,7 +1984,7 @@
               try { await sunPhotoDbPut(r); } catch (e) { /* normalizace pořadí není kritická */ }
           }
       } catch (e) { console.error('Nelze načíst vlastní SUN fotky:', e); }
-  })();
+  }
 
   // Otevře/zavře samostatnou sekci pro správu vlastních fotek (přidání, odebrání, přeřazení).
   window.toggleSunPhotosPanel = function() {
@@ -5382,6 +5388,7 @@
 
     loadMyPlaylistsFromStorage();
     refreshMyFilesLibrary().then(repairCustomQueueBlobUrls);
+    loadCustomSunPhotosOnStart();
 
     try {
         const savedLang = localStorage.getItem('synthlucida_guide_lang');
