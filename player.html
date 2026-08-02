@@ -372,6 +372,11 @@
     font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-color);
     text-shadow: 0 0 10px var(--accent-color); margin: 0 0 12px; text-align: center;
   }
+  .main-guide-inner h3.section-title-row {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+  }
+  .section-title-row .eq { height: 11px; }
+  .section-title-row .eq span { height: 11px; }
   .main-guide-inner p.main-guide-intro {
     font-size: 10.5px; line-height: 1.7; opacity: 0.75; margin: 0 0 22px;
   }
@@ -1206,12 +1211,13 @@
 <div class="main-guide" id="queue-panel">
   <button class="main-guide-close" onclick="toggleCustomQueue()" aria-label="Close my playlist">✖</button>
   <div class="main-guide-inner">
-    <h3>My Playlist</h3>
+    <h3 class="section-title-row">My Playlist<span class="eq" id="myplaylist-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span></h3>
     <p class="main-guide-intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼, then hit PLAY to listen through your own list, in exactly the order you built it.</p>
     <p class="main-guide-note" id="queue-empty-note" style="display:none;">Your playlist is empty. Add tracks from HISTORY.</p>
     <ul class="history-list" id="queue-list"></ul>
     <div class="queue-actions">
       <button class="btn-feature" onclick="playCustomQueueFromStart()">▶ PLAY</button>
+      <button class="btn-feature" onclick="stopPlayback()">■ STOP</button>
       <button class="btn-feature" onclick="exportCustomQueue()">📄 EXPORT TXT</button>
       <button class="btn-feature" onclick="exportCustomQueueFile()">💾 EXPORT PLAYLIST</button>
       <button class="btn-feature" onclick="triggerImportCustomQueue()">📂 IMPORT PLAYLIST</button>
@@ -1374,7 +1380,7 @@
   <button class="main-guide-close" onclick="toggleMainFiles()" aria-label="Close my files">✖</button>
   <button class="myfiles-help-btn" onclick="toggleMyFilesGuide()" aria-label="How to use My Files">?</button>
   <div class="main-guide-inner">
-    <h3>My Files &amp; Playlists</h3>
+    <h3 class="section-title-row">My Files &amp; Playlists<span class="eq" id="myfiles-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span></h3>
     <p class="main-guide-intro">Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.</p>
 
     <input type="file" id="myfiles-input" accept="audio/*" multiple style="display:none;" onchange="handleMyFilesUpload(event)">
@@ -1749,6 +1755,26 @@
   const progressBar = document.getElementById('progress-bar');
   const eqEl = document.getElementById('eq-visualizer');
   const spinnerEl = document.getElementById('mini-spinner');
+  const myPlaylistEqEl = document.getElementById('myplaylist-eq');
+  const myFilesEqEl = document.getElementById('myfiles-eq');
+
+  // Ekvalizér u nadpisů "My Playlist" a "My Files & Playlists" - rozsvítí se, jen když
+  // se opravdu přehrává obsah dané sekce (MY PLAYLIST fronta / vlastní playlist z F panelu)
+  // A zároveň je uživatel stále v daném panelu (ten je "visible" - neodešel zpět do hlavní nabídky).
+  function updateSectionEqIndicators() {
+    const playing = !audio.paused;
+    const queuePanel = document.getElementById('queue-panel');
+    const filesPanel = document.getElementById('main-files');
+    const queuePanelOpen = !!queuePanel && queuePanel.classList.contains('visible');
+    const filesPanelOpen = !!filesPanel && filesPanel.classList.contains('visible');
+    if (myPlaylistEqEl) {
+      myPlaylistEqEl.classList.toggle('playing', playing && customQueueActive && queuePanelOpen);
+    }
+    if (myFilesEqEl) {
+      const isFilesPlaylist = typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0;
+      myFilesEqEl.classList.toggle('playing', playing && !customQueueActive && isFilesPlaylist && filesPanelOpen);
+    }
+  }
   
   let currentVisualTheme = 'amber';
   let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť), 3 = winter (sněžení), 4 = winter II (vánice s větrem)
@@ -4010,6 +4036,7 @@
       refreshMyFilesLibrary().then(renderMyFiles);
       renderMyFiles();
     }
+    updateSectionEqIndicators();
   };
 
   // Nahrání nových souborů uživatelem
@@ -4237,6 +4264,12 @@
           playBtnEl.innerText = '▶';
           playBtnEl.addEventListener('click', (e) => { e.stopPropagation(); playMyFileNow(f.id); });
 
+          const stopBtnEl = document.createElement('button');
+          stopBtnEl.className = 'icon-btn';
+          stopBtnEl.title = 'Stop';
+          stopBtnEl.innerText = '■';
+          stopBtnEl.addEventListener('click', (e) => { e.stopPropagation(); stopPlayback(); });
+
           const removeBtnEl = document.createElement('button');
           removeBtnEl.className = 'icon-btn';
           removeBtnEl.title = 'Delete';
@@ -4246,6 +4279,7 @@
           li.appendChild(nameSpan);
           li.appendChild(sizeSpan);
           li.appendChild(playBtnEl);
+          li.appendChild(stopBtnEl);
           li.appendChild(removeBtnEl);
           listEl.appendChild(li);
         });
@@ -4356,6 +4390,7 @@
         actions.className = 'queue-actions';
         actions.innerHTML = `
           <button class="btn-feature" onclick="playMyPlaylist('${pl.id}')">▶ PLAY</button>
+          <button class="btn-feature" onclick="stopPlayback()">■ STOP</button>
           <button class="btn-feature" onclick="renameMyPlaylist('${pl.id}')">RENAME</button>
           <button class="btn-feature" onclick="deleteMyPlaylist('${pl.id}')">DELETE</button>
         `;
@@ -4502,10 +4537,12 @@
   // ne na reálnou frekvenční analýzu (ta by u cross-origin MP3 stejně nešla spolehlivě).
   audio.addEventListener('play', () => {
     eqEl.classList.add('playing');
+    updateSectionEqIndicators();
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
   });
   audio.addEventListener('pause', () => {
     eqEl.classList.remove('playing');
+    updateSectionEqIndicators();
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     statsLastTick = null;
     if (statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
@@ -5544,6 +5581,7 @@
     const willShow = !panel.classList.contains('visible');
     panel.classList.toggle('visible', willShow);
     if (willShow) renderCustomQueue();
+    updateSectionEqIndicators();
   };
 
   // Zapamatování poslední přehrávané skladby a pozice v ní (bez autoplaye při dalším otevření)
@@ -5563,6 +5601,17 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') saveLastTrackPosition();
   });
+
+  // STOP - okamžitě zastaví přehrávání a vrátí skladbu na začátek (na rozdíl od pauzy
+  // tlačítkem ⏸, které jen pozastaví na aktuální pozici). Použito u tlačítek STOP
+  // v sekcích My Playlist a My Files & Playlists (F).
+  window.stopPlayback = function() {
+    cancelCrossfade();
+    audio.pause();
+    try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+    isPlaying = false;
+    playBtn.innerText = "▶";
+  };
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
