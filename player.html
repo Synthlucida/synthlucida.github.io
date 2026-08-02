@@ -564,6 +564,17 @@
   }
   .community-toggle-btn:hover, .community-toggle-btn:active { opacity: 1; }
 
+  .online-count-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; letter-spacing: 0.3px; color: var(--accent-color); opacity: 0.75;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; padding: 2px 7px; line-height: 1; user-select: none;
+  }
+  .online-count-badge::before {
+    content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent-color); box-shadow: 0 0 4px var(--accent-color);
+  }
+
   .community-input-row {
     display: none; align-items: center; gap: 6px; max-width: 280px; margin: 0 auto 4px auto; padding: 0 12px;
   }
@@ -755,7 +766,7 @@
   body.focus-mode .crossfade-container,
   body.focus-mode .effects-container,
   body.focus-mode .download-progress-wrap,
-  body.focus-mode .slogan-container {
+  body.focus-mode .slogan-container:not(.community-msg) {
     display: none !important;
   }
   body.focus-mode .player-section {
@@ -1225,6 +1236,7 @@
   <div class="focus-mode-row">
     <div class="focus-mode-left">
       <button class="btn-focus-mode community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
+      <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
       <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
     </div>
     <button class="btn-focus-mode" id="btn-focus-mode" onclick="toggleFocusMode()" title="Focus mode" aria-label="Toggle focus mode">⛶</button>
@@ -6280,6 +6292,42 @@
   }
 
   initCommunityChat();
+
+  // ==========================================
+  // POČET AKTUÁLNĚ PŘIPOJENÝCH POSLUCHAČŮ (živé počítadlo vedle bubliny 💬)
+  // Využívá standardní Firebase "presence" vzor: každé otevřené okno/tab si
+  // po připojení zapíše vlastní záznam do /presence a nastaví onDisconnect(),
+  // aby se záznam automaticky smazal při zavření appky / výpadku sítě.
+  // Zobrazené číslo je pak prostě počet aktuálně přítomných záznamů.
+  // ==========================================
+  function initOnlinePresence() {
+    try {
+      if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
+      const badge = document.getElementById('online-count-badge');
+      const db = firebase.database();
+      const presenceRef = db.ref('presence');
+      const myPresenceRef = presenceRef.push();
+
+      // .info/connected se spustí znovu při každém obnovení spojení (i po výpadku),
+      // takže se záznam vždy znovu zapíše a onDisconnect znovu nastaví.
+      db.ref('.info/connected').on('value', (snap) => {
+        if (snap.val() === true) {
+          myPresenceRef.onDisconnect().remove();
+          myPresenceRef.set(true);
+        }
+      });
+
+      presenceRef.on('value', (snap) => {
+        if (!badge) return;
+        const count = snap.numChildren();
+        badge.textContent = count > 0 ? String(count) : '–';
+      });
+    } catch (e) {
+      console.error('Počítadlo online posluchačů se nepodařilo spustit:', e);
+    }
+  }
+
+  initOnlinePresence();
 
   function scheduleNextSlogan() {
     // Náhodný čas mezi 30s a 40s
