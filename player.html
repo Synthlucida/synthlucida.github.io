@@ -542,18 +542,60 @@
   .reminders-status { font-size: 9px; opacity: 0.65; line-height: 1.4; margin: 10px 0; }
 
   /* Slogany pod vizuálem */
+  .slogan-wrap { position: relative; max-width: 280px; margin: 0 auto 4px auto; }
   .slogan-container {
     min-height: 9px; 
     font-size: 8px; 
     opacity: 0;
     transition: opacity 2.5s ease-in-out; 
-    margin: 0 auto 4px auto;
+    margin: 0;
+    padding: 0 20px;
     text-shadow: 0 0 8px var(--accent-color); 
     letter-spacing: 1.5px;
     text-transform: uppercase;
     font-weight: 400;
   }
   .slogan-container.visible { opacity: 0.8; }
+  .slogan-container.community-msg { opacity: 0.95; letter-spacing: 0.5px; text-transform: none; }
+
+  /* Komunitní zprávy - vstup a reakce */
+  .community-toggle-btn {
+    position: absolute; right: -4px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--accent-color); opacity: 0.35;
+    font-size: 10px; line-height: 1; cursor: pointer; padding: 4px; transition: opacity 0.2s ease;
+  }
+  .community-toggle-btn:hover, .community-toggle-btn:active { opacity: 0.85; }
+  body.is-fullscreen .slogan-wrap .community-toggle-btn, body.focus-mode .slogan-wrap .community-toggle-btn { display: none; }
+
+  .community-input-row {
+    display: none; align-items: center; gap: 6px; max-width: 280px; margin: 0 auto 4px auto; padding: 0 12px;
+  }
+  .community-input-row.visible { display: flex; }
+  .community-input {
+    flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px; color: #fff; font-size: 11px; padding: 5px 10px; outline: none; min-width: 0;
+  }
+  .community-input:focus { border-color: var(--accent-color); }
+  .community-send-btn {
+    background: none; border: none; color: var(--accent-color); font-size: 14px; cursor: pointer; padding: 2px 6px; flex-shrink: 0;
+  }
+  .community-error {
+    text-align: center; font-size: 9px; color: #ff6b6b; opacity: 0; min-height: 0; transition: opacity 0.3s ease;
+  }
+  .community-error.visible { opacity: 0.9; }
+
+  .community-reactions {
+    display: none; justify-content: center; gap: 10px; margin: 2px auto 6px auto; opacity: 0; transition: opacity 0.4s ease;
+  }
+  .community-reactions.visible { display: flex; opacity: 1; }
+  .reaction-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    color: #fff; font-size: 11px; padding: 3px 8px; cursor: pointer; transition: transform 0.15s ease, background 0.2s ease;
+  }
+  .reaction-btn:hover { background: rgba(255,255,255,0.1); }
+  .reaction-btn.reacted { border-color: var(--accent-color); background: rgba(255,255,255,0.12); }
+  .reaction-btn:active { transform: scale(0.9); }
+  .reaction-count { opacity: 0.7; font-size: 10px; }
 
   /* Glassmorphism stylizace přehrávače - ZMENŠENO PRO KOMPAKTNÍ VZHLED */
   .player-section { 
@@ -1141,7 +1183,17 @@
   <div class="download-progress-bar" id="download-progress-bar"></div>
 </div>
 
-<div id="slogan-container" class="slogan-container"></div>
+<div class="slogan-wrap">
+  <div id="slogan-container" class="slogan-container"></div>
+  <button class="community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
+</div>
+
+<div class="community-input-row" id="community-input-row">
+  <input type="text" id="community-input" class="community-input" maxlength="60" data-i18n-placeholder="community_input_placeholder" placeholder="Pár slov pro ostatní posluchače…" onkeydown="if(event.key==='Enter'){sendCommunityMessage();}">
+  <button class="community-send-btn" onclick="sendCommunityMessage()" data-i18n-aria="community_send_btn" aria-label="Send">➤</button>
+</div>
+<div class="community-error" id="community-error"></div>
+<div class="community-reactions" id="community-reactions"></div>
 
 <div class="player-section">
   <div class="now-playing-row">
@@ -1337,6 +1389,11 @@
     <div class="main-guide-section">
       <h4 data-i18n="h_offline">Offline listening</h4>
       <p data-i18n="p_offline">⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback. Offline listening works only inside the app, not in a regular browser tab.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_community">Community messages</h4>
+      <p data-i18n="p_community">Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨ (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1556,6 +1613,31 @@
 
   <div class="breath-hint">tap ✖ to exit</div>
 </div>
+
+<!-- Firebase - pohání komunitní zprávy a emoji reakce v reálném čase.
+     Konfiguraci níže je potřeba nahradit vlastní (Firebase Console -> Project settings). -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  // ==========================================
+  // FIREBASE KONFIGURACE - SEM VLOŽ SVOJI VLASTNÍ
+  // (Firebase Console -> ⚙ Project settings -> Your apps -> SDK setup and configuration)
+  // ==========================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyCHuoYFQUVCyF0X34vt6ysdz_FtO5fnNIg",
+    authDomain: "synthlucida.firebaseapp.com",
+    databaseURL: "https://synthlucida-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "synthlucida",
+    storageBucket: "synthlucida.firebasestorage.app",
+    messagingSenderId: "244515647380",
+    appId: "1:244515647380:web:c7f75f3bea55434f9b6981"
+  };
+  try {
+    firebase.initializeApp(firebaseConfig);
+  } catch (e) {
+    console.warn('Firebase se nepodařilo inicializovat - komunitní chat bude vypnutý, dokud nedoplníš firebaseConfig:', e);
+  }
+</script>
 
 <script>
   const tracks = {
@@ -3770,6 +3852,15 @@
     p_save: { en: "SAVE stores your current theme, effects and other preferences so they load automatically the next time you visit. FULLSCREEN hides the browser interface for a cleaner, distraction-free view.", cz: "SAVE uloží aktuální motiv, efekty a další předvolby, které se při příští návštěvě automaticky načtou. FULLSCREEN skryje rozhraní prohlížeče pro čistší zobrazení bez rušivých prvků." },
     h_offline: { en: "Offline listening", cz: "Poslech offline" },
     p_offline: { en: "⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback. Offline listening works only inside the app, not in a regular browser tab.", cz: "⬇ DOWNLOAD OFFLINE uloží aktuální playlist pro přehrávání offline. Poslech offline funguje pouze uvnitř aplikace, ne v běžné záložce prohlížeče." },
+    h_community: { en: "Community messages", cz: "Zprávy pro ostatní posluchače" },
+    p_community: { en: "Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨ (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.", cz: "Klepnutím na 💬 pod slogany pošlete krátkou zprávu (max. 60 znaků) všem, kdo právě poslouchají. Zprávě se na chvíli (asi 10 sekund) zobrazí všem místo dalšího sloganu, a to i vám — a ostatní posluchači na ni mohou reagovat pomocí 🔥❤️🙏✨ (bez psaní odpovědí, jen reakce emoji). Poslat lze jednu zprávu za minutu. Zprávy nejsou vázané na žádný účet a neukládají se do vašeho zařízení." },
+    community_toggle_btn: { en: "Message everyone", cz: "Napsat ostatním" },
+    community_input_placeholder: { en: "A few words for other listeners…", cz: "Pár slov pro ostatní posluchače…" },
+    community_send_btn: { en: "Send", cz: "Odeslat" },
+    community_err_banned: { en: "This message can't be sent.", cz: "Tuhle zprávu nelze odeslat." },
+    community_err_ratelimit: { en: "Wait a bit before sending another message.", cz: "Počkej chvíli, než pošleš další zprávu." },
+    community_err_unavailable: { en: "Community chat isn't available right now.", cz: "Komunitní chat momentálně není dostupný." },
+    community_err_failed: { en: "Sending failed, try again.", cz: "Odeslání se nezdařilo, zkus to znovu." },
     h_notifications: { en: "Notifications", cz: "Notifikace" },
     p_notifications: { en: "Tap 🔔 REMINDERS to turn on gentle local reminders. The first time you enable them, your browser will ask for notification permission — allow it. Pick how often you want a nudge (every 15m, 30m, 1h, 2h or 4h), and from then on you'll get a short notification with a calming message, popping up the same way any other app notification does (banner, lock screen or notification shade, depending on your device). Use TEST NOTIFICATION any time to see one right away. Everything happens locally on your device - nothing is sent to any server. Reminders keep firing while the app is open or running in the background; if your phone or browser fully closes the app, they pause until you open it again - that's a limit of how browsers work, not a bug. Turn them off anytime from the same 🔔 REMINDERS panel.", cz: "Klepnutím na 🔔 REMINDERS zapnete jemné lokální připomínky. Při prvním zapnutí se prohlížeč zeptá na svolení k zobrazování notifikací — povolte ho. Vyberte si, jak často chcete připomenout (každých 15m, 30m, 1h, 2h nebo 4h), a od té chvíle budete dostávat krátkou notifikaci s uklidňující zprávou — zobrazí se stejně jako notifikace od jakékoli jiné aplikace (banner, zamykací obrazovka nebo lišta notifikací, podle zařízení). Tlačítkem TEST NOTIFICATION si kdykoli můžete jednu zobrazit hned. Vše se odehrává pouze ve vašem zařízení - nic se neposílá na žádný server. Připomínky fungují, dokud je appka otevřená nebo běží na pozadí; pokud telefon nebo prohlížeč appku úplně ukončí, připomínky se pozastaví, dokud appku znovu neotevřete - to je omezení dané fungováním prohlížečů, ne chyba. Kdykoli je můžete vypnout ve stejném panelu 🔔 REMINDERS." },
     stats_title: { en: "Your Statistics", cz: "Vaše statistiky" },
@@ -3820,6 +3911,14 @@
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       const entry = i18nText[el.getAttribute('data-i18n')];
       if (entry) el.textContent = entry[guideLang] || entry.en;
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      const entry = i18nText[el.getAttribute('data-i18n-placeholder')];
+      if (entry) el.placeholder = entry[guideLang] || entry.en;
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+      const entry = i18nText[el.getAttribute('data-i18n-aria')];
+      if (entry) el.setAttribute('aria-label', entry[guideLang] || entry.en);
     });
     document.querySelectorAll('.lang-toggle-btn').forEach((btn) => {
       btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
@@ -5985,6 +6084,9 @@
   }
 
   function showSlogan() {
+    // Pokud zrovna svítí zpráva od komunity, běžný slogan ji nepřebije
+    if (currentCommunityMsgId) return;
+    sloganEl.classList.remove('community-msg');
     sloganEl.innerText = nextMainSlogan();
     sloganEl.classList.add('visible');
     
@@ -5993,6 +6095,167 @@
       sloganEl.classList.remove('visible');
     }, 8000);
   }
+
+  // ==========================================
+  // KOMUNITNÍ ZPRÁVY V REÁLNÉM ČASE (přes Firebase Realtime Database)
+  // Když někdo napíše zprávu, zobrazí se všem uživatelům místo dalšího
+  // sloganu; ostatní mohou reagovat jen emoji (bez psaní odpovědí).
+  // ==========================================
+  let communityMessagesRef = null;
+  let communityReactionsRef = null;
+  let currentCommunityMsgId = null;
+  let communityDisplayTimeout = null;
+  const reactionEmojis = ['🔥', '❤️', '🙏', '✨'];
+
+  // Sem si můžeš doplnit slova, která se nesmí odeslat (malými písmeny).
+  const communityBannedWords = [];
+
+  function containsBannedWord(text) {
+    const lower = text.toLowerCase();
+    return communityBannedWords.some(w => w && lower.includes(w));
+  }
+
+  function showCommunityError(msg) {
+    const errEl = document.getElementById('community-error');
+    if (!errEl) return;
+    errEl.innerText = msg;
+    errEl.classList.add('visible');
+    setTimeout(() => errEl.classList.remove('visible'), 3000);
+  }
+
+  function toggleCommunityInput(forceState) {
+    const row = document.getElementById('community-input-row');
+    if (!row) return;
+    const show = typeof forceState === 'boolean' ? forceState : !row.classList.contains('visible');
+    row.classList.toggle('visible', show);
+    if (show) {
+      const input = document.getElementById('community-input');
+      if (input) input.focus();
+    }
+  }
+
+  function sendCommunityMessage() {
+    const input = document.getElementById('community-input');
+    if (!input) return;
+    const text = input.value.trim().slice(0, 60);
+    if (!text) return;
+
+    if (containsBannedWord(text)) {
+      showCommunityError(i18nText.community_err_banned[guideLang] || i18nText.community_err_banned.en);
+      return;
+    }
+
+    let lastTs = 0;
+    try { lastTs = parseInt(localStorage.getItem('sl-last-community-msg-ts') || '0', 10); } catch (e) {}
+    const now = Date.now();
+    if (now - lastTs < 60000) {
+      showCommunityError(i18nText.community_err_ratelimit[guideLang] || i18nText.community_err_ratelimit.en);
+      return;
+    }
+
+    if (!communityMessagesRef) {
+      showCommunityError(i18nText.community_err_unavailable[guideLang] || i18nText.community_err_unavailable.en);
+      return;
+    }
+
+    communityMessagesRef.push({
+      text: text,
+      ts: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+      try { localStorage.setItem('sl-last-community-msg-ts', String(now)); } catch (e) {}
+      input.value = '';
+      toggleCommunityInput(false);
+    }).catch((err) => {
+      console.error('Odeslání komunitní zprávy selhalo:', err);
+      showCommunityError(i18nText.community_err_failed[guideLang] || i18nText.community_err_failed.en);
+    });
+  }
+
+  function showCommunityMessage(text, msgId) {
+    clearTimeout(communityDisplayTimeout);
+    if (currentCommunityMsgId && currentCommunityMsgId !== msgId && communityReactionsRef) {
+      communityReactionsRef.child(currentCommunityMsgId).off('value');
+    }
+    currentCommunityMsgId = msgId;
+    sloganEl.innerText = text;
+    sloganEl.classList.add('visible', 'community-msg');
+    showReactionBar(msgId);
+
+    // Zpráva od komunity zůstane zobrazená 10 sekund
+    communityDisplayTimeout = setTimeout(() => {
+      sloganEl.classList.remove('visible', 'community-msg');
+      hideReactionBar();
+      currentCommunityMsgId = null;
+    }, 10000);
+  }
+
+  function showReactionBar(msgId) {
+    const bar = document.getElementById('community-reactions');
+    if (!bar) return;
+    bar.innerHTML = '';
+    reactionEmojis.forEach((emoji) => {
+      const btn = document.createElement('button');
+      btn.className = 'reaction-btn';
+      btn.innerHTML = emoji + ' <span class="reaction-count">0</span>';
+      let votedKey = null;
+      try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
+      if (votedKey && localStorage.getItem(votedKey)) btn.classList.add('reacted');
+      btn.onclick = () => reactToMessage(msgId, emoji, btn);
+      bar.appendChild(btn);
+    });
+    bar.classList.add('visible');
+
+    if (communityReactionsRef) {
+      communityReactionsRef.child(msgId).on('value', (snap) => {
+        const data = snap.val() || {};
+        reactionEmojis.forEach((emoji, i) => {
+          const countEl = bar.children[i] && bar.children[i].querySelector('.reaction-count');
+          if (countEl) countEl.innerText = data[emoji] || 0;
+        });
+      });
+    }
+  }
+
+  function hideReactionBar() {
+    const bar = document.getElementById('community-reactions');
+    if (!bar) {
+      return;
+    }
+    bar.classList.remove('visible');
+    if (communityReactionsRef && currentCommunityMsgId) {
+      communityReactionsRef.child(currentCommunityMsgId).off('value');
+    }
+  }
+
+  function reactToMessage(msgId, emoji, btnEl) {
+    if (!communityReactionsRef) return;
+    let votedKey = null;
+    try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
+    if (votedKey && localStorage.getItem(votedKey)) return; // jedna reakce na emoji na zprávu na zařízení
+    communityReactionsRef.child(msgId).child(emoji).transaction((current) => (current || 0) + 1);
+    try { if (votedKey) localStorage.setItem(votedKey, '1'); } catch (e) {}
+    btnEl.classList.add('reacted');
+  }
+
+  function initCommunityChat() {
+    try {
+      if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
+      const db = firebase.database();
+      communityMessagesRef = db.ref('messages');
+      communityReactionsRef = db.ref('reactions');
+      // Poslouchá jen zprávy odeslané OD TEĎ dál, aby appka nepřehrávala celou historii při každém načtení.
+      const cutoff = Date.now();
+      communityMessagesRef.orderByChild('ts').startAt(cutoff).on('child_added', (snap) => {
+        const msg = snap.val();
+        if (!msg || !msg.text) return;
+        showCommunityMessage(msg.text, snap.key);
+      });
+    } catch (e) {
+      console.error('Komunitní chat se nepodařilo spustit:', e);
+    }
+  }
+
+  initCommunityChat();
 
   function scheduleNextSlogan() {
     // Náhodný čas mezi 30s a 40s
