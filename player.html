@@ -560,12 +560,9 @@
 
   /* Komunitní zprávy - vstup a reakce */
   .community-toggle-btn {
-    position: absolute; right: -4px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; color: var(--accent-color); opacity: 0.35;
-    font-size: 10px; line-height: 1; cursor: pointer; padding: 4px; transition: opacity 0.2s ease;
+    color: var(--accent-color); opacity: 0.6;
   }
-  .community-toggle-btn:hover, .community-toggle-btn:active { opacity: 0.85; }
-  body.is-fullscreen .slogan-wrap .community-toggle-btn, body.focus-mode .slogan-wrap .community-toggle-btn { display: none; }
+  .community-toggle-btn:hover, .community-toggle-btn:active { opacity: 1; }
 
   .community-input-row {
     display: none; align-items: center; gap: 6px; max-width: 280px; margin: 0 auto 4px auto; padding: 0 12px;
@@ -738,6 +735,7 @@
 
   /* Focus mode toggle and screen-wake toggle - sit right under the LVL/XP indicator, on opposite sides */
   .focus-mode-row { display: flex; justify-content: space-between; margin-top: -4px; margin-bottom: 6px; }
+  .focus-mode-left { display: flex; align-items: center; gap: 8px; }
   .btn-focus-mode { background: none; border: 1px solid rgba(255,255,255,0.25); color: #fff; opacity: 0.55; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; }
   .btn-focus-mode:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
   .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
@@ -1185,7 +1183,6 @@
 
 <div class="slogan-wrap">
   <div id="slogan-container" class="slogan-container"></div>
-  <button class="community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
 </div>
 
 <div class="community-input-row" id="community-input-row">
@@ -1226,7 +1223,10 @@
   </div>
 
   <div class="focus-mode-row">
-    <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
+    <div class="focus-mode-left">
+      <button class="btn-focus-mode community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
+      <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
+    </div>
     <button class="btn-focus-mode" id="btn-focus-mode" onclick="toggleFocusMode()" title="Focus mode" aria-label="Toggle focus mode">⛶</button>
   </div>
 
@@ -6237,6 +6237,29 @@
     btnEl.classList.add('reacted');
   }
 
+  // Systémová notifikace pro novou komunitní zprávu - použije stejné Notification API
+  // (a stejné svolení) jako REMINDERS. Funguje jen dokud appka běží (otevřená karta /
+  // na pozadí); na plně zavřeném prohlížeči/telefonu nic nepřijde - to je limit prohlížečů.
+  function fireCommunityMessageNotification(text) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    // Když se uživatel zrovna dívá na appku (karta je aktivní a viditelná), zpráva se
+    // stejně rovnou zobrazí v appce - notifikace navíc by byla jen rušivá.
+    if (!document.hidden && document.hasFocus()) return;
+    const title = (typeof guideLang !== 'undefined' && guideLang === 'cz') ? 'Nová zpráva' : 'New message';
+    const options = { body: text, icon: 'icon.png', badge: 'icon.png', tag: 'synthlucida-community' };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg && reg.showNotification) {
+          reg.showNotification(title, options);
+        } else {
+          new Notification(title, options);
+        }
+      }).catch(() => { try { new Notification(title, options); } catch (e) { /* ignore */ } });
+    } else {
+      try { new Notification(title, options); } catch (e) { /* ignore */ }
+    }
+  }
+
   function initCommunityChat() {
     try {
       if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
@@ -6249,6 +6272,7 @@
         const msg = snap.val();
         if (!msg || !msg.text) return;
         showCommunityMessage(msg.text, snap.key);
+        fireCommunityMessageNotification(msg.text);
       });
     } catch (e) {
       console.error('Komunitní chat se nepodařilo spustit:', e);
