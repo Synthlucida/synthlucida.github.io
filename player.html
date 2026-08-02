@@ -1157,6 +1157,7 @@
 
   <div class="controls-row">
     <div class="controls">
+      <button class="btn-ctrl-sub" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen on">🔆</button>
       <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle">🔀</button>
       <button class="btn-ctrl" id="btn-play">▶</button>
       <button class="btn-ctrl" id="btn-next">⏭</button>
@@ -2398,7 +2399,10 @@
   updateMoonPhase();
   setInterval(updateMoonPhase, 3600000);
 
-  audio.volume = 0.3;
+  const savedVolume = localStorage.getItem('sl-volume');
+  const initialVolume = savedVolume !== null ? Math.min(1, Math.max(0, parseFloat(savedVolume))) : 0.3;
+  audio.volume = initialVolume;
+  volumeSlider.value = initialVolume;
 
   function initEffects() {
       canvas.width = window.innerWidth;
@@ -3133,6 +3137,61 @@
     if (donate) donate.classList.toggle('visible');
   };
 
+  // Wake Lock - zabraňuje zhasnutí/uspání obrazovky, dokud je zapnuto
+  let wakeLockSentinel = null;
+  let wakeLockEnabled = localStorage.getItem('sl-wakelock') === '1';
+  const wakeLockSupported = 'wakeLock' in navigator;
+
+  async function requestWakeLock() {
+    if (!wakeLockSupported) return;
+    try {
+      wakeLockSentinel = await navigator.wakeLock.request('screen');
+      wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+    } catch (e) { /* ignore - e.g. permission or unsupported context */ }
+  }
+
+  function releaseWakeLock() {
+    if (wakeLockSentinel) {
+      wakeLockSentinel.release().catch(() => {});
+      wakeLockSentinel = null;
+    }
+  }
+
+  function updateWakeLockButton() {
+    const btn = document.getElementById('btn-wakelock');
+    if (btn) btn.classList.toggle('active', wakeLockEnabled);
+  }
+
+  window.toggleWakeLock = function() {
+    wakeLockEnabled = !wakeLockEnabled;
+    try { localStorage.setItem('sl-wakelock', wakeLockEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+    updateWakeLockButton();
+    if (wakeLockEnabled) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+  };
+
+  // Wake locky se v prohlížeči automaticky uvolní, když stránka přejde na pozadí -
+  // po návratu do popředí ho tedy znovu požádáme, pokud je funkce zapnutá.
+  document.addEventListener('visibilitychange', () => {
+    if (wakeLockEnabled && document.visibilityState === 'visible') {
+      requestWakeLock();
+    }
+  });
+
+  updateWakeLockButton();
+  if (wakeLockEnabled) requestWakeLock();
+  if (!wakeLockSupported) {
+    const wlBtn = document.getElementById('btn-wakelock');
+    if (wlBtn) {
+      wlBtn.disabled = true;
+      wlBtn.style.opacity = '0.25';
+      wlBtn.title = 'Not supported in this browser';
+    }
+  }
+
   window.startBreathing = function() {
     if (breathingActive) return;
     breathingActive = true;
@@ -3346,7 +3405,7 @@
     }
   });
 
-  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; });
+  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; localStorage.setItem('sl-volume', e.target.value); });
 
   window.toggleShuffle = function() {
       shuffleEnabled = !shuffleEnabled;
@@ -3745,6 +3804,7 @@
     guideLang = guideLang === 'en' ? 'cz' : 'en';
     try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) { /* ignore */ }
     breathSloganQueue = []; // vynutí přeskládání sloganů v dechovém cvičení v novém jazyce
+    mainSloganQueue = []; // vynutí přeskládání hlavních sloganů v novém jazyce
     applyGuideLanguage();
     const statsPanel = document.getElementById('main-stats');
     if (statsPanel && statsPanel.classList.contains('visible') && typeof renderStats === 'function') renderStats();
@@ -5857,11 +5917,26 @@
   }
   
   const sloganEl = document.getElementById('slogan-container');
-  
+  let mainSloganQueue = [];
+
+  function nextMainSlogan() {
+    if (mainSloganQueue.length === 0) {
+      mainSloganQueue = shuffleSlogans(currentSlogans());
+      // Zabrání tomu, aby se po novém zamíchání (i po restartu appky) hned opakoval
+      // ten samý slogan, který byl zobrazen naposledy.
+      let lastSlogan = null;
+      try { lastSlogan = localStorage.getItem('sl-last-slogan'); } catch (e) { /* ignore */ }
+      if (lastSlogan && mainSloganQueue.length > 1 && mainSloganQueue[0] === lastSlogan) {
+        mainSloganQueue.push(mainSloganQueue.shift());
+      }
+    }
+    const next = mainSloganQueue.shift();
+    try { localStorage.setItem('sl-last-slogan', next); } catch (e) { /* ignore */ }
+    return next;
+  }
+
   function showSlogan() {
-    const activeSlogans = currentSlogans();
-    const randomSlogan = activeSlogans[Math.floor(Math.random() * activeSlogans.length)];
-    sloganEl.innerText = randomSlogan;
+    sloganEl.innerText = nextMainSlogan();
     sloganEl.classList.add('visible');
     
     // Slogan zůstane svítit 8 sekund
