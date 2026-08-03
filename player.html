@@ -6336,6 +6336,15 @@
   // showReactionBar() (aktuální zpráva) a renderHistoryReactionCounts() (historie).
   const reactionCountsCache = {};
 
+  // Cache textu zpráv podle msgId - potřebná, aby šlo do systémové notifikace
+  // o nové reakci napsat i text zprávy, na kterou se reagovalo (plní se při
+  // příchodu živé zprávy a při načtení historie, viz initCommunityChat / loadCommunityHistory).
+  const communityMessageTextCache = {};
+
+  // Když sám na zařízení klikneš na reakci, chvíli se čeká na potvrzení z Firebase -
+  // tahle mapa zajistí, že si sám sobě nepošleš systémovou notifikaci o vlastní reakci.
+  const recentlyReactedByMe = {};
+
   function processReactionSnapshot(msgId, msgText, data) {
     let entry = reactionCountsCache[msgId];
     if (!entry) {
@@ -6498,6 +6507,11 @@
     let votedKey = null;
     try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
     if (votedKey && localStorage.getItem(votedKey)) return; // jedna reakce na emoji na zprávu na zařízení
+    // Poznamená si vlastní reakci, aby si o ní za chvíli, až přijde potvrzení
+    // z Firebase, appka neposlala systémovou notifikaci sama sobě.
+    const suppressKey = msgId + '|' + emoji;
+    recentlyReactedByMe[suppressKey] = true;
+    setTimeout(() => { delete recentlyReactedByMe[suppressKey]; }, 8000);
     communityReactionsRef.child(msgId).child(emoji).transaction((current) => (current || 0) + 1);
     try { if (votedKey) localStorage.setItem(votedKey, '1'); } catch (e) {}
     btnEl.classList.add('reacted');
@@ -6550,6 +6564,64 @@
       toast.classList.remove('pop');
       toast.innerHTML = '';
     }, 2200);
+  }
+
+  // ==========================================
+  // SYSTÉMOVÁ NOTIFIKACE O NOVÉ REAKCI - na rozdíl od flashReactionToast()
+  // výše (ta animuje reakci jen tomu, kdo zprávu právě sleduje) tahle část
+  // pošle druhému uživateli systémovou notifikaci i normálně, tedy i když
+  // zrovna není v historii ani se nedívá na aktuální zprávu. Respektuje
+  // stejný vypínač 🔔 REMINDERS jako notifikace z chatu - když jsou
+  // notifikace vypnuté, tahle funkce mlčí úplně stejně.
+  // ==========================================
+  const reactionNotifyCache = {};
+
+  function processReactionNotify(msgId, data) {
+    let entry = reactionNotifyCache[msgId];
+    if (!entry) {
+      entry = { init: false, counts: {} };
+      reactionNotifyCache[msgId] = entry;
+    }
+    reactionEmojis.forEach((emoji) => {
+      const newCount = data[emoji] || 0;
+      const oldCount = entry.counts[emoji] || 0;
+      if (entry.init && newCount > oldCount) {
+        const suppressKey = msgId + '|' + emoji;
+        if (recentlyReactedByMe[suppressKey]) {
+          delete recentlyReactedByMe[suppressKey];
+        } else {
+          fireReactionNotification(msgId, emoji);
+        }
+      }
+      entry.counts[emoji] = newCount;
+    });
+    entry.init = true;
+  }
+
+  function fireReactionNotification(msgId, emoji) {
+    // Stejná podmínka jako u fireCommunityMessageNotification - notifikace
+    // chodí jen s povoleným 🔔 REMINDERS přepínačem.
+    if (!remindersEnabled) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    // Když appku právě aktivně sleduješ, reakci uvidíš rovnou v appce (animace
+    // flashReactionToast) - systémová notifikace navíc by byla jen rušivá.
+    if (!document.hidden && document.hasFocus()) return;
+    const msgText = communityMessageTextCache[msgId] || '';
+    const isCz = typeof guideLang !== 'undefined' && guideLang === 'cz';
+    const title = isCz ? 'Nová reakce' : 'New reaction';
+    const body = msgText ? (emoji + ' — ' + msgText) : emoji;
+    const options = { body: body, icon: 'icon.png', badge: 'icon.png', tag: 'synthlucida-reaction-' + msgId };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg && reg.showNotification) {
+          reg.showNotification(title, options);
+        } else {
+          new Notification(title, options);
+        }
+      }).catch(() => { try { new Notification(title, options); } catch (e) { /* ignore */ } });
+    } else {
+      try { new Notification(title, options); } catch (e) { /* ignore */ }
+    }
   }
 
   function renderHistoryReactionCounts(container, msgId, msgText) {
@@ -6616,6 +6688,7 @@
       }
 
       entries.forEach((msg) => {
+        communityMessageTextCache[msg.id] = msg.text;
         const item = document.createElement('div');
         item.className = 'community-history-item' + (msg.isAdmin ? ' is-admin' : '');
 
@@ -6683,6 +6756,9 @@
   // (a stejné svolení) jako REMINDERS. Funguje jen dokud appka běží (otevřená karta /
   // na pozadí); na plně zavřeném prohlížeči/telefonu nic nepřijde - to je limit prohlížečů.
   function fireCommunityMessageNotification(text) {
+    // Respektuje hlavní přepínač 🔔 REMINDERS - když je uživatel vypnul,
+    // nechodí mu vůbec žádné notifikace, ani z komunitního chatu.
+    if (!remindersEnabled) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     // Když se uživatel zrovna dívá na appku (karta je aktivní a viditelná), zpráva se
     // stejně rovnou zobrazí v appce - notifikace navíc by byla jen rušivá.
@@ -6740,8 +6816,19 @@
       communityMessagesRef.orderByChild('ts').startAt(cutoff).on('child_added', (snap) => {
         const msg = snap.val();
         if (!msg || !msg.text) return;
+        communityMessageTextCache[snap.key] = msg.text;
         showCommunityMessage(msg.text, snap.key, msg.isAdmin === true);
         fireCommunityMessageNotification(msg.isAdmin === true ? '★ ' + msg.text : msg.text);
+      });
+
+      // Globální poslouchání VŠECH reakcí (ne jen té právě zobrazené zprávy nebo
+      // otevřené historie), aby o nové reakci věděl i uživatel, který zrovna
+      // není v historii ani se nedívá na aktuální zprávu - viz processReactionNotify.
+      communityReactionsRef.on('child_added', (snap) => {
+        processReactionNotify(snap.key, snap.val() || {});
+      });
+      communityReactionsRef.on('child_changed', (snap) => {
+        processReactionNotify(snap.key, snap.val() || {});
       });
 
       // Úklid staré historie: jednou hned při startu appky a pak jednou za hodinu,
