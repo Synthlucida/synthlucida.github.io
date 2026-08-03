@@ -605,6 +605,57 @@
   .reaction-btn:active { transform: scale(0.9); }
   .reaction-count { opacity: 0.7; font-size: 10px; }
 
+  /* Message history - badge button next to the 💬 chat toggle (normal mode),
+     opens a modal window with the last 24h of community messages + their reactions.
+     In focus mode the badge is hidden and the same panel is shown automatically,
+     docked underneath the player instead of as a modal. */
+  .community-history-btn { color: var(--accent-color); opacity: 0.55; font-size: 10px; }
+  .community-history-btn:hover, .community-history-btn:active { opacity: 1; }
+
+  .community-history-panel {
+    display: none;
+    position: fixed; inset: 0; z-index: 600;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.55);
+    padding: 20px;
+  }
+  .community-history-panel.visible { display: flex; }
+  .community-history-inner {
+    width: 100%; max-width: 340px; max-height: 70vh;
+    display: flex; flex-direction: column;
+    background: rgba(20,20,30,0.92);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+  .community-history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
+  }
+  .community-history-title { font-size: 11px; letter-spacing: 0.5px; color: var(--accent-color); text-transform: uppercase; }
+  .community-history-close { background: none; border: none; color: #fff; opacity: 0.6; font-size: 13px; cursor: pointer; padding: 2px 4px; }
+  .community-history-close:hover { opacity: 1; }
+  .community-history-list { overflow-y: auto; padding: 8px 14px 12px 14px; }
+  .community-history-empty { font-size: 11px; opacity: 0.5; text-align: center; padding: 14px 0; }
+  .community-history-item { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .community-history-item:last-child { border-bottom: none; }
+  .community-history-text { font-size: 11px; color: #fff; word-break: break-word; }
+  .community-history-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 3px; }
+  .community-history-time { font-size: 9px; opacity: 0.45; letter-spacing: 0.3px; }
+  .community-history-reactions { display: flex; gap: 6px; }
+  .community-history-reactions span { font-size: 9px; opacity: 0.7; }
+
+  /* Focus mode: badge button is hidden and the panel is auto-shown, docked below the player */
+  body.focus-mode .community-history-btn { display: none !important; }
+  body.focus-mode .community-history-panel {
+    position: relative; inset: auto; z-index: 5;
+    background: none; padding: 0;
+    justify-content: center;
+    margin: 10px auto 0 auto;
+  }
+  body.focus-mode .community-history-inner { max-width: 300px; max-height: 26vh; }
+
   /* Glassmorphism stylizace přehrávače - ZMENŠENO PRO KOMPAKTNÍ VZHLED */
   .player-section { 
     flex-grow: 0; display: flex; flex-direction: column; justify-content: center; 
@@ -1203,6 +1254,18 @@
 <div class="community-error" id="community-error"></div>
 <div class="community-reactions" id="community-reactions"></div>
 
+<div class="community-history-panel" id="community-history-panel" onclick="if(event.target===this && !document.body.classList.contains('focus-mode')){toggleCommunityHistory(false);}">
+  <div class="community-history-inner">
+    <div class="community-history-header">
+      <span class="community-history-title" data-i18n="community_history_title">History (last 24h)</span>
+      <button class="community-history-close" id="community-history-close-btn" onclick="toggleCommunityHistory(false)" data-i18n-aria="community_history_close" aria-label="Close">✕</button>
+    </div>
+    <div class="community-history-list" id="community-history-list">
+      <div class="community-history-empty" data-i18n="community_history_loading">Loading…</div>
+    </div>
+  </div>
+</div>
+
 <div class="player-section">
   <div class="now-playing-row">
     <div class="track-title" id="track-title">SELECT TRACK</div>
@@ -1236,6 +1299,7 @@
   <div class="focus-mode-row">
     <div class="focus-mode-left">
       <button class="btn-focus-mode community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
+      <button class="btn-focus-mode community-history-btn" id="community-history-btn" onclick="toggleCommunityHistory()" data-i18n-aria="community_history_btn" aria-label="Message history">🕓</button>
       <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
       <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
     </div>
@@ -3245,9 +3309,15 @@
     if (isActive) {
       updateFocusClock();
       focusClockInterval = setInterval(updateFocusClock, 1000);
-    } else if (focusClockInterval) {
-      clearInterval(focusClockInterval);
-      focusClockInterval = null;
+      // Focus mode automatically shows the last 24h of community messages
+      openCommunityHistoryPanel();
+    } else {
+      if (focusClockInterval) {
+        clearInterval(focusClockInterval);
+        focusClockInterval = null;
+      }
+      // Leaving focus mode: the history panel goes back to being opened manually via the 🕓 badge
+      closeCommunityHistoryPanel();
     }
   };
 
@@ -3873,6 +3943,11 @@
     community_err_ratelimit: { en: "Wait a bit before sending another message.", cz: "Počkej chvíli, než pošleš další zprávu." },
     community_err_unavailable: { en: "Community chat isn't available right now.", cz: "Komunitní chat momentálně není dostupný." },
     community_err_failed: { en: "Sending failed, try again.", cz: "Odeslání se nezdařilo, zkus to znovu." },
+    community_history_btn: { en: "Message history", cz: "Historie zpráv" },
+    community_history_title: { en: "History (last 24h)", cz: "Historie (posledních 24h)" },
+    community_history_close: { en: "Close", cz: "Zavřít" },
+    community_history_loading: { en: "Loading…", cz: "Načítání…" },
+    community_history_empty: { en: "No messages in the last 24 hours yet.", cz: "Zatím žádné zprávy za posledních 24 hodin." },
     h_notifications: { en: "Notifications", cz: "Notifikace" },
     p_notifications: { en: "Tap 🔔 REMINDERS to turn on gentle local reminders. The first time you enable them, your browser will ask for notification permission — allow it. Pick how often you want a nudge (every 15m, 30m, 1h, 2h or 4h), and from then on you'll get a short notification with a calming message, popping up the same way any other app notification does (banner, lock screen or notification shade, depending on your device). Use TEST NOTIFICATION any time to see one right away. Everything happens locally on your device - nothing is sent to any server. Reminders keep firing while the app is open or running in the background; if your phone or browser fully closes the app, they pause until you open it again - that's a limit of how browsers work, not a bug. Turn them off anytime from the same 🔔 REMINDERS panel.", cz: "Klepnutím na 🔔 REMINDERS zapnete jemné lokální připomínky. Při prvním zapnutí se prohlížeč zeptá na svolení k zobrazování notifikací — povolte ho. Vyberte si, jak často chcete připomenout (každých 15m, 30m, 1h, 2h nebo 4h), a od té chvíle budete dostávat krátkou notifikaci s uklidňující zprávou — zobrazí se stejně jako notifikace od jakékoli jiné aplikace (banner, zamykací obrazovka nebo lišta notifikací, podle zařízení). Tlačítkem TEST NOTIFICATION si kdykoli můžete jednu zobrazit hned. Vše se odehrává pouze ve vašem zařízení - nic se neposílá na žádný server. Připomínky fungují, dokud je appka otevřená nebo běží na pozadí; pokud telefon nebo prohlížeč appku úplně ukončí, připomínky se pozastaví, dokud appku znovu neotevřete - to je omezení dané fungováním prohlížečů, ne chyba. Kdykoli je můžete vypnout ve stejném panelu 🔔 REMINDERS." },
     stats_title: { en: "Your Statistics", cz: "Vaše statistiky" },
@@ -6248,6 +6323,129 @@
     try { if (votedKey) localStorage.setItem(votedKey, '1'); } catch (e) {}
     btnEl.classList.add('reacted');
   }
+
+  // ==========================================
+  // HISTORIE ZPRÁV ZA POSLEDNÍCH 24 HODIN
+  // V normálním režimu ji otevírá odznak 🕓 vedle 💬 jako okno (modal);
+  // ve focus mode se zobrazuje automaticky, zabudovaná pod přehrávačem.
+  // ==========================================
+  let communityHistoryRefsToDetach = [];
+
+  function formatHistoryTime(ts) {
+    if (!ts) return '';
+    const diffMin = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    if (diffMin < 1) return guideLang === 'cz' ? 'právě teď' : 'just now';
+    if (diffMin < 60) return (guideLang === 'cz' ? 'před ' : '') + diffMin + (guideLang === 'cz' ? ' min' : 'm ago');
+    const diffHr = Math.round(diffMin / 60);
+    return (guideLang === 'cz' ? 'před ' : '') + diffHr + (guideLang === 'cz' ? ' h' : 'h ago');
+  }
+
+  function detachCommunityHistoryListeners() {
+    communityHistoryRefsToDetach.forEach((ref) => { try { ref.off('value'); } catch (e) {} });
+    communityHistoryRefsToDetach = [];
+  }
+
+  function renderHistoryReactionCounts(container, msgId) {
+    if (!communityReactionsRef) return;
+    const ref = communityReactionsRef.child(msgId);
+    communityHistoryRefsToDetach.push(ref);
+    ref.on('value', (snap) => {
+      const data = snap.val() || {};
+      container.innerHTML = '';
+      reactionEmojis.forEach((emoji) => {
+        const count = data[emoji] || 0;
+        if (count > 0) {
+          const span = document.createElement('span');
+          span.textContent = emoji + ' ' + count;
+          container.appendChild(span);
+        }
+      });
+    });
+  }
+
+  function loadCommunityHistory() {
+    const list = document.getElementById('community-history-list');
+    if (!list) return;
+    if (!communityMessagesRef) {
+      list.innerHTML = '<div class="community-history-empty">' +
+        (i18nText.community_err_unavailable[guideLang] || i18nText.community_err_unavailable.en) + '</div>';
+      return;
+    }
+    detachCommunityHistoryListeners();
+    list.innerHTML = '<div class="community-history-empty" data-i18n="community_history_loading">' +
+      (i18nText.community_history_loading[guideLang] || i18nText.community_history_loading.en) + '</div>';
+
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    communityMessagesRef.orderByChild('ts').startAt(cutoff).once('value').then((snap) => {
+      const data = snap.val() || {};
+      const entries = Object.keys(data)
+        .map((key) => ({ id: key, text: data[key].text, ts: data[key].ts }))
+        .filter((m) => m.text)
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+      list.innerHTML = '';
+      if (!entries.length) {
+        list.innerHTML = '<div class="community-history-empty" data-i18n="community_history_empty">' +
+          (i18nText.community_history_empty[guideLang] || i18nText.community_history_empty.en) + '</div>';
+        return;
+      }
+
+      entries.forEach((msg) => {
+        const item = document.createElement('div');
+        item.className = 'community-history-item';
+
+        const textEl = document.createElement('div');
+        textEl.className = 'community-history-text';
+        textEl.textContent = msg.text;
+        item.appendChild(textEl);
+
+        const meta = document.createElement('div');
+        meta.className = 'community-history-meta';
+
+        const timeEl = document.createElement('span');
+        timeEl.className = 'community-history-time';
+        timeEl.textContent = formatHistoryTime(msg.ts);
+        meta.appendChild(timeEl);
+
+        const reactionsEl = document.createElement('div');
+        reactionsEl.className = 'community-history-reactions';
+        meta.appendChild(reactionsEl);
+        renderHistoryReactionCounts(reactionsEl, msg.id);
+
+        item.appendChild(meta);
+        list.appendChild(item);
+      });
+    }).catch((err) => {
+      console.error('Načtení historie zpráv selhalo:', err);
+      list.innerHTML = '<div class="community-history-empty">' +
+        (i18nText.community_err_failed[guideLang] || i18nText.community_err_failed.en) + '</div>';
+    });
+  }
+
+  function openCommunityHistoryPanel() {
+    const panel = document.getElementById('community-history-panel');
+    if (!panel) return;
+    panel.classList.add('visible');
+    loadCommunityHistory();
+  }
+
+  function closeCommunityHistoryPanel() {
+    const panel = document.getElementById('community-history-panel');
+    if (panel) panel.classList.remove('visible');
+    detachCommunityHistoryListeners();
+  }
+
+  // Manuální přepínač pro odznak 🕓 v normálním režimu (mimo focus mode)
+  window.toggleCommunityHistory = function(forceState) {
+    const panel = document.getElementById('community-history-panel');
+    if (!panel) return;
+    const show = typeof forceState === 'boolean' ? forceState : !panel.classList.contains('visible');
+    if (show) {
+      openCommunityHistoryPanel();
+    } else {
+      closeCommunityHistoryPanel();
+    }
+  };
 
   // Systémová notifikace pro novou komunitní zprávu - použije stejné Notification API
   // (a stejné svolení) jako REMINDERS. Funguje jen dokud appka běží (otevřená karta /
