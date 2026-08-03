@@ -557,6 +557,12 @@
   }
   .slogan-container.visible { opacity: 0.8; }
   .slogan-container.community-msg { opacity: 0.95; letter-spacing: 0.5px; text-transform: none; }
+  .slogan-container.community-msg-admin {
+    opacity: 1; color: #ffd479; text-shadow: 0 0 6px rgba(255,180,60,0.5);
+  }
+  .slogan-container.community-msg-admin::before {
+    content: "★ ADMIN · "; opacity: 0.8; font-size: 0.85em; letter-spacing: 1px;
+  }
 
   /* Komunitní zprávy - vstup a reakce */
   .community-toggle-btn {
@@ -579,6 +585,11 @@
     display: none; align-items: center; gap: 6px; max-width: 280px; margin: 0 auto 4px auto; padding: 0 12px;
   }
   .community-input-row.visible { display: flex; }
+  .community-admin-login-row {
+    display: none; align-items: center; gap: 6px; max-width: 280px; margin: 0 auto 4px auto; padding: 0 12px;
+  }
+  .community-admin-login-row.visible { display: flex; }
+  .community-admin-login-row .community-input { border-color: rgba(255,80,80,0.4); }
   .community-input {
     flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
     border-radius: 12px; color: #fff; font-size: 11px; padding: 5px 10px; outline: none; min-width: 0;
@@ -639,7 +650,13 @@
   .community-history-empty { font-size: 11px; opacity: 0.5; text-align: center; padding: 14px 0; }
   .community-history-item { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .community-history-item:last-child { border-bottom: none; }
+  .community-history-item.is-admin { background: rgba(255,180,60,0.06); border-radius: 8px; padding: 7px 6px; }
   .community-history-text { font-size: 11px; color: #fff; word-break: break-word; }
+  .community-history-item.is-admin .community-history-text { color: #ffd479; }
+  .community-history-badge {
+    display: inline-block; font-size: 8px; letter-spacing: 0.5px; color: #ffd479;
+    border: 1px solid rgba(255,180,60,0.5); border-radius: 6px; padding: 1px 4px; margin-right: 5px; vertical-align: middle;
+  }
   .community-history-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 3px; }
   .community-history-time { font-size: 9px; opacity: 0.45; letter-spacing: 0.3px; }
   .community-history-reactions { display: flex; gap: 6px; }
@@ -1240,6 +1257,10 @@
   <input type="text" id="community-input" class="community-input" maxlength="60" data-i18n-placeholder="community_input_placeholder" placeholder="Pár slov pro ostatní posluchače…" onkeydown="if(event.key==='Enter'){sendCommunityMessage();}">
   <button class="community-send-btn" onclick="sendCommunityMessage()" data-i18n-aria="community_send_btn" aria-label="Send">➤</button>
 </div>
+<div class="community-admin-login-row" id="community-admin-login-row">
+  <input type="password" id="community-admin-password" class="community-input" placeholder="admin heslo…" autocomplete="off" onkeydown="if(event.key==='Enter'){adminLogin();} if(event.key==='Escape'){cancelAdminLogin();}">
+  <button class="community-send-btn" onclick="adminLogin()" aria-label="Login">✓</button>
+</div>
 <div class="community-error" id="community-error"></div>
 <div class="community-reactions" id="community-reactions"></div>
 
@@ -1683,6 +1704,7 @@
      Konfiguraci níže je potřeba nahradit vlastní (Firebase Console -> Project settings). -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
   // ==========================================
   // FIREBASE KONFIGURACE - SEM VLOŽ SVOJI VLASTNÍ
@@ -1697,6 +1719,9 @@
     messagingSenderId: "244515647380",
     appId: "1:244515647380:web:c7f75f3bea55434f9b6981"
   };
+  // E-mail účtu, který jsi vytvořil v Authentication -> Users (krok 1 v návodu).
+  // Heslo se NIKDY neukládá do kódu - zadává se za běhu do skrytého pole po napsání 666.
+  const ADMIN_EMAIL = "zanta.david@gmail.com";
   try {
     firebase.initializeApp(firebaseConfig);
   } catch (e) {
@@ -6177,6 +6202,56 @@
   // ==========================================
   let communityMessagesRef = null;
   let communityReactionsRef = null;
+  let isAdminUser = false;
+
+  // Životnost zpráv: běžná 24h, admin/news (isAdmin:true) 14 dní - musí odpovídat
+  // dvojí životnosti v Security Rules.
+  const COMMUNITY_MSG_LIFETIME_MS = 24 * 60 * 60 * 1000;
+  const COMMUNITY_ADMIN_MSG_LIFETIME_MS = 14 * 24 * 60 * 60 * 1000;
+
+  // 666 v chatu je jen zábavný spouštěč pro skryté pole na heslo - žádnou reálnou
+  // ochranu nedělá (kód appky je veřejně čitelný). Skutečnou ochranu dělá až
+  // Firebase Authentication (viz adminLogin) + Security Rules, které zápis
+  // isAdmin:true povolí jen requestu podepsanému jako přesně tvůj účet.
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    try {
+      firebase.auth().onAuthStateChanged((user) => {
+        isAdminUser = !!user;
+      });
+    } catch (e) { /* auth not available */ }
+  }
+
+  function showAdminLogin() {
+    const row = document.getElementById('community-admin-login-row');
+    toggleCommunityInput(false);
+    if (!row) return;
+    row.classList.add('visible');
+    const pwField = document.getElementById('community-admin-password');
+    if (pwField) { pwField.value = ''; pwField.focus(); }
+  }
+
+  function cancelAdminLogin() {
+    const row = document.getElementById('community-admin-login-row');
+    if (row) row.classList.remove('visible');
+  }
+
+  function adminLogin() {
+    const pwField = document.getElementById('community-admin-password');
+    if (!pwField) return;
+    const password = pwField.value;
+    if (!password) return;
+    if (typeof firebase === 'undefined' || !firebase.auth) {
+      showCommunityError(i18nText.community_err_unavailable[guideLang] || i18nText.community_err_unavailable.en);
+      return;
+    }
+    firebase.auth().signInWithEmailAndPassword(ADMIN_EMAIL, password).then(() => {
+      pwField.value = '';
+      cancelAdminLogin();
+    }).catch((err) => {
+      console.error('Admin přihlášení selhalo:', err);
+      showCommunityError(i18nText.community_err_failed[guideLang] || i18nText.community_err_failed.en);
+    });
+  }
   let currentCommunityMsgId = null;
   let communityDisplayTimeout = null;
   const reactionEmojis = ['🔥', '❤️', '🙏', '✨'];
@@ -6214,15 +6289,24 @@
     const text = input.value.trim().slice(0, 60);
     if (!text) return;
 
+    // Easter egg spouštěč - "666" samo o sobě nikdy neodešle zprávu, jen otevře
+    // pole na admin heslo. Skutečné oprávnění dává až přihlášení, ne tento string.
+    if (text === '666') {
+      input.value = '';
+      showAdminLogin();
+      return;
+    }
+
     if (containsBannedWord(text)) {
       showCommunityError(i18nText.community_err_banned[guideLang] || i18nText.community_err_banned.en);
       return;
     }
 
+    // Rate limit (1 zpráva/min) se týká jen běžných zpráv - admin může poslat news i mimo limit.
     let lastTs = 0;
     try { lastTs = parseInt(localStorage.getItem('sl-last-community-msg-ts') || '0', 10); } catch (e) {}
     const now = Date.now();
-    if (now - lastTs < 60000) {
+    if (!isAdminUser && now - lastTs < 60000) {
       showCommunityError(i18nText.community_err_ratelimit[guideLang] || i18nText.community_err_ratelimit.en);
       return;
     }
@@ -6232,10 +6316,15 @@
       return;
     }
 
-    communityMessagesRef.push({
+    const payload = {
       text: text,
       ts: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
+    };
+    // isAdmin se nastaví, jen když jsi skutečně přihlášený jako admin účet - Security
+    // Rules pak navíc ověří, že request je opravdu podepsaný jako tvůj auth.uid.
+    if (isAdminUser) payload.isAdmin = true;
+
+    communityMessagesRef.push(payload).then(() => {
       try { localStorage.setItem('sl-last-community-msg-ts', String(now)); } catch (e) {}
       input.value = '';
       toggleCommunityInput(false);
@@ -6245,7 +6334,7 @@
     });
   }
 
-  function showCommunityMessage(text, msgId) {
+  function showCommunityMessage(text, msgId, isAdminMsg) {
     clearTimeout(communityDisplayTimeout);
     if (currentCommunityMsgId && currentCommunityMsgId !== msgId && communityReactionsRef) {
       communityReactionsRef.child(currentCommunityMsgId).off('value');
@@ -6253,11 +6342,12 @@
     currentCommunityMsgId = msgId;
     sloganEl.innerText = text;
     sloganEl.classList.add('visible', 'community-msg');
+    sloganEl.classList.toggle('community-msg-admin', !!isAdminMsg);
     showReactionBar(msgId);
 
     // Zpráva od komunity zůstane zobrazená 10 sekund
     communityDisplayTimeout = setTimeout(() => {
-      sloganEl.classList.remove('visible', 'community-msg');
+      sloganEl.classList.remove('visible', 'community-msg', 'community-msg-admin');
       hideReactionBar();
       currentCommunityMsgId = null;
     }, 10000);
@@ -6362,12 +6452,16 @@
     list.innerHTML = '<div class="community-history-empty" data-i18n="community_history_loading">' +
       (i18nText.community_history_loading[guideLang] || i18nText.community_history_loading.en) + '</div>';
 
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    // Dotaz musí sáhnout až 14 dní zpět, aby zachytil i admin/news zprávy;
+    // běžné zprávy starší než 24h se pak níže odfiltrují.
+    const now = Date.now();
+    const cutoff = now - COMMUNITY_ADMIN_MSG_LIFETIME_MS;
     communityMessagesRef.orderByChild('ts').startAt(cutoff).once('value').then((snap) => {
       const data = snap.val() || {};
       const entries = Object.keys(data)
-        .map((key) => ({ id: key, text: data[key].text, ts: data[key].ts }))
+        .map((key) => ({ id: key, text: data[key].text, ts: data[key].ts, isAdmin: data[key].isAdmin === true }))
         .filter((m) => m.text)
+        .filter((m) => m.isAdmin || (now - (m.ts || 0)) <= COMMUNITY_MSG_LIFETIME_MS)
         .sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
       list.innerHTML = '';
@@ -6379,11 +6473,17 @@
 
       entries.forEach((msg) => {
         const item = document.createElement('div');
-        item.className = 'community-history-item';
+        item.className = 'community-history-item' + (msg.isAdmin ? ' is-admin' : '');
 
         const textEl = document.createElement('div');
         textEl.className = 'community-history-text';
-        textEl.textContent = msg.text;
+        if (msg.isAdmin) {
+          const badge = document.createElement('span');
+          badge.className = 'community-history-badge';
+          badge.textContent = 'ADMIN';
+          textEl.appendChild(badge);
+        }
+        textEl.appendChild(document.createTextNode(msg.text));
         item.appendChild(textEl);
 
         const meta = document.createElement('div');
@@ -6458,17 +6558,24 @@
     }
   }
 
-  // Smaže zprávy (a jejich reakce) starší než 24 hodin - stejné okno, jaké appka
-  // ukazuje v historii ("posledních 24 hodin"). Odpovídá pravidlu v Security Rules,
-  // které smazání starších než 24h povoluje - novější zprávy tam smazat nejdou.
+  // Smaže zprávy (a jejich reakce), kterým vypršela životnost - běžná zpráva po 24h,
+  // admin/news zpráva (isAdmin:true) po 14 dnech. Odpovídá dvojí životnosti v
+  // Security Rules (.write pravidlo pro messages/$msgId).
   function pruneOldCommunityMessages() {
     if (!communityMessagesRef) return;
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 24h
-    communityMessagesRef.orderByChild('ts').endAt(cutoff).once('value').then((snap) => {
+    const now = Date.now();
+    // Musí se projít všechny zprávy (ne jen ty starší než 24h), protože admin
+    // zprávy smí přežít déle - jednotný "endAt" cutoff by je smazal moc brzy.
+    communityMessagesRef.once('value').then((snap) => {
       const updates = {};
       snap.forEach((child) => {
-        updates['messages/' + child.key] = null;
-        updates['reactions/' + child.key] = null;
+        const msg = child.val();
+        if (!msg || !msg.ts) return;
+        const lifetime = msg.isAdmin === true ? COMMUNITY_ADMIN_MSG_LIFETIME_MS : COMMUNITY_MSG_LIFETIME_MS;
+        if (now - msg.ts >= lifetime) {
+          updates['messages/' + child.key] = null;
+          updates['reactions/' + child.key] = null;
+        }
       });
       if (Object.keys(updates).length) {
         firebase.database().ref().update(updates).catch((err) => {
@@ -6489,8 +6596,8 @@
       communityMessagesRef.orderByChild('ts').startAt(cutoff).on('child_added', (snap) => {
         const msg = snap.val();
         if (!msg || !msg.text) return;
-        showCommunityMessage(msg.text, snap.key);
-        fireCommunityMessageNotification(msg.text);
+        showCommunityMessage(msg.text, snap.key, msg.isAdmin === true);
+        fireCommunityMessageNotification(msg.isAdmin === true ? '★ ' + msg.text : msg.text);
       });
 
       // Úklid staré historie: jednou hned při startu appky a pak jednou za hodinu,
