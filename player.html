@@ -605,10 +605,9 @@
   .reaction-btn:active { transform: scale(0.9); }
   .reaction-count { opacity: 0.7; font-size: 10px; }
 
-  /* Message history - badge button next to the 💬 chat toggle (normal mode),
-     opens a modal window with the last 24h of community messages + their reactions.
-     In focus mode the badge is hidden and the same panel is shown automatically,
-     docked underneath the player instead of as a modal. */
+  /* Message history - badge button next to the 💬 chat toggle, opens a modal
+     window with the last 24h of community messages + their reactions.
+     Same look and manual (click-to-open) behavior in both normal and focus mode. */
   .community-history-btn { color: var(--accent-color); opacity: 0.55; font-size: 10px; }
   .community-history-btn:hover, .community-history-btn:active { opacity: 1; }
 
@@ -645,16 +644,6 @@
   .community-history-time { font-size: 9px; opacity: 0.45; letter-spacing: 0.3px; }
   .community-history-reactions { display: flex; gap: 6px; }
   .community-history-reactions span { font-size: 9px; opacity: 0.7; }
-
-  /* Focus mode: badge button is hidden and the panel is auto-shown, docked below the player */
-  body.focus-mode .community-history-btn { display: none !important; }
-  body.focus-mode .community-history-panel {
-    position: relative; inset: auto; z-index: 5;
-    background: none; padding: 0;
-    justify-content: center;
-    margin: 10px auto 0 auto;
-  }
-  body.focus-mode .community-history-inner { max-width: 300px; max-height: 26vh; }
 
   /* Glassmorphism stylizace přehrávače - ZMENŠENO PRO KOMPAKTNÍ VZHLED */
   .player-section { 
@@ -1254,7 +1243,7 @@
 <div class="community-error" id="community-error"></div>
 <div class="community-reactions" id="community-reactions"></div>
 
-<div class="community-history-panel" id="community-history-panel" onclick="if(event.target===this && !document.body.classList.contains('focus-mode')){toggleCommunityHistory(false);}">
+<div class="community-history-panel" id="community-history-panel" onclick="if(event.target===this){toggleCommunityHistory(false);}">
   <div class="community-history-inner">
     <div class="community-history-header">
       <span class="community-history-title" data-i18n="community_history_title">History (last 24h)</span>
@@ -3309,14 +3298,12 @@
     if (isActive) {
       updateFocusClock();
       focusClockInterval = setInterval(updateFocusClock, 1000);
-      // Focus mode automatically shows the last 24h of community messages
-      openCommunityHistoryPanel();
     } else {
       if (focusClockInterval) {
         clearInterval(focusClockInterval);
         focusClockInterval = null;
       }
-      // Leaving focus mode: the history panel goes back to being opened manually via the 🕓 badge
+      // Při odchodu z focus mode panel historie zavřeme, pokud byl otevřený
       closeCommunityHistoryPanel();
     }
   };
@@ -6435,7 +6422,7 @@
     detachCommunityHistoryListeners();
   }
 
-  // Manuální přepínač pro odznak 🕓 v normálním režimu (mimo focus mode)
+  // Manuální přepínač pro odznak 🕓 (funguje stejně v normálním i focus módu)
   window.toggleCommunityHistory = function(forceState) {
     const panel = document.getElementById('community-history-panel');
     if (!panel) return;
