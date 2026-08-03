@@ -604,12 +604,13 @@
   .community-error.visible { opacity: 0.9; }
 
   .community-reactions {
-    display: none; justify-content: center; gap: 10px; margin: 2px auto 6px auto; opacity: 0; transition: opacity 0.4s ease;
+    display: none; justify-content: center; gap: 6px; margin: 2px auto 6px auto; opacity: 0; transition: opacity 0.4s ease;
+    flex-wrap: wrap; max-width: 320px; padding: 0 10px;
   }
   .community-reactions.visible { display: flex; opacity: 1; }
   .reaction-btn {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
-    color: #fff; font-size: 11px; padding: 3px 8px; cursor: pointer; transition: transform 0.15s ease, background 0.2s ease;
+    color: #fff; font-size: 11px; padding: 3px 7px; cursor: pointer; transition: transform 0.15s ease, background 0.2s ease;
   }
   .reaction-btn:hover { background: rgba(255,255,255,0.1); }
   .reaction-btn.reacted { border-color: var(--accent-color); background: rgba(255,255,255,0.12); }
@@ -659,8 +660,41 @@
   }
   .community-history-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 3px; }
   .community-history-time { font-size: 9px; opacity: 0.45; letter-spacing: 0.3px; }
-  .community-history-reactions { display: flex; gap: 6px; }
-  .community-history-reactions span { font-size: 9px; opacity: 0.7; }
+  .community-history-reactions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  /* Zpětné reagování z historie - stejný princip jako živá lišta reakcí, jen menší. */
+  .reaction-btn-sm {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    color: #fff; font-size: 9px; padding: 2px 5px; cursor: pointer; opacity: 0.85;
+    transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s ease;
+  }
+  .reaction-btn-sm:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+  .reaction-btn-sm.reacted { border-color: var(--accent-color); background: rgba(255,255,255,0.12); opacity: 1; }
+  .reaction-btn-sm:active { transform: scale(0.9); }
+
+  /* Malá "toast" animace na hlavní obrazovce - objeví se, když uživatel zpětně
+     zareaguje na starou zprávu z historie, aby bylo jasné na co a čím reagoval. */
+  .history-reaction-toast {
+    position: fixed; left: 50%; top: 16%; transform: translate(-50%, 0);
+    z-index: 650; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    opacity: 0;
+  }
+  .history-reaction-toast.pop { animation: historyReactionPop 2.2s ease forwards; }
+  .history-reaction-toast .toast-emoji {
+    font-size: 30px; filter: drop-shadow(0 0 8px var(--accent-color));
+  }
+  .history-reaction-toast .toast-text {
+    max-width: 240px; font-size: 10px; color: #fff; background: rgba(20,20,30,0.88);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 4px 10px;
+    text-align: center; word-break: break-word;
+  }
+  @keyframes historyReactionPop {
+    0% { opacity: 0; transform: translate(-50%, 10px) scale(0.7); }
+    12% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+    20% { transform: translate(-50%, 0) scale(1); }
+    80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -14px) scale(0.9); }
+  }
 
   /* Glassmorphism stylizace přehrávače - ZMENŠENO PRO KOMPAKTNÍ VZHLED */
   .player-section { 
@@ -808,6 +842,12 @@
   .btn-focus-mode:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
   .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
 
+  /* Odhlašovací tlačítko admin režimu - skryté, dokud nejsi přihlášený přes 666 v chatu.
+     Musí být v CSS AŽ ZA .btn-focus-mode, jinak by ho stejná specificita přebila. */
+  .btn-focus-mode.admin-logout-btn { display: none; color: #ff8080; border-color: rgba(255,80,80,0.4); }
+  .btn-focus-mode.admin-logout-btn.visible { display: flex; }
+  .btn-focus-mode.admin-logout-btn:hover, .btn-focus-mode.admin-logout-btn:active { opacity: 1; }
+
   /* Unobtrusive clock shown only while in focus mode */
   .focus-clock { display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 1px; color: #fff; opacity: 0; user-select: none; pointer-events: none; z-index: 500; transition: opacity 0.6s ease; }
   body.focus-mode .focus-clock { display: block; opacity: 0.45; }
@@ -832,7 +872,16 @@
     margin-top: 12vh;
   }
 
-  .extra-features { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; padding: 0 15px;}
+  .extra-features { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; margin-bottom: 8px; padding: 0 15px;}
+  .volume-controls-row { display: flex; justify-content: center; align-items: center; gap: 8px; }
+  .btn-vol-adj {
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+    width: 24px; height: 24px; border-radius: 50%; font-size: 13px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: 0.2s; opacity: 0.8; padding: 0;
+  }
+  .btn-vol-adj:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+  .btn-vol-adj:active { transform: scale(0.88); }
   #volume-slider { width: 90px; accent-color: var(--accent-color); cursor: pointer; }
   .vol-icon { font-size: 11px; color: var(--accent-color); display: flex; align-items: center; }
   
@@ -1252,6 +1301,7 @@
 <div class="slogan-wrap">
   <div id="slogan-container" class="slogan-container"></div>
 </div>
+<div class="history-reaction-toast" id="history-reaction-toast" aria-hidden="true"></div>
 
 <div class="community-input-row" id="community-input-row">
   <input type="text" id="community-input" class="community-input" maxlength="60" data-i18n-placeholder="community_input_placeholder" placeholder="Pár slov pro ostatní posluchače…" onkeydown="if(event.key==='Enter'){sendCommunityMessage();}">
@@ -1312,12 +1362,17 @@
       <button class="btn-focus-mode community-history-btn" id="community-history-btn" onclick="toggleCommunityHistory()" data-i18n-aria="community_history_btn" aria-label="Message history">🕓</button>
       <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
       <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
+      <button class="btn-focus-mode admin-logout-btn" id="admin-logout-btn" onclick="adminLogout()" title="Admin odhlásit" aria-label="Admin logout">🔓</button>
     </div>
     <button class="btn-focus-mode" id="btn-focus-mode" onclick="toggleFocusMode()" title="Focus mode" aria-label="Toggle focus mode">⛶</button>
   </div>
 
   <div class="extra-features">
-    <span class="vol-icon" title="Volume">VOL🔉</span>
+    <div class="volume-controls-row">
+      <span class="vol-icon" title="Volume">VOL🔉</span>
+      <button type="button" class="btn-vol-adj" id="btn-vol-down" onclick="adjustVolume(-0.05)" aria-label="Volume down" title="Volume down">－</button>
+      <button type="button" class="btn-vol-adj" id="btn-vol-up" onclick="adjustVolume(0.05)" aria-label="Volume up" title="Volume up">＋</button>
+    </div>
     <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.3">
   </div>
 
@@ -1479,7 +1534,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_community">Community messages</h4>
-      <p data-i18n="p_community">Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨ (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.</p>
+      <p data-i18n="p_community">Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨👍👎 (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.</p>
     </div>
 
     <div class="main-guide-section">
@@ -3609,6 +3664,14 @@
 
   volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; localStorage.setItem('sl-volume', e.target.value); });
 
+  // Tlačítka +/- nad sliderem hlasitosti - klik po kroku 0.05, slider zůstává
+  // funkční i nadále a hlasitost se ukládá stejně jako při tažení slideru.
+  window.adjustVolume = function(delta) {
+    const newVal = Math.min(1, Math.max(0, parseFloat(volumeSlider.value) + delta));
+    volumeSlider.value = newVal.toFixed(2);
+    volumeSlider.dispatchEvent(new Event('input'));
+  };
+
   window.toggleShuffle = function() {
       shuffleEnabled = !shuffleEnabled;
       document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled);
@@ -3947,7 +4010,7 @@
     h_offline: { en: "Offline listening", cz: "Poslech offline" },
     p_offline: { en: "⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback. Offline listening works only inside the app, not in a regular browser tab.", cz: "⬇ DOWNLOAD OFFLINE uloží aktuální playlist pro přehrávání offline. Poslech offline funguje pouze uvnitř aplikace, ne v běžné záložce prohlížeče." },
     h_community: { en: "Community messages", cz: "Zprávy pro ostatní posluchače" },
-    p_community: { en: "Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨ (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.", cz: "Klepnutím na 💬 pod slogany pošlete krátkou zprávu (max. 60 znaků) všem, kdo právě poslouchají. Zprávě se na chvíli (asi 10 sekund) zobrazí všem místo dalšího sloganu, a to i vám — a ostatní posluchači na ni mohou reagovat pomocí 🔥❤️🙏✨ (bez psaní odpovědí, jen reakce emoji). Poslat lze jednu zprávu za minutu. Zprávy nejsou vázané na žádný účet a neukládají se do vašeho zařízení." },
+    p_community: { en: "Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨👍👎 (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.", cz: "Klepnutím na 💬 pod slogany pošlete krátkou zprávu (max. 60 znaků) všem, kdo právě poslouchají. Zprávě se na chvíli (asi 10 sekund) zobrazí všem místo dalšího sloganu, a to i vám — a ostatní posluchači na ni mohou reagovat pomocí 🔥❤️🙏✨👍👎 (bez psaní odpovědí, jen reakce emoji). Poslat lze jednu zprávu za minutu. Zprávy nejsou vázané na žádný účet a neukládají se do vašeho zařízení." },
     community_toggle_btn: { en: "Message everyone", cz: "Napsat ostatním" },
     community_input_placeholder: { en: "A few words for other listeners…", cz: "Pár slov pro ostatní posluchače…" },
     community_send_btn: { en: "Send", cz: "Odeslat" },
@@ -6217,6 +6280,8 @@
     try {
       firebase.auth().onAuthStateChanged((user) => {
         isAdminUser = !!user;
+        const logoutBtn = document.getElementById('admin-logout-btn');
+        if (logoutBtn) logoutBtn.classList.toggle('visible', isAdminUser);
       });
     } catch (e) { /* auth not available */ }
   }
@@ -6252,9 +6317,16 @@
       showCommunityError(i18nText.community_err_failed[guideLang] || i18nText.community_err_failed.en);
     });
   }
+
+  function adminLogout() {
+    if (typeof firebase === 'undefined' || !firebase.auth) return;
+    firebase.auth().signOut().catch((err) => {
+      console.error('Admin odhlášení selhalo:', err);
+    });
+  }
   let currentCommunityMsgId = null;
   let communityDisplayTimeout = null;
-  const reactionEmojis = ['🔥', '❤️', '🙏', '✨'];
+  const reactionEmojis = ['🔥', '❤️', '🙏', '✨', '👍', '👎'];
 
   // Sem si můžeš doplnit slova, která se nesmí odeslat (malými písmeny).
   const communityBannedWords = [];
@@ -6343,7 +6415,7 @@
     sloganEl.innerText = text;
     sloganEl.classList.add('visible', 'community-msg');
     sloganEl.classList.toggle('community-msg-admin', !!isAdminMsg);
-    showReactionBar(msgId);
+    showReactionBar(msgId, text);
 
     // Zpráva od komunity zůstane zobrazená 10 sekund
     communityDisplayTimeout = setTimeout(() => {
@@ -6353,7 +6425,7 @@
     }, 10000);
   }
 
-  function showReactionBar(msgId) {
+  function showReactionBar(msgId, msgText) {
     const bar = document.getElementById('community-reactions');
     if (!bar) return;
     bar.innerHTML = '';
@@ -6364,7 +6436,7 @@
       let votedKey = null;
       try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
       if (votedKey && localStorage.getItem(votedKey)) btn.classList.add('reacted');
-      btn.onclick = () => reactToMessage(msgId, emoji, btn);
+      btn.onclick = () => reactToMessage(msgId, emoji, btn, msgText);
       bar.appendChild(btn);
     });
     bar.classList.add('visible');
@@ -6391,7 +6463,7 @@
     }
   }
 
-  function reactToMessage(msgId, emoji, btnEl) {
+  function reactToMessage(msgId, emoji, btnEl, msgText) {
     if (!communityReactionsRef) return;
     let votedKey = null;
     try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
@@ -6399,6 +6471,9 @@
     communityReactionsRef.child(msgId).child(emoji).transaction((current) => (current || 0) + 1);
     try { if (votedKey) localStorage.setItem(votedKey, '1'); } catch (e) {}
     btnEl.classList.add('reacted');
+    // Malá animace na hlavní obrazovce ukazující, čím se zrovna reagovalo -
+    // funguje jak pro živou lištu pod aktuální zprávou, tak pro reakce z historie.
+    flashReactionToast(msgText, emoji);
   }
 
   // ==========================================
@@ -6422,20 +6497,54 @@
     communityHistoryRefsToDetach = [];
   }
 
-  function renderHistoryReactionCounts(container, msgId) {
+  let historyReactionToastTimeout = null;
+  function flashReactionToast(text, emoji) {
+    const toast = document.getElementById('history-reaction-toast');
+    if (!toast) return;
+    clearTimeout(historyReactionToastTimeout);
+    toast.classList.remove('pop');
+    void toast.offsetWidth; // restart animace i při opakovaném rychlém kliknutí
+    toast.innerHTML = '';
+    const emojiEl = document.createElement('span');
+    emojiEl.className = 'toast-emoji';
+    emojiEl.textContent = emoji;
+    const textEl = document.createElement('span');
+    textEl.className = 'toast-text';
+    textEl.textContent = text || '';
+    toast.appendChild(emojiEl);
+    toast.appendChild(textEl);
+    toast.classList.add('pop');
+    historyReactionToastTimeout = setTimeout(() => {
+      toast.classList.remove('pop');
+      toast.innerHTML = '';
+    }, 2200);
+  }
+
+  function renderHistoryReactionCounts(container, msgId, msgText) {
     if (!communityReactionsRef) return;
+    // Tlačítka se vykreslí jednou - kliknutím lze reagovat i zpětně, z historie
+    // (stejná logika/uložení jako u živé lišty reakcí přes reactToMessage).
+    container.innerHTML = '';
+    const buttons = reactionEmojis.map((emoji) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'reaction-btn-sm';
+      btn.innerHTML = emoji + ' <span class="reaction-count">0</span>';
+      let votedKey = null;
+      try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
+      if (votedKey && localStorage.getItem(votedKey)) btn.classList.add('reacted');
+      btn.onclick = () => reactToMessage(msgId, emoji, btn, msgText);
+      container.appendChild(btn);
+      return btn;
+    });
+
     const ref = communityReactionsRef.child(msgId);
     communityHistoryRefsToDetach.push(ref);
     ref.on('value', (snap) => {
       const data = snap.val() || {};
-      container.innerHTML = '';
-      reactionEmojis.forEach((emoji) => {
-        const count = data[emoji] || 0;
-        if (count > 0) {
-          const span = document.createElement('span');
-          span.textContent = emoji + ' ' + count;
-          container.appendChild(span);
-        }
+      reactionEmojis.forEach((emoji, i) => {
+        const countEl = buttons[i].querySelector('.reaction-count');
+        if (countEl) countEl.innerText = data[emoji] || 0;
       });
     });
   }
@@ -6497,7 +6606,7 @@
         const reactionsEl = document.createElement('div');
         reactionsEl.className = 'community-history-reactions';
         meta.appendChild(reactionsEl);
-        renderHistoryReactionCounts(reactionsEl, msg.id);
+        renderHistoryReactionCounts(reactionsEl, msg.id, msg.text);
 
         item.appendChild(meta);
         list.appendChild(item);
