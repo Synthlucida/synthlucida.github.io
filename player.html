@@ -6606,7 +6606,27 @@
     // Když appku právě aktivně sleduješ, reakci uvidíš rovnou v appce (animace
     // flashReactionToast) - systémová notifikace navíc by byla jen rušivá.
     if (!document.hidden && document.hasFocus()) return;
-    const msgText = communityMessageTextCache[msgId] || '';
+    const cachedText = communityMessageTextCache[msgId];
+    if (typeof cachedText === 'string') {
+      sendReactionNotification(msgId, emoji, cachedText);
+      return;
+    }
+    // Text zprávy ještě není v cache (např. zpráva přišla, než appka naběhla,
+    // a historie se zatím neotevřela) - dotáhne se přímo z databáze, ať notifikace
+    // vždy ukáže, na kterou zprávu se reagovalo, a ne jen holé emoji.
+    if (communityMessagesRef) {
+      communityMessagesRef.child(msgId).once('value').then((snap) => {
+        const msg = snap.val();
+        const text = (msg && msg.text) || '';
+        communityMessageTextCache[msgId] = text;
+        sendReactionNotification(msgId, emoji, text);
+      }).catch(() => { sendReactionNotification(msgId, emoji, ''); });
+    } else {
+      sendReactionNotification(msgId, emoji, '');
+    }
+  }
+
+  function sendReactionNotification(msgId, emoji, msgText) {
     const isCz = typeof guideLang !== 'undefined' && guideLang === 'cz';
     const title = isCz ? 'Nová reakce' : 'New reaction';
     const body = msgText ? (emoji + ' — ' + msgText) : emoji;
