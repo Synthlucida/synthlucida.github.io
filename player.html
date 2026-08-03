@@ -6328,6 +6328,33 @@
   let communityDisplayTimeout = null;
   const reactionEmojis = ['🔥', '❤️', '🙏', '✨', '👍', '👎'];
 
+  // Sdílená mezipaměť naposledy viděných počtů reakcí u každé zprávy.
+  // Díky ní pozná processReactionSnapshot(), že se počet u nějakého emoji
+  // právě zvýšil (ať už kliknutím kohokoli, kdekoli - v live liště i historii),
+  // a spustí animaci (flashReactionToast) VŠEM, kdo zprávu právě sledují -
+  // ne jen tomu, kdo klikl. Klíčem je msgId, takže se sdílí mezi
+  // showReactionBar() (aktuální zpráva) a renderHistoryReactionCounts() (historie).
+  const reactionCountsCache = {};
+
+  function processReactionSnapshot(msgId, msgText, data) {
+    let entry = reactionCountsCache[msgId];
+    if (!entry) {
+      entry = { init: false, counts: {} };
+      reactionCountsCache[msgId] = entry;
+    }
+    reactionEmojis.forEach((emoji) => {
+      const newCount = data[emoji] || 0;
+      const oldCount = entry.counts[emoji] || 0;
+      // "entry.init" hlídá, aby se animace nespustila hned při prvním
+      // připojení posluchače (kdy nejde o nový klik, ale o počáteční stav).
+      if (entry.init && newCount > oldCount) {
+        flashReactionToast(msgText, emoji);
+      }
+      entry.counts[emoji] = newCount;
+    });
+    entry.init = true;
+  }
+
   // Sem si můžeš doplnit slova, která se nesmí odeslat (malými písmeny).
   const communityBannedWords = [];
 
@@ -6448,6 +6475,9 @@
           const countEl = bar.children[i] && bar.children[i].querySelector('.reaction-count');
           if (countEl) countEl.innerText = data[emoji] || 0;
         });
+        // Zpracuje se sdílená mezipaměť - pokud počet u nějakého emoji vzrostl
+        // (u kohokoli, kdekoli), spustí se animace i tady, v live liště.
+        processReactionSnapshot(msgId, msgText, data);
       });
     }
   }
@@ -6471,9 +6501,11 @@
     communityReactionsRef.child(msgId).child(emoji).transaction((current) => (current || 0) + 1);
     try { if (votedKey) localStorage.setItem(votedKey, '1'); } catch (e) {}
     btnEl.classList.add('reacted');
-    // Malá animace na hlavní obrazovce ukazující, čím se zrovna reagovalo -
-    // funguje jak pro živou lištu pod aktuální zprávou, tak pro reakce z historie.
-    flashReactionToast(msgText, emoji);
+    // Animace se už nespouští jen lokálně tady - vznikne automaticky všem
+    // (včetně tebe), jakmile jejich posluchač (showReactionBar / 
+    // renderHistoryReactionCounts) uvidí přes processReactionSnapshot(),
+    // že v databázi vzrostl počet u tohoto emoji. Díky tomu ji vidí
+    // opravdu každý, kdo zprávu právě sleduje, ne jen ten, kdo klikl.
   }
 
   // ==========================================
@@ -6546,6 +6578,9 @@
         const countEl = buttons[i].querySelector('.reaction-count');
         if (countEl) countEl.innerText = data[emoji] || 0;
       });
+      // Stejná sdílená mezipaměť jako u live lišty - reakce z historie tak
+      // spustí animaci úplně stejně a všem, kdo tuhle zprávu zrovna sledují.
+      processReactionSnapshot(msgId, msgText, data);
     });
   }
 
