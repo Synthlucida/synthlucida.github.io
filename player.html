@@ -6413,6 +6413,7 @@
     const panel = document.getElementById('community-history-panel');
     if (!panel) return;
     panel.classList.add('visible');
+    pruneOldCommunityMessages();
     loadCommunityHistory();
   }
 
@@ -6457,6 +6458,26 @@
     }
   }
 
+  // Smaže zprávy (a jejich reakce) starší než 24 hodin - stejné okno, jaké appka
+  // ukazuje v historii ("posledních 24 hodin"). Odpovídá pravidlu v Security Rules,
+  // které smazání starších než 24h povoluje - novější zprávy tam smazat nejdou.
+  function pruneOldCommunityMessages() {
+    if (!communityMessagesRef) return;
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 24h
+    communityMessagesRef.orderByChild('ts').endAt(cutoff).once('value').then((snap) => {
+      const updates = {};
+      snap.forEach((child) => {
+        updates['messages/' + child.key] = null;
+        updates['reactions/' + child.key] = null;
+      });
+      if (Object.keys(updates).length) {
+        firebase.database().ref().update(updates).catch((err) => {
+          console.warn('Prořezání staré historie selhalo:', err);
+        });
+      }
+    }).catch(() => {});
+  }
+
   function initCommunityChat() {
     try {
       if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
@@ -6471,6 +6492,12 @@
         showCommunityMessage(msg.text, snap.key);
         fireCommunityMessageNotification(msg.text);
       });
+
+      // Úklid staré historie: jednou hned při startu appky a pak jednou za hodinu,
+      // dokud appka běží. Je to "oportunistické" mazání (bez Cloud Functions) - pokud appku
+      // nikdo 24h neotevře, stará zpráva chvíli přežije navíc, než ji smaže první další příchozí.
+      pruneOldCommunityMessages();
+      setInterval(pruneOldCommunityMessages, 60 * 60 * 1000);
     } catch (e) {
       console.error('Komunitní chat se nepodařilo spustit:', e);
     }
