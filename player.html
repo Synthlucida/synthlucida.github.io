@@ -1845,6 +1845,7 @@
       { title: "SYNTHLUCIDA - Moonlight", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/moonlight.mp3" },
       { title: "SYNTHLUCIDA - Deep Life", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/deep_life.mp3" },
       { title: "SYNTHLUCIDA - Endless Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/endless_summer.mp3" },
+      { title: "SYNTHLUCIDA - Happy Days", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/happy_days.mp3", added: "2026-08-04" }, 
       { title: "SYNTHLUCIDA - Tropical Free Tones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tropical.mp3" },
       { title: "SYNTHLUCIDA - Calling Analog", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/calling_analog.mp3" },
       { title: "SYNTHLUCIDA - Echoes Of Freedom_Sunset Mix", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/echoes_of_freedom_sunset_mix.mp3" },
@@ -6328,43 +6329,43 @@
   let communityDisplayTimeout = null;
   const reactionEmojis = ['🔥', '❤️', '🙏', '✨', '👍', '👎'];
 
-  // Sdílená mezipaměť naposledy viděných počtů reakcí u každé zprávy.
-  // Díky ní pozná processReactionSnapshot(), že se počet u nějakého emoji
-  // právě zvýšil (ať už kliknutím kohokoli, kdekoli - v live liště i historii),
-  // a spustí animaci (flashReactionToast) VŠEM, kdo zprávu právě sledují -
-  // ne jen tomu, kdo klikl. Klíčem je msgId, takže se sdílí mezi
-  // showReactionBar() (aktuální zpráva) a renderHistoryReactionCounts() (historie).
+  // Sdílená mezipaměť naposledy viděných počtů reakcí u každé zprávy - napříč
+  // CELOU appkou, ne jen u zprávy zrovna zobrazené na hlavní obrazovce nebo
+  // konkrétně načtené v historii. Díky ní pozná processReactionUpdate(), že se
+  // počet u nějakého emoji právě zvýšil (ať už kliknutím kohokoli, kdekoli),
+  // a spustí animaci (flashReactionToast) úplně každému, kdo appku právě má
+  // otevřenou/viditelnou - ať už je zrovna na hlavní obrazovce nebo v historii,
+  // a i když daná zpráva zrovna není v jeho aktuálně vykreslené historii.
   const reactionCountsCache = {};
 
-  // Cache textu zpráv podle msgId - potřebná, aby šlo do systémové notifikace
+  // Cache textu zpráv podle msgId - potřebná, aby šlo do animace/notifikace
   // o nové reakci napsat i text zprávy, na kterou se reagovalo (plní se při
   // příchodu živé zprávy a při načtení historie, viz initCommunityChat / loadCommunityHistory).
   const communityMessageTextCache = {};
 
   // Když sám na zařízení klikneš na reakci, chvíli se čeká na potvrzení z Firebase -
-  // tahle mapa zajistí, že si sám sobě nepošleš systémovou notifikaci o vlastní reakci.
+  // tahle mapa zajistí, že si sám sobě nepošleš systémovou notifikaci o vlastní reakci
+  // (animovaný toast se ti i tak zobrazí stejně jako všem ostatním).
   const recentlyReactedByMe = {};
 
-  function processReactionSnapshot(msgId, msgText, data) {
-    let entry = reactionCountsCache[msgId];
-    if (!entry) {
-      entry = { init: false, counts: {} };
-      reactionCountsCache[msgId] = entry;
+  // Dohledá text zprávy pro msgId - buď rovnou z mezipaměti, nebo (když appka
+  // zprávu ještě neviděla, např. běžela na pozadí) dotažením z databáze.
+  function resolveReactionMessageText(msgId, callback) {
+    const cachedText = communityMessageTextCache[msgId];
+    if (typeof cachedText === 'string') {
+      callback(cachedText);
+      return;
     }
-    reactionEmojis.forEach((emoji) => {
-      const newCount = data[emoji] || 0;
-      const oldCount = entry.counts[emoji] || 0;
-      // "entry.init" hlídá, aby se animace nespustila hned při prvním
-      // připojení posluchače (kdy nejde o nový klik, ale o počáteční stav).
-      // Animace (flashReactionToast) se pouští jen s povoleným 🔔 REMINDERS -
-      // je-li vypnuté, reakce se pořád tiše počítají (entry.counts i číslo u
-      // tlačítka se aktualizují normálně), jen se to nijak neanimuje na displeji.
-      if (entry.init && newCount > oldCount && remindersEnabled) {
-        flashReactionToast(msgText, emoji);
-      }
-      entry.counts[emoji] = newCount;
-    });
-    entry.init = true;
+    if (communityMessagesRef) {
+      communityMessagesRef.child(msgId).once('value').then((snap) => {
+        const msg = snap.val();
+        const text = (msg && msg.text) || '';
+        communityMessageTextCache[msgId] = text;
+        callback(text);
+      }).catch(() => callback(''));
+    } else {
+      callback('');
+    }
   }
 
   // Sem si můžeš doplnit slova, která se nesmí odeslat (malými písmeny).
@@ -6487,9 +6488,10 @@
           const countEl = bar.children[i] && bar.children[i].querySelector('.reaction-count');
           if (countEl) countEl.innerText = data[emoji] || 0;
         });
-        // Zpracuje se sdílená mezipaměť - pokud počet u nějakého emoji vzrostl
-        // (u kohokoli, kdekoli), spustí se animace i tady, v live liště.
-        processReactionSnapshot(msgId, msgText, data);
+        // Animaci nové reakce (flashReactionToast) i případnou notifikaci teď
+        // řeší jen globální posluchač processReactionUpdate (viz initCommunityChat) -
+        // ten běží pořád, bez ohledu na to, jestli je zrovna otevřená tahle
+        // live lišta nebo historie, takže reakci uvidí opravdu každý.
       });
     }
   }
@@ -6518,11 +6520,11 @@
     communityReactionsRef.child(msgId).child(emoji).transaction((current) => (current || 0) + 1);
     try { if (votedKey) localStorage.setItem(votedKey, '1'); } catch (e) {}
     btnEl.classList.add('reacted');
-    // Animace se už nespouští jen lokálně tady - vznikne automaticky všem
-    // (včetně tebe), jakmile jejich posluchač (showReactionBar / 
-    // renderHistoryReactionCounts) uvidí přes processReactionSnapshot(),
-    // že v databázi vzrostl počet u tohoto emoji. Díky tomu ji vidí
-    // opravdu každý, kdo zprávu právě sleduje, ne jen ten, kdo klikl.
+    // Animace se nespouští lokálně tady - vznikne automaticky úplně všem
+    // (včetně tebe), jakmile globální posluchač (viz initCommunityChat a
+    // processReactionUpdate) uvidí, že v databázi vzrostl počet u tohoto
+    // emoji. Díky tomu ji vidí opravdu každý, kdo appku právě sleduje - ať
+    // je na hlavní obrazovce nebo v historii - ne jen ten, kdo klikl.
   }
 
   // ==========================================
@@ -6570,29 +6572,40 @@
   }
 
   // ==========================================
-  // SYSTÉMOVÁ NOTIFIKACE O NOVÉ REAKCI - na rozdíl od flashReactionToast()
-  // výše (ta animuje reakci jen tomu, kdo zprávu právě sleduje) tahle část
-  // pošle druhému uživateli systémovou notifikaci i normálně, tedy i když
-  // zrovna není v historii ani se nedívá na aktuální zprávu. Respektuje
-  // stejný vypínač 🔔 REMINDERS jako notifikace z chatu - když jsou
-  // notifikace vypnuté, tahle funkce mlčí úplně stejně.
+  // GLOBÁLNÍ ZPRACOVÁNÍ NOVÉ REAKCE - jediné místo, které rozhoduje o animaci
+  // (flashReactionToast) i o systémové notifikaci pro VŠECHNY reakce na
+  // VŠECHNY zprávy, u kohokoli v appce. Napojené je na posluchače
+  // communityReactionsRef.on('child_added'/'child_changed') v initCommunityChat(),
+  // který běží od startu appky pořád, bez ohledu na to, jestli je zrovna
+  // otevřená hlavní obrazovka nebo historie, a jestli daná zpráva je zrovna
+  // vykreslená v historii - proto se reakce dřív u uživatele v historii
+  // někdy vůbec neprojevila (lokální posluchače u konkrétní zprávy prostě
+  // nemusely běžet), tady se to řeší jednou univerzálně.
   // ==========================================
-  const reactionNotifyCache = {};
-
-  function processReactionNotify(msgId, data) {
-    let entry = reactionNotifyCache[msgId];
+  function processReactionUpdate(msgId, data) {
+    let entry = reactionCountsCache[msgId];
     if (!entry) {
       entry = { init: false, counts: {} };
-      reactionNotifyCache[msgId] = entry;
+      reactionCountsCache[msgId] = entry;
     }
     reactionEmojis.forEach((emoji) => {
       const newCount = data[emoji] || 0;
       const oldCount = entry.counts[emoji] || 0;
-      if (entry.init && newCount > oldCount) {
+      // "entry.init" hlídá, aby se nic nespustilo hned při prvním připojení
+      // posluchače (počáteční stav), jen při skutečném novém kliknutí.
+      if (entry.init && newCount > oldCount && remindersEnabled) {
         const suppressKey = msgId + '|' + emoji;
-        if (recentlyReactedByMe[suppressKey]) {
-          delete recentlyReactedByMe[suppressKey];
-        } else {
+        const isOwnReaction = !!recentlyReactedByMe[suppressKey];
+        if (isOwnReaction) delete recentlyReactedByMe[suppressKey];
+        if (!document.hidden && document.hasFocus()) {
+          // Appka je zrovna otevřená a viditelná - animovaný toast dostane
+          // úplně každý, kdo appku sleduje, ať je na hlavní obrazovce nebo
+          // v historii (i vlastní kliknutí se takhle "echem" z Firebase
+          // znovu potvrdí a animuje, stejně jako všem ostatním).
+          resolveReactionMessageText(msgId, (text) => flashReactionToast(text, emoji));
+        } else if (!isOwnReaction) {
+          // Appka běží na pozadí / karta není aktivní - misto animace přijde
+          // systémová notifikace (vlastní reakci si sám sobě neposílá).
           fireReactionNotification(msgId, emoji);
         }
       }
@@ -6607,26 +6620,10 @@
     if (!remindersEnabled) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     // Když appku právě aktivně sleduješ, reakci uvidíš rovnou v appce (animace
-    // flashReactionToast) - systémová notifikace navíc by byla jen rušivá.
+    // flashReactionToast, viz processReactionUpdate výše) - systémová
+    // notifikace navíc by byla jen rušivá.
     if (!document.hidden && document.hasFocus()) return;
-    const cachedText = communityMessageTextCache[msgId];
-    if (typeof cachedText === 'string') {
-      sendReactionNotification(msgId, emoji, cachedText);
-      return;
-    }
-    // Text zprávy ještě není v cache (např. zpráva přišla, než appka naběhla,
-    // a historie se zatím neotevřela) - dotáhne se přímo z databáze, ať notifikace
-    // vždy ukáže, na kterou zprávu se reagovalo, a ne jen holé emoji.
-    if (communityMessagesRef) {
-      communityMessagesRef.child(msgId).once('value').then((snap) => {
-        const msg = snap.val();
-        const text = (msg && msg.text) || '';
-        communityMessageTextCache[msgId] = text;
-        sendReactionNotification(msgId, emoji, text);
-      }).catch(() => { sendReactionNotification(msgId, emoji, ''); });
-    } else {
-      sendReactionNotification(msgId, emoji, '');
-    }
+    resolveReactionMessageText(msgId, (text) => sendReactionNotification(msgId, emoji, text));
   }
 
   function sendReactionNotification(msgId, emoji, msgText) {
@@ -6673,9 +6670,8 @@
         const countEl = buttons[i].querySelector('.reaction-count');
         if (countEl) countEl.innerText = data[emoji] || 0;
       });
-      // Stejná sdílená mezipaměť jako u live lišty - reakce z historie tak
-      // spustí animaci úplně stejně a všem, kdo tuhle zprávu zrovna sledují.
-      processReactionSnapshot(msgId, msgText, data);
+      // Animaci a notifikaci řeší globální posluchač processReactionUpdate -
+      // tenhle listener tu jen drží čísla u tlačítek v historii aktuální.
     });
   }
 
@@ -6844,19 +6840,20 @@
         // bez ohledu na 🔔 REMINDERS - je to obsah streamu, ne notifikace.
         // Přepínač REMINDERS ovládá jen: 1) systémovou push notifikaci níže
         // (ta se hlídá sama uvnitř fireCommunityMessageNotification), a
-        // 2) animaci reakcí (flashReactionToast, viz processReactionSnapshot).
+        // 2) animaci reakcí (flashReactionToast, viz processReactionUpdate).
         showCommunityMessage(msg.text, snap.key, msg.isAdmin === true);
         fireCommunityMessageNotification(msg.isAdmin === true ? '★ ' + msg.text : msg.text);
       });
 
       // Globální poslouchání VŠECH reakcí (ne jen té právě zobrazené zprávy nebo
-      // otevřené historie), aby o nové reakci věděl i uživatel, který zrovna
-      // není v historii ani se nedívá na aktuální zprávu - viz processReactionNotify.
+      // otevřené historie), aby o nové reakci věděl (a viděl animaci) i uživatel,
+      // který zrovna prochází historii a daná zpráva zrovna není v jeho
+      // aktuálně načteném seznamu - viz processReactionUpdate.
       communityReactionsRef.on('child_added', (snap) => {
-        processReactionNotify(snap.key, snap.val() || {});
+        processReactionUpdate(snap.key, snap.val() || {});
       });
       communityReactionsRef.on('child_changed', (snap) => {
-        processReactionNotify(snap.key, snap.val() || {});
+        processReactionUpdate(snap.key, snap.val() || {});
       });
 
       // Úklid staré historie: jednou hned při startu appky a pak jednou za hodinu,
