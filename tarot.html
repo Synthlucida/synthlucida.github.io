@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0221">
+<title>SYNTHLUCIDA TAROT</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-color-1: #1a0733;
+    --bg-color-2: #05010f;
+    --accent-color: #d4af37;
+    --accent-glow: #8b2fe0;
+    --card-bg-1: #1c0f38;
+    --card-bg-2: #0a0518;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: radial-gradient(ellipse at 50% 20%, var(--bg-color-1), var(--bg-color-2) 70%, #000000);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    position: relative;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+  }
+  button { font-family: inherit; }
+
+  /* twinkling starfield */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 65% 12%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 80% 45%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 35% 70%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 90% 80%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 10% 85%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 50% 55%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 75% 65%, #fff 100%, transparent);
+    background-size: 100% 100%;
+    opacity: 0.55;
+    animation: twinkle 4.5s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle { 0% { opacity: 0.25; } 100% { opacity: 0.7; } }
+
+  .blob { position: fixed; border-radius: 50%; filter: blur(90px); opacity: 0.25; z-index: 0; animation: floatBlobs 22s ease-in-out infinite; pointer-events: none; }
+  .blob-1 { width: 280px; height: 280px; background: var(--accent-glow); top: -8%; left: -10%; }
+  .blob-2 { width: 320px; height: 320px; background: var(--accent-color); bottom: -12%; right: -10%; animation-delay: -6s; animation-duration: 26s; }
+  @keyframes floatBlobs { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -25px); } }
+  @media (prefers-reduced-motion: reduce) { body::before, .blob { animation: none !important; } }
+
+  .corner-btn {
+    position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); z-index: 210;
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    background: rgba(0,0,0,0.5); border: 1px solid var(--accent-color); color: var(--accent-color);
+    display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', sans-serif;
+    font-size: 13px; text-decoration: none; transition: 0.2s;
+  }
+  .corner-btn:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
+  .corner-btn:active { transform: scale(0.92); }
+  .corner-btn-left { left: 10px; font-style: italic; font-family: 'Cormorant Garamond', serif; }
+  .corner-btn-right { right: 10px; font-size: 12px; }
+
+  #info-overlay {
+    display: none; position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.92); justify-content: center; align-items: center; padding: 20px;
+  }
+  #info-overlay.show { display: flex; }
+  .info-panel {
+    background: var(--card-bg-1); border: 1px solid var(--accent-color); border-radius: 12px;
+    max-width: 380px; width: 100%; max-height: 82vh; overflow-y: auto; padding: 26px 20px 20px;
+    position: relative; box-shadow: 0 0 30px rgba(212,175,55,0.25); text-align: left;
+  }
+  .info-panel h2 { font-size: 14px; letter-spacing: 2px; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); text-align: center; margin: 0 0 14px 0; }
+  .info-panel h3 { font-size: 10px; letter-spacing: 1px; color: var(--accent-glow); text-shadow: 0 0 6px var(--accent-glow); margin: 14px 0 4px 0; }
+  .info-panel h3:first-of-type { margin-top: 0; }
+  .info-panel p, .info-panel li { font-size: 10px; line-height: 1.7; opacity: 0.9; margin: 0 0 4px 0; font-family: 'Cormorant Garamond', serif; }
+  .info-panel ul { margin: 0; padding-left: 14px; }
+  .info-close {
+    position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: 0.2s;
+  }
+  .info-close:hover { border-color: var(--accent-color); color: var(--accent-color); }
+  .info-lang-toggle {
+    position: absolute; top: 10px; left: 10px; border-radius: 6px; padding: 4px 8px; cursor: pointer;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+    font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.5px; transition: 0.2s;
+  }
+  .info-lang-toggle:hover { border-color: var(--accent-color); color: var(--accent-color); }
+
+  .brand { position: relative; z-index: 1; margin-bottom: 6px; }
+  .brand-name { font-size: 12px; letter-spacing: 4px; opacity: 0.55; }
+  .page-title {
+    font-size: 15px; letter-spacing: 3px; margin: 4px 0 26px; color: var(--accent-color);
+    text-shadow: 0 0 12px var(--accent-color);
+  }
+
+  .card-wrap { position: relative; z-index: 1; perspective: 1400px; width: 210px; height: 340px; margin-bottom: 22px; }
+  .aura {
+    position: absolute; inset: -30px; border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+    opacity: 0.5; filter: blur(6px); animation: pulseAura 3.2s ease-in-out infinite;
+    z-index: 0;
+  }
+  @keyframes pulseAura { 0%, 100% { transform: scale(1); opacity: 0.35; } 50% { transform: scale(1.12); opacity: 0.6; } }
+
+  .tarot-card {
+    position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+    transition: transform 1.15s cubic-bezier(.22,.85,.28,1); z-index: 1;
+  }
+  .tarot-card.revealed { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; inset: 0; backface-visibility: hidden; border-radius: 14px;
+    border: 2px solid var(--accent-color); box-shadow: 0 0 26px rgba(212,175,55,0.35), inset 0 0 30px rgba(139,47,224,0.35);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;
+    background: linear-gradient(160deg, var(--card-bg-1), var(--card-bg-2));
+  }
+  .card-back {
+    background-image:
+      repeating-linear-gradient(45deg, rgba(212,175,55,0.08) 0px, rgba(212,175,55,0.08) 2px, transparent 2px, transparent 14px),
+      linear-gradient(160deg, var(--card-bg-1), var(--card-bg-2));
+  }
+  .card-back .glyph { font-size: 46px; opacity: 0.85; filter: drop-shadow(0 0 10px var(--accent-color)); animation: spinSlow 12s linear infinite; }
+  @keyframes spinSlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .card-back .back-label { margin-top: 14px; font-size: 9px; letter-spacing: 3px; opacity: 0.6; }
+
+  .card-front { transform: rotateY(180deg); padding: 16px 12px; }
+  .card-number { font-size: 9px; letter-spacing: 2px; opacity: 0.65; color: var(--accent-color); }
+  .card-symbol { font-size: 44px; margin: 8px 0 6px; filter: drop-shadow(0 0 10px var(--accent-color)); }
+  .card-name-en { font-size: 13px; letter-spacing: 1.5px; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+  .card-name-cz { font-size: 10px; letter-spacing: 1px; opacity: 0.75; margin-top: 2px; font-family: 'Cormorant Garamond', serif; font-style: italic; }
+  .reversed-badge {
+    margin-top: 8px; font-size: 8px; letter-spacing: 1.5px; padding: 3px 8px; border-radius: 20px;
+    border: 1px solid var(--accent-glow); color: #d9b3ff; background: rgba(139,47,224,0.15);
+  }
+
+  .meaning-panel {
+    position: relative; z-index: 1; max-width: 320px; width: 100%;
+    background: rgba(10,5,20,0.55); border: 1px solid rgba(212,175,55,0.35); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 18px;
+  }
+  .meaning-lang { font-size: 8px; letter-spacing: 2px; color: var(--accent-glow); margin-bottom: 4px; }
+  .meaning-text { font-family: 'Cormorant Garamond', serif; font-size: 15px; line-height: 1.5; opacity: 0.95; margin: 0 0 12px 0; }
+  .meaning-text:last-child { margin-bottom: 0; }
+  .meaning-divider { height: 1px; background: rgba(255,255,255,0.12); margin: 10px 0; }
+
+  .btn-draw {
+    position: relative; z-index: 1; background: rgba(212,175,55,0.1); border: 1px solid var(--accent-color);
+    color: var(--accent-color); padding: 10px 22px; border-radius: 30px; font-size: 10px; letter-spacing: 2px;
+    cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;
+  }
+  .btn-draw:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 14px var(--accent-color); }
+  .btn-draw:active { transform: scale(0.96); }
+  .btn-draw:disabled { opacity: 0.4; cursor: default; box-shadow: none; background: rgba(212,175,55,0.1); color: var(--accent-color); }
+
+  @media (max-height: 700px) {
+    .card-wrap { width: 170px; height: 275px; margin-bottom: 16px; }
+    .page-title { margin-bottom: 16px; }
+    .meaning-panel { padding: 12px 14px; margin-bottom: 14px; }
+  }
+</style>
+</head>
+<body id="body">
+
+<button class="corner-btn corner-btn-left" id="btn-info" title="How to read" aria-label="How to read">i</button>
+<a href="player.html" class="corner-btn corner-btn-right" id="btn-close" title="Close" aria-label="Close">✕</a>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div id="info-overlay">
+  <div class="info-panel">
+    <button class="info-close" id="btn-info-close" aria-label="Close">✕</button>
+    <button class="info-lang-toggle" id="info-lang-toggle" onclick="toggleInfoLanguage()" aria-label="Switch language">CZ</button>
+    <h2 data-i18n="title">CARD OF THE DAY</h2>
+
+    <h3 data-i18n="h_intro">THE DRAW</h3>
+    <p data-i18n="p_intro">Every time you open this page, one card is drawn truly at random from the full 78-card tarot deck — the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.</p>
+
+    <h3 data-i18n="h_deck">THE DECK</h3>
+    <p data-i18n="p_deck">The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body.</p>
+
+    <h3 data-i18n="h_reversed">UPRIGHT & REVERSED</h3>
+    <p data-i18n="p_reversed">An upright card points to its meaning flowing freely. A reversed card (marked REVERSED) suggests that same energy turned inward, blocked, or asking for patience.</p>
+
+    <h3 data-i18n="h_again">DRAW AGAIN</h3>
+    <p data-i18n="p_again">Tap 🔀 DRAW AGAIN any time for a fresh card, or simply reopen this page later.</p>
+
+    <h3 data-i18n="h_spirit">A GENTLE NOTE</h3>
+    <p data-i18n="p_spirit">This is offered as a small daily moment for reflection and atmosphere, not as prediction or advice.</p>
+
+    <h3 data-i18n="h_close">LEAVING</h3>
+    <p data-i18n="p_close">Tap ✕ any time to return to the player.</p>
+  </div>
+</div>
+
+<div class="brand">
+  <div class="brand-name">SYNTHLUCIDA</div>
+</div>
+<div class="page-title" data-i18n="page_title">✦ CARD OF THE DAY ✦</div>
+
+<div class="card-wrap">
+  <div class="aura"></div>
+  <div class="tarot-card" id="tarot-card">
+    <div class="card-face card-back">
+      <div class="glyph">✦</div>
+      <div class="back-label">SYNTHLUCIDA</div>
+    </div>
+    <div class="card-face card-front">
+      <div class="card-number" id="card-number"></div>
+      <div class="card-symbol" id="card-symbol"></div>
+      <div class="card-name-en" id="card-name-en"></div>
+      <div class="card-name-cz" id="card-name-cz"></div>
+      <div class="reversed-badge" id="reversed-badge" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="meaning-panel" id="meaning-panel" style="visibility:hidden;">
+  <div class="meaning-lang">EN</div>
+  <p class="meaning-text" id="meaning-en"></p>
+  <div class="meaning-divider"></div>
+  <div class="meaning-lang">CZ</div>
+  <p class="meaning-text" id="meaning-cz"></p>
+</div>
+
+<button class="btn-draw" id="btn-draw" disabled>🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
+
+<script>
+(function () {
+
+  // ---------- TAROT DATA ----------
+
+  var majors = [
+    { sym:'🌄', en:'THE FOOL', cz:'BLÁZEN', num:'0', up_en:'A leap of faith. New beginnings, innocence and open-hearted spontaneity — the freedom of not yet knowing how the story ends.', up_cz:'Skok do neznáma. Nový začátek, nevinnost a spontánnost otevřeného srdce — svoboda, která plyne z toho, že ještě neznáte konec příběhu.', rv_en:'Reversed, it warns of recklessness, hesitation, or a chance quietly slipping by.', rv_cz:'V obráceném postavení varuje před bezhlavostí, váháním, nebo příležitostí, která tiše uniká.' },
+    { sym:'🪄', en:'THE MAGICIAN', cz:'KOUZELNÍK', num:'I', up_en:'All the tools you need are already in your hands. Willpower, skill and the power to turn an idea into something real.', up_cz:'Všechny nástroje, které potřebujete, už máte po ruce. Vůle, dovednost a schopnost proměnit myšlenku ve skutečnost.', rv_en:'Reversed, it points to untapped talent, manipulation, or a plan that hasn\u2019t quite found its footing.', rv_cz:'V obráceném postavení ukazuje na nevyužitý talent, manipulaci, nebo plán, který ještě nenašel svou půdu.' },
+    { sym:'🌙', en:'THE HIGH PRIESTESS', cz:'VELEKNĚŽKA', num:'II', up_en:'Stillness holds an answer that logic can\u2019t reach. Intuition, mystery and the quiet wisdom beneath the surface.', up_cz:'Ticho v sobě ukrývá odpověď, na kterou logika nedosáhne. Intuice, tajemství a tichá moudrost pod povrchem.', rv_en:'Reversed, it suggests secrets held too tightly, or a disconnect from your own inner voice.', rv_cz:'V obráceném postavení naznačuje příliš pevně střežená tajemství, nebo odpojení od vlastního vnitřního hlasu.' },
+    { sym:'🌿', en:'THE EMPRESS', cz:'CÍSAŘOVNA', num:'III', up_en:'Abundance that grows from care. Creativity, nurturing and a natural, generous fertility of ideas and life.', up_cz:'Hojnost, která roste z péče. Tvořivost, laskavost a přirozená, štědrá plodnost myšlenek i života.', rv_en:'Reversed, it can mean creative block, overdependence, or neglecting your own needs while caring for others.', rv_cz:'V obráceném postavení může znamenat tvůrčí blok, přílišnou závislost, nebo zanedbávání sebe sama kvůli péči o druhé.' },
+    { sym:'👑', en:'THE EMPEROR', cz:'CÍSAŘ', num:'IV', up_en:'A steady hand and a clear structure. Authority, order and the discipline that lets something lasting be built.', up_cz:'Pevná ruka a jasná struktura. Autorita, řád a disciplína, díky které lze vybudovat něco trvalého.', rv_en:'Reversed, it warns of rigidity, control taken too far, or structure that has become a cage.', rv_cz:'V obráceném postavení varuje před rigiditou, přehnanou kontrolou, nebo strukturou, která se stala klecí.' },
+    { sym:'📜', en:'THE HIEROPHANT', cz:'VELEKNĚZ', num:'V', up_en:'Wisdom passed down. Tradition, guidance and belonging to something larger than yourself.', up_cz:'Moudrost předávaná dál. Tradice, vedení a sounáležitost s něčím větším, než jste vy sami.', rv_en:'Reversed, it favors your own unconventional path over rules handed down by others.', rv_cz:'V obráceném postavení dává přednost vlastní nekonvenční cestě před pravidly předanými druhými.' },
+    { sym:'💞', en:'THE LOVERS', cz:'MILENCI', num:'VI', up_en:'A meaningful choice made from the heart. Connection, alignment and values that truly match.', up_cz:'Důležitá volba učiněná srdcem. Spojení, soulad a hodnoty, které si skutečně odpovídají.', rv_en:'Reversed, it points to imbalance, misalignment, or a choice still waiting to be made honestly.', rv_cz:'V obráceném postavení ukazuje na nerovnováhu, nesoulad, nebo volbu, která ještě čeká na upřímné rozhodnutí.' },
+    { sym:'🏇', en:'THE CHARIOT', cz:'VŮZ', num:'VII', up_en:'Two forces pulling in different directions, steered by sheer will toward victory. Determination and forward motion.', up_cz:'Dvě síly táhnoucí různým směrem, usměrněné pevnou vůlí k vítězství. Odhodlání a pohyb vpřed.', rv_en:'Reversed, it suggests a loss of direction, or effort spinning its wheels without control.', rv_cz:'V obráceném postavení naznačuje ztrátu směru, nebo úsilí, které se točí na místě bez kontroly.' },
+    { sym:'🦁', en:'STRENGTH', cz:'SÍLA', num:'VIII', up_en:'Gentle courage, not brute force. Compassion, patience and the quiet power of taming what feels wild inside you.', up_cz:'Jemná odvaha, ne hrubá síla. Soucit, trpělivost a tichá síla, díky které zkrotíte to divoké uvnitř sebe.', rv_en:'Reversed, it points to self-doubt, or strength spent trying to control rather than understand.', rv_cz:'V obráceném postavení ukazuje na pochybnosti o sobě, nebo sílu vynaloženou spíš na ovládání než na pochopení.' },
+    { sym:'🕯️', en:'THE HERMIT', cz:'POUSTEVNÍK', num:'IX', up_en:'A single lantern in the dark. Solitude, introspection and the guidance found by turning inward for a while.', up_cz:'Osamělá lucerna ve tmě. Samota, sebezpytování a vedení, které najdete, obrátíte-li se na čas do sebe.', rv_en:'Reversed, it warns of isolation that has gone on too long, or avoiding a question rather than sitting with it.', rv_cz:'V obráceném postavení varuje před samotou, která trvá už příliš dlouho, nebo před vyhýbáním se otázce, místo aby s ní člověk zůstal.' },
+    { sym:'🎡', en:'WHEEL OF FORTUNE', cz:'KOLO ŠTĚSTÍ', num:'X', up_en:'What goes around comes around. Cycles, fate and a turning point arriving right on time.', up_cz:'Co se vrátí, to se vrátí. Cykly, osud a bod obratu, který přichází přesně ve správný čas.', rv_en:'Reversed, it can mean resisting a change, or a run of luck that feels stuck.', rv_cz:'V obráceném postavení může znamenat vzdorování změně, nebo pocit, že se štěstí zaseklo.' },
+    { sym:'⚖️', en:'JUSTICE', cz:'SPRAVEDLNOST', num:'XI', up_en:'What is fair comes to light. Truth, accountability and the balance of cause meeting its effect.', up_cz:'Co je spravedlivé, vyjde najevo. Pravda, zodpovědnost a rovnováha mezi příčinou a jejím následkem.', rv_en:'Reversed, it warns of unfairness, dishonesty, or a decision still avoiding responsibility.', rv_cz:'V obráceném postavení varuje před nespravedlností, nepoctivostí, nebo rozhodnutím, které se stále vyhýbá odpovědnosti.' },
+    { sym:'🙃', en:'THE HANGED MAN', cz:'VISELEC', num:'XII', up_en:'A pause that changes everything. Surrender, a new point of view, and the wisdom of simply letting go for now.', up_cz:'Pauza, která všechno mění. Odevzdání se, nový úhel pohledu a moudrost prostě na chvíli povolit.', rv_en:'Reversed, it points to stalling, or resisting a delay that\u2019s actually trying to help you.', rv_cz:'V obráceném postavení ukazuje na zbytečné otálení, nebo vzdorování zdržení, které vám ve skutečnosti chce pomoct.' },
+    { sym:'🦋', en:'DEATH', cz:'SMRT', num:'XIII', up_en:'An ending that clears the way for something new. Transformation, release, and the quiet courage of a threshold crossed.', up_cz:'Konec, který uvolní cestu něčemu novému. Proměna, uvolnění a tichá odvaha překročeného prahu.', rv_en:'Reversed, it suggests resisting a necessary change, or holding on past the point of usefulness.', rv_cz:'V obráceném postavení naznačuje vzdorování nutné změně, nebo držení se něčeho déle, než má smysl.' },
+    { sym:'⚗️', en:'TEMPERANCE', cz:'MÍRNOST', num:'XIV', up_en:'Two things blended into one calm whole. Balance, patience and the quiet art of moderation.', up_cz:'Dvě věci sloučené v jeden klidný celek. Rovnováha, trpělivost a tichá dovednost umírněnosti.', rv_en:'Reversed, it warns of excess, imbalance, or forcing things that need time to settle.', rv_cz:'V obráceném postavení varuje před přehnaností, nerovnováhou, nebo nucením věcí, které potřebují čas se usadit.' },
+    { sym:'⛓️', en:'THE DEVIL', cz:'ĎÁBEL', num:'XV', up_en:'A chain you could slip off, if you noticed you were wearing it. Attachment, temptation and facing your own shadow.', up_cz:'Řetěz, který byste mohli sundat, kdybyste si všimli, že ho máte na sobě. Připoutanost, pokušení a setkání s vlastním stínem.', rv_en:'Reversed, it points to breaking free, reclaiming your power, or seeing the trap for what it is.', rv_cz:'V obráceném postavení ukazuje na osvobození, znovunabytí vlastní síly, nebo prohlédnutí pasti takové, jaká skutečně je.' },
+    { sym:'🌩️', en:'THE TOWER', cz:'VĚŽ', num:'XVI', up_en:'A sudden flash that changes the shape of things. Upheaval, revelation and an awakening that couldn\u2019t be avoided.', up_cz:'Náhlý záblesk, který mění tvar věcí. Otřes, odhalení a probuzení, kterému se nedalo vyhnout.', rv_en:'Reversed, it can mean bracing against a fall that\u2019s only delayed, or narrowly avoided disaster.', rv_cz:'V obráceném postavení může znamenat bránění se pádu, který je jen odložený, nebo o vlásek odvrácenou katastrofu.' },
+    { sym:'⭐', en:'THE STAR', cz:'HVĚZDA', num:'XVII', up_en:'A quiet light after the storm. Hope, healing and gentle inspiration returning drop by drop.', up_cz:'Tichý svit po bouři. Naděje, léčení a jemná inspirace, která se vrací kapku po kapce.', rv_en:'Reversed, it points to fading hope, or feeling disconnected from what once inspired you.', rv_cz:'V obráceném postavení ukazuje na blednoucí naději, nebo pocit odpojení od toho, co vás dřív inspirovalo.' },
+    { sym:'🌕', en:'THE MOON', cz:'MĚSÍC', num:'XVIII', up_en:'Not everything is as it first appears. Intuition, dreams and the winding path through uncertainty.', up_cz:'Ne všechno je takové, jak se zdá na první pohled. Intuice, sny a klikatá cesta nejistotou.', rv_en:'Reversed, it suggests confusion beginning to clear, or fear finally loosening its grip.', rv_cz:'V obráceném postavení naznačuje zmatek, který se začíná rozpouštět, nebo strach, který konečně povoluje sevření.' },
+    { sym:'☀️', en:'THE SUN', cz:'SLUNCE', num:'XIX', up_en:'Warmth without conditions. Joy, vitality and a success that feels simple and well-earned.', up_cz:'Teplo bez podmínek. Radost, vitalita a úspěch, který působí jednoduše a zaslouženě.', rv_en:'Reversed, it points to a joy that\u2019s only temporarily clouded, or success slightly delayed.', rv_cz:'V obráceném postavení ukazuje na radost dočasně zastřenou mraky, nebo úspěch, který se jen trochu zpozdil.' },
+    { sym:'📯', en:'JUDGEMENT', cz:'SOUD', num:'XX', up_en:'A call that\u2019s hard to ignore. Reflection, awakening and a renewal that asks you to answer honestly.', up_cz:'Volání, které je těžké přeslechnout. Reflexe, probuzení a obnova, která žádá o upřímnou odpověď.', rv_en:'Reversed, it warns of self-doubt, or a call being quietly ignored.', rv_cz:'V obráceném postavení varuje před pochybnostmi o sobě, nebo tiše ignorovaným voláním.' },
+    { sym:'🌍', en:'THE WORLD', cz:'SVĚT', num:'XXI', up_en:'A full circle closing. Completion, wholeness and a chapter finished exactly as it needed to be.', up_cz:'Uzavřený kruh. Naplnění, celistvost a kapitola dokončená přesně tak, jak měla být.', rv_en:'Reversed, it points to something left unfinished, or a completion that\u2019s taking its time.', rv_cz:'V obráceném postavení ukazuje na něco nedokončeného, nebo naplnění, které si dává na čas.' }
+  ];
+
+  var suits = [
+    { key:'wands', sym:'🔥', en:'WANDS', cz:'HOLE', essence_en:'passion, drive and bold action', essence_cz:'vášeň, elán a odvážné jednání' },
+    { key:'cups', sym:'💧', en:'CUPS', cz:'POHÁRY', essence_en:'feeling, love and intuition', essence_cz:'city, lásku a intuici' },
+    { key:'swords', sym:'⚔️', en:'SWORDS', cz:'MEČE', essence_en:'thought, truth and conflict', essence_cz:'myšlenky, pravdu a konflikt' },
+    { key:'pentacles', sym:'🪙', en:'PENTACLES', cz:'DISKY', essence_en:'the material world, work and the body', essence_cz:'hmotný svět, práci a tělo' }
+  ];
+
+  var numberMeta = {
+    1:  { roman:'ACE',  en:'a fresh spark and pure potential', cz:'čerstvou jiskru a čisté možnosti' },
+    2:  { roman:'II',   en:'balance, choice and connection', cz:'rovnováhu, volbu a spojení' },
+    3:  { roman:'III',  en:'growth found through collaboration', cz:'růst, který přichází díky spolupráci' },
+    4:  { roman:'IV',   en:'stability and a firm foundation', cz:'stabilitu a pevný základ' },
+    5:  { roman:'V',    en:'tension that asks for a necessary change', cz:'napětí, které žádá o nutnou změnu' },
+    6:  { roman:'VI',   en:'harmony and a generous exchange', cz:'harmonii a velkorysou výměnu' },
+    7:  { roman:'VII',  en:'a pause for honest reflection', cz:'chvíli na upřímnou reflexi' },
+    8:  { roman:'VIII', en:'focused movement toward mastery', cz:'soustředěný pohyb k mistrovství' },
+    9:  { roman:'IX',   en:'quiet strength so close to the finish', cz:'tichou sílu těsně před cílem' },
+    10: { roman:'X',    en:'completion, and the turning point right after it', cz:'naplnění a bod obratu hned za ním' }
+  };
+
+  var courts = {
+    page:  { en:'PAGE', cz:'PÁŽE', en2:'a curious beginner or a message concerning', cz2:'zvídavého začátečníka nebo zprávu ohledně' },
+    knight:{ en:'KNIGHT', cz:'RYTÍŘ', en2:'restless motion and single-minded pursuit of', cz2:'neklidný pohyb a cílevědomé směřování k' },
+    queen: { en:'QUEEN', cz:'KRÁLOVNA', en2:'inward mastery and a nurturing command of', cz2:'vnitřní mistrovství a pečující vládu nad' },
+    king:  { en:'KING', cz:'KRÁL', en2:'outward mastery and confident command of', cz2:'vnější mistrovství a sebejisté vedení nad' }
+  };
+  var courtOrder = ['page', 'knight', 'queen', 'king'];
+
+  function buildDeck() {
+    var deck = majors.slice();
+    suits.forEach(function (suit) {
+      for (var n = 1; n <= 10; n++) {
+        var m = numberMeta[n];
+        deck.push({
+          sym: suit.sym,
+          num: m.roman,
+          en_display: (n === 1 ? 'ACE' : m.roman) + ' OF ' + suit.en,
+          cz_display: (n === 1 ? 'ESO' : m.roman) + ' ' + suit.cz,
+          up_en: 'The ' + suit.en.toLowerCase() + ' carry ' + suit.essence_en + ', here as ' + m.en + '.',
+          up_cz: (suit.cz) + ' nesou ' + suit.essence_cz + ', tady jako ' + m.cz + '.',
+          rv_en: 'Reversed, this energy is blocked, turned inward, or simply asking for patience.',
+          rv_cz: 'V obráceném postavení je tato energie blokovaná, obrácená dovnitř, nebo prostě žádá o trpělivost.'
+        });
+      }
+      courtOrder.forEach(function (ck) {
+        var c = courts[ck];
+        deck.push({
+          sym: suit.sym,
+          num: c.en,
+          en_display: c.en + ' OF ' + suit.en,
+          cz_display: c.cz + ' ' + suit.cz,
+          up_en: 'The ' + c.en.toLowerCase() + ' of ' + suit.en.toLowerCase() + ' embodies ' + c.en2 + ' ' + suit.essence_en + '.',
+          up_cz: c.cz + ' ' + suit.cz + ' ztělesňuje ' + c.cz2 + ' ' + suit.essence_cz + '.',
+          rv_en: 'Reversed, this energy is blocked, turned inward, or simply asking for patience.',
+          rv_cz: 'V obráceném postavení je tato energie blokovaná, obrácená dovnitř, nebo prostě žádá o trpělivost.'
+        });
+      });
+    });
+    return deck;
+  }
+
+  var deck = buildDeck();
+  // normalize major arcana display fields to match minor arcana field names
+  deck.forEach(function (c) {
+    if (!c.en_display) c.en_display = c.en;
+    if (!c.cz_display) c.cz_display = c.cz;
+  });
+
+  var cardEl = document.getElementById('tarot-card');
+  var numberEl = document.getElementById('card-number');
+  var symbolEl = document.getElementById('card-symbol');
+  var nameEnEl = document.getElementById('card-name-en');
+  var nameCzEl = document.getElementById('card-name-cz');
+  var badgeEl = document.getElementById('reversed-badge');
+  var meaningPanel = document.getElementById('meaning-panel');
+  var meaningEnEl = document.getElementById('meaning-en');
+  var meaningCzEl = document.getElementById('meaning-cz');
+  var drawBtn = document.getElementById('btn-draw');
+
+  function pickCard() {
+    var card = deck[Math.floor(Math.random() * deck.length)];
+    var reversed = Math.random() < 0.3;
+    return { card: card, reversed: reversed };
+  }
+
+  function fillFront(pick) {
+    var card = pick.card;
+    numberEl.textContent = card.num || '';
+    symbolEl.textContent = card.sym;
+    nameEnEl.textContent = card.en_display;
+    nameCzEl.textContent = card.cz_display;
+    if (pick.reversed) {
+      badgeEl.style.display = 'inline-block';
+      badgeEl.textContent = 'REVERSED · OBRÁCENĚ';
+    } else {
+      badgeEl.style.display = 'none';
+    }
+    meaningEnEl.textContent = pick.reversed ? card.rv_en : card.up_en;
+    meaningCzEl.textContent = pick.reversed ? card.rv_cz : card.up_cz;
+  }
+
+  var busy = false;
+  function draw(initial) {
+    if (busy) return;
+    busy = true;
+    drawBtn.disabled = true;
+    var pick = pickCard();
+    var showDelay = initial ? 350 : 700;
+
+    if (!initial) {
+      cardEl.classList.remove('revealed');
+      meaningPanel.style.visibility = 'hidden';
+    }
+
+    setTimeout(function () {
+      fillFront(pick);
+      cardEl.classList.add('revealed');
+      setTimeout(function () {
+        meaningPanel.style.visibility = 'visible';
+        drawBtn.disabled = false;
+        busy = false;
+      }, 550);
+    }, showDelay);
+  }
+
+  drawBtn.addEventListener('click', function () { draw(false); });
+  window.addEventListener('DOMContentLoaded', function () { draw(true); });
+
+  // ---------- INFO GUIDE (EN / CZ) ----------
+
+  var GUIDE_LANG_KEY = 'synthlucida_tarot_guide_lang';
+  var guideLang = 'en';
+
+  var i18nText = {
+    title: { en: 'CARD OF THE DAY', cz: 'KARTA DNE' },
+    h_intro: { en: 'THE DRAW', cz: 'VÝKLAD' },
+    p_intro: { en: 'Every time you open this page, one card is drawn truly at random from the full 78-card tarot deck — the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.', cz: 'Pokaždé, když otevřete tuto stránku, je zcela náhodně vytažena jedna karta z celého 78kartového tarotového balíčku — 22 velkých arkán a 56 malých arkán — a zobrazena buď vzpřímeně, nebo obráceně.' },
+    h_deck: { en: 'THE DECK', cz: 'BALÍČEK' },
+    p_deck: { en: 'The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body.', cz: 'Velké arkány (od Blázna po Svět) vypovídají o velkých životních tématech a zlomových bodech. Malé arkány se dělí do čtyř barev — Hole, Poháry, Meče a Disky — každá s vlastní náladou: vášeň a čin, cit a intuice, myšlenka a konflikt, nebo hmotný svět a tělo.' },
+    h_reversed: { en: 'UPRIGHT & REVERSED', cz: 'VZPŘÍMENĚ A OBRÁCENĚ' },
+    p_reversed: { en: 'An upright card points to its meaning flowing freely. A reversed card (marked REVERSED) suggests that same energy turned inward, blocked, or asking for patience.', cz: 'Vzpřímená karta ukazuje na svůj význam plynoucí volně. Obrácená karta (označená OBRÁCENĚ) naznačuje stejnou energii obrácenou dovnitř, blokovanou, nebo žádající o trpělivost.' },
+    h_again: { en: 'DRAW AGAIN', cz: 'TÁHNOUT ZNOVU' },
+    p_again: { en: 'Tap 🔀 DRAW AGAIN any time for a fresh card, or simply reopen this page later.', cz: 'Klepněte kdykoli na 🔀 TÁHNOUT ZNOVU pro novou kartu, nebo tuto stránku později jednoduše znovu otevřete.' },
+    h_spirit: { en: 'A GENTLE NOTE', cz: 'JEMNÁ POZNÁMKA' },
+    p_spirit: { en: 'This is offered as a small daily moment for reflection and atmosphere, not as prediction or advice.', cz: 'Toto je nabízeno jako malá každodenní chvilka pro zamyšlení a atmosféru, nikoli jako předpověď nebo rada.' },
+    h_close: { en: 'LEAVING', cz: 'ODCHOD' },
+    p_close: { en: 'Tap ✕ any time to return to the player.', cz: 'Klepnutím na ✕ se kdykoli vrátíte do přehrávače.' },
+    page_title: { en: '✦ CARD OF THE DAY ✦', cz: '✦ KARTA DNE ✦' },
+    btn_draw: { en: 'DRAW AGAIN', cz: 'TÁHNOUT ZNOVU' }
+  };
+
+  function applyGuideLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var entry = i18nText[el.getAttribute('data-i18n')];
+      if (entry) el.textContent = entry[guideLang] || entry.en;
+    });
+    var btn = document.getElementById('info-lang-toggle');
+    if (btn) btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
+  }
+
+  window.toggleInfoLanguage = function () {
+    guideLang = guideLang === 'en' ? 'cz' : 'en';
+    try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) {}
+    applyGuideLanguage();
+  };
+
+  try {
+    var savedLang = localStorage.getItem(GUIDE_LANG_KEY);
+    if (savedLang === 'cz' || savedLang === 'en') guideLang = savedLang;
+  } catch (e) {}
+  applyGuideLanguage();
+
+  window.toggleInfoOverlay = function (show) {
+    document.getElementById('info-overlay').classList.toggle('show', show);
+  };
+  document.getElementById('btn-info').addEventListener('click', function () { toggleInfoOverlay(true); });
+  document.getElementById('btn-info-close').addEventListener('click', function () { toggleInfoOverlay(false); });
+  document.getElementById('info-overlay').addEventListener('click', function (e) {
+    if (e.target.id === 'info-overlay') toggleInfoOverlay(false);
+  });
+
+})();
+</script>
+</body>
+</html>
