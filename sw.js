@@ -1,9 +1,9 @@
 // ==========================================
 // SYNTHLUCIDA Service Worker
-// v30 - offline cache for audio (MP3), CORS-safe (no manual byte slicing)
+// v31 - offline cache for audio (MP3), CORS-safe (no manual byte slicing); added tarot.html to app shell
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v313';
+const APP_CACHE_NAME = 'synthlucida-app-v314';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
@@ -12,6 +12,7 @@ const ASSETS_TO_CACHE = [
   './player.html',
   './game.html',
   './relax.html',
+  './tarot.html',
   './manifest.json',
   './icon.png',
   './logo.jpg'

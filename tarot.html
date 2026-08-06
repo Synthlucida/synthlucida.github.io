@@ -69,6 +69,18 @@
   .corner-btn:active { transform: scale(0.92); }
   .corner-btn-left { left: 10px; font-style: italic; font-family: 'Cormorant Garamond', serif; }
   .corner-btn-right { right: 10px; font-size: 12px; }
+  .corner-btn-fs { left: 50%; margin-left: -15px; font-size: 13px; }
+  .corner-btn.active { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
+
+  .deck-tabs { position: relative; z-index: 1; display: flex; gap: 10px; margin: 0 0 20px; }
+  .deck-tab {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(212,175,55,0.35); color: #fff; opacity: 0.65;
+    padding: 6px 14px; border-radius: 20px; font-size: 10px; letter-spacing: 1.5px; cursor: pointer;
+    transition: 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .deck-tab:hover { opacity: 1; border-color: var(--accent-color); }
+  .deck-tab.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); background: rgba(212,175,55,0.12); box-shadow: 0 0 10px rgba(212,175,55,0.3); }
+  .deck-tab:active { transform: scale(0.96); }
 
   #info-overlay {
     display: none; position: fixed; inset: 0; z-index: 300;
@@ -105,7 +117,8 @@
     text-shadow: 0 0 12px var(--accent-color);
   }
 
-  .card-wrap { position: relative; z-index: 1; perspective: 1400px; width: 210px; height: 340px; margin-bottom: 22px; }
+  .card-wrap { position: relative; z-index: 1; perspective: 1400px; width: 210px; height: 340px; margin-bottom: 22px; animation: cardIdleBob 4.6s ease-in-out infinite; }
+  @keyframes cardIdleBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
   .aura {
     position: absolute; inset: -30px; border-radius: 50%;
     background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
@@ -114,11 +127,51 @@
   }
   @keyframes pulseAura { 0%, 100% { transform: scale(1); opacity: 0.35; } 50% { transform: scale(1.12); opacity: 0.6; } }
 
+  .card-flash {
+    position: absolute; inset: -34px; border-radius: 50%; z-index: 2; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, var(--accent-glow) 32%, transparent 70%);
+  }
+  .card-flash.active { animation: flashBurst 0.75s ease-out; }
+  @keyframes flashBurst {
+    0% { opacity: 0; transform: scale(0.25); }
+    28% { opacity: 0.9; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.7); }
+  }
+  .spark {
+    position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent-color); box-shadow: 0 0 7px 1px var(--accent-color), 0 0 2px #fff;
+    pointer-events: none; z-index: 3; opacity: 0;
+    animation: sparkFly 0.9s ease-out forwards;
+  }
+  @keyframes sparkFly {
+    0% { transform: translate(-50%,-50%) translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(-50%,-50%) translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+  }
+
   .tarot-card {
     position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
     transition: transform 1.15s cubic-bezier(.22,.85,.28,1); z-index: 1;
   }
   .tarot-card.revealed { transform: rotateY(180deg); }
+  .tarot-card.shuffling { animation: cardShuffle 0.6s ease-in-out; }
+  @keyframes cardShuffle {
+    0%, 100% { transform: rotateZ(0deg) translateX(0) rotateY(0deg); }
+    20% { transform: rotateZ(-3.5deg) translateX(-5px) rotateY(0deg); }
+    40% { transform: rotateZ(2.5deg) translateX(4px) rotateY(0deg); }
+    60% { transform: rotateZ(-2deg) translateX(-3px) rotateY(0deg); }
+    80% { transform: rotateZ(1.5deg) translateX(2px) rotateY(0deg); }
+  }
+  .tarot-card.flipping {
+    animation: cardFlipAnim 1.15s cubic-bezier(.22,.85,.28,1) forwards;
+    transition: none;
+  }
+  @keyframes cardFlipAnim {
+    0%   { transform: rotateY(0deg) rotateX(0deg) scale(1); filter: brightness(1); }
+    38%  { transform: rotateY(78deg) rotateX(5deg) scale(1.07); filter: brightness(1.15); }
+    50%  { transform: rotateY(90deg) rotateX(7deg) scale(1.12); filter: brightness(1.35); }
+    62%  { transform: rotateY(102deg) rotateX(5deg) scale(1.07); filter: brightness(1.15); }
+    100% { transform: rotateY(180deg) rotateX(0deg) scale(1); filter: brightness(1); }
+  }
   .card-face {
     position: absolute; inset: 0; backface-visibility: hidden; border-radius: 14px;
     border: 2px solid var(--accent-color); box-shadow: 0 0 26px rgba(212,175,55,0.35), inset 0 0 30px rgba(139,47,224,0.35);
@@ -130,6 +183,13 @@
       repeating-linear-gradient(45deg, rgba(212,175,55,0.08) 0px, rgba(212,175,55,0.08) 2px, transparent 2px, transparent 14px),
       linear-gradient(160deg, var(--card-bg-1), var(--card-bg-2));
   }
+  .card-back::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.16) 47%, rgba(255,255,255,0.32) 50%, rgba(255,255,255,0.16) 53%, transparent 68%);
+    background-size: 260% 260%; background-position: 220% 220%;
+    animation: cardShine 5.5s ease-in-out infinite;
+  }
+  @keyframes cardShine { 0% { background-position: 220% 220%; } 50% { background-position: -60% -60%; } 100% { background-position: 220% 220%; } }
   .card-back .glyph { font-size: 46px; opacity: 0.85; filter: drop-shadow(0 0 10px var(--accent-color)); animation: spinSlow 12s linear infinite; }
   @keyframes spinSlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   .card-back .back-label { margin-top: 14px; font-size: 9px; letter-spacing: 3px; opacity: 0.6; }
@@ -163,16 +223,27 @@
   .btn-draw:active { transform: scale(0.96); }
   .btn-draw:disabled { opacity: 0.4; cursor: default; box-shadow: none; background: rgba(212,175,55,0.1); color: var(--accent-color); }
 
+  .slogan-wrap { position: relative; z-index: 1; max-width: 300px; width: 100%; margin: 18px auto 0; min-height: 34px; }
+  .slogan-text {
+    font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; letter-spacing: 0.5px;
+    color: var(--accent-color); text-shadow: 0 0 8px rgba(212,175,55,0.35); opacity: 0; transition: opacity 1.2s ease;
+  }
+  .slogan-text.visible { opacity: 0.8; }
+  .slogan-text-cz { font-size: 12px; opacity: 0; margin-top: 3px; color: #fff; text-shadow: none; }
+  .slogan-text-cz.visible { opacity: 0.6; }
+
   @media (max-height: 700px) {
     .card-wrap { width: 170px; height: 275px; margin-bottom: 16px; }
     .page-title { margin-bottom: 16px; }
     .meaning-panel { padding: 12px 14px; margin-bottom: 14px; }
+    .slogan-wrap { margin-top: 12px; }
   }
 </style>
 </head>
 <body id="body">
 
 <button class="corner-btn corner-btn-left" id="btn-info" title="How to read" aria-label="How to read">i</button>
+<button class="corner-btn corner-btn-fs" id="btn-fullscreen-toggle" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle fullscreen">⤢</button>
 <a href="player.html" class="corner-btn corner-btn-right" id="btn-close" title="Close" aria-label="Close">✕</a>
 
 <div class="blob blob-1"></div>
@@ -187,8 +258,11 @@
     <h3 data-i18n="h_intro">THE DRAW</h3>
     <p data-i18n="p_intro">Every time you open this page, one card is drawn truly at random from the full 78-card tarot deck — the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.</p>
 
+    <h3 data-i18n="h_decks">TWO DECKS</h3>
+    <p data-i18n="p_decks">Switch anytime between the classic 78-card Tarot and the original 24-card Cosmic Whisper Oracle using the tabs below the title. The very first card each time you open this page is always drawn from a randomly chosen deck.</p>
+
     <h3 data-i18n="h_deck">THE DECK</h3>
-    <p data-i18n="p_deck">The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body.</p>
+    <p data-i18n="p_deck">The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body. The Oracle deck carries its own single, simpler message per card, with no reversed meanings.</p>
 
     <h3 data-i18n="h_reversed">UPRIGHT & REVERSED</h3>
     <p data-i18n="p_reversed">An upright card points to its meaning flowing freely. A reversed card (marked REVERSED) suggests that same energy turned inward, blocked, or asking for patience.</p>
@@ -209,8 +283,14 @@
 </div>
 <div class="page-title" data-i18n="page_title">✦ CARD OF THE DAY ✦</div>
 
+<div class="deck-tabs" id="deck-tabs">
+  <button class="deck-tab" id="tab-tarot" data-deck="tarot">🃏 TAROT</button>
+  <button class="deck-tab" id="tab-oracle" data-deck="oracle">✨ ORACLE</button>
+</div>
+
 <div class="card-wrap">
   <div class="aura"></div>
+  <div class="card-flash" id="card-flash"></div>
   <div class="tarot-card" id="tarot-card">
     <div class="card-face card-back">
       <div class="glyph">✦</div>
@@ -235,6 +315,11 @@
 </div>
 
 <button class="btn-draw" id="btn-draw" disabled>🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
+
+<div class="slogan-wrap">
+  <div class="slogan-text" id="slogan-text-en"></div>
+  <div class="slogan-text slogan-text-cz" id="slogan-text-cz"></div>
+</div>
 
 <script>
 (function () {
@@ -334,6 +419,41 @@
     if (!c.cz_display) c.cz_display = c.cz;
   });
 
+  // ---------- ORACLE DECK (COSMIC WHISPER) ----------
+  var oracleDeck = [
+    { sym:'🌟', en_display:'STARLIGHT', cz_display:'HVĚZDNÉ SVĚTLO', up_en:'A small guiding light is enough to take the next step. Reassurance, and quiet trust in the way forward.', up_cz:'Malé vodítko stačí k tomu, abyste udělali další krok. Ujištění a tichá důvěra ve svou cestu.' },
+    { sym:'🌌', en_display:'NEBULA', cz_display:'MLHOVINA', up_en:'There is beauty in what is still forming. You don\u2019t need to have it all figured out yet.', up_cz:'V tom, co se teprve utváří, je krása. Ještě nemusíte mít vše vyřešené.' },
+    { sym:'☄️', en_display:'THE COMET', cz_display:'KOMETA', up_en:'A rare, fleeting moment or message is passing through. Notice what arrives suddenly.', up_cz:'Prochází kolem vzácný, prchavý okamžik nebo zpráva. Všimněte si toho, co přichází náhle.' },
+    { sym:'🌊', en_display:'STILL WATER', cz_display:'TICHÁ HLADINA', up_en:'Clarity comes through calm. Don\u2019t rush to stir what has finally settled.', up_cz:'Jasnost přichází skrze klid. Nespěchejte s rozvířením toho, co se konečně usadilo.' },
+    { sym:'🌲', en_display:'DEEP FOREST', cz_display:'HLUBOKÝ LES', up_en:'Trust what you can\u2019t yet see. Growth is happening slowly, quietly, underground.', up_cz:'Důvěřujte tomu, co ještě nevidíte. Růst probíhá pomalu, tiše, pod povrchem.' },
+    { sym:'🧭', en_display:'THE COMPASS', cz_display:'KOMPAS', up_en:'Direction is found within. You already know more than you\u2019re giving yourself credit for.', up_cz:'Směr se nachází uvnitř. Víte toho už víc, než si přiznáváte.' },
+    { sym:'⚓', en_display:'THE ANCHOR', cz_display:'KOTVA', up_en:'Something or someone is keeping you steady. Let yourself lean on it through the storm.', up_cz:'Něco nebo někdo vás drží v klidu. Dovolte si o to opřít se v bouři.' },
+    { sym:'🏮', en_display:'THE LANTERN', cz_display:'LUCERNA', up_en:'Carry your own warmth forward. You don\u2019t need permission to keep hoping.', up_cz:'Neste své vlastní teplo dál. K naději nepotřebujete svolení.' },
+    { sym:'🌉', en_display:'THE BRIDGE', cz_display:'MOST', up_en:'A connection is closing the distance between two places, or two people.', up_cz:'Spojení zkracuje vzdálenost mezi dvěma místy, nebo dvěma lidmi.' },
+    { sym:'🪞', en_display:'THE MIRROR', cz_display:'ZRCADLO', up_en:'What you notice most in others often lives quietly in you too.', up_cz:'To, čeho si nejvíc všímáte u druhých, často tiše žije i ve vás.' },
+    { sym:'🌱', en_display:'THE SEED', cz_display:'SEMÍNKO', up_en:'Potential doesn\u2019t need to be visible yet to be real. Plant it anyway.', up_cz:'Potenciál nemusí být ještě vidět, aby byl skutečný. Přesto ho zasejte.' },
+    { sym:'⛰️', en_display:'THE SUMMIT', cz_display:'VRCHOL', up_en:'A wider perspective was worth the climb. Look how far you\u2019ve come.', up_cz:'Širší pohled stál za ten výstup. Podívejte se, jak daleko jste došli.' },
+    { sym:'⚡', en_display:'THUNDER', cz_display:'HROM', up_en:'A sudden clarity that startles before it settles. Let the truth land.', up_cz:'Náhlá jasnost, která nejdřív polekáte, než se usadí. Nechte tu pravdu dosednout.' },
+    { sym:'🌈', en_display:'AFTER THE RAIN', cz_display:'PO DEŠTI', up_en:'Relief follows difficulty. Color is returning after the grey.', up_cz:'Po obtížích přichází úleva. Barvy se vrací zpět po šedi.' },
+    { sym:'❄️', en_display:'FIRST SNOW', cz_display:'PRVNÍ SNÍH', up_en:'A quiet reset. You have permission to slow down and rest.', up_cz:'Tichý restart. Máte svolení zpomalit a odpočinout si.' },
+    { sym:'🌅', en_display:'SUNRISE', cz_display:'VÝCHOD SLUNCE', up_en:'A new beginning. Today doesn\u2019t have to carry yesterday\u2019s weight.', up_cz:'Nový začátek. Dnešek nemusí nést tíhu včerejška.' },
+    { sym:'🌇', en_display:'SUNSET', cz_display:'ZÁPAD SLUNCE', up_en:'A graceful ending. You\u2019re allowed to close this chapter without regret.', up_cz:'Ladný konec. Můžete uzavřít tuto kapitolu bez lítosti.' },
+    { sym:'🌑', en_display:'ECLIPSE', cz_display:'ZATMĚNÍ', up_en:'A shadow that is only temporary. Don\u2019t mistake an eclipse for the absence of light.', up_cz:'Stín, který je jen dočasný. Nezaměňujte zatmění za nepřítomnost světla.' },
+    { sym:'✨', en_display:'CONSTELLATION', cz_display:'SOUHVĚZDÍ', up_en:'The dots connect once you step back far enough to see the shape.', up_cz:'Tečky se spojí, jakmile ustoupíte dost daleko, abyste uviděli tvar.' },
+    { sym:'🌀', en_display:'THE SPIRAL', cz_display:'SPIRÁLA', up_en:'You\u2019re meeting a familiar lesson again, from a new and higher place.', up_cz:'Setkáváte se se známou lekcí znovu, z nového a vyššího místa.' },
+    { sym:'🔥', en_display:'THE EMBER', cz_display:'ŽHAVÝ UHLÍK', up_en:'Quiet persistence. Warmth that survives long after the flame has died down.', up_cz:'Tichá vytrvalost. Teplo, které přežívá dlouho poté, co plamen pohasl.' },
+    { sym:'🌸', en_display:'THE BLOOM', cz_display:'ROZKVĚT', up_en:'Timing matters. Some things simply cannot be rushed into flowering.', up_cz:'Na načasování záleží. Některé věci prostě nelze uspěchat do rozkvětu.' },
+    { sym:'☁️', en_display:'OPEN SKY', cz_display:'OTEVŘENÉ NEBE', up_en:'Spaciousness. Give yourself room to simply breathe and be, without a task attached.', up_cz:'Prostor. Dovolte si jen dýchat a být, bez připojeného úkolu.' },
+    { sym:'🚪', en_display:'THE THRESHOLD', cz_display:'PRÁH', up_en:'A doorway moment. You\u2019re allowed to pause here before stepping through.', up_cz:'Okamžik na prahu. Můžete se tu zastavit, než vykročíte dál.' }
+  ];
+
+  var decks = {
+    tarot: { label: '🃏 TAROT', hasReversed: true, cards: deck },
+    oracle: { label: '✨ ORACLE', hasReversed: false, cards: oracleDeck }
+  };
+  var deckKeys = Object.keys(decks);
+  var currentDeckKey = deckKeys[Math.floor(Math.random() * deckKeys.length)];
+
   var cardEl = document.getElementById('tarot-card');
   var numberEl = document.getElementById('card-number');
   var symbolEl = document.getElementById('card-symbol');
@@ -344,11 +464,42 @@
   var meaningEnEl = document.getElementById('meaning-en');
   var meaningCzEl = document.getElementById('meaning-cz');
   var drawBtn = document.getElementById('btn-draw');
+  var flashEl = document.getElementById('card-flash');
+  var cardWrapEl = document.querySelector('.card-wrap');
+
+  function spawnSparks(count) {
+    for (var i = 0; i < count; i++) {
+      var s = document.createElement('span');
+      s.className = 'spark';
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 55 + Math.random() * 75;
+      s.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      s.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+      s.style.animationDelay = (Math.random() * 0.12) + 's';
+      cardWrapEl.appendChild(s);
+      (function (el) { setTimeout(function () { el.remove(); }, 1100); })(s);
+    }
+  }
 
   function pickCard() {
-    var card = deck[Math.floor(Math.random() * deck.length)];
-    var reversed = Math.random() < 0.3;
+    var pool = decks[currentDeckKey].cards;
+    var card = pool[Math.floor(Math.random() * pool.length)];
+    var reversed = decks[currentDeckKey].hasReversed && Math.random() < 0.3;
     return { card: card, reversed: reversed };
+  }
+
+  function updateDeckTabsUI() {
+    deckKeys.forEach(function (key) {
+      var tab = document.getElementById('tab-' + key);
+      if (tab) tab.classList.toggle('active', key === currentDeckKey);
+    });
+  }
+
+  function selectDeck(key) {
+    if (key === currentDeckKey || !decks[key]) return;
+    currentDeckKey = key;
+    updateDeckTabsUI();
+    draw(false);
   }
 
   function fillFront(pick) {
@@ -377,34 +528,96 @@
 
     if (!initial) {
       cardEl.classList.remove('revealed');
+      cardEl.classList.remove('flipping');
       meaningPanel.style.visibility = 'hidden';
+      cardEl.classList.add('shuffling');
     }
 
     setTimeout(function () {
+      cardEl.classList.remove('shuffling');
       fillFront(pick);
-      cardEl.classList.add('revealed');
+      cardEl.classList.add('flipping');
+
+      flashEl.classList.remove('active');
+      void flashEl.offsetWidth;
+      flashEl.classList.add('active');
+
+      setTimeout(function () { spawnSparks(16); }, 480);
+
       setTimeout(function () {
+        cardEl.classList.remove('flipping');
+        cardEl.classList.add('revealed');
         meaningPanel.style.visibility = 'visible';
         drawBtn.disabled = false;
         busy = false;
-      }, 550);
+      }, 1150);
     }, showDelay);
   }
 
   drawBtn.addEventListener('click', function () { draw(false); });
-  window.addEventListener('DOMContentLoaded', function () { draw(true); });
+  document.getElementById('tab-tarot').addEventListener('click', function () { selectDeck('tarot'); });
+  document.getElementById('tab-oracle').addEventListener('click', function () { selectDeck('oracle'); });
+  window.addEventListener('DOMContentLoaded', function () {
+    updateDeckTabsUI();
+    draw(true);
+  });
+
+  // ---------- FULLSCREEN SYNC (shared across SYNTHLUCIDA pages, e.g. player.html) ----------
+  window.toggleFullscreen = function () {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(function (err) {
+        console.log('Chyba fullscreenu: ' + err.message);
+      });
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  };
+
+  document.addEventListener('fullscreenchange', function () {
+    var fsBtn = document.getElementById('btn-fullscreen-toggle');
+    if (document.fullscreenElement) {
+      if (fsBtn) fsBtn.classList.add('active');
+      try { localStorage.setItem('synthlucida_fullscreen_pref', '1'); } catch (e) {}
+    } else {
+      if (fsBtn) fsBtn.classList.remove('active');
+      try { localStorage.setItem('synthlucida_fullscreen_pref', '0'); } catch (e) {}
+    }
+  });
+
+  // If the last page (e.g. the player) was closed in fullscreen, try to restore
+  // it here too. Browsers require a user gesture, so this fires on the first
+  // tap/click after the page loads.
+  try {
+    if (localStorage.getItem('synthlucida_fullscreen_pref') === '1') {
+      var restoreFullscreenOnGesture = function () {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(function (err) {
+            console.log('Chyba obnovení fullscreenu: ' + err.message);
+          });
+        }
+        document.removeEventListener('click', restoreFullscreenOnGesture);
+        document.removeEventListener('touchend', restoreFullscreenOnGesture);
+      };
+      document.addEventListener('click', restoreFullscreenOnGesture, { once: true });
+      document.addEventListener('touchend', restoreFullscreenOnGesture, { once: true });
+    }
+  } catch (e) {}
 
   // ---------- INFO GUIDE (EN / CZ) ----------
+  // Shares the same localStorage key as player.html, so switching language on
+  // either page automatically carries over to the other.
 
-  var GUIDE_LANG_KEY = 'synthlucida_tarot_guide_lang';
+  var GUIDE_LANG_KEY = 'synthlucida_guide_lang';
   var guideLang = 'en';
 
   var i18nText = {
     title: { en: 'CARD OF THE DAY', cz: 'KARTA DNE' },
     h_intro: { en: 'THE DRAW', cz: 'VÝKLAD' },
     p_intro: { en: 'Every time you open this page, one card is drawn truly at random from the full 78-card tarot deck — the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.', cz: 'Pokaždé, když otevřete tuto stránku, je zcela náhodně vytažena jedna karta z celého 78kartového tarotového balíčku — 22 velkých arkán a 56 malých arkán — a zobrazena buď vzpřímeně, nebo obráceně.' },
+    h_decks: { en: 'TWO DECKS', cz: 'DVA BALÍČKY' },
+    p_decks: { en: 'Switch anytime between the classic 78-card Tarot and the original 24-card Cosmic Whisper Oracle using the tabs below the title. The very first card each time you open this page is always drawn from a randomly chosen deck.', cz: 'Kdykoli můžete přepnout mezi klasickým 78kartovým tarotem a originálním 24kartovým orákulem Kosmický šepot pomocí záložek pod nadpisem. Úplně první karta při každém otevření této stránky je vždy vytažena z náhodně zvoleného balíčku.' },
     h_deck: { en: 'THE DECK', cz: 'BALÍČEK' },
-    p_deck: { en: 'The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body.', cz: 'Velké arkány (od Blázna po Svět) vypovídají o velkých životních tématech a zlomových bodech. Malé arkány se dělí do čtyř barev — Hole, Poháry, Meče a Disky — každá s vlastní náladou: vášeň a čin, cit a intuice, myšlenka a konflikt, nebo hmotný svět a tělo.' },
+    p_deck: { en: 'The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body. The Oracle deck carries its own single, simpler message per card, with no reversed meanings.', cz: 'Velké arkány (od Blázna po Svět) vypovídají o velkých životních tématech a zlomových bodech. Malé arkány se dělí do čtyř barev — Hole, Poháry, Meče a Disky — každá s vlastní náladou: vášeň a čin, cit a intuice, myšlenka a konflikt, nebo hmotný svět a tělo. Orákulum nese vlastní jediné, jednodušší poselství pro každou kartu, bez obrácených významů.' },
     h_reversed: { en: 'UPRIGHT & REVERSED', cz: 'VZPŘÍMENĚ A OBRÁCENĚ' },
     p_reversed: { en: 'An upright card points to its meaning flowing freely. A reversed card (marked REVERSED) suggests that same energy turned inward, blocked, or asking for patience.', cz: 'Vzpřímená karta ukazuje na svůj význam plynoucí volně. Obrácená karta (označená OBRÁCENĚ) naznačuje stejnou energii obrácenou dovnitř, blokovanou, nebo žádající o trpělivost.' },
     h_again: { en: 'DRAW AGAIN', cz: 'TÁHNOUT ZNOVU' },
@@ -446,6 +659,128 @@
   document.getElementById('info-overlay').addEventListener('click', function (e) {
     if (e.target.id === 'info-overlay') toggleInfoOverlay(false);
   });
+
+  // ---------- DAILY MOTIVATIONAL SLOGANS (mirrors the player.html feature) ----------
+
+  var tarotSlogans = [
+    "Trust the moment you're in.",
+    "Slow down, the answer isn't rushing.",
+    "Every card is just a mirror.",
+    "Curiosity opens more doors than certainty.",
+    "Sit with the question before the answer.",
+    "You already carry more wisdom than you think.",
+    "Let stillness speak first.",
+    "Not knowing is where clarity begins.",
+    "Some answers arrive quietly.",
+    "Reflection is its own kind of magic.",
+    "Today asks only for your presence.",
+    "Meaning is something you meet halfway.",
+    "Listen to what feels true, not just familiar.",
+    "A pause can be a beginning.",
+    "You're allowed to take this slowly.",
+    "Wonder is a good place to start.",
+    "What you seek is also seeking you.",
+    "Every ending clears space for something else.",
+    "Patience is a form of trust.",
+    "The present moment holds enough.",
+    "Let your intuition have the first word.",
+    "Small signs matter more than big answers.",
+    "You don't need permission to begin again.",
+    "Some doors open only when you're ready.",
+    "Uncertainty isn't the enemy of peace.",
+    "Breathe before you decide.",
+    "The story isn't finished yet.",
+    "Even quiet days move you forward.",
+    "Trust what settles, not what rushes.",
+    "Today is enough exactly as it is."
+  ];
+
+  // Český překlad sloganů - stejné pořadí a počet jako pole "tarotSlogans" výše.
+  var tarotSlogansCz = [
+    "Věř okamžiku, ve kterém jsi.",
+    "Zpomal, odpověď nikam nespěchá.",
+    "Každá karta je jen zrcadlo.",
+    "Zvědavost otevírá víc dveří než jistota.",
+    "Zůstaň chvíli s otázkou, než přijde odpověď.",
+    "Neseš v sobě víc moudrosti, než si myslíš.",
+    "Nech nejdřív promluvit ticho.",
+    "Nevědění je místo, kde začíná jasnost.",
+    "Některé odpovědi přicházejí tiše.",
+    "Zamyšlení je svým způsobem magie.",
+    "Dnešek žádá jen tvou přítomnost.",
+    "Smysl je něco, s čím se potkáš na půli cesty.",
+    "Naslouchej tomu, co cítíš jako pravdivé, ne jen povědomé.",
+    "Pauza může být začátek.",
+    "Máš dovoleno jít pomalu.",
+    "Úžas je dobré místo, kde začít.",
+    "To, co hledáš, hledá i tebe.",
+    "Každý konec uvolní místo něčemu dalšímu.",
+    "Trpělivost je forma důvěry.",
+    "Přítomný okamžik má dost.",
+    "Nech nejdřív promluvit svou intuici.",
+    "Malá znamení znamenají víc než velké odpovědi.",
+    "Nepotřebuješ svolení, abys začal/a znovu.",
+    "Některé dveře se otevřou, až budeš připraven/a.",
+    "Nejistota není nepřítel klidu.",
+    "Než se rozhodneš, nadechni se.",
+    "Příběh ještě není dopsaný.",
+    "I tiché dny tě posouvají dopředu.",
+    "Věř tomu, co se usazuje, ne tomu, co spěchá.",
+    "Dnešek je dost přesně takový, jaký je."
+  ];
+
+  function shuffleSlogans(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  var sloganEnEl = document.getElementById('slogan-text-en');
+  var sloganCzEl = document.getElementById('slogan-text-cz');
+  var sloganIndexQueue = [];
+
+  function nextSloganIndex() {
+    if (sloganIndexQueue.length === 0) {
+      var indices = tarotSlogans.map(function (_, i) { return i; });
+      sloganIndexQueue = shuffleSlogans(indices);
+      var lastIndex = null;
+      try { lastIndex = localStorage.getItem('synthlucida_tarot_last_slogan_idx'); } catch (e) {}
+      if (lastIndex !== null && sloganIndexQueue.length > 1 && String(sloganIndexQueue[0]) === lastIndex) {
+        sloganIndexQueue.push(sloganIndexQueue.shift());
+      }
+    }
+    var next = sloganIndexQueue.shift();
+    try { localStorage.setItem('synthlucida_tarot_last_slogan_idx', String(next)); } catch (e) {}
+    return next;
+  }
+
+  function showTarotSlogan() {
+    var idx = nextSloganIndex();
+    sloganEnEl.textContent = tarotSlogans[idx];
+    sloganCzEl.textContent = tarotSlogansCz[idx];
+    sloganEnEl.classList.add('visible');
+    sloganCzEl.classList.add('visible');
+    setTimeout(function () {
+      sloganEnEl.classList.remove('visible');
+      sloganCzEl.classList.remove('visible');
+    }, 8000);
+  }
+
+  function scheduleNextTarotSlogan() {
+    var nextTime = Math.floor(Math.random() * (40000 - 30000 + 1)) + 30000;
+    setTimeout(function () {
+      showTarotSlogan();
+      scheduleNextTarotSlogan();
+    }, nextTime);
+  }
+
+  setTimeout(function () {
+    showTarotSlogan();
+    scheduleNextTarotSlogan();
+  }, 10000);
 
 })();
 </script>
