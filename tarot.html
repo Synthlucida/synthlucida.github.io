@@ -69,7 +69,7 @@
   .corner-btn:active { transform: scale(0.92); }
   .corner-btn-left { left: 10px; font-style: italic; font-family: 'Cormorant Garamond', serif; }
   .corner-btn-right { right: 10px; font-size: 12px; }
-  .corner-btn-fs { left: 50%; margin-left: -15px; font-size: 13px; }
+  .corner-btn-fs { left: 10px; top: calc(10px + 38px + env(safe-area-inset-top, 0px)); font-size: 13px; }
   .corner-btn.active { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
 
   .deck-tabs { position: relative; z-index: 1; display: flex; gap: 10px; margin: 0 0 20px; }
@@ -232,11 +232,67 @@
   .slogan-text-cz { font-size: 12px; opacity: 0; margin-top: 3px; color: #fff; text-shadow: none; }
   .slogan-text-cz.visible { opacity: 0.6; }
 
+  .slogan-countdown {
+    display: none;
+    position: relative; z-index: 1; width: 46px; height: 3px; margin: 10px auto 0;
+    border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; opacity: 0.7;
+  }
+  .slogan-countdown-bar {
+    height: 100%; width: 0%; border-radius: 3px; background: var(--accent-color);
+    box-shadow: 0 0 6px var(--accent-color);
+  }
+  .slogan-countdown-bar.animate { transition: width linear; }
+  .slogan-countdown-num {
+    display: none; position: relative; z-index: 1; margin: 5px auto 0;
+    font-size: 9px; letter-spacing: 1px; color: var(--accent-color); opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+  }
+
   @media (max-height: 700px) {
     .card-wrap { width: 170px; height: 275px; margin-bottom: 16px; }
     .page-title { margin-bottom: 16px; }
     .meaning-panel { padding: 12px 14px; margin-bottom: 14px; }
     .slogan-wrap { margin-top: 12px; }
+  }
+
+  /* Smaller phones: shrink everything further so the whole page fits
+     on one screen without the user needing to scroll. */
+  @media (max-height: 640px) {
+    body { padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); }
+    .corner-btn { width: 26px; height: 26px; font-size: 12px; }
+    .corner-btn-fs { top: calc(10px + 34px + env(safe-area-inset-top, 0px)); }
+    .brand { margin-bottom: 2px; }
+    .brand-name { font-size: 10px; }
+    .page-title { font-size: 13px; margin: 2px 0 10px; }
+    .deck-tabs { margin-bottom: 10px; gap: 8px; }
+    .deck-tab { padding: 5px 10px; font-size: 9px; }
+    .card-wrap { width: 138px; height: 224px; margin-bottom: 10px; }
+    .card-front { padding: 10px 8px; }
+    .card-symbol { font-size: 32px; margin: 4px 0 4px; }
+    .card-name-en { font-size: 11px; }
+    .card-name-cz { font-size: 9px; }
+    .reversed-badge { margin-top: 5px; }
+    .meaning-panel {
+      padding: 10px 12px; margin-bottom: 10px;
+      max-height: 28vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
+    .meaning-text { font-size: 12px; line-height: 1.35; margin-bottom: 8px; }
+    .meaning-divider { margin: 6px 0; }
+    .btn-draw { padding: 8px 16px; font-size: 9px; }
+    .slogan-wrap { margin-top: 8px; min-height: 24px; }
+    .slogan-text { font-size: 11px; }
+    .slogan-text-cz { font-size: 10px; }
+    .slogan-countdown { margin-top: 6px; }
+    .slogan-countdown-num { font-size: 8px; margin-top: 4px; }
+  }
+
+  /* Very small / compact phones */
+  @media (max-height: 560px) {
+    .card-wrap { width: 112px; height: 182px; margin-bottom: 8px; }
+    .card-symbol { font-size: 26px; }
+    .meaning-panel { max-height: 24vh; padding: 8px 10px; }
+    .meaning-text { font-size: 11px; }
+    .page-title { font-size: 12px; margin: 2px 0 8px; }
   }
 </style>
 </head>
@@ -319,6 +375,8 @@
 <div class="slogan-wrap">
   <div class="slogan-text" id="slogan-text-en"></div>
   <div class="slogan-text slogan-text-cz" id="slogan-text-cz"></div>
+  <div class="slogan-countdown" id="slogan-countdown"><div class="slogan-countdown-bar" id="slogan-countdown-bar"></div></div>
+  <div class="slogan-countdown-num" id="slogan-countdown-num"></div>
 </div>
 
 <script>
@@ -740,7 +798,53 @@
 
   var sloganEnEl = document.getElementById('slogan-text-en');
   var sloganCzEl = document.getElementById('slogan-text-cz');
+  var sloganCountdownEl = document.getElementById('slogan-countdown');
+  var sloganCountdownBarEl = document.getElementById('slogan-countdown-bar');
+  var sloganCountdownNumEl = document.getElementById('slogan-countdown-num');
+  var sloganCountdownInterval = null;
   var sloganIndexQueue = [];
+
+  function startSloganCountdown(durationMs) {
+    if (!sloganCountdownBarEl) return;
+
+    sloganCountdownEl.style.display = 'block';
+    sloganCountdownBarEl.classList.remove('animate');
+    sloganCountdownBarEl.style.transitionDuration = '0ms';
+    sloganCountdownBarEl.style.width = '0%';
+    void sloganCountdownBarEl.offsetWidth; // force reflow so the animation restarts
+    sloganCountdownBarEl.classList.add('animate');
+    sloganCountdownBarEl.style.transitionDuration = durationMs + 'ms';
+    sloganCountdownBarEl.style.width = '100%';
+
+    if (sloganCountdownNumEl) {
+      if (sloganCountdownInterval) clearInterval(sloganCountdownInterval);
+      var secondsLeft = Math.ceil(durationMs / 1000);
+      sloganCountdownNumEl.style.display = 'block';
+      sloganCountdownNumEl.textContent = secondsLeft + 's';
+      sloganCountdownInterval = setInterval(function () {
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+          clearInterval(sloganCountdownInterval);
+          sloganCountdownInterval = null;
+          sloganCountdownNumEl.textContent = '';
+          return;
+        }
+        sloganCountdownNumEl.textContent = secondsLeft + 's';
+      }, 1000);
+    }
+  }
+
+  function stopSloganCountdown() {
+    if (sloganCountdownInterval) {
+      clearInterval(sloganCountdownInterval);
+      sloganCountdownInterval = null;
+    }
+    if (sloganCountdownEl) sloganCountdownEl.style.display = 'none';
+    if (sloganCountdownNumEl) {
+      sloganCountdownNumEl.style.display = 'none';
+      sloganCountdownNumEl.textContent = '';
+    }
+  }
 
   function nextSloganIndex() {
     if (sloganIndexQueue.length === 0) {
@@ -758,6 +862,7 @@
   }
 
   function showTarotSlogan() {
+    stopSloganCountdown();
     var idx = nextSloganIndex();
     sloganEnEl.textContent = tarotSlogans[idx];
     sloganCzEl.textContent = tarotSlogansCz[idx];
@@ -771,6 +876,8 @@
 
   function scheduleNextTarotSlogan() {
     var nextTime = Math.floor(Math.random() * (40000 - 30000 + 1)) + 30000;
+    // wait a beat after the current slogan fades before showing the countdown
+    setTimeout(function () { startSloganCountdown(nextTime - 1500); }, 1500);
     setTimeout(function () {
       showTarotSlogan();
       scheduleNextTarotSlogan();
@@ -781,6 +888,7 @@
     showTarotSlogan();
     scheduleNextTarotSlogan();
   }, 10000);
+  startSloganCountdown(10000);
 
 })();
 </script>
