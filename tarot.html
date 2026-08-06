@@ -72,6 +72,14 @@
   .corner-btn-fs { left: 10px; top: calc(10px + 38px + env(safe-area-inset-top, 0px)); font-size: 13px; }
   .corner-btn.active { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
 
+  .clock-display {
+    position: absolute; z-index: 4;
+    bottom: 12px; left: 0; right: 0; text-align: center;
+    font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 1.5px;
+    color: var(--accent-color); opacity: 0.4; pointer-events: none;
+    text-shadow: 0 0 6px rgba(212,175,55,0.35);
+  }
+
   .deck-tabs { position: relative; z-index: 1; display: flex; gap: 10px; margin: 0 0 20px; }
   .deck-tab {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(212,175,55,0.35); color: #fff; opacity: 0.65;
@@ -216,6 +224,58 @@
   .reflect-text { font-style: italic; opacity: 0.9; }
   .reflect-text.reflect-cz { opacity: 0.65; font-size: 13px; margin-top: 4px; }
 
+  .reflect-block {
+    position: relative;
+    margin-top: 2px;
+    padding-top: 13px;
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  .reflect-block::before {
+    content: '';
+    position: absolute; top: 0; left: 50%; height: 1px; width: 0;
+    background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+    transform: translateX(-50%);
+    opacity: 0.8;
+  }
+  .reflect-block.reveal {
+    animation: reflectFadeIn 0.9s cubic-bezier(.22,.85,.28,1) 0.32s forwards;
+  }
+  .reflect-block.reveal::before {
+    animation: reflectLineGrow 0.9s cubic-bezier(.22,.85,.28,1) 0.32s forwards;
+  }
+  @keyframes reflectFadeIn {
+    0%   { opacity: 0; transform: translateY(9px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes reflectLineGrow {
+    0%   { width: 0; opacity: 0.9; }
+    60%  { width: 70%; opacity: 1; }
+    100% { width: 100%; opacity: 0.5; }
+  }
+  .reflect-icon {
+    display: inline-block;
+    animation: reflectIconPulse 2.6s ease-in-out infinite;
+  }
+  .reflect-block.reveal .reflect-icon {
+    animation: reflectIconPop 0.6s cubic-bezier(.34,1.56,.64,1) 0.32s backwards,
+               reflectIconPulse 2.6s ease-in-out 0.9s infinite;
+  }
+  @keyframes reflectIconPop {
+    0%   { transform: scale(0) rotate(-45deg); opacity: 0; }
+    60%  { transform: scale(1.35) rotate(10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  @keyframes reflectIconPulse {
+    0%, 100% { opacity: 0.6; text-shadow: 0 0 4px var(--accent-glow); }
+    50% { opacity: 1; text-shadow: 0 0 12px var(--accent-glow), 0 0 4px #fff; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reflect-block, .reflect-block.reveal, .reflect-icon, .reflect-block.reveal .reflect-icon {
+      animation: none !important; opacity: 1 !important; transform: none !important; width: 100% !important;
+    }
+  }
+
   .btn-draw {
     position: relative; z-index: 1; background: rgba(212,175,55,0.1); border: 1px solid var(--accent-color);
     color: var(--accent-color); padding: 10px 22px; border-radius: 30px; font-size: 10px; letter-spacing: 2px;
@@ -357,6 +417,7 @@
 <div class="card-wrap">
   <div class="aura"></div>
   <div class="card-flash" id="card-flash"></div>
+  <div class="clock-display" id="clock-display"></div>
   <div class="tarot-card" id="tarot-card">
     <div class="card-face card-back">
       <div class="glyph">✦</div>
@@ -378,10 +439,11 @@
   <div class="meaning-divider"></div>
   <div class="meaning-lang">CZ</div>
   <p class="meaning-text" id="meaning-cz"></p>
-  <div class="meaning-divider"></div>
-  <div class="meaning-lang">✦ <span data-i18n="reflect_label">REFLECT</span></div>
-  <p class="meaning-text reflect-text" id="reflect-en"></p>
-  <p class="meaning-text reflect-text reflect-cz" id="reflect-cz"></p>
+  <div class="reflect-block" id="reflect-block">
+    <div class="meaning-lang"><span class="reflect-icon">✦</span> <span data-i18n="reflect_label">REFLECT</span></div>
+    <p class="meaning-text reflect-text" id="reflect-en"></p>
+    <p class="meaning-text reflect-text reflect-cz" id="reflect-cz"></p>
+  </div>
 </div>
 
 <button class="btn-draw" id="btn-draw" disabled>🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
@@ -543,6 +605,7 @@
   var meaningPanel = document.getElementById('meaning-panel');
   var meaningEnEl = document.getElementById('meaning-en');
   var meaningCzEl = document.getElementById('meaning-cz');
+  var reflectBlockEl = document.getElementById('reflect-block');
   var drawBtn = document.getElementById('btn-draw');
   var flashEl = document.getElementById('card-flash');
   var cardWrapEl = document.querySelector('.card-wrap');
@@ -611,6 +674,7 @@
       cardEl.classList.remove('revealed');
       cardEl.classList.remove('flipping');
       meaningPanel.style.visibility = 'hidden';
+      reflectBlockEl.classList.remove('reveal');
       cardEl.classList.add('shuffling');
     }
 
@@ -629,6 +693,8 @@
         cardEl.classList.remove('flipping');
         cardEl.classList.add('revealed');
         meaningPanel.style.visibility = 'visible';
+        void reflectBlockEl.offsetWidth;
+        reflectBlockEl.classList.add('reveal');
         drawBtn.disabled = false;
         busy = false;
       }, 1150);
@@ -642,6 +708,18 @@
     updateDeckTabsUI();
     draw(true);
   });
+
+  // ---------- CLOCK ----------
+  var clockEl = document.getElementById('clock-display');
+  function updateClock() {
+    if (!clockEl) return;
+    var now = new Date();
+    var h = String(now.getHours()).padStart(2, '0');
+    var m = String(now.getMinutes()).padStart(2, '0');
+    clockEl.textContent = h + ':' + m;
+  }
+  updateClock();
+  setInterval(updateClock, 15000);
 
   // ---------- FULLSCREEN SYNC (shared across SYNTHLUCIDA pages, e.g. player.html) ----------
   window.toggleFullscreen = function () {
@@ -890,7 +968,32 @@
     "What's the gentlest next step from here?",
     "What are you grateful for that this card touches?",
     "What would 'enough' look like today?",
-    "What question do you actually need answered?"
+    "What question do you actually need answered?",
+    "What are you pretending not to know?",
+    "What would change if you stopped waiting for permission?",
+    "What is this feeling trying to protect you from?",
+    "Where are you holding on tighter than you need to?",
+    "What would it feel like to set this down, even for a day?",
+    "What story are you telling yourself about this?",
+    "Who benefits from you staying exactly where you are?",
+    "What's the version of this you're afraid to admit?",
+    "What would your future self thank you for doing today?",
+    "What boundary is quietly asking to be set?",
+    "What are you ready to forgive, even a little?",
+    "Where is fear disguising itself as logic?",
+    "What would it look like to choose yourself here?",
+    "What's underneath the thing you keep complaining about?",
+    "What are you waiting for that you could start now?",
+    "What would you do if no one was watching?",
+    "What does peace actually require of you right now?",
+    "What's one truth you've been softening for others?",
+    "Where is comparison stealing your clarity?",
+    "What would happen if you asked for help?",
+    "What's the cost of staying comfortable?",
+    "What are you no longer willing to tolerate?",
+    "What would it mean to trust the timing of this?",
+    "What's calling you that you keep putting off?",
+    "What would this look like if it were simple?"
   ];
 
   var reflectionQuestionsCz = [
@@ -918,7 +1021,32 @@
     "Jaký je odsud nejjemnější další krok?",
     "Za co jsi vděčný/á, čeho se tahle karta dotýká?",
     "Jak by dnes vypadalo „dost“?",
-    "Na jakou otázku vlastně potřebuješ odpověď?"
+    "Na jakou otázku vlastně potřebuješ odpověď?",
+    "Co si nalháváš, že nevíš?",
+    "Co by se změnilo, kdybys přestal/a čekat na svolení?",
+    "Před čím tě tenhle pocit vlastně chrání?",
+    "Čeho se držíš pevněji, než je potřeba?",
+    "Jaké by to bylo, kdybys to na den odložil/a?",
+    "Jaký příběh si o tomhle vyprávíš?",
+    "Komu se hodí, že zůstáváš přesně tam, kde jsi?",
+    "Jaká je ta verze pravdy, kterou se bojíš přiznat?",
+    "Za co by ti tvé budoucí já dnes poděkovalo?",
+    "Jaká hranice se potichu hlásí o slovo?",
+    "Co jsi ochoten/a alespoň trochu odpustit?",
+    "Kde se strach maskuje za logiku?",
+    "Jaké by to bylo, zvolit si tady sám/sama sebe?",
+    "Co se skrývá pod tím, na co si pořád stěžuješ?",
+    "Na co čekáš, co bys mohl/a začít už teď?",
+    "Co bys udělal/a, kdyby se nikdo nedíval?",
+    "Co od tebe klid vlastně právě teď žádá?",
+    "Jakou pravdu pro ostatní zjemňuješ?",
+    "Kde ti srovnávání se s ostatními krade jasnost?",
+    "Co by se stalo, kdybys požádal/a o pomoc?",
+    "Jaká je cena zůstat v pohodlí?",
+    "Co už dál nejsi ochoten/a tolerovat?",
+    "Co by znamenalo důvěřovat načasování tohohle?",
+    "Co tě volá a ty to pořád odkládáš?",
+    "Jaké by to bylo, kdyby to bylo jednoduché?"
   ];
 
   var reflectQueue = [];
