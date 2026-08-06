@@ -74,10 +74,15 @@
 
   .clock-display {
     position: absolute; z-index: 4;
-    bottom: 12px; left: 0; right: 0; text-align: center;
+    bottom: 12px; left: 50%; transform: translateX(-50%); text-align: center;
+    width: max-content; max-width: 90vw;
     font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 1.5px;
     color: var(--accent-color); opacity: 0.4; pointer-events: none;
     text-shadow: 0 0 6px rgba(212,175,55,0.35);
+    white-space: nowrap;
+  }
+  @media (max-width: 360px) {
+    .clock-display { font-size: 8.5px; letter-spacing: 1px; }
   }
 
   .deck-tabs { position: relative; z-index: 1; display: flex; gap: 10px; margin: 0 0 20px; }
@@ -716,7 +721,11 @@
     var now = new Date();
     var h = String(now.getHours()).padStart(2, '0');
     var m = String(now.getMinutes()).padStart(2, '0');
-    clockEl.textContent = h + ':' + m;
+    var d = String(now.getDate()).padStart(2, '0');
+    var mo = String(now.getMonth() + 1).padStart(2, '0');
+    var y = now.getFullYear();
+    var dateStr = (typeof guideLang !== 'undefined' && guideLang === 'cz') ? (d + '.' + mo + '.' + y) : (mo + '/' + d + '/' + y);
+    clockEl.textContent = dateStr + '  ·  ' + h + ':' + m;
   }
   updateClock();
   setInterval(updateClock, 15000);
@@ -803,6 +812,7 @@
     guideLang = guideLang === 'en' ? 'cz' : 'en';
     try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) {}
     applyGuideLanguage();
+    updateClock();
   };
 
   try {
@@ -810,6 +820,7 @@
     if (savedLang === 'cz' || savedLang === 'en') guideLang = savedLang;
   } catch (e) {}
   applyGuideLanguage();
+  updateClock();
 
   window.toggleInfoOverlay = function (show) {
     document.getElementById('info-overlay').classList.toggle('show', show);
