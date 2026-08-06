@@ -1,9 +1,10 @@
 // ==========================================
 // SYNTHLUCIDA Service Worker
-// v31 - offline cache for audio (MP3), CORS-safe (no manual byte slicing); added tarot.html to app shell
+// v32 - bumped app cache so updated tarot.html (fullscreen button position,
+// responsive one-screen layout, slogan countdown) actually reaches devices
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v315';
+const APP_CACHE_NAME = 'synthlucida-app-v317';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
