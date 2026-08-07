@@ -446,6 +446,23 @@
   .btn-draw:active { transform: scale(0.96); }
   .btn-draw:disabled { opacity: 0.4; cursor: default; box-shadow: none; background: rgba(212,175,55,0.1); color: var(--accent-color); }
 
+  .action-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .btn-music {
+    position: relative; background: rgba(212,175,55,0.1); border: 1px solid var(--accent-color);
+    color: var(--accent-color); width: 38px; height: 38px; border-radius: 50%; font-size: 13px;
+    cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .btn-music:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 14px var(--accent-color); }
+  .btn-music:active { transform: scale(0.92); }
+  .btn-music.playing { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
+  .btn-music.loading { opacity: 0.55; cursor: wait; }
+  .now-playing {
+    position: relative; z-index: 1; font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 9px; opacity: 0; max-height: 0; overflow: hidden; letter-spacing: 0.5px;
+    transition: opacity 0.3s; margin-top: 8px; text-align: center;
+  }
+  .now-playing.show { opacity: 0.65; max-height: 20px; }
+
   .slogan-wrap { position: relative; z-index: 1; max-width: 300px; width: 100%; margin: 18px auto 0; min-height: 34px; }
   .slogan-text {
     font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; letter-spacing: 0.5px;
@@ -693,7 +710,13 @@
   </div>
 </div>
 
-<button class="btn-draw" id="btn-draw" disabled>🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
+<div class="action-row">
+  <button class="btn-draw" id="btn-draw" disabled>🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
+  <button class="btn-music" id="btn-music" title="Play music" aria-label="Play or pause music">▶</button>
+</div>
+<div class="now-playing" id="now-playing"></div>
+
+<iframe id="music-bridge" src="about:blank" style="position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; border:0; opacity:0; pointer-events:none;" aria-hidden="true" tabindex="-1"></iframe>
 
 <div class="slogan-wrap">
   <div class="slogan-text" id="slogan-text-en"></div>
@@ -1051,6 +1074,77 @@
   var meaningCzEl = document.getElementById('meaning-cz');
   var reflectBlockEl = document.getElementById('reflect-block');
   var drawBtn = document.getElementById('btn-draw');
+
+  // ---------- MUSIC BRIDGE ----------
+  // Plays music from player.html while the user is doing a reading, without
+  // duplicating any track lists here. A hidden iframe loads player.html only
+  // on first tap (lazy), which restores the last playlist/track itself; we
+  // just call the small window.slPlayback API it exposes to toggle play/pause
+  // and read its state, and poll that state to keep this button in sync.
+  var musicBtn = document.getElementById('btn-music');
+  var musicFrame = document.getElementById('music-bridge');
+  var nowPlayingEl = document.getElementById('now-playing');
+  var musicFrameLoaded = false;
+  var musicFramePending = false;
+  var musicPollTimer = null;
+
+  function updateMusicButtonUI(playing) {
+    musicBtn.classList.toggle('playing', !!playing);
+    musicBtn.classList.remove('loading');
+    musicBtn.textContent = playing ? '⏸' : '▶';
+  }
+
+  function pollMusicState() {
+    try {
+      var win = musicFrame.contentWindow;
+      if (win && win.slPlayback) {
+        var playing = win.slPlayback.isPlaying();
+        updateMusicButtonUI(playing);
+        var title = win.slPlayback.nowPlaying ? win.slPlayback.nowPlaying() : null;
+        if (playing && title) {
+          nowPlayingEl.textContent = '♪ ' + title;
+          nowPlayingEl.classList.add('show');
+        } else {
+          nowPlayingEl.classList.remove('show');
+        }
+      }
+    } catch (e) { /* not ready yet - ignore */ }
+  }
+
+  function startMusicPolling() {
+    if (musicPollTimer) return;
+    musicPollTimer = setInterval(pollMusicState, 700);
+  }
+
+  if (musicBtn && musicFrame) {
+    musicBtn.addEventListener('click', function () {
+      if (musicFramePending) return;
+      if (!musicFrameLoaded) {
+        musicFramePending = true;
+        musicBtn.classList.add('loading');
+        musicFrame.addEventListener('load', function onLoad() {
+          musicFrame.removeEventListener('load', onLoad);
+          musicFrameLoaded = true;
+          musicFramePending = false;
+          try {
+            if (musicFrame.contentWindow && musicFrame.contentWindow.slPlayback) {
+              musicFrame.contentWindow.slPlayback.toggle();
+            }
+          } catch (e) { /* ignore */ }
+          startMusicPolling();
+          pollMusicState();
+        });
+        musicFrame.src = 'player.html';
+      } else {
+        try {
+          if (musicFrame.contentWindow && musicFrame.contentWindow.slPlayback) {
+            musicFrame.contentWindow.slPlayback.toggle();
+          }
+        } catch (e) { /* ignore */ }
+      }
+    });
+  }
+
   var flashEl = document.getElementById('card-flash');
   var cardWrapEl = document.querySelector('.card-wrap');
 
