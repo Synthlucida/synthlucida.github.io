@@ -335,6 +335,24 @@
     margin-top: 8px; font-size: 8px; letter-spacing: 1.5px; padding: 3px 8px; border-radius: 20px;
     border: 1px solid var(--accent-glow); color: #d9b3ff; background: rgba(139,47,224,0.15);
   }
+  .hidden-countdown {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; line-height: 1; letter-spacing: 0.5px; opacity: 0.45; color: var(--accent-color);
+    pointer-events: none; user-select: none; white-space: nowrap; max-width: 92%; overflow: hidden;
+    text-overflow: ellipsis; text-align: center;
+  }
+  .year-countdown {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; line-height: 1; letter-spacing: 0.5px; opacity: 0.45; color: var(--accent-color);
+    pointer-events: none; user-select: none; white-space: nowrap; max-width: 92%; overflow: hidden;
+    text-overflow: ellipsis; text-align: center;
+  }
+  .year-countdown-days {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; line-height: 1; letter-spacing: 0.5px; opacity: 0.45; color: var(--accent-color);
+    pointer-events: none; user-select: none; white-space: nowrap; max-width: 92%; overflow: hidden;
+    text-overflow: ellipsis; text-align: center;
+  }
 
   .meaning-panel {
     position: relative; z-index: 1; max-width: 320px; width: 100%;
@@ -585,11 +603,14 @@
       <div class="back-label">SYNTHLUCIDA</div>
     </div>
     <div class="card-face card-front">
+      <div class="year-countdown" id="year-countdown"></div>
+      <div class="year-countdown-days" id="year-countdown-days"></div>
       <div class="card-number" id="card-number"></div>
       <div class="card-symbol" id="card-symbol"></div>
       <div class="card-name-en" id="card-name-en"></div>
       <div class="card-name-cz" id="card-name-cz"></div>
       <div class="reversed-badge" id="reversed-badge" style="display:none;"></div>
+      <div class="hidden-countdown" id="hidden-countdown"></div>
     </div>
   </div>
 </div>
@@ -921,6 +942,38 @@
       historyRefreshTimer = null;
     }
   }
+
+  var hiddenCountdownEl = document.getElementById('hidden-countdown');
+  var hiddenCountdownTarget = new Date(2053, 10, 28, 0, 0, 0);
+  var hiddenCountdownDoneMsg = 'Život jsem prožil a nyní vzpomínám v důchodu :) Dave';
+  var hiddenCountdownTimer = null;
+  function tickHiddenCountdown() {
+    if (!hiddenCountdownEl) return;
+    var diff = Math.floor((hiddenCountdownTarget.getTime() - Date.now()) / 1000);
+    if (diff <= 0) {
+      hiddenCountdownEl.textContent = hiddenCountdownDoneMsg;
+      if (hiddenCountdownTimer) { clearInterval(hiddenCountdownTimer); hiddenCountdownTimer = null; }
+    } else {
+      hiddenCountdownEl.textContent = String(diff);
+    }
+  }
+  tickHiddenCountdown();
+  hiddenCountdownTimer = setInterval(tickHiddenCountdown, 1000);
+
+  var yearCountdownEl = document.getElementById('year-countdown');
+  var yearCountdownDaysEl = document.getElementById('year-countdown-days');
+  var yearCountdownTotal = 365 * 24 * 3600;
+  function tickYearCountdown() {
+    if (!yearCountdownEl) return;
+    var now = new Date();
+    var yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+    var elapsed = Math.floor((now.getTime() - yearStart.getTime()) / 1000);
+    var remaining = yearCountdownTotal - (elapsed % yearCountdownTotal);
+    yearCountdownEl.textContent = String(remaining);
+    if (yearCountdownDaysEl) yearCountdownDaysEl.textContent = String(Math.ceil(remaining / 86400));
+  }
+  tickYearCountdown();
+  setInterval(tickYearCountdown, 1000);
 
   var cardEl = document.getElementById('tarot-card');
   var numberEl = document.getElementById('card-number');
