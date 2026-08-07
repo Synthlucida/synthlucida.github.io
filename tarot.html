@@ -60,7 +60,7 @@
   }
   @keyframes twinkle { 0% { opacity: 0.25; } 100% { opacity: 0.7; } }
 
-  .blob { position: fixed; border-radius: 50%; filter: blur(90px); opacity: 0.25; z-index: 0; animation: floatBlobs 22s ease-in-out infinite; pointer-events: none; }
+  .blob { position: fixed; border-radius: 50%; filter: blur(90px); opacity: 0.25; z-index: 0; animation: floatBlobs 22s ease-in-out infinite; pointer-events: none; will-change: transform; transform: translateZ(0); }
   .blob-1 { width: 280px; height: 280px; background: var(--accent-glow); top: -8%; left: -10%; }
   .blob-2 { width: 320px; height: 320px; background: var(--accent-color); bottom: -12%; right: -10%; animation-delay: -6s; animation-duration: 26s; }
   @keyframes floatBlobs { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -25px); } }
@@ -274,7 +274,7 @@
     position: absolute; inset: -30px; border-radius: 50%;
     background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
     opacity: 0.5; filter: blur(6px); animation: pulseAura 3.2s ease-in-out infinite;
-    z-index: 0;
+    z-index: 0; pointer-events: none;
   }
   @keyframes pulseAura { 0%, 100% { transform: scale(1); opacity: 0.35; } 50% { transform: scale(1.12); opacity: 0.6; } }
 
@@ -444,7 +444,7 @@
   }
   .btn-draw:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 14px var(--accent-color); }
   .btn-draw:active { transform: scale(0.96); }
-  .btn-draw:disabled { opacity: 0.4; cursor: default; box-shadow: none; background: rgba(212,175,55,0.1); color: var(--accent-color); }
+  .btn-draw:disabled, .btn-draw.drawing { opacity: 0.55; box-shadow: none; background: rgba(212,175,55,0.1); color: var(--accent-color); }
 
   .action-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 10px; }
   .btn-music {
@@ -711,7 +711,7 @@
 </div>
 
 <div class="action-row">
-  <button class="btn-draw" id="btn-draw" disabled>🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
+  <button class="btn-draw drawing" id="btn-draw">🔀 <span data-i18n="btn_draw">DRAW AGAIN</span></button>
   <button class="btn-music" id="btn-music" title="Play music" aria-label="Play or pause music">▶</button>
 </div>
 <div class="now-playing" id="now-playing"></div>
@@ -1180,7 +1180,7 @@
     if (key === currentDeckKey || !decks[key]) return;
     currentDeckKey = key;
     updateDeckTabsUI();
-    draw(false);
+    draw(false, true);
   }
 
   function fillFront(pick) {
@@ -1202,10 +1202,17 @@
   }
 
   var busy = false;
-  function draw(initial) {
-    if (busy) return;
+  var pendingDrawTimeouts = [];
+  function draw(initial, force) {
+    if (busy && !force) return;
+    if (force) {
+      // Cancel any in-flight draw animation (e.g. user switched decks mid-draw)
+      pendingDrawTimeouts.forEach(function (id) { clearTimeout(id); });
+      pendingDrawTimeouts = [];
+      cardEl.classList.remove('shuffling', 'flipping', 'revealed');
+    }
     busy = true;
-    drawBtn.disabled = true;
+    drawBtn.classList.add('drawing');
     var pick = pickCard();
     var showDelay = initial ? 350 : 700;
 
@@ -1217,7 +1224,7 @@
       cardEl.classList.add('shuffling');
     }
 
-    setTimeout(function () {
+    var t1 = setTimeout(function () {
       cardEl.classList.remove('shuffling');
       fillFront(pick);
       cardEl.classList.add('flipping');
@@ -1226,21 +1233,25 @@
       void flashEl.offsetWidth;
       flashEl.classList.add('active');
 
-      setTimeout(function () { spawnSparks(16); }, 480);
+      var t2 = setTimeout(function () { spawnSparks(16); }, 480);
+      pendingDrawTimeouts.push(t2);
 
-      setTimeout(function () {
+      var t3 = setTimeout(function () {
         cardEl.classList.remove('flipping');
         cardEl.classList.add('revealed');
         meaningPanel.style.visibility = 'visible';
         void reflectBlockEl.offsetWidth;
         reflectBlockEl.classList.add('reveal');
-        drawBtn.disabled = false;
+        drawBtn.classList.remove('drawing');
         busy = false;
+        pendingDrawTimeouts = [];
       }, 1150);
+      pendingDrawTimeouts.push(t3);
     }, showDelay);
+    pendingDrawTimeouts.push(t1);
   }
 
-  drawBtn.addEventListener('click', function () { draw(false); });
+  drawBtn.addEventListener('click', function () { draw(false, true); });
   document.getElementById('tab-tarot').addEventListener('click', function () { selectDeck('tarot'); });
   document.getElementById('tab-oracle').addEventListener('click', function () { selectDeck('oracle'); });
   document.getElementById('tab-night').addEventListener('click', function () { selectDeck('night'); });
@@ -1524,7 +1535,7 @@
     "Milost tě potkává přesně tam, kde jsi.",
     "Tiché odpovědi bývají nejpravdivější.",
     "Růst nevypadá vždy jako pokrok.",
-    "Nejsi pozadu, jen se stáváš sama sebou.",
+    "Nejsi pozadu, jen se stáváš sám/sama sebou.",
     "Pusť to, co už neuneseš.",
     "Každou kartu, kterou vytáhneš, už v sobě znáš.",
     "Jemnost není slabost.",
@@ -1597,7 +1608,21 @@
     "What are you no longer willing to tolerate?",
     "What would it mean to trust the timing of this?",
     "What's calling you that you keep putting off?",
-    "What would this look like if it were simple?"
+    "What would this look like if it were simple?",
+    "What does this card's symbol stir in you?",
+    "If you sat with this image for a minute, what would you notice?",
+    "What part of your day already matches this card?",
+    "What would this card say if it could speak plainly?",
+    "Where have you seen this exact energy before?",
+    "What's the opposite of this card, and how far are you from it?",
+    "What would it mean to fully embody this card today?",
+    "What is this card gently warning you about?",
+    "Who in your life reflects this card back to you?",
+    "What would change if you took this card literally?",
+    "What's the one word this card leaves you with?",
+    "If this were the title of your week, what comes next?",
+    "What does this card ask you to stop doing?",
+    "What does this card ask you to start doing?"
   ];
 
   var reflectionQuestionsCz = [
@@ -1606,7 +1631,7 @@
     "Co bys dělal/a jinak, kdybys tomu úplně věřil/a?",
     "Čeho jsi vyzýván/a se vzdát?",
     "S kým bys mohl/a mluvit o tom, co v tobě tohle vyvolalo?",
-    "Čeho si tě tahle karta žádá všimnout?",
+    "Čeho by sis podle téhle karty měl/a všimnout?",
     "Jaký pocit se v tobě ozval, když jsi kartu uviděl/a?",
     "Jaký malý krok by dnes uctil tohle poselství?",
     "Čemu ses vyhýbal/a, čeho se tohle dotýká?",
@@ -1650,7 +1675,21 @@
     "Co už dál nejsi ochoten/a tolerovat?",
     "Co by znamenalo důvěřovat načasování tohohle?",
     "Co tě volá a ty to pořád odkládáš?",
-    "Jaké by to bylo, kdyby to bylo jednoduché?"
+    "Jaké by to bylo, kdyby to bylo jednoduché?",
+    "Co v tobě probouzí symbol téhle karty?",
+    "Kdybys u toho obrazu chvíli zůstal/a, čeho by sis všiml/a?",
+    "Která část tvého dne už téhle kartě odpovídá?",
+    "Co by ti tahle karta řekla na rovinu, kdyby mohla mluvit?",
+    "Kde jsi tuhle přesnou energii už zažil/a?",
+    "Co je opakem téhle karty a jak daleko jsi od něj?",
+    "Co by znamenalo tuhle kartu dnes naplno prožít?",
+    "Před čím tě tahle karta jemně varuje?",
+    "Kdo v tvém životě ti tuhle kartu odráží zpátky?",
+    "Co by se změnilo, kdybys tuhle kartu vzal/a doslova?",
+    "Jaké jedno slovo v tobě tahle karta zanechává?",
+    "Kdyby tohle byl název tvého týdne, co přijde dál?",
+    "Čeho tě tahle karta žádá nechat?",
+    "Co tě tahle karta žádá začít?"
   ];
 
   var reflectQueue = [];
