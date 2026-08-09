@@ -5,6 +5,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
+<!-- PWA: stejný manifest a service worker jako player.html, aby web šel taky
+     nainstalovat / choval se jako PWA (hlavně kvůli SEO a "Add to Home Screen"
+     přímo z webu). start_url v manifestu zůstává player.html - instalace
+     odsud i z indexu vždy otevře appku, player.html je pořád ten hlavní vstup
+     (Microsoft Store / Google se manifestu ani sw.js nedotýkají, jen se
+     přidává druhá stránka, která je používá). -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a0033">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SYNTHLUCIDA">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+
 <title>SYNTHLUCIDA | Chillout, Ambient & Progressive Electronic Music Producer</title>
 
 <meta name="description" content="SYNTHLUCIDA is an independent electronic music producer creating atmospheric Chillout, Ambient, Trance and Progressive House music with cinematic sound design and futuristic electronic aesthetics.">
@@ -3098,6 +3112,41 @@ Privacy Policy
     resize();
     requestAnimationFrame(draw);
   })();
+</script>
+
+<script>
+  // ==========================================
+  // PWA: registrace stejného service workeru jako v player.html.
+  // Jen registrace + kontrola aktualizace + reload po převzetí kontroly -
+  // žádné notifikace ani vlastní "Add to Home Screen" tlačítko (to zůstává
+  // jen v playeru). Díky scope "./" v manifestu tenhle SW klidně obsluhuje
+  // i tuhle stránku, aniž by se cokoliv měnilo na tom, jak funguje player.
+  // ==========================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then((reg) => {
+          console.log('Service Worker zaregistrován:', reg);
+          reg.update().catch(() => {});
+        })
+        .catch((err) => console.log('Registrace SW selhala:', err));
+    });
+
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg) reg.update().catch(() => {});
+        });
+      }
+    });
+  }
 </script>
 
 </body>

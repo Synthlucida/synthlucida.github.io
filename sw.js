@@ -1,21 +1,23 @@
 // ==========================================
 // SYNTHLUCIDA Service Worker
-// v32 - bumped app cache so updated tarot.html (fullscreen button position,
-// responsive one-screen layout, slogan countdown) actually reaches devices
+// v33 - bumped app cache: index.html now also loads this SW (PWA/SEO),
+// so it + favicon.png are added to the app shell
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v342';
+const APP_CACHE_NAME = 'synthlucida-app-v343';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
 const ASSETS_TO_CACHE = [
   './',
+  './index.html',
   './player.html',
   './game.html',
   './relax.html',
   './tarot.html',
   './manifest.json',
   './icon.png',
+  './favicon.png',
   './logo.jpg'
 ];
 
