@@ -891,6 +891,22 @@ header::after {
   text-align: center;
 }
 
+.contact-status {
+  margin: 4px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  min-height: 14px;
+}
+
+.contact-status.sending {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.contact-status.error {
+  color: #ff6b6b;
+}
+
 .platforms-grid {
   display: flex;
   flex-wrap: wrap;
@@ -2112,13 +2128,12 @@ Dave - SYNTHLUCIDA rec.
 </button>
 
 <div class="contact-form-panel" id="contact-form-panel">
-<form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+<form class="contact-form" id="contact-form" action="https://api.web3forms.com/submit" method="POST">
 
 <p class="contact-recipient" data-i18n="contact-recipient">Send a message to <strong>David Zanta</strong></p>
 
 <input type="hidden" name="access_key" value="6b472aad-796b-4254-924d-45180b6cbaee">
 <input type="hidden" name="subject" value="New message from SYNTHLUCIDA website">
-<input type="hidden" name="redirect" value="https://synthlucida.github.io/#contact-form-panel">
 <input type="text" name="botcheck" style="display:none" tabindex="-1" autocomplete="off">
 
 <input type="text" name="name" class="contact-input" placeholder="Your name" data-i18n-placeholder="ph-name" required>
@@ -2126,6 +2141,7 @@ Dave - SYNTHLUCIDA rec.
 <textarea name="message" class="contact-textarea" placeholder="Your message" data-i18n-placeholder="ph-message" rows="5" required></textarea>
 
 <button type="submit" class="contact-submit-btn" data-i18n="contact-submit">SEND MESSAGE</button>
+<p class="contact-status" id="contact-status" aria-live="polite"></p>
 
 </form>
 </div>
@@ -2410,25 +2426,39 @@ Privacy Policy
     }
   }
 
-  // After Web3Forms redirects back with #contact-form-panel in the URL,
-  // reopen the panel automatically and show a short thank-you message.
-  (function () {
-    function handleContactRedirect() {
-      if (window.location.hash !== '#contact-form-panel') return;
-      const panel = document.getElementById('contact-form-panel');
-      const btn = document.getElementById('contact-form-toggle-btn');
-      const form = panel ? panel.querySelector('.contact-form') : null;
-      if (!panel || !btn || !form) return;
-      panel.classList.add('open');
-      btn.setAttribute('aria-expanded', 'true');
-      form.innerHTML = '<p class="contact-thanks">✔ Thanks! Your message has been sent.</p>';
-      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200);
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', handleContactRedirect);
-    } else {
-      handleContactRedirect();
-    }
+  // Contact form submission via Web3Forms AJAX endpoint (fetch) - the page
+  // never navigates away or reloads, the user just sees an inline
+  // "Sending…" then "Thank you" message right in the panel.
+  (function initContactForm() {
+    const form = document.getElementById('contact-form');
+    if (!form) return;
+    const statusEl = document.getElementById('contact-status');
+    const submitBtn = form.querySelector('.contact-submit-btn');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      statusEl.textContent = 'Sending…';
+      statusEl.className = 'contact-status sending';
+
+      const formData = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Accept': 'application/json' }
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.success) throw new Error('Send failed');
+          form.innerHTML = '<p class="contact-thanks">✔ Thank you! Your message has been sent.</p>';
+        })
+        .catch(() => {
+          statusEl.textContent = 'Something went wrong, please try again.';
+          statusEl.className = 'contact-status error';
+          submitBtn.disabled = false;
+        });
+    });
   })();
 
   const playlist = [
