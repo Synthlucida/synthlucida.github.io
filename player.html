@@ -1294,6 +1294,79 @@
 </head>
 <body class="theme-amber" id="body">
 
+<!-- ==========================================
+     FIRST-LOAD OVERLAY
+     Blokuje kliknutí (play atd.), dokud appka není "zahřátá" - řeší to,
+     že nový uživatel klikne na skladbu hned po otevření a přehrávání
+     kvůli pomalému / studenému připojení (a souběžnému stahování app
+     shellu do SW cache) vypadá, že appka nefunguje. Zobrazí se jen
+     novým / neinstalovaným uživatelům; u těch, kde SW už řídí stránku
+     (byli tu dřív), se overlay okamžitě odstraní bez blikání.
+     ========================================== -->
+<div id="first-load-overlay">
+  <div class="floading-spinner"></div>
+  <div class="floading-text">Loading SYNTHLUCIDA…</div>
+</div>
+<style>
+  #first-load-overlay {
+    position: fixed; inset: 0; z-index: 999999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px;
+    background: radial-gradient(circle at top, #1a0033, #000010, #000000);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    transition: opacity 0.4s ease;
+  }
+  #first-load-overlay.floading-fading { opacity: 0; }
+  .floading-spinner {
+    width: 46px; height: 46px;
+    border: 3px solid rgba(255,255,255,0.15);
+    border-top-color: #00f0ff;
+    border-radius: 50%;
+    animation: floadingSpin 0.9s linear infinite;
+  }
+  .floading-text {
+    font-size: 14px; letter-spacing: 1px; opacity: 0.85;
+  }
+  @keyframes floadingSpin { to { transform: rotate(360deg); } }
+</style>
+<script>
+  (function () {
+    var overlay = document.getElementById('first-load-overlay');
+    if (!overlay) return;
+
+    // Vracející se uživatel, u kterého už SW řídí stránku (appka je
+    // "zahřátá") - overlay hned pryč, žádné čekání, žádné blikání.
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      overlay.remove();
+      return;
+    }
+
+    var hidden = false;
+    function hideOverlay() {
+      if (hidden) return;
+      hidden = true;
+      overlay.classList.add('floading-fading');
+      setTimeout(function () {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, 400);
+    }
+
+    // Pevná doba čekání - 5 sekund
+    var fallbackTimer = setTimeout(hideOverlay, 5000);
+
+    // Jakmile Service Worker poprvé převezme kontrolu nad stránkou (app
+    // shell je nacachovaný), appka je připravená - overlay pryč hned,
+    // není třeba čekat na celý fallback timeout.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        clearTimeout(fallbackTimer);
+        setTimeout(hideOverlay, 400);
+      });
+    }
+  })();
+</script>
+
 <div class="sr-only" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;">
   <h1>SYNTHLUCIDA Player – Free Ambient Music</h1>
   <p>Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at <a href="https://www.synthlucida.com">www.SYNTHLUCIDA.com</a>.</p>
