@@ -825,11 +825,32 @@
   .track-time-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 5px; }
 
   .mini-spinner {
-    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+    width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+    position: relative;
+    opacity: 0; transition: opacity 0.2s ease;
+    /* Výchozí = neurčitý stav (nevíme kolik % je stažené): rotující okraj */
     border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent-color);
-    opacity: 0; transition: opacity 0.2s ease; animation: spin 0.8s linear infinite;
+    animation: spin 0.8s linear infinite;
   }
   .mini-spinner.active { opacity: 1; }
+
+  /* Jakmile známe % stažení bufferu, přepne se na prstenec vyplněný
+     přes CSS proměnnou --pct (nastavuje JS), s číslem uprostřed */
+  .mini-spinner.has-pct {
+    border: none;
+    animation: none;
+    background: conic-gradient(var(--accent-color) calc(var(--pct, 0) * 3.6deg), rgba(255,255,255,0.15) 0deg);
+  }
+  .mini-spinner.has-pct::before {
+    content: ''; position: absolute; inset: 2px; border-radius: 50%;
+    background: var(--bg-color-1);
+  }
+  .mini-spinner-pct {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 6px; font-weight: 700; color: #fff; letter-spacing: 0;
+  }
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -940,6 +961,19 @@
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
   #btn-download { min-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Upozorňující blikání DOWNLOAD OFFLINE tlačítka, dokud nejsou v aktuálním
+     playlistu stažené offline úplně všechny skladby (včetně nově přidaných). */
+  @keyframes downloadNeededBlink {
+    0%, 100% { box-shadow: 0 0 6px var(--accent-color); border-color: var(--accent-color); opacity: 1; }
+    50% { box-shadow: 0 0 2px transparent; border-color: rgba(255,255,255,0.2); opacity: 0.55; }
+  }
+  #btn-download.needs-download {
+    animation: downloadNeededBlink 1.3s ease-in-out infinite;
+  }
+  #btn-download.needs-download:disabled {
+    animation: none; opacity: 0.6; box-shadow: none; border-color: rgba(255,255,255,0.2);
+  }
   #btn-install { min-width: 110px; white-space: nowrap; }
   /* Pevná min. šířka SAVE tlačítka - text se mění na "SAVED!" a bez toho poskakovala sousední tlačítka */
   button[onclick="saveSettings()"] { min-width: 58px; }
@@ -1360,7 +1394,7 @@
   </div>
   <div class="track-time-row">
     <div class="track-time" id="track-time">00:00 / 00:00</div>
-    <div class="mini-spinner" id="mini-spinner" aria-hidden="true"></div>
+    <div class="mini-spinner" id="mini-spinner" aria-hidden="true"><span class="mini-spinner-pct" id="mini-spinner-pct"></span></div>
   </div>
   
   <div class="progress-container" id="progress-container">
@@ -2050,6 +2084,7 @@
   const progressBar = document.getElementById('progress-bar');
   const eqEl = document.getElementById('eq-visualizer');
   const spinnerEl = document.getElementById('mini-spinner');
+  const spinnerPctEl = document.getElementById('mini-spinner-pct');
   const myPlaylistEqEl = document.getElementById('myplaylist-eq');
   const myFilesEqEl = document.getElementById('myfiles-eq');
 
@@ -3774,12 +3809,18 @@
 
   async function updateOfflineStatus() {
     const statusEl = document.getElementById('offline-status');
+    const btn = document.getElementById('btn-download');
     if (!statusEl || !('caches' in window)) return;
     let cachedCount = 0;
     for (const track of playlist) {
       if (await isTrackCached(track.src)) cachedCount++;
     }
     statusEl.innerText = `${cachedCount}/${playlist.length} OFFLINE`;
+    // Rozbliká DOWNLOAD OFFLINE tlačítko, dokud v tomto konkrétním playlistu
+    // chybí byť jediná skladba (typicky nově přidaná NEW skladba) - jakmile
+    // je vše stažené, blikání samo zhasne. Je to vždy vázané na aktuálně
+    // zobrazený playlist, takže "piano" bliká, i když ostatní jsou hotové.
+    if (btn) btn.classList.toggle('needs-download', playlist.length > 0 && cachedCount < playlist.length);
   }
 
   async function updatePlaylistUI() {
@@ -4898,9 +4939,47 @@
     if (statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
   });
 
-  // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál
-  function showLoading() { spinnerEl.classList.add('active'); }
-  function hideLoading() { spinnerEl.classList.remove('active'); }
+  // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál.
+  // Dokud neznáme % staženého bufferu, točí se jako neurčitý prstenec; jakmile ho
+  // spočítáme z audio.buffered / audio.duration, přepne se na vyplněný prstenec s číslem.
+  function setSpinnerPct(pct) {
+    if (pct === null || isNaN(pct)) {
+      spinnerEl.classList.remove('has-pct');
+      spinnerEl.style.removeProperty('--pct');
+      spinnerPctEl.textContent = '';
+      return;
+    }
+    const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+    spinnerEl.classList.add('has-pct');
+    spinnerEl.style.setProperty('--pct', clamped);
+    spinnerPctEl.textContent = clamped + '%';
+  }
+
+  function updateSpinnerPct() {
+    if (!spinnerEl.classList.contains('active')) return;
+    try {
+      const duration = audio.duration;
+      const buffered = audio.buffered;
+      if (!duration || !isFinite(duration) || duration <= 0 || !buffered || buffered.length === 0) {
+        setSpinnerPct(null);
+        return;
+      }
+      const bufferedEnd = buffered.end(buffered.length - 1);
+      setSpinnerPct((bufferedEnd / duration) * 100);
+    } catch (e) {
+      setSpinnerPct(null);
+    }
+  }
+
+  function showLoading() {
+    spinnerEl.classList.add('active');
+    setSpinnerPct(null);
+    updateSpinnerPct();
+  }
+  function hideLoading() {
+    spinnerEl.classList.remove('active');
+    setSpinnerPct(null);
+  }
 
   audio.addEventListener('waiting', showLoading);
   audio.addEventListener('seeking', showLoading);
@@ -4908,6 +4987,8 @@
   audio.addEventListener('canplay', hideLoading);
   audio.addEventListener('seeked', hideLoading);
   audio.addEventListener('pause', hideLoading);
+  audio.addEventListener('progress', updateSpinnerPct);
+  audio.addEventListener('loadedmetadata', updateSpinnerPct);
 
   // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou
   audio.addEventListener('playing', () => { consecutiveTrackErrors = 0; });
