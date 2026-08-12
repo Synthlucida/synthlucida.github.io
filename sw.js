@@ -13,7 +13,7 @@
 // multi-redirect problem entirely.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v404';
+const APP_CACHE_NAME = 'synthlucida-app-v410';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v2'; // separate cache, survives app shell updates
 
 // App shell files cached on install
@@ -72,6 +72,11 @@ function isAudioRequest(url) {
   return /\.mp3($|\?)/i.test(url.pathname);
 }
 
+// Sleduje probíhající stažení jednotlivých audio URL, aby se souběžné požadavky na
+// tentýž (zatím necachovaný) track nespouštěly jako víc nezávislých kompletních
+// stažení najednou - viz komentář v handleAudioRequest níže.
+const inFlightAudioFetches = new Map();
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -95,6 +100,20 @@ async function handleAudioRequest(request) {
     return cached;
   }
 
+  // Pokud <audio> element pošle na tentýž (zatím necachovaný) track víc požadavků
+  // rychle po sobě - typicky přes Range při plynulém bufferování/seeku - nechceme
+  // pro každý z nich spouštět vlastní kompletní stažení celého souboru znovu od
+  // nuly. To by zbytečně soutěžilo o šířku pásma a prodlužovalo/zadrhávalo první
+  // přehrání. Místo toho čekající požadavky sdílejí jedno probíhající stažení.
+  if (inFlightAudioFetches.has(request.url)) {
+    try {
+      const resp = await inFlightAudioFetches.get(request.url);
+      return resp.clone();
+    } catch (e) {
+      // Sdílené stažení selhalo - necháme tenhle požadavek zkusit vlastní pokus níže.
+    }
+  }
+
   // DŮLEŽITÉ: záměrně NEpředáváme Range hlavičku dál na síť a vždy stahujeme
   // celý soubor jedním požadavkem. Tyhle MP3 jsou na GitHub Releases, což je
   // jen přesměrování (302) na dočasnou podepsanou URL na objects.githubusercontent.com
@@ -104,7 +123,7 @@ async function handleAudioRequest(request) {
   // přesměrované URL - a prohlížeč z bezpečnostních důvodů odmítne poskládat
   // audio z kousků, které nepocházejí ze stejné cílové adresy (NotSupportedError,
   // kaskáda rychlých chyb). Jediný spolehlivý fetch celého souboru tohle obchází.
-  try {
+  const fetchPromise = (async () => {
     // Build a clean request with the SAME mode/credentials as the original
     // (important: audio elements load cross-origin files in "no-cors" mode,
     // and we must preserve that or the fetch gets blocked by CORS).
@@ -127,12 +146,21 @@ async function handleAudioRequest(request) {
     }
 
     return networkResponse;
+  })();
+
+  inFlightAudioFetches.set(request.url, fetchPromise);
+
+  try {
+    const networkResponse = await fetchPromise;
+    return networkResponse.clone();
   } catch (err) {
     return new Response('Offline - this track is not cached.', {
       status: 503,
       statusText: 'Offline',
       headers: { 'Content-Type': 'text/plain' }
     });
+  } finally {
+    inFlightAudioFetches.delete(request.url);
   }
 }
 

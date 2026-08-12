@@ -6050,8 +6050,21 @@
         userStartedPlayback = true; // uživatel právě spustil (dříve jen tiše obnovenou) skladbu
         retryCountForCurrentTrack = 0;
         loadGeneration++;
+        // Pokud tiché přednačtení poslední skladby po startu appky mezitím selhalo (typicky
+        // proto, že service worker v tu chvíli ještě nestihl převzít stránku), audio element
+        // zůstal v chybovém stavu - prosté play() by okamžitě selhalo znovu, BEZ skutečného
+        // nového pokusu o stažení, takže by "Retrying" naskočilo prakticky ihned. Proto v
+        // takovém případě zdroj vždy znovu přiřadíme a vynutíme tak čerstvé načtení.
+        if (audio.error || audio.networkState === audio.NETWORK_NO_SOURCE) {
+          const track = playlist[currentTrackIndex];
+          if (track) {
+            showLoading();
+            audio.src = track.src;
+          }
+        }
         audio.volume = parseFloat(volumeSlider.value);
-        audio.play();
+        const playPromise = audio.play();
+        if (playPromise !== undefined) playPromise.catch(() => {});
         isPlaying = true;
         playBtn.innerText = "⏸";
       }
