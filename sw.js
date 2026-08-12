@@ -2,19 +2,10 @@
 // SYNTHLUCIDA Service Worker
 // v33 - bumped app cache: index.html now also loads this SW (PWA/SEO),
 // so it + favicon.png are added to the app shell
-// v35 - REVERTED the v34 Range-passthrough experiment: it caused rapid
-// NotSupportedError failures in practice. Root cause: these MP3s live on
-// GitHub Releases, which redirects (302) to a time-limited signed URL on
-// objects.githubusercontent.com that can differ between requests. Letting
-// the browser make multiple native Range requests for the same track means
-// each one can land on a different redirected URL, which browsers reject
-// stitching together for security reasons. Back to always fetching the
-// whole file in one request and serving it from cache - this avoids the
-// multi-redirect problem entirely.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v430';
-const AUDIO_CACHE_NAME = 'synthlucida-audio-v2'; // separate cache, survives app shell updates
+const APP_CACHE_NAME = 'synthlucida-app-v500';
+const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
 const ASSETS_TO_CACHE = [
@@ -95,15 +86,6 @@ async function handleAudioRequest(request) {
     return cached;
   }
 
-  // DŮLEŽITÉ: záměrně NEpředáváme Range hlavičku dál na síť a vždy stahujeme
-  // celý soubor jedním požadavkem. Tyhle MP3 jsou na GitHub Releases, což je
-  // jen přesměrování (302) na dočasnou podepsanou URL na objects.githubusercontent.com
-  // - a ta se může mezi jednotlivými požadavky lišit (jiný token). Když si
-  // <audio> element řekne o týž track vícekrát po sobě přes Range (běžné při
-  // plynulém přehrávání/seeku), každý dílčí požadavek by mohl skončit na jiné
-  // přesměrované URL - a prohlížeč z bezpečnostních důvodů odmítne poskládat
-  // audio z kousků, které nepocházejí ze stejné cílové adresy (NotSupportedError,
-  // kaskáda rychlých chyb). Jediný spolehlivý fetch celého souboru tohle obchází.
   try {
     // Build a clean request with the SAME mode/credentials as the original
     // (important: audio elements load cross-origin files in "no-cors" mode,
