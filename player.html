@@ -2070,6 +2070,7 @@
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
+  let sameTrackRetryCount = 0; // kolikrát jsme na studeno zkusili znovu načíst TUTÉŽ skladbu, než ji vzdáme a přeskočíme
   let isPlaying = false;
   let shuffleEnabled = false;
   let repeatEnabled = false;
@@ -5068,9 +5069,36 @@
 
   // Nedostupná/vadná skladba (mrtvý odkaz, výpadek sítě...) - dát vědět a automaticky
   // zkusit další v pořadí, místo aby přehrávač tiše "zamrzl" beze zvuku.
+  // DŮLEŽITÉ: appka si při startu u vracejícího se uživatele potichu přednačte
+  // (bez přehrávání) audio.src poslední skladby, aby po stisku ▶ mohla hned
+  // pokračovat - to nastaví currentTrackIndex, ale isPlaying zůstává false.
+  // Bez podmínky "!isPlaying" by chyba během tohoto tichého přednačtení (velmi
+  // pravděpodobná na studeném startu appky) spustila retry a případně i
+  // playNextTrack() -> tedy automatické přehrání skladby, kterou uživatel
+  // vůbec nezvolil, hned po otevření appky.
+  //
+  // Na studeném startu (appka právě otevřená, TLS/DNS na CDN ještě "studené",
+  // Service Worker si zrovna stahuje app shell) první pokus o načtení klidně
+  // selže, i když skladba samotná je v pořádku - proto se ji nejdřív 2x zkusí
+  // znovu načíst, než se appka vzdá a přeskočí na další v pořadí. Bez toho
+  // appka na studeném připojení "prokliká" několik skladeb za sebou, než se
+  // něco konečně chytí.
   audio.addEventListener('error', () => {
     hideLoading();
-    if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
+    if (currentTrackIndex === -1 || !isPlaying) return; // nic se aktivně nepřehrává (jen tiché přednačtení)
+
+    if (sameTrackRetryCount < 2) {
+      sameTrackRetryCount++;
+      setTrackTitle("Connecting…");
+      setTimeout(() => {
+        showLoading();
+        audio.load();
+        const p = audio.play();
+        if (p !== undefined) p.catch(() => { /* další pokus/error handler to případně dořeší */ });
+      }, sameTrackRetryCount * 1000); // 1s, pak 2s - dá CDN šanci se "zahřát"
+      return;
+    }
+
     consecutiveTrackErrors++;
     if (consecutiveTrackErrors > playlist.length) {
       setTrackTitle("Can't play – check your connection");
@@ -5097,6 +5125,7 @@
     cancelCrossfade();
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     currentTrackIndex = index;
+    sameTrackRetryCount = 0; // nová skladba - počítadlo pokusů na ni jede od nuly
     const track = playlist[index];
     showLoading();
     audio.src = track.src;
@@ -5925,6 +5954,7 @@
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
+    sameTrackRetryCount = 0; // nová skladba - počítadlo pokusů na ni jede od nuly
 
     showLoading();
     audio.src = entry.src;
