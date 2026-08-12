@@ -13,7 +13,7 @@
 // multi-redirect problem entirely.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v401';
+const APP_CACHE_NAME = 'synthlucida-app-v402';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v2'; // separate cache, survives app shell updates
 
 // App shell files cached on install
