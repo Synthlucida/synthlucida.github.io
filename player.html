@@ -1973,6 +1973,16 @@
   let currentTrackIndex = -1;
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
   let retryCountForCurrentTrack = 0; // kolikrát jsme už zkusili znovu načíst AKTUÁLNÍ track po chybě (viz audio 'error' handler)
+  // Tiché obnovení poslední pozice po otevření appky (restoreLastTrackInto) nastaví audio.src,
+  // aniž by uživatel cokoliv spustil - pokud tohle přednačtení selže (typicky SW ještě nestihl
+  // převzít stránku), error handler o tom neví a bez téhle pojistky by se choval, jako by šlo
+  // o skutečnou chybu při přehrávání, a sám od sebe by začal "přehrávat" a přeskakovat playlist.
+  let userStartedPlayback = false;
+  // Zvyšuje se při každém úmyslném načtení nové skladby i při pauze/stopu - naplánované
+  // retry/skip časovače v error handleru si při spuštění ověří, že jejich "generace" je
+  // pořád aktuální, jinak se tiše zruší. Bez tohoto se stisknutí pauzy/STOPu neprojevilo -
+  // už naplánovaný retry/skip se stejně po chvíli spustil a přehrávání samo obnovil.
+  let loadGeneration = 0;
   let isPlaying = false;
   let shuffleEnabled = false;
   let repeatEnabled = false;
@@ -4955,11 +4965,15 @@
   audio.addEventListener('error', () => {
     hideLoading();
     if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
+    if (!userStartedPlayback) return; // jen tiché přednačtení poslední pozice po startu appky, uživatel zatím nic nespustil
+
+    const myGeneration = loadGeneration; // "otisk" aktuálního pokusu o načtení - viz komentář u loadGeneration výše
 
     if (retryCountForCurrentTrack < 1) {
       retryCountForCurrentTrack++;
       setTrackTitle("Retrying…");
       setTimeout(() => {
+        if (myGeneration !== loadGeneration) return; // mezitím uživatel dal pauzu/stop/jinou skladbu - tenhle pokus už neplatí
         const track = playlist[currentTrackIndex];
         if (!track) return;
         showLoading();
@@ -4980,7 +4994,10 @@
       return;
     }
     setTrackTitle("Track unavailable, skipping…");
-    setTimeout(() => { playNextTrack(); }, 800);
+    setTimeout(() => {
+      if (myGeneration !== loadGeneration) return; // mezitím uživatel dal pauzu/stop/jinou skladbu - neskákat na další
+      playNextTrack();
+    }, 800);
   });
 
   progressContainer.addEventListener('click', (e) => {
@@ -4999,6 +5016,8 @@
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     currentTrackIndex = index;
     retryCountForCurrentTrack = 0;
+    userStartedPlayback = true;
+    loadGeneration++;
     const track = playlist[index];
     showLoading();
     audio.src = track.src;
@@ -5177,6 +5196,9 @@
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     showLoading();
+    retryCountForCurrentTrack = 0;
+    userStartedPlayback = true;
+    loadGeneration++;
 
     audio.src = target.src;
     audio.addEventListener('loadedmetadata', function seekAfterCrossfade() {
@@ -5827,6 +5849,9 @@
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
+    retryCountForCurrentTrack = 0;
+    userStartedPlayback = true;
+    loadGeneration++;
 
     showLoading();
     audio.src = entry.src;
@@ -6009,6 +6034,7 @@
     try { audio.currentTime = 0; } catch (e) { /* ignore */ }
     isPlaying = false;
     playBtn.innerText = "▶";
+    loadGeneration++; // zruší jakýkoli naplánovaný retry/skip z error handleru
   };
 
   playBtn.addEventListener('click', () => {
@@ -6016,10 +6042,14 @@
       audio.pause();
       isPlaying = false;
       playBtn.innerText = "▶";
+      loadGeneration++; // zruší jakýkoli naplánovaný retry/skip z error handleru
     } else {
       if (currentTrackIndex === -1) {
           playNextTrack();
       } else {
+        userStartedPlayback = true; // uživatel právě spustil (dříve jen tiše obnovenou) skladbu
+        retryCountForCurrentTrack = 0;
+        loadGeneration++;
         audio.volume = parseFloat(volumeSlider.value);
         audio.play();
         isPlaying = true;
