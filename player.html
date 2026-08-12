@@ -1963,6 +1963,7 @@
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
+  let retryCountForCurrentTrack = 0; // kolikrát jsme už zkusili znovu načíst AKTUÁLNÍ track po chybě (viz audio 'error' handler)
   let isPlaying = false;
   let shuffleEnabled = false;
   let repeatEnabled = false;
@@ -4910,13 +4911,33 @@
   audio.addEventListener('pause', hideLoading);
 
   // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou
-  audio.addEventListener('playing', () => { consecutiveTrackErrors = 0; });
+  audio.addEventListener('playing', () => { consecutiveTrackErrors = 0; retryCountForCurrentTrack = 0; });
 
   // Nedostupná/vadná skladba (mrtvý odkaz, výpadek sítě...) - dát vědět a automaticky
   // zkusit další v pořadí, místo aby přehrávač tiše "zamrzl" beze zvuku.
+  // Nejdřív ale zkusíme TENTÝŽ track ještě jednou znovu načíst - hodně chyb je
+  // jen přechodný výpadek sítě/CDN, a zbytečné přeskakování celého playlistu za
+  // sebou (a tím pádem rychlá kaskáda dalších požadavků) situaci spíš zhoršuje.
   audio.addEventListener('error', () => {
     hideLoading();
     if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
+
+    if (retryCountForCurrentTrack < 1) {
+      retryCountForCurrentTrack++;
+      setTrackTitle("Retrying…");
+      setTimeout(() => {
+        const track = playlist[currentTrackIndex];
+        if (!track) return;
+        showLoading();
+        audio.src = track.src;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
+      }, 1200);
+      return;
+    }
+
     consecutiveTrackErrors++;
     if (consecutiveTrackErrors > playlist.length) {
       setTrackTitle("Can't play – check your connection");
@@ -4943,6 +4964,7 @@
     cancelCrossfade();
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     currentTrackIndex = index;
+    retryCountForCurrentTrack = 0;
     const track = playlist[index];
     showLoading();
     audio.src = track.src;

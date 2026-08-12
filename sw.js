@@ -2,15 +2,18 @@
 // SYNTHLUCIDA Service Worker
 // v33 - bumped app cache: index.html now also loads this SW (PWA/SEO),
 // so it + favicon.png are added to the app shell
-// v34 - fix: audio fetch handler now forwards the Range header straight
-// to the network for un-cached tracks (normal playback), instead of
-// always doing a full un-ranged fetch. Only requests WITHOUT a Range
-// header (i.e. the explicit DOWNLOAD OFFLINE button) go through the
-// cache-and-store path. This fixes unreliable/slow first playback on a
-// fresh browser (empty cache), especially for new visitors.
+// v35 - REVERTED the v34 Range-passthrough experiment: it caused rapid
+// NotSupportedError failures in practice. Root cause: these MP3s live on
+// GitHub Releases, which redirects (302) to a time-limited signed URL on
+// objects.githubusercontent.com that can differ between requests. Letting
+// the browser make multiple native Range requests for the same track means
+// each one can land on a different redirected URL, which browsers reject
+// stitching together for security reasons. Back to always fetching the
+// whole file in one request and serving it from cache - this avoids the
+// multi-redirect problem entirely.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v401';
+const APP_CACHE_NAME = 'synthlucida-app-v400';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
@@ -85,29 +88,22 @@ self.addEventListener('fetch', (event) => {
 async function handleAudioRequest(request) {
   const cache = await caches.open(AUDIO_CACHE_NAME);
 
-  // Track je už stažený celý (offline) - vrátíme ho z cache. I když
-  // <audio> element pošle Range hlavičku (přeskakování v čase), vrátíme
-  // celý soubor; prohlížeč si z něj přehraje/posune, co potřebuje.
+  // Always match by plain URL, ignoring any Range header on the incoming request,
+  // so we always find (and return) the full cached file if we have it.
   const cached = await cache.match(request.url);
   if (cached) {
     return cached;
   }
 
-  // Track NENÍ v cache (typicky čerstvý/inkognito prohlížeč). Pokud jde
-  // o BĚŽNÉ PŘEHRÁVÁNÍ, prohlížeč si o daný kus souboru řekne přes Range
-  // hlavičku, aby mohl začít hrát rychle a plynule streamovat/přeskakovat.
-  // Tu hlavičku NESMÍME zahodit - pošleme request na síť 1:1 tak, jak
-  // přišel, a necháme GitHub/CDN a prohlížeč, ať si partial content
-  // (206) vyřeší mezi sebou přirozeně, stejně jako bez service workera.
-  // Tohle dřív chybělo a způsobovalo nespolehlivé/pomalé první přehrání.
-  const rangeHeader = request.headers.get('range');
-  if (rangeHeader) {
-    return fetch(request);
-  }
-
-  // Request BEZ Range hlavičky = typicky explicitní stažení přes
-  // DOWNLOAD OFFLINE (downloadCurrentPlaylist() volá fetch(track.src)
-  // bez Range) - tady chceme celý soubor stáhnout a rovnou uložit do cache.
+  // DŮLEŽITÉ: záměrně NEpředáváme Range hlavičku dál na síť a vždy stahujeme
+  // celý soubor jedním požadavkem. Tyhle MP3 jsou na GitHub Releases, což je
+  // jen přesměrování (302) na dočasnou podepsanou URL na objects.githubusercontent.com
+  // - a ta se může mezi jednotlivými požadavky lišit (jiný token). Když si
+  // <audio> element řekne o týž track vícekrát po sobě přes Range (běžné při
+  // plynulém přehrávání/seeku), každý dílčí požadavek by mohl skončit na jiné
+  // přesměrované URL - a prohlížeč z bezpečnostních důvodů odmítne poskládat
+  // audio z kousků, které nepocházejí ze stejné cílové adresy (NotSupportedError,
+  // kaskáda rychlých chyb). Jediný spolehlivý fetch celého souboru tohle obchází.
   try {
     // Build a clean request with the SAME mode/credentials as the original
     // (important: audio elements load cross-origin files in "no-cors" mode,
