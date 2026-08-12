@@ -4,7 +4,7 @@
 // so it + favicon.png are added to the app shell
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v513';
+const APP_CACHE_NAME = 'synthlucida-app-v600';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install
@@ -79,9 +79,14 @@ self.addEventListener('fetch', (event) => {
 async function handleAudioRequest(request) {
   const cache = await caches.open(AUDIO_CACHE_NAME);
 
-  // Always match by plain URL, ignoring any Range header on the incoming request,
-  // so we always find (and return) the full cached file if we have it.
-  const cached = await cache.match(request.url);
+  // Match against the ORIGINAL request (not just the URL string). If the
+  // request carries a Range header (which <audio> sends constantly while
+  // streaming/seeking) and we only have the full file cached, the Cache API
+  // automatically slices out and returns a proper 206 Partial Content
+  // response instead of dumping the whole file back every time. Returning
+  // the full file for every Range request is what was causing playback to
+  // stall/skip - the element expects byte-aligned partial responses.
+  let cached = await cache.match(request);
   if (cached) {
     return cached;
   }
@@ -90,6 +95,9 @@ async function handleAudioRequest(request) {
     // Build a clean request with the SAME mode/credentials as the original
     // (important: audio elements load cross-origin files in "no-cors" mode,
     // and we must preserve that or the fetch gets blocked by CORS).
+    // Deliberately DROP any Range header here so we always fetch and cache
+    // one complete copy of the track, rather than caching a partial chunk
+    // under the same key.
     const cleanRequest = new Request(request.url, {
       method: 'GET',
       mode: request.mode,
@@ -103,9 +111,17 @@ async function handleAudioRequest(request) {
     // server) - that's normal for cross-origin media and still works fine
     // for playback, we just can't read its bytes in JS.
     if (networkResponse) {
-      cache.put(request.url, networkResponse.clone()).catch((err) => {
+      await cache.put(request.url, networkResponse.clone()).catch((err) => {
         console.log('[SW] Could not cache audio:', err);
       });
+    }
+
+    // Now that the full file is in the cache, re-match against the
+    // ORIGINAL request so a Range request gets served as a proper 206
+    // partial response instead of the raw (non-ranged) network response.
+    cached = await cache.match(request);
+    if (cached) {
+      return cached;
     }
 
     return networkResponse;
