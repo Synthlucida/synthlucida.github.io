@@ -1304,7 +1304,7 @@
      (byli tu dřív), se overlay okamžitě odstraní bez blikání.
      ========================================== -->
 <div id="first-load-overlay">
-  <div class="floading-spinner"></div>
+  <div class="floading-spinner" id="floading-spinner"><span class="floading-pct" id="floading-pct">0%</span></div>
   <div class="floading-text">Loading SYNTHLUCIDA…</div>
 </div>
 <style>
@@ -1319,16 +1319,24 @@
   }
   #first-load-overlay.floading-fading { opacity: 0; }
   .floading-spinner {
-    width: 46px; height: 46px;
-    border: 3px solid rgba(255,255,255,0.15);
-    border-top-color: #00f0ff;
-    border-radius: 50%;
-    animation: floadingSpin 0.9s linear infinite;
+    width: 64px; height: 64px; border-radius: 50%;
+    position: relative;
+    background: conic-gradient(#00f0ff calc(var(--fpct, 0) * 3.6deg), rgba(255,255,255,0.15) 0deg);
+    transition: background 0.12s linear;
+  }
+  .floading-spinner::before {
+    content: ''; position: absolute; inset: 5px; border-radius: 50%;
+    background: #12002a;
+  }
+  .floading-pct {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; color: #fff;
   }
   .floading-text {
     font-size: 14px; letter-spacing: 1px; opacity: 0.85;
   }
-  @keyframes floadingSpin { to { transform: rotate(360deg); } }
 </style>
 <script>
   (function () {
@@ -1342,18 +1350,44 @@
       return;
     }
 
+    var spinnerRing = document.getElementById('floading-spinner');
+    var pctEl = document.getElementById('floading-pct');
+
+    // Pevná doba čekání - 12 sekund (5s bylo na reálně pomalejší připojení
+    // moc krátce - appka pak "vypadala hotová", ale první track na ní
+    // stejně zaškobrtl). Procenta v kolečku jsou odvozená z uplynulého
+    // času vůči tomuto limitu - jde o vizuální ukazatel "něco se děje",
+    // ne o přesný stav stažení (to appka spolehlivě zjistit nemůže).
+    var waitMs = 12000;
+    var startTime = Date.now();
+
     var hidden = false;
+    function setPct(pct) {
+      spinnerRing.style.setProperty('--fpct', pct);
+      pctEl.textContent = pct + '%';
+    }
+
+    function tickPct() {
+      if (hidden) return;
+      var elapsed = Date.now() - startTime;
+      // Do 99 %, ať to nikdy neukáže "100 %" a přitom appka pořád čeká
+      var pct = Math.min(99, Math.round((elapsed / waitMs) * 100));
+      setPct(pct);
+      requestAnimationFrame(tickPct);
+    }
+    requestAnimationFrame(tickPct);
+
     function hideOverlay() {
       if (hidden) return;
       hidden = true;
+      setPct(100);
       overlay.classList.add('floading-fading');
       setTimeout(function () {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       }, 400);
     }
 
-    // Pevná doba čekání - 5 sekund
-    var fallbackTimer = setTimeout(hideOverlay, 5000);
+    var fallbackTimer = setTimeout(hideOverlay, waitMs);
 
     // Jakmile Service Worker poprvé převezme kontrolu nad stránkou (app
     // shell je nacachovaný), appka je připravená - overlay pryč hned,
@@ -5064,8 +5098,26 @@
   audio.addEventListener('progress', updateSpinnerPct);
   audio.addEventListener('loadedmetadata', updateSpinnerPct);
 
-  // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou
-  audio.addEventListener('playing', () => { consecutiveTrackErrors = 0; });
+  // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou a hlavně
+  // vrátit titulek zpátky na skutečný název skladby. Bez tohohle by po
+  // úspěšném retry (nebo po přeskoku na jinou skladbu, která hned napoprvé
+  // taky zaškobrtla) zůstal natrvalo zobrazený text "Connecting…" /
+  // "Track unavailable, skipping…", i když už dávno hraje.
+  function restoreCurrentTrackTitle() {
+    try {
+      if (customQueueActive) {
+        const entry = customQueue[customQueueIndex];
+        if (entry) setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, entry.index)));
+      } else if (currentTrackIndex >= 0 && playlist[currentTrackIndex]) {
+        const track = playlist[currentTrackIndex];
+        setTrackTitle(track.title, isTrackNew(track));
+      }
+    } catch (e) { /* ignore */ }
+  }
+  audio.addEventListener('playing', () => {
+    consecutiveTrackErrors = 0;
+    restoreCurrentTrackTitle();
+  });
 
   // Nedostupná/vadná skladba (mrtvý odkaz, výpadek sítě...) - dát vědět a automaticky
   // zkusit další v pořadí, místo aby přehrávač tiše "zamrzl" beze zvuku.
