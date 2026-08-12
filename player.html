@@ -3872,38 +3872,33 @@
     progWrap.classList.add('active');
     progBar.style.width = '0%';
 
+    const cache = await caches.open(AUDIO_CACHE_NAME);
+
     for (let i = 0; i < playlist.length; i++) {
       const track = playlist[i];
       btn.innerText = `DOWNLOADING ${i + 1}/${playlist.length}`;
+      const badge = document.getElementById(`offline-badge-${i}`);
 
       try {
         const already = await isTrackCached(track.src);
         if (!already) {
-          // This fetch goes through the Service Worker, which caches the file itself.
-          // IMPORTANT: fetch() resolves as soon as the response HEADERS arrive - not
-          // once the whole file has downloaded. The body can still be streaming in
-          // the background at that point. Without forcing it to be fully read here,
-          // this loop would race ahead through the whole playlist and show "✓ DONE"
-          // long before the bytes (and the service worker's cache write) actually
-          // finish - so a user who closes the tab right after seeing "done" could
-          // end up with tracks that were never really saved for offline use.
+          // Dřív se tu jen ČEKALO, jestli service worker mezitím stihl svůj vlastní
+          // (fire-and-forget, tedy neawaitovaný) zápis do cache - s pevným 2s limitem.
+          // U pomalejšího připojení/většího souboru ten zápis běžně trvá déle, takže
+          // se track ukázal jako "RETRY", i když se ve skutečnosti pořád ještě ukládal
+          // (a jako OFFLINE se pak zobrazil až náhodou později, při jiné kontrole).
+          // Teď zapisujeme do cache přímo odsud a na dokončení SKUTEČNĚ počkáme (await)
+          // - žádné hádání, 100% jistota, že track je opravdu uložený, než pokračujeme.
           const resp = await fetch(track.src);
-          await resp.blob(); // force full body download to complete before continuing
+          await cache.put(track.src, resp.clone());
 
-          // Give the service worker's own (fire-and-forget) cache write a moment
-          // to land, then confirm it actually did before marking this track done.
-          let confirmed = await isTrackCached(track.src);
-          for (let attempt = 0; !confirmed && attempt < 10; attempt++) {
-            await new Promise((r) => setTimeout(r, 200));
-            confirmed = await isTrackCached(track.src);
-          }
-
-          const badge = document.getElementById(`offline-badge-${i}`);
+          const confirmed = await isTrackCached(track.src);
           if (badge) badge.innerText = confirmed ? '✓ OFFLINE' : '⚠ RETRY';
           updateOfflineStatus();
         }
       } catch (e) {
         console.log('Failed to download:', track.title, e);
+        if (badge) badge.innerText = '⚠ RETRY';
       } finally {
         progBar.style.width = `${Math.round(((i + 1) / playlist.length) * 100)}%`;
       }
