@@ -3852,10 +3852,27 @@
       try {
         const already = await isTrackCached(track.src);
         if (!already) {
-          // This fetch goes through the Service Worker, which caches the file itself
-          await fetch(track.src);
+          // This fetch goes through the Service Worker, which caches the file itself.
+          // IMPORTANT: fetch() resolves as soon as the response HEADERS arrive - not
+          // once the whole file has downloaded. The body can still be streaming in
+          // the background at that point. Without forcing it to be fully read here,
+          // this loop would race ahead through the whole playlist and show "✓ DONE"
+          // long before the bytes (and the service worker's cache write) actually
+          // finish - so a user who closes the tab right after seeing "done" could
+          // end up with tracks that were never really saved for offline use.
+          const resp = await fetch(track.src);
+          await resp.blob(); // force full body download to complete before continuing
+
+          // Give the service worker's own (fire-and-forget) cache write a moment
+          // to land, then confirm it actually did before marking this track done.
+          let confirmed = await isTrackCached(track.src);
+          for (let attempt = 0; !confirmed && attempt < 10; attempt++) {
+            await new Promise((r) => setTimeout(r, 200));
+            confirmed = await isTrackCached(track.src);
+          }
+
           const badge = document.getElementById(`offline-badge-${i}`);
-          if (badge) badge.innerText = '✓ OFFLINE';
+          if (badge) badge.innerText = confirmed ? '✓ OFFLINE' : '⚠ RETRY';
           updateOfflineStatus();
         }
       } catch (e) {
