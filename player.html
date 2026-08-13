@@ -3865,16 +3865,28 @@
       try {
         const already = await isTrackCached(track.src);
         if (!already) {
-          // This fetch goes through the Service Worker, which caches the file itself.
-          // fetch() alone resolves as soon as the response HEADERS arrive, not the full body —
-          // so we must explicitly read the body (arrayBuffer) to actually wait for the whole
-          // file to download before moving on to the next track.
-          const res = await fetch(track.src);
-          await res.arrayBuffer();
+          // Tyto MP3 soubory jsou hostované na GitHubu (releases), který u nich
+          // NEPOSÍLÁ hlavičku Access-Control-Allow-Origin. Obyčejný fetch() v
+          // režimu 'cors' (výchozí) proto pro každou zatím nestaženou skladbu
+          // rovnou SELHAL (CORS chyba) - tiše skončil dole v catch bloku, ale
+          // progress bar přesto naskočil na další skladbu, jako by bylo
+          // hotovo. Mode 'no-cors' je přesně to, co bez problémů používá i
+          // přehrávání přes <audio> tag, takže funguje spolehlivě i tady.
+          // Service Worker (sw.js) navíc teď čeká, než je soubor opravdu
+          // celý uložený v Cache Storage, než tuto odpověď vrátí.
+          await fetch(track.src, { mode: 'no-cors' });
+        }
+        // Ověříme si přímo v cache, jestli je skladba doopravdy stažená,
+        // místo abychom to jen předpokládali - badge/status tak vždy
+        // odpovídá realitě.
+        const nowCached = await isTrackCached(track.src);
+        if (nowCached) {
           const badge = document.getElementById(`offline-badge-${i}`);
           if (badge) badge.innerText = '✓ OFFLINE';
-          updateOfflineStatus();
+        } else {
+          console.log('Track still not cached after download attempt:', track.title);
         }
+        updateOfflineStatus();
       } catch (e) {
         console.log('Failed to download:', track.title, e);
       } finally {
