@@ -10,7 +10,7 @@
 // "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v702';
+const APP_CACHE_NAME = 'synthlucida-app-v705';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -86,7 +86,11 @@ self.addEventListener('fetch', (event) => {
 async function handleAppShellRequest(request) {
   const cache = await caches.open(APP_CACHE_NAME);
   try {
-    const networkResponse = await fetch(request);
+    // cache: 'no-cache' vynutí, aby si prohlížeč vždy ověřil u serveru, jestli
+    // má nejnovější verzi (podmíněný požadavek), místo aby v rámci
+    // Cache-Control max-age vrátil starý soubor rovnou ze svého HTTP cache
+    // bez kontaktování serveru.
+    const networkResponse = await fetch(request, { cache: 'no-cache' });
     if (networkResponse && networkResponse.ok) {
       cache.put(request, networkResponse.clone()).catch((err) => {
         console.log('[SW] Could not cache app shell file:', err);
