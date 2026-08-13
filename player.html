@@ -833,6 +833,14 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Procenta vedle mini-spinneru - naskočí jen když načítání trvá déle,
+     aby uživatel viděl, že se něco skutečně děje a appka není zaseklá. */
+  .mini-spinner-pct {
+    font-size: 10px; color: var(--accent-color); opacity: 0; letter-spacing: 0.5px;
+    transition: opacity 0.3s ease; flex-shrink: 0; min-width: 34px; text-align: left;
+  }
+  .mini-spinner-pct.active { opacity: 0.8; }
+
   .progress-container { width: 85%; max-width: 400px; margin: 0 auto 8px auto; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; }
   .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color); transition: width 0.1s linear; }
 
@@ -844,6 +852,12 @@
   }
   .download-progress-wrap.active { opacity: 1; max-height: 3px; }
   .download-progress-bar { height: 100%; width: 0%; background: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); transition: width 0.25s ease; }
+
+  .download-progress-label {
+    font-size: 10px; color: var(--accent-color); opacity: 0; letter-spacing: 0.5px;
+    margin: 0 auto 4px auto; max-height: 0; overflow: hidden; transition: opacity 0.3s ease;
+  }
+  .download-progress-label.active { opacity: 0.85; max-height: 20px; }
 
   /* Blikání DOWNLOAD OFFLINE tlačítka, dokud nejsou stažené všechny skladby AKTUÁLNÍHO playlistu */
   @keyframes downloadNeedsAttention {
@@ -929,6 +943,7 @@
   body.focus-mode .crossfade-container,
   body.focus-mode .effects-container,
   body.focus-mode .download-progress-wrap,
+  body.focus-mode .download-progress-label,
   body.focus-mode .slogan-container:not(.community-msg) {
     display: none !important;
   }
@@ -1339,6 +1354,7 @@
   <span class="offline-status" id="offline-status"></span>
 </div>
 
+<div class="download-progress-label" id="download-progress-label">Please wait for the download to finish…</div>
 <div class="download-progress-wrap" id="download-progress-wrap">
   <div class="download-progress-bar" id="download-progress-bar"></div>
 </div>
@@ -1380,6 +1396,7 @@
   <div class="track-time-row">
     <div class="track-time" id="track-time">00:00 / 00:00</div>
     <div class="mini-spinner" id="mini-spinner" aria-hidden="true"></div>
+    <div class="mini-spinner-pct" id="mini-spinner-pct" aria-hidden="true"></div>
   </div>
   
   <div class="progress-container" id="progress-container">
@@ -2071,6 +2088,7 @@
   const progressBar = document.getElementById('progress-bar');
   const eqEl = document.getElementById('eq-visualizer');
   const spinnerEl = document.getElementById('mini-spinner');
+  const spinnerPctEl = document.getElementById('mini-spinner-pct');
   const myPlaylistEqEl = document.getElementById('myplaylist-eq');
   const myFilesEqEl = document.getElementById('myfiles-eq');
 
@@ -3614,7 +3632,7 @@
     if (navigator.onLine === false) { setNetStatus('bad'); return; }
     netStatusProbeInFlight = true;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const startedAt = performance.now();
     fetch('icon.png?probe=' + Date.now(), { cache: 'no-store', signal: controller.signal })
       .then((res) => {
@@ -3622,9 +3640,9 @@
         netStatusProbeInFlight = false;
         if (!res.ok) { setNetStatus('bad'); return; }
         const elapsedMs = performance.now() - startedAt;
-        // Pomalá odezva na malý soubor (>4s) je reálně špatné připojení,
+        // Pomalá odezva na malý soubor (>8.5s) je reálně špatné připojení,
         // i kdyby Network Information API tvrdilo něco jiného.
-        setNetStatus((elapsedMs > 4000 || netStatusIsStalled) ? 'bad' : 'ok');
+        setNetStatus((elapsedMs > 8500 || netStatusIsStalled) ? 'bad' : 'ok');
       })
       .catch(() => {
         clearTimeout(timeoutId);
@@ -3641,7 +3659,7 @@
     netStatusStallTimer = setTimeout(() => {
       netStatusIsStalled = true;
       setNetStatus('bad');
-    }, 4000);
+    }, 8500);
   });
   audio.addEventListener('playing', () => {
     if (netStatusStallTimer) { clearTimeout(netStatusStallTimer); netStatusStallTimer = null; }
@@ -3976,6 +3994,7 @@
     const btn = document.getElementById('btn-download');
     const progWrap = document.getElementById('download-progress-wrap');
     const progBar = document.getElementById('download-progress-bar');
+    const progLabel = document.getElementById('download-progress-label');
     if (!('caches' in window)) {
       alert('This browser does not support offline downloads.');
       return;
@@ -3984,6 +4003,7 @@
     btn.disabled = true;
     progWrap.classList.add('active');
     progBar.style.width = '0%';
+    progLabel.classList.add('active');
 
     for (let i = 0; i < playlist.length; i++) {
       const track = playlist[i];
@@ -4030,6 +4050,7 @@
       btn.disabled = false;
       progWrap.classList.remove('active');
       progBar.style.width = '0%';
+      progLabel.classList.remove('active');
     }, 2000);
   };
 
@@ -5057,9 +5078,39 @@
     if (statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
   });
 
-  // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál
-  function showLoading() { spinnerEl.classList.add('active'); }
-  function hideLoading() { spinnerEl.classList.remove('active'); }
+  // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál.
+  // Pokud načítání trvá déle než obvykle, vedle spinneru navíc naskočí procenta
+  // (celá i desetinná, např. "42.7%"), aby bylo uživateli jasně vidět, že appka
+  // pořád něco dělá a nezasekla se - i když jde o stream bez spolehlivého
+  // reálného "download progress", takže procenta plynule rostou směrem ke 99 %.
+  let loadingPctInterval = null;
+  let loadingStartTime = 0;
+  const LOADING_PCT_DELAY_MS = 1200; // procenta se ukážou jen když to trvá déle
+
+  function startLoadingPct() {
+    if (loadingPctInterval) return;
+    loadingStartTime = performance.now();
+    spinnerPctEl.textContent = '';
+    spinnerPctEl.classList.remove('active');
+    loadingPctInterval = setInterval(() => {
+      const elapsed = performance.now() - loadingStartTime;
+      if (elapsed < LOADING_PCT_DELAY_MS) return;
+      // Asymptotická křivka - rychlý start, pak zpomalování směrem k 99 %,
+      // takže nikdy "nedoběhne" na 100 % dřív, než reálně dohraje.
+      const pct = Math.min(99.9, 100 * (1 - Math.exp(-(elapsed - LOADING_PCT_DELAY_MS) / 4000)));
+      spinnerPctEl.textContent = pct.toFixed(1) + '%';
+      spinnerPctEl.classList.add('active');
+    }, 100);
+  }
+
+  function stopLoadingPct() {
+    if (loadingPctInterval) { clearInterval(loadingPctInterval); loadingPctInterval = null; }
+    spinnerPctEl.classList.remove('active');
+    spinnerPctEl.textContent = '';
+  }
+
+  function showLoading() { spinnerEl.classList.add('active'); startLoadingPct(); }
+  function hideLoading() { spinnerEl.classList.remove('active'); stopLoadingPct(); }
 
   audio.addEventListener('waiting', showLoading);
   audio.addEventListener('seeking', showLoading);
