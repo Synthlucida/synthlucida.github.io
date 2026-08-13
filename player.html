@@ -895,6 +895,10 @@
   .btn-focus-mode:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
   .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
 
+  /* Malý odznak s aktuální rychlostí připojení, vedle 🔆 tlačítka "display stále zapnutý" */
+  .net-speed-badge { font-size: 9px; letter-spacing: 0.03em; color: #fff; opacity: 0.5; white-space: nowrap; user-select: none; pointer-events: none; }
+  .net-speed-badge:empty { display: none; }
+
   /* Odhlašovací tlačítko admin režimu - skryté, dokud nejsi přihlášený přes 666 v chatu.
      Musí být v CSS AŽ ZA .btn-focus-mode, jinak by ho stejná specificita přebila. */
   .btn-focus-mode.admin-logout-btn { display: none; color: #ff8080; border-color: rgba(255,80,80,0.4); }
@@ -1395,6 +1399,7 @@
       <button class="btn-focus-mode community-history-btn" id="community-history-btn" onclick="toggleCommunityHistory()" data-i18n-aria="community_history_btn" aria-label="Message history">🕓</button>
       <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
       <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
+      <span class="net-speed-badge" id="net-speed-badge" title="Current network speed" aria-label="Network speed"></span>
       <button class="btn-focus-mode admin-logout-btn" id="admin-logout-btn" onclick="adminLogout()" title="Admin odhlásit" aria-label="Admin logout">🔓</button>
     </div>
     <div class="focus-mode-right">
@@ -3532,6 +3537,34 @@
       wlBtn.title = 'Not supported in this browser';
     }
   }
+
+  // ==========================================
+  // Odznak s aktuální rychlostí připojení vedle 🔆 tlačítka.
+  // Používá Network Information API (navigator.connection) - podporováno
+  // hlavně v Chrome/Android, ne v Safari/iOS. Pokud není k dispozici,
+  // odznak zůstane prázdný (a tedy skrytý přes CSS :empty).
+  // ==========================================
+  function updateNetSpeedBadge() {
+    const el = document.getElementById('net-speed-badge');
+    if (!el) return;
+    const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+    if (!conn) { el.textContent = ''; return; }
+    if (typeof conn.downlink === 'number' && conn.downlink > 0) {
+      el.textContent = `${conn.downlink} Mb/s`;
+    } else if (conn.effectiveType) {
+      el.textContent = conn.effectiveType;
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  (function initNetSpeedBadge() {
+    const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+    updateNetSpeedBadge();
+    if (conn && conn.addEventListener) {
+      conn.addEventListener('change', updateNetSpeedBadge);
+    }
+  })();
 
   window.startBreathing = function() {
     if (breathingActive) return;
