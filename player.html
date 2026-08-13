@@ -825,32 +825,11 @@
   .track-time-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 5px; }
 
   .mini-spinner {
-    width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
-    position: relative;
-    opacity: 0; transition: opacity 0.2s ease;
-    /* Výchozí = neurčitý stav (nevíme kolik % je stažené): rotující okraj */
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
     border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent-color);
-    animation: spin 0.8s linear infinite;
+    opacity: 0; transition: opacity 0.2s ease; animation: spin 0.8s linear infinite;
   }
   .mini-spinner.active { opacity: 1; }
-
-  /* Jakmile známe % stažení bufferu, přepne se na prstenec vyplněný
-     přes CSS proměnnou --pct (nastavuje JS), s číslem uprostřed */
-  .mini-spinner.has-pct {
-    border: none;
-    animation: none;
-    background: conic-gradient(var(--accent-color) calc(var(--pct, 0) * 3.6deg), rgba(255,255,255,0.15) 0deg);
-  }
-  .mini-spinner.has-pct::before {
-    content: ''; position: absolute; inset: 2px; border-radius: 50%;
-    background: var(--bg-color-1);
-  }
-  .mini-spinner-pct {
-    position: relative; z-index: 1;
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 6px; font-weight: 700; color: #fff; letter-spacing: 0;
-  }
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -961,19 +940,6 @@
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
   #btn-download { min-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  /* Upozorňující blikání DOWNLOAD OFFLINE tlačítka, dokud nejsou v aktuálním
-     playlistu stažené offline úplně všechny skladby (včetně nově přidaných). */
-  @keyframes downloadNeededBlink {
-    0%, 100% { box-shadow: 0 0 6px var(--accent-color); border-color: var(--accent-color); opacity: 1; }
-    50% { box-shadow: 0 0 2px transparent; border-color: rgba(255,255,255,0.2); opacity: 0.55; }
-  }
-  #btn-download.needs-download {
-    animation: downloadNeededBlink 1.3s ease-in-out infinite;
-  }
-  #btn-download.needs-download:disabled {
-    animation: none; opacity: 0.6; box-shadow: none; border-color: rgba(255,255,255,0.2);
-  }
   #btn-install { min-width: 110px; white-space: nowrap; }
   /* Pevná min. šířka SAVE tlačítka - text se mění na "SAVED!" a bez toho poskakovala sousední tlačítka */
   button[onclick="saveSettings()"] { min-width: 58px; }
@@ -1294,113 +1260,6 @@
 </head>
 <body class="theme-amber" id="body">
 
-<!-- ==========================================
-     FIRST-LOAD OVERLAY
-     Blokuje kliknutí (play atd.), dokud appka není "zahřátá" - řeší to,
-     že nový uživatel klikne na skladbu hned po otevření a přehrávání
-     kvůli pomalému / studenému připojení (a souběžnému stahování app
-     shellu do SW cache) vypadá, že appka nefunguje. Zobrazí se jen
-     novým / neinstalovaným uživatelům; u těch, kde SW už řídí stránku
-     (byli tu dřív), se overlay okamžitě odstraní bez blikání.
-     ========================================== -->
-<div id="first-load-overlay">
-  <div class="floading-spinner" id="floading-spinner"><span class="floading-pct" id="floading-pct">0%</span></div>
-  <div class="floading-text">Loading SYNTHLUCIDA…</div>
-</div>
-<style>
-  #first-load-overlay {
-    position: fixed; inset: 0; z-index: 999999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 18px;
-    background: radial-gradient(circle at top, #1a0033, #000010, #000000);
-    color: #fff;
-    font-family: 'Orbitron', sans-serif;
-    transition: opacity 0.4s ease;
-  }
-  #first-load-overlay.floading-fading { opacity: 0; }
-  .floading-spinner {
-    width: 64px; height: 64px; border-radius: 50%;
-    position: relative;
-    background: conic-gradient(#00f0ff calc(var(--fpct, 0) * 3.6deg), rgba(255,255,255,0.15) 0deg);
-    transition: background 0.12s linear;
-  }
-  .floading-spinner::before {
-    content: ''; position: absolute; inset: 5px; border-radius: 50%;
-    background: #12002a;
-  }
-  .floading-pct {
-    position: relative; z-index: 1;
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 700; color: #fff;
-  }
-  .floading-text {
-    font-size: 14px; letter-spacing: 1px; opacity: 0.85;
-  }
-</style>
-<script>
-  (function () {
-    var overlay = document.getElementById('first-load-overlay');
-    if (!overlay) return;
-
-    // Vracející se uživatel, u kterého už SW řídí stránku (appka je
-    // "zahřátá") - overlay hned pryč, žádné čekání, žádné blikání.
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      overlay.remove();
-      return;
-    }
-
-    var spinnerRing = document.getElementById('floading-spinner');
-    var pctEl = document.getElementById('floading-pct');
-
-    // Pevná doba čekání - 12 sekund (5s bylo na reálně pomalejší připojení
-    // moc krátce - appka pak "vypadala hotová", ale první track na ní
-    // stejně zaškobrtl). Procenta v kolečku jsou odvozená z uplynulého
-    // času vůči tomuto limitu - jde o vizuální ukazatel "něco se děje",
-    // ne o přesný stav stažení (to appka spolehlivě zjistit nemůže).
-    var waitMs = 12000;
-    var startTime = Date.now();
-
-    var hidden = false;
-    function setPct(pct) {
-      spinnerRing.style.setProperty('--fpct', pct);
-      pctEl.textContent = pct + '%';
-    }
-
-    function tickPct() {
-      if (hidden) return;
-      var elapsed = Date.now() - startTime;
-      // Do 99 %, ať to nikdy neukáže "100 %" a přitom appka pořád čeká
-      var pct = Math.min(99, Math.round((elapsed / waitMs) * 100));
-      setPct(pct);
-      requestAnimationFrame(tickPct);
-    }
-    requestAnimationFrame(tickPct);
-
-    function hideOverlay() {
-      if (hidden) return;
-      hidden = true;
-      setPct(100);
-      overlay.classList.add('floading-fading');
-      setTimeout(function () {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, 400);
-    }
-
-    var fallbackTimer = setTimeout(hideOverlay, waitMs);
-
-    // Jakmile Service Worker poprvé převezme kontrolu nad stránkou (app
-    // shell je nacachovaný), appka je připravená - overlay pryč hned,
-    // není třeba čekat na celý fallback timeout.
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        clearTimeout(fallbackTimer);
-        setTimeout(hideOverlay, 400);
-      });
-    }
-  })();
-</script>
-
 <div class="sr-only" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;">
   <h1>SYNTHLUCIDA Player – Free Ambient Music</h1>
   <p>Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at <a href="https://www.synthlucida.com">www.SYNTHLUCIDA.com</a>.</p>
@@ -1501,7 +1360,7 @@
   </div>
   <div class="track-time-row">
     <div class="track-time" id="track-time">00:00 / 00:00</div>
-    <div class="mini-spinner" id="mini-spinner" aria-hidden="true"><span class="mini-spinner-pct" id="mini-spinner-pct"></span></div>
+    <div class="mini-spinner" id="mini-spinner" aria-hidden="true"></div>
   </div>
   
   <div class="progress-container" id="progress-container">
@@ -2104,7 +1963,6 @@
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
-  let sameTrackRetryCount = 0; // kolikrát jsme na studeno zkusili znovu načíst TUTÉŽ skladbu, než ji vzdáme a přeskočíme
   let isPlaying = false;
   let shuffleEnabled = false;
   let repeatEnabled = false;
@@ -2192,7 +2050,6 @@
   const progressBar = document.getElementById('progress-bar');
   const eqEl = document.getElementById('eq-visualizer');
   const spinnerEl = document.getElementById('mini-spinner');
-  const spinnerPctEl = document.getElementById('mini-spinner-pct');
   const myPlaylistEqEl = document.getElementById('myplaylist-eq');
   const myFilesEqEl = document.getElementById('myfiles-eq');
 
@@ -3917,18 +3774,12 @@
 
   async function updateOfflineStatus() {
     const statusEl = document.getElementById('offline-status');
-    const btn = document.getElementById('btn-download');
     if (!statusEl || !('caches' in window)) return;
     let cachedCount = 0;
     for (const track of playlist) {
       if (await isTrackCached(track.src)) cachedCount++;
     }
     statusEl.innerText = `${cachedCount}/${playlist.length} OFFLINE`;
-    // Rozbliká DOWNLOAD OFFLINE tlačítko, dokud v tomto konkrétním playlistu
-    // chybí byť jediná skladba (typicky nově přidaná NEW skladba) - jakmile
-    // je vše stažené, blikání samo zhasne. Je to vždy vázané na aktuálně
-    // zobrazený playlist, takže "piano" bliká, i když ostatní jsou hotové.
-    if (btn) btn.classList.toggle('needs-download', playlist.length > 0 && cachedCount < playlist.length);
   }
 
   async function updatePlaylistUI() {
@@ -5047,47 +4898,9 @@
     if (statsUnsavedSeconds > 0) { saveStats(); statsUnsavedSeconds = 0; }
   });
 
-  // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál.
-  // Dokud neznáme % staženého bufferu, točí se jako neurčitý prstenec; jakmile ho
-  // spočítáme z audio.buffered / audio.duration, přepne se na vyplněný prstenec s číslem.
-  function setSpinnerPct(pct) {
-    if (pct === null || isNaN(pct)) {
-      spinnerEl.classList.remove('has-pct');
-      spinnerEl.style.removeProperty('--pct');
-      spinnerPctEl.textContent = '';
-      return;
-    }
-    const clamped = Math.max(0, Math.min(100, Math.round(pct)));
-    spinnerEl.classList.add('has-pct');
-    spinnerEl.style.setProperty('--pct', clamped);
-    spinnerPctEl.textContent = clamped + '%';
-  }
-
-  function updateSpinnerPct() {
-    if (!spinnerEl.classList.contains('active')) return;
-    try {
-      const duration = audio.duration;
-      const buffered = audio.buffered;
-      if (!duration || !isFinite(duration) || duration <= 0 || !buffered || buffered.length === 0) {
-        setSpinnerPct(null);
-        return;
-      }
-      const bufferedEnd = buffered.end(buffered.length - 1);
-      setSpinnerPct((bufferedEnd / duration) * 100);
-    } catch (e) {
-      setSpinnerPct(null);
-    }
-  }
-
-  function showLoading() {
-    spinnerEl.classList.add('active');
-    setSpinnerPct(null);
-    updateSpinnerPct();
-  }
-  function hideLoading() {
-    spinnerEl.classList.remove('active');
-    setSpinnerPct(null);
-  }
+  // Mini loading spinner - naskočí při bufferování / seeku, zmizí jakmile může hrát dál
+  function showLoading() { spinnerEl.classList.add('active'); }
+  function hideLoading() { spinnerEl.classList.remove('active'); }
 
   audio.addEventListener('waiting', showLoading);
   audio.addEventListener('seeking', showLoading);
@@ -5095,62 +4908,15 @@
   audio.addEventListener('canplay', hideLoading);
   audio.addEventListener('seeked', hideLoading);
   audio.addEventListener('pause', hideLoading);
-  audio.addEventListener('progress', updateSpinnerPct);
-  audio.addEventListener('loadedmetadata', updateSpinnerPct);
 
-  // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou a hlavně
-  // vrátit titulek zpátky na skutečný název skladby. Bez tohohle by po
-  // úspěšném retry (nebo po přeskoku na jinou skladbu, která hned napoprvé
-  // taky zaškobrtla) zůstal natrvalo zobrazený text "Connecting…" /
-  // "Track unavailable, skipping…", i když už dávno hraje.
-  function restoreCurrentTrackTitle() {
-    try {
-      if (customQueueActive) {
-        const entry = customQueue[customQueueIndex];
-        if (entry) setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, entry.index)));
-      } else if (currentTrackIndex >= 0 && playlist[currentTrackIndex]) {
-        const track = playlist[currentTrackIndex];
-        setTrackTitle(track.title, isTrackNew(track));
-      }
-    } catch (e) { /* ignore */ }
-  }
-  audio.addEventListener('playing', () => {
-    consecutiveTrackErrors = 0;
-    restoreCurrentTrackTitle();
-  });
+  // Skladba se úspěšně rozjela - vynulovat počítadlo chyb za sebou
+  audio.addEventListener('playing', () => { consecutiveTrackErrors = 0; });
 
   // Nedostupná/vadná skladba (mrtvý odkaz, výpadek sítě...) - dát vědět a automaticky
   // zkusit další v pořadí, místo aby přehrávač tiše "zamrzl" beze zvuku.
-  // DŮLEŽITÉ: appka si při startu u vracejícího se uživatele potichu přednačte
-  // (bez přehrávání) audio.src poslední skladby, aby po stisku ▶ mohla hned
-  // pokračovat - to nastaví currentTrackIndex, ale isPlaying zůstává false.
-  // Bez podmínky "!isPlaying" by chyba během tohoto tichého přednačtení (velmi
-  // pravděpodobná na studeném startu appky) spustila retry a případně i
-  // playNextTrack() -> tedy automatické přehrání skladby, kterou uživatel
-  // vůbec nezvolil, hned po otevření appky.
-  //
-  // Na studeném startu (appka právě otevřená, TLS/DNS na CDN ještě "studené",
-  // Service Worker si zrovna stahuje app shell) první pokus o načtení klidně
-  // selže, i když skladba samotná je v pořádku - proto se ji nejdřív 2x zkusí
-  // znovu načíst, než se appka vzdá a přeskočí na další v pořadí. Bez toho
-  // appka na studeném připojení "prokliká" několik skladeb za sebou, než se
-  // něco konečně chytí.
   audio.addEventListener('error', () => {
     hideLoading();
-    if (currentTrackIndex === -1 || !isPlaying) return; // nic se aktivně nepřehrává (jen tiché přednačtení)
-
-    if (sameTrackRetryCount < 2) {
-      sameTrackRetryCount++;
-      setTrackTitle("Connecting…");
-      setTimeout(() => {
-        showLoading();
-        audio.load();
-        const p = audio.play();
-        if (p !== undefined) p.catch(() => { /* další pokus/error handler to případně dořeší */ });
-      }, sameTrackRetryCount * 1000); // 1s, pak 2s - dá CDN šanci se "zahřát"
-      return;
-    }
-
+    if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
     consecutiveTrackErrors++;
     if (consecutiveTrackErrors > playlist.length) {
       setTrackTitle("Can't play – check your connection");
@@ -5177,7 +4943,6 @@
     cancelCrossfade();
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     currentTrackIndex = index;
-    sameTrackRetryCount = 0; // nová skladba - počítadlo pokusů na ni jede od nuly
     const track = playlist[index];
     showLoading();
     audio.src = track.src;
@@ -6006,7 +5771,6 @@
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
-    sameTrackRetryCount = 0; // nová skladba - počítadlo pokusů na ni jede od nuly
 
     showLoading();
     audio.src = entry.src;
