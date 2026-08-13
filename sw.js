@@ -1,13 +1,19 @@
 // ==========================================
 // SYNTHLUCIDA Service Worker
-// v33 - bumped app cache: index.html now also loads this SW (PWA/SEO),
-// so it + favicon.png are added to the app shell
+// v34 - app shell (HTML/CSS/JS/ikony) je teď NETWORK-FIRST: vždy se nejdřív
+// zkusí čerstvá verze ze sítě a teprve když síť selže (offline), použije se
+// poslední zacachovaná verze. Dřív to bylo cache-first, takže dokud se ručně
+// nezměnil obsah TOHOTO souboru (a tím se nespustila nová instalace SW),
+// appka uživatelům pořád servírovala starou zacachovanou verzi player.html
+// atd., i když byl na serveru už nahraný nový soubor.
+// Zároveň: cache.put() u audia se teď čeká (await), takže když appka řekne
+// "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v701';
+const APP_CACHE_NAME = 'synthlucida-app-v702';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
-// App shell files cached on install
+// App shell files cached on install (a jako offline záloha)
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -71,10 +77,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  // Vše ostatní (HTML, JS, CSS, ikony...) - NETWORK-FIRST s cache jako
+  // offline zálohou, aby se nová verze appky projevila hned při dalším
+  // načtení, ne až po ruční změně APP_CACHE_NAME.
+  event.respondWith(handleAppShellRequest(event.request));
 });
+
+async function handleAppShellRequest(request) {
+  const cache = await caches.open(APP_CACHE_NAME);
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.ok) {
+      cache.put(request, networkResponse.clone()).catch((err) => {
+        console.log('[SW] Could not cache app shell file:', err);
+      });
+    }
+    return networkResponse;
+  } catch (err) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw err;
+  }
+}
 
 async function handleAudioRequest(request) {
   const cache = await caches.open(AUDIO_CACHE_NAME);
@@ -102,10 +126,17 @@ async function handleAudioRequest(request) {
     // Cache it even if it's an "opaque" response (no CORS headers from the
     // server) - that's normal for cross-origin media and still works fine
     // for playback, we just can't read its bytes in JS.
+    // IMPORTANT: we now AWAIT this before returning, so that by the time the
+    // page's fetch() promise resolves, the file is *guaranteed* to already be
+    // fully written into Cache Storage - not just "probably done in the
+    // background". Without this await, the page could think a track is
+    // downloaded (and show "OFFLINE") a moment before it's actually saved.
     if (networkResponse) {
-      cache.put(request.url, networkResponse.clone()).catch((err) => {
+      try {
+        await cache.put(request.url, networkResponse.clone());
+      } catch (err) {
         console.log('[SW] Could not cache audio:', err);
-      });
+      }
     }
 
     return networkResponse;
