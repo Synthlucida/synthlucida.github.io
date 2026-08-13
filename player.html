@@ -899,6 +899,14 @@
   .net-speed-badge { font-size: 9px; letter-spacing: 0.03em; color: #fff; opacity: 0.5; white-space: nowrap; user-select: none; pointer-events: none; }
   .net-speed-badge:empty { display: none; }
 
+  /* Odznak se skutečným stavem připojení (OK / NOK) vedle rychlosti - viz JS "netStatus*" */
+  .net-status-badge { font-size: 9px; letter-spacing: 0.05em; color: #fff; opacity: 0.75; white-space: nowrap; user-select: none; pointer-events: none; display: inline-flex; align-items: center; gap: 4px; }
+  .net-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #888; box-shadow: 0 0 4px #888; transition: background 0.4s ease, box-shadow 0.4s ease; flex-shrink: 0; }
+  .net-status-badge.status-ok .net-status-dot { background: #00ff88; box-shadow: 0 0 5px #00ff88; }
+  .net-status-badge.status-bad .net-status-dot { background: #ff3355; box-shadow: 0 0 5px #ff3355; }
+  .net-status-badge.status-checking .net-status-dot { background: #ffcc00; box-shadow: 0 0 5px #ffcc00; animation: netStatusPulse 1.2s ease-in-out infinite; }
+  @keyframes netStatusPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
   /* Odhlašovací tlačítko admin režimu - skryté, dokud nejsi přihlášený přes 666 v chatu.
      Musí být v CSS AŽ ZA .btn-focus-mode, jinak by ho stejná specificita přebila. */
   .btn-focus-mode.admin-logout-btn { display: none; color: #ff8080; border-color: rgba(255,80,80,0.4); }
@@ -1400,6 +1408,7 @@
       <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
       <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
       <span class="net-speed-badge" id="net-speed-badge" title="Current network speed" aria-label="Network speed"></span>
+      <span class="net-status-badge status-checking" id="net-status-badge" title="Checking connection…" aria-label="Connection status"><span class="net-status-dot"></span><span id="net-status-text">…</span></span>
       <button class="btn-focus-mode admin-logout-btn" id="admin-logout-btn" onclick="adminLogout()" title="Admin odhlásit" aria-label="Admin logout">🔓</button>
     </div>
     <div class="focus-mode-right">
@@ -3565,6 +3574,91 @@
       conn.addEventListener('change', updateNetSpeedBadge);
     }
   })();
+
+  // ==========================================
+  // Odznak SKUTEČNÉHO stavu připojení (OK / NOK) vedle rychlosti.
+  // Na rozdíl od net-speed-badge výše (což je jen odhad prohlížeče z
+  // Network Information API - nepodporováno v Safari/iOS a leckdy nepřesné),
+  // tenhle vychází z reality: 1) skutečně proběhlé stažení malého souboru
+  // s měřením doby odezvy, 2) jestli se stream reálně bez problémů
+  // přehrává, nebo se sekáním/bufferováním.
+  // ==========================================
+  let netStatusStallTimer = null;
+  let netStatusIsStalled = false;
+  let netStatusProbeInFlight = false;
+
+  function setNetStatus(state) {
+    // state: 'ok' | 'bad' | 'checking'
+    const el = document.getElementById('net-status-badge');
+    const textEl = document.getElementById('net-status-text');
+    if (!el || !textEl) return;
+    el.classList.remove('status-ok', 'status-bad', 'status-checking');
+    el.classList.add('status-' + state);
+    if (state === 'ok') {
+      textEl.textContent = 'OK';
+      el.title = 'Connection looks fine';
+    } else if (state === 'bad') {
+      textEl.textContent = 'NOK';
+      el.title = 'Connection problem detected';
+    } else {
+      textEl.textContent = '…';
+      el.title = 'Checking connection…';
+    }
+  }
+
+  // Reálný test - stáhne malou ikonu appky s cache-bustem a timeoutem.
+  // Úspěch/selhání a naměřená doba jsou skutečnou "realitou" stahování,
+  // ne jen odhad prohlížeče.
+  function probeConnection() {
+    if (netStatusProbeInFlight) return;
+    if (navigator.onLine === false) { setNetStatus('bad'); return; }
+    netStatusProbeInFlight = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const startedAt = performance.now();
+    fetch('icon.png?probe=' + Date.now(), { cache: 'no-store', signal: controller.signal })
+      .then((res) => {
+        clearTimeout(timeoutId);
+        netStatusProbeInFlight = false;
+        if (!res.ok) { setNetStatus('bad'); return; }
+        const elapsedMs = performance.now() - startedAt;
+        // Pomalá odezva na malý soubor (>4s) je reálně špatné připojení,
+        // i kdyby Network Information API tvrdilo něco jiného.
+        setNetStatus((elapsedMs > 4000 || netStatusIsStalled) ? 'bad' : 'ok');
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        netStatusProbeInFlight = false;
+        setNetStatus('bad');
+      });
+  }
+
+  // Sledování reálného sekání streamu: pokud audio "waiting" (bufferuje) a
+  // nerozjede se samo do pár sekund zpátky, je to reálný příznak slabého
+  // připojení - přesnější než čistě teoretický odhad rychlosti.
+  audio.addEventListener('waiting', () => {
+    if (netStatusStallTimer) clearTimeout(netStatusStallTimer);
+    netStatusStallTimer = setTimeout(() => {
+      netStatusIsStalled = true;
+      setNetStatus('bad');
+    }, 4000);
+  });
+  audio.addEventListener('playing', () => {
+    if (netStatusStallTimer) { clearTimeout(netStatusStallTimer); netStatusStallTimer = null; }
+    netStatusIsStalled = false;
+    probeConnection();
+  });
+  audio.addEventListener('error', () => { setNetStatus('bad'); });
+
+  window.addEventListener('online', probeConnection);
+  window.addEventListener('offline', () => setNetStatus('bad'));
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') probeConnection();
+  });
+
+  probeConnection();
+  setInterval(probeConnection, 30000);
 
   window.startBreathing = function() {
     if (breathingActive) return;
