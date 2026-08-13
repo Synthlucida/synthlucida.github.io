@@ -845,6 +845,13 @@
   .download-progress-wrap.active { opacity: 1; max-height: 3px; }
   .download-progress-bar { height: 100%; width: 0%; background: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); transition: width 0.25s ease; }
 
+  /* Blikání DOWNLOAD OFFLINE tlačítka, dokud nejsou stažené všechny skladby AKTUÁLNÍHO playlistu */
+  @keyframes downloadNeedsAttention {
+    0%, 100% { box-shadow: 0 0 0 rgba(0,0,0,0); border-color: rgba(255,255,255,0.2); color: #fff; }
+    50% { box-shadow: 0 0 10px var(--accent-color); border-color: var(--accent-color); color: var(--accent-color); }
+  }
+  #btn-download.needs-download { animation: downloadNeedsAttention 1.4s ease-in-out infinite; }
+
   /* Playlist - ZVĚTŠENO pro zobrazení 5-6 skladeb */
   .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; max-height: clamp(90px, 22vh, 160px); overflow-y: auto; overflow-x: hidden; text-align: left; }
   .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
@@ -3774,12 +3781,19 @@
 
   async function updateOfflineStatus() {
     const statusEl = document.getElementById('offline-status');
+    const btn = document.getElementById('btn-download');
     if (!statusEl || !('caches' in window)) return;
     let cachedCount = 0;
     for (const track of playlist) {
       if (await isTrackCached(track.src)) cachedCount++;
     }
     statusEl.innerText = `${cachedCount}/${playlist.length} OFFLINE`;
+    // Tlačítko bliká, dokud tento konkrétní playlist není celý stažený offline,
+    // a zhasne, jakmile jsou stažené všechny jeho skladby (jen pro tento playlist, ne globálně).
+    if (btn) {
+      const complete = playlist.length > 0 && cachedCount >= playlist.length;
+      btn.classList.toggle('needs-download', !complete && btn.style.display !== 'none');
+    }
   }
 
   async function updatePlaylistUI() {
@@ -3851,8 +3865,12 @@
       try {
         const already = await isTrackCached(track.src);
         if (!already) {
-          // This fetch goes through the Service Worker, which caches the file itself
-          await fetch(track.src);
+          // This fetch goes through the Service Worker, which caches the file itself.
+          // fetch() alone resolves as soon as the response HEADERS arrive, not the full body —
+          // so we must explicitly read the body (arrayBuffer) to actually wait for the whole
+          // file to download before moving on to the next track.
+          const res = await fetch(track.src);
+          await res.arrayBuffer();
           const badge = document.getElementById(`offline-badge-${i}`);
           if (badge) badge.innerText = '✓ OFFLINE';
           updateOfflineStatus();
