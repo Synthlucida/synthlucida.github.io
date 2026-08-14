@@ -1,0 +1,3140 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<!-- PWA: stejný manifest a service worker jako player.html, aby web šel taky
+     nainstalovat / choval se jako PWA (hlavně kvůli SEO a "Add to Home Screen"
+     přímo z webu). start_url v manifestu zůstává player.html - instalace
+     odsud i z indexu vždy otevře appku, player.html je pořád ten hlavní vstup
+     (Microsoft Store / Google se manifestu ani sw.js nedotýkají, jen se
+     přidává druhá stránka, která je používá). -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a0033">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SYNTHLUCIDA">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+
+<title>SYNTHLUCIDA | Chillout, Ambient a Progressive elektronická hudba</title>
+
+<meta name="description" content="SYNTHLUCIDA je nezávislý producent elektronické hudby, který tvoří atmosférický Chillout, Ambient, Trance a Progressive House s kinematografickým sound designem a futuristickou elektronickou estetikou.">
+
+<meta name="robots" content="index, follow">
+<meta name="author" content="SYNTHLUCIDA">
+
+<link rel="canonical" href="https://synthlucida.com/index-cz.html">
+<link rel="alternate" hreflang="en" href="https://synthlucida.com/">
+<link rel="alternate" hreflang="cs" href="https://synthlucida.com/index-cz.html">
+<link rel="alternate" hreflang="x-default" href="https://synthlucida.com/">
+
+<meta property="og:title" content="SYNTHLUCIDA | Producent elektronické hudby">
+<meta property="og:description" content="Atmosférický producent elektronické hudby zaměřený na Chillout, Ambient, Trance a Progressive sound design.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://synthlucida.com/index-cz.html">
+<meta property="og:image" content="https://synthlucida.com/preview.jpg">
+<meta property="og:locale" content="cs_CZ">
+<meta property="og:locale:alternate" content="en_US">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SYNTHLUCIDA">
+<meta name="twitter:description" content="Producent elektronické hudby a sound designer.">
+<meta name="twitter:image" content="https://synthlucida.com/preview.jpg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+
+<link rel="icon" type="image/png" href="/favicon.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "MusicGroup",
+  "name": "SYNTHLUCIDA",
+  "url": "https://synthlucida.com/",
+  "genre": [
+    "Chillout",
+    "Ambient",
+    "Progressive House",
+    "Trance",
+    "Melodic House"
+  ],
+  "sameAs": [
+    "https://www.youtube.com/@synthlucida",
+    "https://www.facebook.com/synthlucida",
+    "https://open.spotify.com/artist/4OSHQSirFlyQQ9ueUH7CFE",
+    "https://soundcloud.com/dazantemusic",
+    "https://pond5.com/artist/dzcreation?ref=dzcreation",
+    "https://audiojungle.net/user/synthlucida/portfolio?sso=1"
+  ]
+}
+</script>
+
+<style>
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: 'Orbitron', sans-serif;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at top, #05123a, #000010, #000000);
+  text-align: center;
+  overflow-x: hidden;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ambient neon background (static) */
+body::before {
+  content: "";
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(circle, rgba(0,255,255,0.07), transparent 60%),
+    radial-gradient(circle, rgba(255,0,255,0.07), transparent 60%),
+    radial-gradient(circle, rgba(0,90,255,0.06), transparent 55%);
+  z-index: -1;
+}
+
+/* Pause the ambient background drift while the browser tab is in the
+   background, and while actively scrolling on mobile — see JS listeners. */
+body.tab-hidden::before,
+body.is-scrolling::before {
+  animation-play-state: paused;
+}
+
+/* faint synthwave horizon grid at the very bottom — sits behind the equalizer */
+.ambient-horizon {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26vh;
+  min-height: 130px;
+  z-index: -4;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image:
+    repeating-linear-gradient(to top, rgba(0,240,255,0.5) 0px, rgba(0,240,255,0.5) 1px, transparent 1px, transparent 26px),
+    linear-gradient(to top, rgba(255,0,200,0.12), transparent 70%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  mask-image: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+}
+
+main.container {
+  max-width: 920px;
+  margin: auto;
+  padding: 60px 20px;
+}
+
+header {
+  position: relative;
+  margin-bottom: 20px;
+  background: radial-gradient(circle at top, rgba(0,240,255,0.08), rgba(0,90,255,0.06) 45%, rgba(0,0,0,0.5) 100%);
+  padding: 80px 20px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+/* Night starry sky — a realistic star field rendered as a single
+   inline SVG image (not stacked CSS gradients) confined to the upper
+   part of the header. Rendering it as one image avoids a Firefox
+   compositing bug where many layered radial-gradient backgrounds on
+   one element got double-painted. */
+.header-stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 58%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%201000%20420%22%3E%3Ccircle%20cx%3D%22323.8%22%20cy%3D%2258.3%22%20r%3D%220.89%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22214.7%22%20cy%3D%2233.2%22%20r%3D%220.75%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22223.2%22%20cy%3D%22242.4%22%20r%3D%221.07%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22133.2%22%20cy%3D%22162.0%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22638.9%22%20cy%3D%22143.9%22%20r%3D%220.83%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22777.2%22%20cy%3D%22179.9%22%20r%3D%221.05%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22300.2%22%20cy%3D%22191.3%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22757.1%22%20cy%3D%2258.7%22%20r%3D%220.79%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%22818.4%22%20cy%3D%22131.4%22%20r%3D%220.71%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22474.1%22%20cy%3D%22256.6%22%20r%3D%220.54%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22385.8%22%20cy%3D%22258.4%22%20r%3D%220.51%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22287.4%22%20cy%3D%22285.3%22%20r%3D%220.74%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22883.4%22%20cy%3D%22316.6%22%20r%3D%221.02%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.13%22/%3E%3Ccircle%20cx%3D%22150.9%22%20cy%3D%2268.1%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22145.7%22%20cy%3D%22206.6%22%20r%3D%220.87%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.56%22/%3E%3Ccircle%20cx%3D%22739.8%22%20cy%3D%22176.4%22%20r%3D%221.02%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.29%22/%3E%3Ccircle%20cx%3D%22103.5%22%20cy%3D%22245.1%22%20r%3D%220.54%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22102.4%22%20cy%3D%22219.0%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22148.6%22%20cy%3D%2297.5%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22311.9%22%20cy%3D%2255.7%22%20r%3D%220.95%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22951.0%22%20cy%3D%22204.1%22%20r%3D%220.59%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.48%22/%3E%3Ccircle%20cx%3D%22696.2%22%20cy%3D%22100.9%22%20r%3D%220.72%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22/%3E%3Ccircle%20cx%3D%22223.0%22%20cy%3D%22313.6%22%20r%3D%221.09%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22199.9%22%20cy%3D%22190.4%22%20r%3D%220.94%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22956.5%22%20cy%3D%22172.8%22%20r%3D%221.06%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22470.1%22%20cy%3D%22130.5%22%20r%3D%220.79%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22643.1%22%20cy%3D%22322.5%22%20r%3D%220.57%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22635.8%22%20cy%3D%2233.5%22%20r%3D%221.07%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.29%22/%3E%3Ccircle%20cx%3D%22170.0%22%20cy%3D%2249.1%22%20r%3D%220.59%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22657.3%22%20cy%3D%22135.4%22%20r%3D%220.83%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.59%22/%3E%3Ccircle%20cx%3D%22749.5%22%20cy%3D%2253.8%22%20r%3D%221.09%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22240.5%22%20cy%3D%22226.6%22%20r%3D%220.66%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22662.5%22%20cy%3D%22314.9%22%20r%3D%220.81%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%2218.7%22%20cy%3D%22170.1%22%20r%3D%220.61%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22120.3%22%20cy%3D%2223.9%22%20r%3D%220.91%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%22191.3%22%20cy%3D%2216.3%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22612.5%22%20cy%3D%22195.3%22%20r%3D%220.81%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22247.7%22%20cy%3D%22202.2%22%20r%3D%221.03%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22137.1%22%20cy%3D%2247.0%22%20r%3D%220.77%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22122.3%22%20cy%3D%22300.2%22%20r%3D%221.06%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22219.6%22%20cy%3D%22368.0%22%20r%3D%220.74%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.07%22/%3E%3Ccircle%20cx%3D%22994.1%22%20cy%3D%22156.0%22%20r%3D%220.75%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22440.5%22%20cy%3D%227.0%22%20r%3D%220.7%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22104.8%22%20cy%3D%22102.6%22%20r%3D%220.52%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22676.0%22%20cy%3D%22365.5%22%20r%3D%220.74%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.07%22/%3E%3Ccircle%20cx%3D%2257.5%22%20cy%3D%22265.9%22%20r%3D%220.76%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22856.2%22%20cy%3D%2225.7%22%20r%3D%221.02%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%2243.2%22%20cy%3D%22274.2%22%20r%3D%221.06%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22531.1%22%20cy%3D%2279.5%22%20r%3D%220.77%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%2218.4%22%20cy%3D%22195.4%22%20r%3D%221.09%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22432.2%22%20cy%3D%22191.3%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22832.3%22%20cy%3D%22273.1%22%20r%3D%220.88%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22625.4%22%20cy%3D%22340.0%22%20r%3D%220.76%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22281.9%22%20cy%3D%2293.6%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22328.9%22%20cy%3D%22380.6%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.03%22/%3E%3Ccircle%20cx%3D%22381.6%22%20cy%3D%22183.4%22%20r%3D%220.8%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22143.9%22%20cy%3D%22226.7%22%20r%3D%220.74%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22155.3%22%20cy%3D%22345.0%22%20r%3D%220.97%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22724.2%22%20cy%3D%22248.5%22%20r%3D%220.53%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22505.5%22%20cy%3D%22351.6%22%20r%3D%220.95%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.13%22/%3E%3Ccircle%20cx%3D%22892.8%22%20cy%3D%22263.9%22%20r%3D%220.92%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.13%22/%3E%3Ccircle%20cx%3D%22376.6%22%20cy%3D%22174.4%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22797.7%22%20cy%3D%22289.1%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22809.2%22%20cy%3D%22326.9%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.1%22/%3E%3Ccircle%20cx%3D%22382.6%22%20cy%3D%22185.1%22%20r%3D%220.91%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22331.8%22%20cy%3D%22251.8%22%20r%3D%220.92%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22672.0%22%20cy%3D%22267.5%22%20r%3D%220.91%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22993.3%22%20cy%3D%22212.2%22%20r%3D%220.69%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22968.1%22%20cy%3D%22173.7%22%20r%3D%220.66%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22747.5%22%20cy%3D%22101.2%22%20r%3D%220.72%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22231.4%22%20cy%3D%22346.9%22%20r%3D%220.79%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.06%22/%3E%3Ccircle%20cx%3D%22727.2%22%20cy%3D%22160.8%22%20r%3D%220.73%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22120.0%22%20cy%3D%22358.0%22%20r%3D%220.93%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.07%22/%3E%3Ccircle%20cx%3D%22870.0%22%20cy%3D%2229.5%22%20r%3D%221.06%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22285.6%22%20cy%3D%22361.5%22%20r%3D%220.65%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.08%22/%3E%3Ccircle%20cx%3D%22427.7%22%20cy%3D%2211.2%22%20r%3D%220.96%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%2249.5%22%20cy%3D%22283.0%22%20r%3D%220.77%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22550.1%22%20cy%3D%2266.0%22%20r%3D%220.75%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.53%22/%3E%3Ccircle%20cx%3D%22656.0%22%20cy%3D%22116.2%22%20r%3D%220.83%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22811.8%22%20cy%3D%22212.7%22%20r%3D%220.77%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%2290.7%22%20cy%3D%22132.1%22%20r%3D%220.55%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22412.8%22%20cy%3D%22159.9%22%20r%3D%220.81%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22360.1%22%20cy%3D%22265.4%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22645.8%22%20cy%3D%22166.9%22%20r%3D%220.69%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22895.7%22%20cy%3D%22182.9%22%20r%3D%220.85%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.58%22/%3E%3Ccircle%20cx%3D%22972.2%22%20cy%3D%2296.0%22%20r%3D%220.57%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22846.5%22%20cy%3D%22345.8%22%20r%3D%220.55%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22645.5%22%20cy%3D%22117.4%22%20r%3D%220.58%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22300.3%22%20cy%3D%22364.6%22%20r%3D%220.62%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.1%22/%3E%3Ccircle%20cx%3D%22460.7%22%20cy%3D%22370.5%22%20r%3D%220.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.09%22/%3E%3Ccircle%20cx%3D%22411.8%22%20cy%3D%22251.0%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22667.4%22%20cy%3D%22357.5%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%226.8%22%20cy%3D%22112.9%22%20r%3D%221.01%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22221.4%22%20cy%3D%22293.8%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22910.4%22%20cy%3D%2221.8%22%20r%3D%220.86%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%2251.8%22%20cy%3D%2223.2%22%20r%3D%220.74%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22329.2%22%20cy%3D%2271.7%22%20r%3D%221.06%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22985.0%22%20cy%3D%22171.0%22%20r%3D%220.57%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22758.8%22%20cy%3D%22146.9%22%20r%3D%220.96%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22372.7%22%20cy%3D%22355.3%22%20r%3D%220.62%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.11%22/%3E%3Ccircle%20cx%3D%22625.4%22%20cy%3D%22156.4%22%20r%3D%220.73%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22898.6%22%20cy%3D%22131.0%22%20r%3D%220.66%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22924.2%22%20cy%3D%22114.9%22%20r%3D%220.93%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22233.9%22%20cy%3D%22183.6%22%20r%3D%221.07%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22132.7%22%20cy%3D%22191.9%22%20r%3D%220.51%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22327.8%22%20cy%3D%22123.5%22%20r%3D%220.72%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%2264.7%22%20cy%3D%2213.1%22%20r%3D%220.83%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%2284.1%22%20cy%3D%2237.3%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22891.3%22%20cy%3D%2290.8%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22566.9%22%20cy%3D%22144.1%22%20r%3D%220.94%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22907.6%22%20cy%3D%2272.7%22%20r%3D%220.54%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.48%22/%3E%3Ccircle%20cx%3D%22653.3%22%20cy%3D%22382.9%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.06%22/%3E%3Ccircle%20cx%3D%22293.7%22%20cy%3D%2246.1%22%20r%3D%220.61%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22177.8%22%20cy%3D%22233.0%22%20r%3D%220.96%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22217.6%22%20cy%3D%22142.5%22%20r%3D%220.58%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22814.7%22%20cy%3D%22316.4%22%20r%3D%220.75%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22548.0%22%20cy%3D%2224.4%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22397.8%22%20cy%3D%22104.8%22%20r%3D%221.09%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22357.2%22%20cy%3D%22160.9%22%20r%3D%221.02%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22942.0%22%20cy%3D%22167.8%22%20r%3D%220.59%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22162.5%22%20cy%3D%225.7%22%20r%3D%220.83%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22737.2%22%20cy%3D%2266.3%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22804.8%22%20cy%3D%22373.6%22%20r%3D%220.62%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.08%22/%3E%3Ccircle%20cx%3D%22607.6%22%20cy%3D%22245.9%22%20r%3D%220.55%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.53%22/%3E%3Ccircle%20cx%3D%22222.1%22%20cy%3D%22156.3%22%20r%3D%221.01%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22156.5%22%20cy%3D%22138.8%22%20r%3D%220.59%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22672.3%22%20cy%3D%22258.1%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22308.2%22%20cy%3D%2296.3%22%20r%3D%220.73%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22489.5%22%20cy%3D%2290.9%22%20r%3D%220.96%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%2267.1%22%20cy%3D%22138.6%22%20r%3D%220.72%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%2282.2%22%20cy%3D%22283.4%22%20r%3D%220.97%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22784.2%22%20cy%3D%2210.0%22%20r%3D%220.54%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22491.9%22%20cy%3D%22369.6%22%20r%3D%221.05%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.05%22/%3E%3Ccircle%20cx%3D%22610.4%22%20cy%3D%2297.5%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22919.9%22%20cy%3D%2280.5%22%20r%3D%220.66%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22636.6%22%20cy%3D%22107.5%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22858.3%22%20cy%3D%22373.3%22%20r%3D%220.77%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.07%22/%3E%3Ccircle%20cx%3D%22629.8%22%20cy%3D%22152.3%22%20r%3D%220.98%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%2281.4%22%20cy%3D%2288.9%22%20r%3D%220.87%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22984.1%22%20cy%3D%22226.4%22%20r%3D%220.9%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22625.6%22%20cy%3D%22161.4%22%20r%3D%220.72%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%222.6%22%20cy%3D%22137.2%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22366.2%22%20cy%3D%22320.1%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22638.2%22%20cy%3D%22336.7%22%20r%3D%220.97%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22892.7%22%20cy%3D%22229.8%22%20r%3D%220.85%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%2244.0%22%20cy%3D%22205.4%22%20r%3D%220.74%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22656.8%22%20cy%3D%2276.2%22%20r%3D%220.75%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22174.6%22%20cy%3D%22119.5%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.55%22/%3E%3Ccircle%20cx%3D%22375.2%22%20cy%3D%22168.7%22%20r%3D%221.05%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22644.0%22%20cy%3D%2247.6%22%20r%3D%221.03%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22553.8%22%20cy%3D%22168.5%22%20r%3D%220.97%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22507.4%22%20cy%3D%2265.6%22%20r%3D%221.04%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22388.7%22%20cy%3D%22232.3%22%20r%3D%220.73%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.6%22/%3E%3Ccircle%20cx%3D%22839.7%22%20cy%3D%22269.6%22%20r%3D%221.01%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22391.6%22%20cy%3D%22226.2%22%20r%3D%220.84%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.38%22/%3E%3Ccircle%20cx%3D%22344.9%22%20cy%3D%2254.8%22%20r%3D%220.52%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.51%22/%3E%3Ccircle%20cx%3D%2246.7%22%20cy%3D%22331.0%22%20r%3D%220.96%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22867.8%22%20cy%3D%22353.3%22%20r%3D%221.07%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.06%22/%3E%3Ccircle%20cx%3D%22911.1%22%20cy%3D%22291.3%22%20r%3D%220.55%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22757.4%22%20cy%3D%2279.2%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22759.9%22%20cy%3D%22351.8%22%20r%3D%220.96%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22412.9%22%20cy%3D%22168.6%22%20r%3D%220.96%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22827.8%22%20cy%3D%22222.0%22%20r%3D%220.67%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22490.8%22%20cy%3D%22189.9%22%20r%3D%220.98%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.44%22/%3E%3Ccircle%20cx%3D%22943.9%22%20cy%3D%22109.6%22%20r%3D%220.63%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.38%22/%3E%3Ccircle%20cx%3D%22490.3%22%20cy%3D%22383.0%22%20r%3D%220.84%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.04%22/%3E%3Ccircle%20cx%3D%22745.2%22%20cy%3D%22163.1%22%20r%3D%220.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22379.3%22%20cy%3D%22341.6%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22348.5%22%20cy%3D%22126.2%22%20r%3D%220.59%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.32%22/%3E%3Ccircle%20cx%3D%22689.1%22%20cy%3D%2299.4%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22301.5%22%20cy%3D%22271.7%22%20r%3D%221.01%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%22348.6%22%20cy%3D%2291.3%22%20r%3D%221.07%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22101.6%22%20cy%3D%22148.5%22%20r%3D%221.09%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22911.4%22%20cy%3D%22108.5%22%20r%3D%221.03%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22500.5%22%20cy%3D%22244.4%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22852.9%22%20cy%3D%22270.9%22%20r%3D%220.85%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22774.0%22%20cy%3D%22270.5%22%20r%3D%221.01%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22700.7%22%20cy%3D%22345.7%22%20r%3D%220.65%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.11%22/%3E%3Ccircle%20cx%3D%2219.7%22%20cy%3D%22331.7%22%20r%3D%220.81%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22388.7%22%20cy%3D%22189.3%22%20r%3D%221.08%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22101.1%22%20cy%3D%22222.0%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22410.3%22%20cy%3D%22366.3%22%20r%3D%220.63%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.08%22/%3E%3Ccircle%20cx%3D%22614.0%22%20cy%3D%22246.4%22%20r%3D%220.65%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22674.9%22%20cy%3D%22224.2%22%20r%3D%220.57%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22960.9%22%20cy%3D%22178.6%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22562.1%22%20cy%3D%2287.3%22%20r%3D%221.08%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22294.3%22%20cy%3D%22211.9%22%20r%3D%220.58%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22687.5%22%20cy%3D%22379.8%22%20r%3D%220.91%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.07%22/%3E%3Ccircle%20cx%3D%22301.8%22%20cy%3D%22185.3%22%20r%3D%220.76%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%2257.1%22%20cy%3D%22319.9%22%20r%3D%221.04%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22657.3%22%20cy%3D%2274.9%22%20r%3D%221.25%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.69%22/%3E%3Ccircle%20cx%3D%22578.5%22%20cy%3D%22304.9%22%20r%3D%221.33%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22208.5%22%20cy%3D%22143.7%22%20r%3D%221.57%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.78%22/%3E%3Ccircle%20cx%3D%22977.2%22%20cy%3D%2232.3%22%20r%3D%221.83%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.76%22/%3E%3Ccircle%20cx%3D%22297.0%22%20cy%3D%22176.5%22%20r%3D%221.35%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.62%22/%3E%3Ccircle%20cx%3D%22671.2%22%20cy%3D%2241.8%22%20r%3D%221.28%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.73%22/%3E%3Ccircle%20cx%3D%22473.2%22%20cy%3D%22198.9%22%20r%3D%221.54%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.87%22/%3E%3Ccircle%20cx%3D%22246.6%22%20cy%3D%2258.8%22%20r%3D%221.62%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.82%22/%3E%3Ccircle%20cx%3D%22320.7%22%20cy%3D%22248.4%22%20r%3D%221.55%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.63%22/%3E%3Ccircle%20cx%3D%22425.8%22%20cy%3D%22357.0%22%20r%3D%221.67%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22646.5%22%20cy%3D%227.3%22%20r%3D%221.23%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.82%22/%3E%3Ccircle%20cx%3D%22808.6%22%20cy%3D%2233.5%22%20r%3D%221.54%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.83%22/%3E%3Ccircle%20cx%3D%22213.4%22%20cy%3D%22148.4%22%20r%3D%221.29%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.63%22/%3E%3Ccircle%20cx%3D%22341.3%22%20cy%3D%22277.9%22%20r%3D%221.59%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.65%22/%3E%3Ccircle%20cx%3D%22342.0%22%20cy%3D%2289.8%22%20r%3D%221.24%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.69%22/%3E%3Ccircle%20cx%3D%22493.7%22%20cy%3D%22119.1%22%20r%3D%221.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.86%22/%3E%3Ccircle%20cx%3D%22203.5%22%20cy%3D%22175.7%22%20r%3D%221.28%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.66%22/%3E%3Ccircle%20cx%3D%22127.6%22%20cy%3D%22347.3%22%20r%3D%221.26%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22554.3%22%20cy%3D%22145.0%22%20r%3D%221.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.72%22/%3E%3Ccircle%20cx%3D%2246.4%22%20cy%3D%22293.4%22%20r%3D%221.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.56%22/%3E%3Ccircle%20cx%3D%22638.9%22%20cy%3D%2214.9%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22676.0%22%20cy%3D%22357.4%22%20r%3D%220.51%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%2295.3%22%20cy%3D%2296.9%22%20r%3D%220.87%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22419.8%22%20cy%3D%22182.4%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.49%22/%3E%3Ccircle%20cx%3D%22697.3%22%20cy%3D%22139.4%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.53%22/%3E%3Ccircle%20cx%3D%22103.8%22%20cy%3D%22155.1%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22805.9%22%20cy%3D%22293.2%22%20r%3D%220.83%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%2280.5%22%20cy%3D%22120.8%22%20r%3D%220.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22577.0%22%20cy%3D%22283.3%22%20r%3D%220.48%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22983.3%22%20cy%3D%22342.9%22%20r%3D%221.06%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22635.1%22%20cy%3D%22149.1%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22701.0%22%20cy%3D%22275.0%22%20r%3D%220.5%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22728.2%22%20cy%3D%2269.5%22%20r%3D%220.72%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.55%22/%3E%3Ccircle%20cx%3D%22220.7%22%20cy%3D%22133.1%22%20r%3D%220.99%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%22803.8%22%20cy%3D%22163.5%22%20r%3D%220.5%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.51%22/%3E%3Ccircle%20cx%3D%22874.9%22%20cy%3D%22129.3%22%20r%3D%220.91%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.29%22/%3E%3Ccircle%20cx%3D%22144.3%22%20cy%3D%2260.2%22%20r%3D%220.97%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22428.7%22%20cy%3D%22235.5%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.55%22/%3E%3Ccircle%20cx%3D%22509.5%22%20cy%3D%2240.9%22%20r%3D%220.48%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22790.9%22%20cy%3D%22171.8%22%20r%3D%220.49%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22529.0%22%20cy%3D%22388.6%22%20r%3D%221.05%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22681.0%22%20cy%3D%22217.1%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22294.3%22%20cy%3D%2267.5%22%20r%3D%220.45%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.43%22/%3E%3Ccircle%20cx%3D%22970.0%22%20cy%3D%22306.0%22%20r%3D%220.81%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22840.3%22%20cy%3D%22205.5%22%20r%3D%220.59%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22539.2%22%20cy%3D%22312.6%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22488.7%22%20cy%3D%2249.2%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%22240.5%22%20cy%3D%22100.1%22%20r%3D%220.85%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22814.8%22%20cy%3D%22391.3%22%20r%3D%220.82%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22945.1%22%20cy%3D%2270.2%22%20r%3D%220.82%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22/%3E%3Ccircle%20cx%3D%22927.2%22%20cy%3D%22303.3%22%20r%3D%220.93%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.43%22/%3E%3Ccircle%20cx%3D%22993.2%22%20cy%3D%22261.7%22%20r%3D%220.76%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22248.9%22%20cy%3D%2230.3%22%20r%3D%220.46%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22221.3%22%20cy%3D%2233.0%22%20r%3D%220.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22858.2%22%20cy%3D%2233.0%22%20r%3D%220.62%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22539.1%22%20cy%3D%22290.7%22%20r%3D%221.07%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22783.5%22%20cy%3D%22324.0%22%20r%3D%220.58%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22354.9%22%20cy%3D%22167.4%22%20r%3D%221.05%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%2262.4%22%20cy%3D%22292.6%22%20r%3D%221.01%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22191.4%22%20cy%3D%22182.2%22%20r%3D%220.75%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22873.0%22%20cy%3D%2234.8%22%20r%3D%221.02%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.49%22/%3E%3Ccircle%20cx%3D%2252.4%22%20cy%3D%22399.7%22%20r%3D%221.04%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%22167.6%22%20cy%3D%22196.8%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.29%22/%3E%3Ccircle%20cx%3D%22166.0%22%20cy%3D%225.9%22%20r%3D%220.72%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22286.1%22%20cy%3D%22280.2%22%20r%3D%220.96%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22156.2%22%20cy%3D%22122.2%22%20r%3D%221.13%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%2262.7%22%20cy%3D%22128.9%22%20r%3D%220.49%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22158.8%22%20cy%3D%22384.5%22%20r%3D%220.51%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%2269.7%22%20cy%3D%22345.4%22%20r%3D%220.73%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22247.2%22%20cy%3D%22239.8%22%20r%3D%220.88%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22565.0%22%20cy%3D%22130.0%22%20r%3D%220.63%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22239.7%22%20cy%3D%22161.3%22%20r%3D%220.92%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22927.3%22%20cy%3D%22374.6%22%20r%3D%220.46%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22994.1%22%20cy%3D%2233.9%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22879.3%22%20cy%3D%22352.3%22%20r%3D%220.71%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22702.7%22%20cy%3D%22246.6%22%20r%3D%221.14%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22667.2%22%20cy%3D%22224.1%22%20r%3D%221.1%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22265.4%22%20cy%3D%22356.4%22%20r%3D%220.97%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22604.4%22%20cy%3D%22288.5%22%20r%3D%220.59%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22505.4%22%20cy%3D%22104.2%22%20r%3D%221.09%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%22828.0%22%20cy%3D%2222.4%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%22162.9%22%20cy%3D%22179.5%22%20r%3D%220.94%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%2276.9%22%20cy%3D%22353.8%22%20r%3D%221.08%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22582.2%22%20cy%3D%2263.5%22%20r%3D%220.54%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22897.3%22%20cy%3D%2288.0%22%20r%3D%220.62%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22882.6%22%20cy%3D%22165.5%22%20r%3D%220.88%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22863.1%22%20cy%3D%22390.6%22%20r%3D%221.02%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22180.6%22%20cy%3D%22370.2%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22267.7%22%20cy%3D%22316.0%22%20r%3D%220.53%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22223.5%22%20cy%3D%22327.6%22%20r%3D%220.77%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22224.0%22%20cy%3D%22265.7%22%20r%3D%220.73%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22965.0%22%20cy%3D%22115.3%22%20r%3D%220.9%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.29%22/%3E%3Ccircle%20cx%3D%22331.8%22%20cy%3D%2215.9%22%20r%3D%221.06%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22960.7%22%20cy%3D%22109.9%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22436.6%22%20cy%3D%22393.8%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.51%22/%3E%3Ccircle%20cx%3D%22255.7%22%20cy%3D%22285.0%22%20r%3D%220.45%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22686.1%22%20cy%3D%22376.4%22%20r%3D%220.97%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%2271.7%22%20cy%3D%22267.4%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22718.9%22%20cy%3D%22123.6%22%20r%3D%220.67%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22696.4%22%20cy%3D%22224.0%22%20r%3D%220.58%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22676.6%22%20cy%3D%22361.6%22%20r%3D%220.88%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22832.4%22%20cy%3D%22125.0%22%20r%3D%220.6%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22654.1%22%20cy%3D%22188.7%22%20r%3D%220.76%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22792.6%22%20cy%3D%22384.1%22%20r%3D%220.97%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22515.4%22%20cy%3D%22255.0%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.47%22/%3E%3Ccircle%20cx%3D%22672.1%22%20cy%3D%2293.7%22%20r%3D%220.59%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.13%22/%3E%3Ccircle%20cx%3D%22982.0%22%20cy%3D%22246.5%22%20r%3D%220.99%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.32%22/%3E%3Ccircle%20cx%3D%22195.7%22%20cy%3D%22280.1%22%20r%3D%220.8%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22891.1%22%20cy%3D%22344.9%22%20r%3D%221.07%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22177.2%22%20cy%3D%22383.4%22%20r%3D%220.81%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%22915.8%22%20cy%3D%2252.9%22%20r%3D%220.54%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.32%22/%3E%3Ccircle%20cx%3D%22985.9%22%20cy%3D%22240.2%22%20r%3D%221.12%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%22813.7%22%20cy%3D%22357.3%22%20r%3D%220.75%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.51%22/%3E%3Ccircle%20cx%3D%22895.6%22%20cy%3D%22298.7%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22838.5%22%20cy%3D%22114.5%22%20r%3D%220.99%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22275.5%22%20cy%3D%2235.6%22%20r%3D%220.65%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22891.5%22%20cy%3D%2236.8%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22705.6%22%20cy%3D%2230.4%22%20r%3D%220.74%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%2264.0%22%20cy%3D%22334.0%22%20r%3D%220.72%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22855.3%22%20cy%3D%22307.4%22%20r%3D%220.72%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22299.4%22%20cy%3D%22159.0%22%20r%3D%221.07%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.48%22/%3E%3Ccircle%20cx%3D%22746.5%22%20cy%3D%22220.7%22%20r%3D%220.87%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22273.8%22%20cy%3D%22196.8%22%20r%3D%220.72%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22723.3%22%20cy%3D%22337.0%22%20r%3D%221.09%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%2228.9%22%20cy%3D%22160.6%22%20r%3D%220.85%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.13%22/%3E%3Ccircle%20cx%3D%22137.2%22%20cy%3D%22187.4%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22454.9%22%20cy%3D%22138.3%22%20r%3D%221.07%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22253.3%22%20cy%3D%2237.4%22%20r%3D%220.46%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22225.3%22%20cy%3D%2232.1%22%20r%3D%221.12%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%22947.8%22%20cy%3D%2283.7%22%20r%3D%220.46%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22473.7%22%20cy%3D%2250.2%22%20r%3D%221.11%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.32%22/%3E%3Ccircle%20cx%3D%22765.8%22%20cy%3D%2271.3%22%20r%3D%220.88%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.44%22/%3E%3Ccircle%20cx%3D%22776.7%22%20cy%3D%2269.7%22%20r%3D%220.67%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22575.5%22%20cy%3D%22363.7%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%2277.7%22%20cy%3D%22277.8%22%20r%3D%220.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22848.9%22%20cy%3D%22242.2%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%22347.8%22%20cy%3D%22174.2%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%2214.6%22%20cy%3D%22170.9%22%20r%3D%220.79%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22635.0%22%20cy%3D%22332.3%22%20r%3D%220.95%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22963.6%22%20cy%3D%22111.7%22%20r%3D%221.02%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22465.0%22%20cy%3D%22331.2%22%20r%3D%220.86%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22829.4%22%20cy%3D%2239.2%22%20r%3D%221.07%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22569.6%22%20cy%3D%22268.9%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22183.1%22%20cy%3D%2288.8%22%20r%3D%221.01%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22700.4%22%20cy%3D%22114.1%22%20r%3D%220.46%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.53%22/%3E%3Ccircle%20cx%3D%22242.4%22%20cy%3D%22165.5%22%20r%3D%220.84%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22645.3%22%20cy%3D%22198.9%22%20r%3D%221.01%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22404.8%22%20cy%3D%22101.1%22%20r%3D%220.91%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22530.8%22%20cy%3D%22173.1%22%20r%3D%220.97%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22271.8%22%20cy%3D%22104.3%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22741.9%22%20cy%3D%22380.6%22%20r%3D%220.93%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22277.4%22%20cy%3D%22237.9%22%20r%3D%220.98%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22/%3E%3Ccircle%20cx%3D%22831.3%22%20cy%3D%22122.0%22%20r%3D%220.7%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22128.1%22%20cy%3D%2223.0%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22637.3%22%20cy%3D%22302.4%22%20r%3D%220.52%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.13%22/%3E%3Ccircle%20cx%3D%22469.5%22%20cy%3D%22179.0%22%20r%3D%220.58%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.14%22/%3E%3Ccircle%20cx%3D%22115.6%22%20cy%3D%2230.8%22%20r%3D%220.79%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22153.1%22%20cy%3D%22325.4%22%20r%3D%221.11%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22120.0%22%20cy%3D%22307.0%22%20r%3D%220.87%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22774.6%22%20cy%3D%22155.2%22%20r%3D%221.09%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22988.1%22%20cy%3D%22125.6%22%20r%3D%220.88%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22/%3E%3Ccircle%20cx%3D%22945.8%22%20cy%3D%2287.1%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22240.9%22%20cy%3D%22223.0%22%20r%3D%220.56%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22470.0%22%20cy%3D%2217.9%22%20r%3D%220.65%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%2272.9%22%20cy%3D%2297.2%22%20r%3D%220.64%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22660.5%22%20cy%3D%22373.8%22%20r%3D%220.75%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22906.8%22%20cy%3D%22331.5%22%20r%3D%220.5%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22594.7%22%20cy%3D%22330.6%22%20r%3D%221.09%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22687.9%22%20cy%3D%22281.4%22%20r%3D%221.11%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.34%22/%3E%3Ccircle%20cx%3D%22438.0%22%20cy%3D%22241.2%22%20r%3D%221.07%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.44%22/%3E%3Ccircle%20cx%3D%22251.4%22%20cy%3D%2241.1%22%20r%3D%221.12%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.48%22/%3E%3Ccircle%20cx%3D%22586.8%22%20cy%3D%2213.2%22%20r%3D%220.99%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.47%22/%3E%3Ccircle%20cx%3D%2242.1%22%20cy%3D%22303.7%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22182.8%22%20cy%3D%22236.2%22%20r%3D%220.89%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22470.1%22%20cy%3D%22166.3%22%20r%3D%220.67%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22330.5%22%20cy%3D%22279.0%22%20r%3D%220.65%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.53%22/%3E%3Ccircle%20cx%3D%2238.6%22%20cy%3D%2239.8%22%20r%3D%220.63%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22863.5%22%20cy%3D%22330.8%22%20r%3D%220.45%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.49%22/%3E%3Ccircle%20cx%3D%22413.6%22%20cy%3D%2279.1%22%20r%3D%220.7%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22759.0%22%20cy%3D%2285.4%22%20r%3D%220.83%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22879.3%22%20cy%3D%22196.5%22%20r%3D%220.47%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22708.9%22%20cy%3D%22127.7%22%20r%3D%220.46%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22990.3%22%20cy%3D%22365.6%22%20r%3D%220.77%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22498.4%22%20cy%3D%22288.1%22%20r%3D%220.81%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22978.3%22%20cy%3D%22101.3%22%20r%3D%220.84%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22508.2%22%20cy%3D%22352.3%22%20r%3D%221.05%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22340.5%22%20cy%3D%22316.1%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.12%22/%3E%3Ccircle%20cx%3D%22836.1%22%20cy%3D%22234.1%22%20r%3D%220.91%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.49%22/%3E%3Ccircle%20cx%3D%22538.4%22%20cy%3D%22141.3%22%20r%3D%220.84%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22931.1%22%20cy%3D%22348.5%22%20r%3D%221.14%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22983.3%22%20cy%3D%2264.4%22%20r%3D%220.48%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.48%22/%3E%3Ccircle%20cx%3D%22866.5%22%20cy%3D%22145.7%22%20r%3D%220.6%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.18%22/%3E%3Ccircle%20cx%3D%2277.0%22%20cy%3D%2289.1%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22184.7%22%20cy%3D%2264.7%22%20r%3D%221.13%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22814.1%22%20cy%3D%2287.4%22%20r%3D%220.85%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.37%22/%3E%3Ccircle%20cx%3D%22186.1%22%20cy%3D%22102.9%22%20r%3D%220.71%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22198.1%22%20cy%3D%2280.4%22%20r%3D%220.82%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22795.7%22%20cy%3D%2241.3%22%20r%3D%220.58%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22848.1%22%20cy%3D%22140.3%22%20r%3D%220.96%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22163.8%22%20cy%3D%2228.1%22%20r%3D%220.69%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22307.8%22%20cy%3D%2214.3%22%20r%3D%220.84%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%22902.5%22%20cy%3D%2295.9%22%20r%3D%220.86%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22831.7%22%20cy%3D%22106.9%22%20r%3D%220.49%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.43%22/%3E%3Ccircle%20cx%3D%22771.1%22%20cy%3D%2263.0%22%20r%3D%220.92%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.15%22/%3E%3Ccircle%20cx%3D%22733.8%22%20cy%3D%2220.5%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22127.3%22%20cy%3D%22146.9%22%20r%3D%220.8%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22962.7%22%20cy%3D%22131.4%22%20r%3D%221.05%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22898.5%22%20cy%3D%2262.1%22%20r%3D%220.61%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22210.7%22%20cy%3D%223.9%22%20r%3D%221.03%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%2246.6%22%20cy%3D%2286.5%22%20r%3D%220.88%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.27%22/%3E%3Ccircle%20cx%3D%22146.1%22%20cy%3D%22139.6%22%20r%3D%221.12%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22807.4%22%20cy%3D%2264.3%22%20r%3D%220.79%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22315.1%22%20cy%3D%2271.6%22%20r%3D%220.53%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22181.4%22%20cy%3D%2286.8%22%20r%3D%221.11%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.39%22/%3E%3Ccircle%20cx%3D%22196.5%22%20cy%3D%2225.5%22%20r%3D%220.63%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22719.3%22%20cy%3D%22136.1%22%20r%3D%221.15%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%22707.5%22%20cy%3D%2218.1%22%20r%3D%220.69%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%2265.7%22%20cy%3D%22152.4%22%20r%3D%220.7%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22993.1%22%20cy%3D%22138.4%22%20r%3D%220.94%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22113.8%22%20cy%3D%2237.2%22%20r%3D%220.83%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22257.9%22%20cy%3D%22131.3%22%20r%3D%220.97%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22793.8%22%20cy%3D%226.6%22%20r%3D%220.47%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22221.6%22%20cy%3D%22153.1%22%20r%3D%220.76%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%22705.8%22%20cy%3D%2218.1%22%20r%3D%220.78%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22153.4%22%20cy%3D%22105.2%22%20r%3D%221.01%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22930.3%22%20cy%3D%22120.5%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.21%22/%3E%3Ccircle%20cx%3D%22256.3%22%20cy%3D%22155.5%22%20r%3D%220.73%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%2254.4%22%20cy%3D%2222.1%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.51%22/%3E%3Ccircle%20cx%3D%22890.3%22%20cy%3D%2257.4%22%20r%3D%220.83%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22168.5%22%20cy%3D%22149.5%22%20r%3D%220.75%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.5%22/%3E%3Ccircle%20cx%3D%2280.6%22%20cy%3D%2248.3%22%20r%3D%220.62%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.38%22/%3E%3Ccircle%20cx%3D%22946.9%22%20cy%3D%2211.6%22%20r%3D%220.97%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.51%22/%3E%3Ccircle%20cx%3D%22944.7%22%20cy%3D%22140.8%22%20r%3D%220.54%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.2%22/%3E%3Ccircle%20cx%3D%22279.3%22%20cy%3D%22124.7%22%20r%3D%220.88%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%2245.3%22%20cy%3D%2299.8%22%20r%3D%220.53%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.17%22/%3E%3Ccircle%20cx%3D%22931.0%22%20cy%3D%2218.8%22%20r%3D%220.84%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22247.1%22%20cy%3D%2282.2%22%20r%3D%220.84%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22784.2%22%20cy%3D%22155.8%22%20r%3D%220.87%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22842.6%22%20cy%3D%22129.6%22%20r%3D%220.81%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22975.3%22%20cy%3D%22143.1%22%20r%3D%220.59%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.32%22/%3E%3Ccircle%20cx%3D%22125.6%22%20cy%3D%2251.9%22%20r%3D%220.92%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.32%22/%3E%3Ccircle%20cx%3D%22930.9%22%20cy%3D%22143.7%22%20r%3D%220.56%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.43%22/%3E%3Ccircle%20cx%3D%2281.0%22%20cy%3D%2223.7%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.45%22/%3E%3Ccircle%20cx%3D%22963.2%22%20cy%3D%2227.7%22%20r%3D%220.92%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22788.5%22%20cy%3D%2232.9%22%20r%3D%220.67%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.44%22/%3E%3Ccircle%20cx%3D%22857.3%22%20cy%3D%2271.6%22%20r%3D%220.46%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22843.9%22%20cy%3D%2212.2%22%20r%3D%221.14%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.46%22/%3E%3Ccircle%20cx%3D%2285.0%22%20cy%3D%228.3%22%20r%3D%221.0%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%22951.9%22%20cy%3D%22108.8%22%20r%3D%221.11%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.31%22/%3E%3Ccircle%20cx%3D%22904.1%22%20cy%3D%2216.1%22%20r%3D%220.49%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%2286.1%22%20cy%3D%224.7%22%20r%3D%220.51%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.25%22/%3E%3Ccircle%20cx%3D%2221.3%22%20cy%3D%22138.3%22%20r%3D%220.77%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22976.5%22%20cy%3D%2244.3%22%20r%3D%220.54%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22310.1%22%20cy%3D%2243.4%22%20r%3D%220.58%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22/%3E%3Ccircle%20cx%3D%2292.8%22%20cy%3D%2281.0%22%20r%3D%220.57%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.28%22/%3E%3Ccircle%20cx%3D%22691.8%22%20cy%3D%224.9%22%20r%3D%220.8%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%22758.6%22%20cy%3D%2272.6%22%20r%3D%220.91%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22990.5%22%20cy%3D%2250.6%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.23%22/%3E%3Ccircle%20cx%3D%22129.5%22%20cy%3D%2256.9%22%20r%3D%220.49%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.19%22/%3E%3Ccircle%20cx%3D%22817.8%22%20cy%3D%2210.8%22%20r%3D%220.92%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.3%22/%3E%3Ccircle%20cx%3D%22871.6%22%20cy%3D%22111.4%22%20r%3D%220.48%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22681.2%22%20cy%3D%2259.5%22%20r%3D%220.68%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.54%22/%3E%3Ccircle%20cx%3D%2211.0%22%20cy%3D%22141.4%22%20r%3D%220.6%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.22%22/%3E%3Ccircle%20cx%3D%22706.8%22%20cy%3D%2246.1%22%20r%3D%220.91%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%2284.5%22%20cy%3D%2216.2%22%20r%3D%220.73%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.16%22/%3E%3Ccircle%20cx%3D%22777.4%22%20cy%3D%2238.8%22%20r%3D%220.86%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.36%22/%3E%3Ccircle%20cx%3D%22924.6%22%20cy%3D%22115.9%22%20r%3D%220.8%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%2214.0%22%20cy%3D%22134.0%22%20r%3D%221.07%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.4%22/%3E%3Ccircle%20cx%3D%22291.2%22%20cy%3D%22121.0%22%20r%3D%220.85%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.47%22/%3E%3Ccircle%20cx%3D%2227.2%22%20cy%3D%228.6%22%20r%3D%220.9%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.53%22/%3E%3Ccircle%20cx%3D%22858.7%22%20cy%3D%22101.2%22%20r%3D%220.89%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22681.1%22%20cy%3D%22128.0%22%20r%3D%220.97%22%20fill%3D%22%23eaf2ff%22%20opacity%3D%220.35%22/%3E%3Ccircle%20cx%3D%22211.0%22%20cy%3D%2212.4%22%20r%3D%220.97%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.24%22/%3E%3Ccircle%20cx%3D%22755.1%22%20cy%3D%22121.5%22%20r%3D%220.61%22%20fill%3D%22%23fff7ea%22%20opacity%3D%220.41%22/%3E%3Ccircle%20cx%3D%22950.6%22%20cy%3D%2214.1%22%20r%3D%221.09%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%2224.8%22%20cy%3D%2225.3%22%20r%3D%220.63%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.44%22/%3E%3Ccircle%20cx%3D%224.0%22%20cy%3D%2211.6%22%20r%3D%220.64%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.42%22/%3E%3Ccircle%20cx%3D%22773.1%22%20cy%3D%2283.6%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.33%22/%3E%3Ccircle%20cx%3D%2299.7%22%20cy%3D%2215.6%22%20r%3D%220.78%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.26%22/%3E%3Ccircle%20cx%3D%22998.1%22%20cy%3D%2263.1%22%20r%3D%221.09%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.52%22/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/* Night-sky wash — dark near-black at the very top fading down into a
+   deep midnight blue, then out to transparent, so only the upper part
+   of the header reads as "night sky" (where the stars and sun sit)
+   while the lower part of the header stays on the normal background. */
+.header-nightsky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+    rgba(4,4,14,0.9) 0%,
+    rgba(8,10,34,0.75) 35%,
+    rgba(14,14,46,0.4) 65%,
+    transparent 100%);
+}
+
+/* Real sunset-sea photo, clipped into a narrowing funnel that points up
+   toward the synth sun — like its light spilling down onto the water.
+   The wrapper does the clipping (via clip-path + overflow:hidden) so
+   the photo itself and the top fade-out overlay both stay confined to
+   the funnel shape without needing a CSS mask (kept off this page
+   after the earlier mask/gradient rendering issue in Firefox). The
+   photo is a separately-hosted, pre-cropped/compressed WebP so it
+   loads fast and doesn't bloat the HTML. */
+.header-sea {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(80%, 640px);
+  height: clamp(120px, 30vw, 230px);
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  clip-path: polygon(45% 0%, 55% 0%, 100% 100%, 0% 100%);
+}
+
+.header-sea-img {
+  position: absolute;
+  inset: 0;
+  background-image: url("ocean-sunset.webp");
+  background-size: cover;
+  background-position: center top;
+  opacity: 0.92;
+}
+
+.header-sea-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(8,10,34,0.65) 0%,
+    rgba(8,10,34,0.22) 30%,
+    transparent 70%);
+}
+
+/* soft neon underglow band across the header — echoes the ambient
+   horizon at the bottom of the page, kept faint so it stays a subtle
+   accent rather than a competing focal point */
+header::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(to right,
+    transparent,
+    rgba(255,160,120,0.35) 25%,
+    rgba(255,110,170,0.45) 50%,
+    rgba(0,240,255,0.35) 75%,
+    transparent);
+  box-shadow: 0 0 18px 2px rgba(255,120,160,0.25), 0 0 36px 6px rgba(0,240,255,0.12);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Synthwave sun — a soft, gently-glowing retro sun centered behind the
+   title, floating in the night sky above. Warm peach/orange core fades
+   through pink into cool neon violet at the rim, with faint horizontal
+   "scanlines" across the lower half for the classic retro-sun read, and
+   a soft outer halo ring. Static (no animation/movement) and kept low-
+   opacity so it stays a beautiful background accent, not a distraction.
+   Positioned with enough headroom, and with a tighter ray/halo spread,
+   so nothing gets clipped by the header's rounded top edge. */
+/* Opaque backdrop sitting just behind the sun (above the star field,
+   below the sun itself) so stars don't shine through the sun's
+   semi-transparent layers. It's colored to match the dark night-sky
+   backdrop it sits over, so it stays invisible on its own — it only
+   blocks the stars underneath it. Kept outside .synth-sun so the
+   sun's own opacity/appearance is completely unaffected. */
+.synth-sun-starblock {
+  position: absolute;
+  top: clamp(10px, 3vw, 26px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(110px, 22vw, 190px);
+  height: clamp(110px, 22vw, 190px);
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #0f0a1c 0%, #0a0714 55%, #050308 100%);
+  pointer-events: none;
+}
+
+.synth-sun {
+  position: absolute;
+  top: clamp(10px, 3vw, 26px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(110px, 22vw, 190px);
+  height: clamp(110px, 22vw, 190px);
+  z-index: 1;
+  opacity: 0.75;
+  pointer-events: none;
+  /* soft glow around the whole sun, echoing the warm/cool glow used
+     behind the SYNTHLUCIDA title text-shadow — kept gentle so it
+     brightens things up without turning into a hard halo */
+  animation: sunGlow 3.5s ease-in-out infinite;
+}
+
+@keyframes sunGlow {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 18px rgba(255,170,120,0.28))
+      drop-shadow(0 0 34px rgba(255,120,180,0.16))
+      drop-shadow(0 0 50px rgba(0,240,255,0.08));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 26px rgba(255,180,130,0.45))
+      drop-shadow(0 0 48px rgba(255,130,190,0.26))
+      drop-shadow(0 0 70px rgba(0,240,255,0.14));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .synth-sun {
+    animation: none;
+    filter:
+      drop-shadow(0 0 18px rgba(255,170,120,0.28))
+      drop-shadow(0 0 34px rgba(255,120,180,0.16))
+      drop-shadow(0 0 50px rgba(0,240,255,0.08));
+  }
+}
+
+/* faint static rays behind the disc */
+.synth-sun-rays {
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255,190,130,0.15) 0deg,
+    transparent 12deg,
+    transparent 30deg,
+    rgba(255,130,110,0.13) 42deg,
+    transparent 54deg,
+    transparent 90deg,
+    rgba(255,170,120,0.1) 102deg,
+    transparent 114deg,
+    transparent 150deg,
+    rgba(255,190,130,0.13) 162deg,
+    transparent 174deg,
+    transparent 210deg,
+    rgba(255,130,110,0.1) 222deg,
+    transparent 234deg,
+    transparent 270deg,
+    rgba(255,170,120,0.13) 282deg,
+    transparent 294deg,
+    transparent 360deg
+  );
+  -webkit-mask-image: radial-gradient(circle, transparent 45%, black 58%, transparent 80%);
+  mask-image: radial-gradient(circle, transparent 45%, black 58%, transparent 80%);
+  opacity: 0.5;
+}
+
+/* soft outer halo ring */
+.synth-sun-halo {
+  position: absolute;
+  inset: -8%;
+  border-radius: 50%;
+  border: 1px solid rgba(255,180,130,0.13);
+  box-shadow:
+    0 0 14px rgba(255,140,90,0.08),
+    inset 0 0 14px rgba(255,100,90,0.05);
+}
+
+.synth-sun-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.synth-sun-disc::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%,
+    #fff6e2 0%,
+    #ffe2ab 12%,
+    #ffb666 28%,
+    #ff8c4a 44%,
+    #ff6f4d 62%,
+    #dd6178 80%,
+    rgba(200,80,90,0) 100%);
+  opacity: 0.85;
+  box-shadow:
+    0 0 20px rgba(255,150,90,0.24),
+    0 0 42px rgba(255,110,90,0.14),
+    0 0 65px rgba(220,90,100,0.08);
+}
+
+.synth-sun-disc::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 8px,
+    rgba(12,4,24,0.5) 8px,
+    rgba(12,4,24,0.5) 11px
+  );
+  -webkit-mask-image: linear-gradient(to bottom, transparent 44%, black 52%);
+  mask-image: linear-gradient(to bottom, transparent 44%, black 52%);
+  opacity: 0.85;
+}
+
+/* Drifting flock of birds gliding across the synth sun — a soft,
+   silhouette-style detail that gives the header a slow, breathing
+   sunset atmosphere. Each bird is an absolutely-positioned box that
+   drifts left→right (via left/top so percentages resolve against the
+   header, not the bird itself) while its inner SVG wings flap on a
+   quick separate loop. Placed above the sun (z-index 2) so the birds
+   read as flying in front of it, in front of the star field. Kept
+   slow and few in number so it stays ambient background, not a
+   distraction. */
+.sun-birds-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Crescent moon accent under the SYNTHLUCIDA wordmark — a small,
+   quiet emblem that continues the h1 gradient's cool cyan end into
+   a moonlit glow, echoing the warm synth sun above the title with
+   something cool below it. The crescent itself is cut with a plain
+   SVG <mask> (a circle offset over a circle) rather than a CSS
+   mask-composite trick, for the same cross-browser reliability
+   reason the header star field above uses one inline SVG image
+   instead of stacked gradients. The glow pulse mirrors .synth-sun's
+   sunGlow animation and is disabled the same way for people who
+   prefer reduced motion. */
+.hero-moon {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2.4vw, 16px);
+  margin: 4px 0 10px;
+}
+
+.hero-moon-line {
+  flex: 0 1 auto;
+  width: clamp(24px, 14vw, 70px);
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(130,210,235,0.55));
+  box-shadow: 0 0 8px 1px rgba(110,200,235,0.22);
+}
+
+.hero-moon-line--r {
+  background: linear-gradient(to left, transparent, rgba(130,210,235,0.55));
+}
+
+.hero-moon-svg {
+  width: clamp(22px, 5vw, 34px);
+  height: clamp(22px, 5vw, 34px);
+  flex: 0 0 auto;
+  overflow: visible;
+  animation: moonGlow 4.5s ease-in-out infinite;
+}
+
+@keyframes moonGlow {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 4px rgba(150,225,248,0.5))
+      drop-shadow(0 0 10px rgba(120,180,255,0.28))
+      drop-shadow(0 0 18px rgba(255,140,200,0.14));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 7px rgba(170,232,250,0.7))
+      drop-shadow(0 0 16px rgba(130,190,255,0.4))
+      drop-shadow(0 0 26px rgba(255,150,205,0.22));
+  }
+}
+
+.hero-moon-star {
+  animation: moonTwinkle 3.4s ease-in-out infinite;
+}
+
+.hero-moon-star--b {
+  animation-delay: 1.6s;
+}
+
+@keyframes moonTwinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-moon-svg {
+    animation: none;
+    filter:
+      drop-shadow(0 0 4px rgba(150,225,248,0.5))
+      drop-shadow(0 0 10px rgba(120,180,255,0.28))
+      drop-shadow(0 0 18px rgba(255,140,200,0.14));
+  }
+  .hero-moon-star {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
+/* Visually hide content while keeping it in the DOM for SEO/screen
+   readers — used for the original keyword-rich subtitle line. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* All interactive header buttons (store badge, demo/relax/review
+   toggles, quick links, Android app) now live below the header in
+   .header-buttons-row rather than pinned to its corners. These
+   wrapper elements just flatten away so their buttons become plain
+   items in that row. */
+.header-topleft,
+.header-topright,
+.quick-links {
+  display: contents;
+}
+
+.header-buttons-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  max-width: 640px;
+  margin: 22px auto 0;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Single big centered "Menu" button — tapping it reveals all the other
+   header buttons in .header-menu-panel below. Deliberately larger than
+   the buttons it reveals so it reads as the one thing to tap. */
+.menu-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px 34px;
+  border-radius: 30px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(0,240,255,0.5);
+  box-shadow: 0 0 18px rgba(0,240,255,0.3);
+  color: #00f0ff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  min-width: 170px;
+  transition: all 0.25s ease;
+  position: relative;
+  z-index: 1;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+}
+
+.menu-toggle-btn .badge-icon {
+  font-size: 17px;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px rgba(0,240,255,0.6));
+}
+
+.menu-toggle-btn[aria-expanded="true"] {
+  background: rgba(0,240,255,0.14);
+  border-color: rgba(0,240,255,0.6);
+}
+
+/* Panel holding all the other header buttons, collapsed by default. */
+.header-menu-panel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 14px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease, opacity 0.4s ease, margin 0.5s ease;
+  margin-top: 0;
+  box-sizing: border-box;
+}
+
+.header-menu-panel.open {
+  max-height: 900px;
+  opacity: 1;
+  margin-top: 14px;
+}
+
+.header-menu-panel .app-toggle-btn {
+  margin-top: 0;
+}
+
+.relax-player-badge,
+.review-toggle-btn,
+.demo-toggle-btn,
+.quick-link-btn,
+.app-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 30px;
+  text-decoration: none;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(0,240,255,0.4);
+  color: #00f0ff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  transition: all 0.25s ease;
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  min-width: 132px;
+}
+
+.review-toggle-btn,
+.demo-toggle-btn,
+.quick-link-btn,
+.app-toggle-btn {
+  background: rgba(0,0,0,0.35);
+  border-color: rgba(0,240,255,0.25);
+  opacity: 0.9;
+}
+
+.relax-player-badge .badge-icon,
+.review-toggle-btn .badge-icon,
+.demo-toggle-btn .badge-icon,
+.quick-link-btn .badge-icon,
+.app-toggle-btn .badge-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.review-toggle-btn[aria-expanded="true"],
+.demo-toggle-btn[aria-expanded="true"],
+.app-toggle-btn[aria-expanded="true"] {
+  background: rgba(0,240,255,0.12);
+  border-color: rgba(0,240,255,0.55);
+  opacity: 1;
+}
+
+/* Quick links row (News, Download, Bio, Services) — buttons flow into
+   .header-buttons-row via the display:contents rule above; per-button
+   look comes from the shared .quick-link-btn rules below. */
+
+.ms-store-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 30px;
+  text-decoration: none;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(0,240,255,0.4);
+  color: #00f0ff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  font-family: 'Orbitron', sans-serif;
+  opacity: 0.95;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  min-width: 132px;
+}
+
+.ms-store-badge .ms-logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+}
+
+.ms-store-badge .ms-logo-icon svg {
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+
+/* platforms section - unified, collapsible links to social/store platforms */
+.platforms {
+  margin-top: 45px;
+}
+
+.platforms-toggle-btn,
+.contact-form-toggle-btn {
+  width: 100%;
+  max-width: 330px;
+  padding: 15px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #00f0ff;
+  border: 1px solid rgba(0,240,255,0.35);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.25s ease;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(0,240,255,0.12);
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.platforms-toggle-btn:hover,
+.contact-form-toggle-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 20px rgba(0,240,255,0.45);
+  background: rgba(255,255,255,0.05);
+}
+
+.platforms-toggle-btn[aria-expanded="true"],
+.contact-form-toggle-btn[aria-expanded="true"] {
+  background: rgba(0,240,255,0.1);
+  border-color: rgba(0,240,255,0.55);
+}
+
+.platforms-toggle-btn .chevron,
+.contact-form-toggle-btn .chevron {
+  display: inline-block;
+  transition: transform 0.3s ease;
+  font-size: 11px;
+}
+
+.platforms-toggle-btn[aria-expanded="true"] .chevron,
+.contact-form-toggle-btn[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.platforms-panel,
+.contact-form-panel {
+  max-width: 680px;
+  margin: 0 auto;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease, opacity 0.4s ease, margin 0.5s ease;
+}
+
+.platforms-panel.open,
+.contact-form-panel.open {
+  max-height: 600px;
+  opacity: 1;
+  margin-top: 16px;
+}
+
+/* SYNTHLUCIDA for Android toggle — same small badge size/style as the
+   Microsoft Store button (see .ms-store-badge), joined into that shared
+   rule set further down. The panel it opens (.app-download-wrap) lives
+   outside <header>, right below the whole hero card — same principle as
+   Demo Music opening .radio-section below the header, not inside it. */
+.app-toggle-btn {
+  display: inline-flex;
+  margin-top: 18px;
+  position: relative;
+  z-index: 1;
+  /* Same GPU-layer fix as .header-topright/.header-topleft — without it,
+     this button can lose its compositing layer during mobile scroll-bounce
+     repaint and vanish until something else forces a repaint. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+}
+
+.app-download-wrap {
+  max-width: 440px;
+  margin: 0 auto;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.6s ease, opacity 0.45s ease, margin 0.6s ease;
+}
+
+.app-download-wrap.open {
+  max-height: 900px;
+  opacity: 1;
+  margin-top: 26px;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(0,240,255,0.2);
+}
+
+.contact-recipient {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #b0b0b0;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+.contact-recipient strong {
+  color: #00f0ff;
+}
+
+.contact-input,
+.contact-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: #fff;
+  border-radius: 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12.5px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.contact-input::placeholder,
+.contact-textarea::placeholder {
+  color: rgba(255,255,255,0.4);
+}
+
+.contact-input:hover,
+.contact-input:focus,
+.contact-textarea:hover,
+.contact-textarea:focus {
+  border-color: #00f0ff;
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.contact-textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.contact-submit-btn {
+  font-family: 'Orbitron', sans-serif;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  color: #00f0ff;
+  padding: 13px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 1px;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+  margin-top: 4px;
+}
+
+.contact-submit-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: #00f0ff;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.contact-submit-btn:active {
+  transform: translateY(1px);
+}
+
+.contact-thanks {
+  margin: 0;
+  padding: 10px 0;
+  color: #00f0ff;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.contact-status {
+  margin: 4px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  min-height: 14px;
+}
+
+.contact-status.sending {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.contact-status.error {
+  color: #ff6b6b;
+}
+
+.platforms-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.platform-link {
+  flex: 0 1 150px;
+}
+
+.platform-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #00f0ff;
+  border: 1px solid rgba(0,240,255,0.3);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.25s ease;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  box-shadow: 0 0 10px rgba(0,240,255,0.1);
+}
+
+.platform-link:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 20px rgba(0,240,255,0.4);
+  background: rgba(255,255,255,0.05);
+}
+
+.platform-link .platform-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .ms-store-badge,
+  .relax-player-badge,
+  .review-toggle-btn,
+  .demo-toggle-btn,
+  .quick-link-btn,
+  .app-toggle-btn {
+    padding: 6px 11px;
+    font-size: 9.5px;
+    min-width: 106px;
+  }
+  .relax-player-badge .badge-icon,
+  .review-toggle-btn .badge-icon,
+  .demo-toggle-btn .badge-icon,
+  .quick-link-btn .badge-icon,
+  .app-toggle-btn .badge-icon { font-size: 13px; }
+  .header-menu-panel {
+    gap: 7px;
+  }
+  .ms-store-badge .ms-logo-icon {
+    width: 13px;
+    height: 13px;
+  }
+  .ms-store-badge .ms-logo-icon svg {
+    width: 9px;
+    height: 9px;
+  }
+  .platform-link {
+    flex-basis: 120px;
+  }
+}
+
+/* On very small screens / narrow displays, the button row below the
+   header regroups into a fixed 2-column layout so it lays out the same
+   way on every phone instead of wrapping unpredictably. Text labels
+   always stay visible.
+   NOTE: deliberately kept as flexbox (not CSS grid) here. The wrapper
+   elements (.header-topleft/.header-topright/.quick-links) use
+   `display: contents` to flatten their buttons into this row, and that
+   combination is unreliable with `display: grid` on mobile Safari —
+   buttons could render clipped down to a sliver after being tapped.
+   Flexbox + display:contents does not have that bug, so 2-per-row is
+   achieved with flex-basis instead of grid-template-columns. */
+@media (max-width: 460px) {
+  header {
+    padding: 26px 16px 34px;
+  }
+  .header-menu-panel {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .header-menu-panel.open {
+    max-height: 1400px;
+  }
+  .header-menu-panel .ms-store-badge,
+  .header-menu-panel .relax-player-badge,
+  .header-menu-panel .review-toggle-btn,
+  .header-menu-panel .demo-toggle-btn,
+  .header-menu-panel .quick-link-btn {
+    flex: 0 1 calc(50% - 4px);
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .header-menu-panel .ms-store-badge .ms-label-full,
+  .header-menu-panel .relax-player-badge .label-full,
+  .header-menu-panel .review-toggle-btn .label-full,
+  .header-menu-panel .demo-toggle-btn .label-full,
+  .header-menu-panel .quick-link-btn .label-full {
+    white-space: normal;
+  }
+  .header-menu-panel .app-toggle-btn {
+    flex: 0 1 100%;
+    justify-content: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+h1 {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(30px, 9vw, 72px);
+  font-weight: 600;
+  color: #6de9f7;
+  background: linear-gradient(180deg, #fff0c2 0%, #ffb26b 28%, #ff7fa8 55%, #6de9f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 4px;
+  margin-bottom: 6px;
+  text-shadow:
+    -1px 0 1.5px rgba(5,2,12,0.35),
+    1px 0 1.5px rgba(5,2,12,0.35),
+    0 -1px 1.5px rgba(5,2,12,0.35),
+    0 1px 1.5px rgba(5,2,12,0.35),
+    0 0 6px rgba(5,2,12,0.24),
+    0 0 10px rgba(255,170,120,0.3),
+    0 0 18px rgba(255,120,180,0.22),
+    0 0 28px rgba(0,240,255,0.18);
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+@keyframes titleGlow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+  50% { filter: brightness(1.08) drop-shadow(0 0 14px rgba(255,150,180,0.25)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  h1 {
+    animation: none;
+  }
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  h1 {
+    color: #6de9f7;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+.hero-tagline {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(12px, 2.6vw, 15px);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #ffcfa3;
+  margin-bottom: 14px;
+}
+
+/* letter-spacing on the inner span adds trailing space only after the
+   last character; the matching negative margin-right cancels that
+   trailing space out so the parent's text-align:center centers the
+   actual glyphs, not the glyphs-plus-phantom-space box */
+.hero-tagline span {
+  display: inline-block;
+  letter-spacing: 4px;
+  margin-right: -4px;
+  text-shadow:
+    0 0 10px rgba(255,160,120,0.45),
+    0 0 22px rgba(255,110,170,0.3);
+}
+
+.subtitle {
+  position: relative;
+  z-index: 1;
+  font-size: 15px;
+  color: #ffffff;
+  margin-bottom: 0;
+  line-height: 1.6;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+h2 {
+  font-size: 18px;
+  color: #00f0ff;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+/* article-style panel behind the Review toggle - collapsible */
+.review-panel {
+  max-width: 680px;
+  margin: 0 auto;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.6s ease, opacity 0.45s ease, margin 0.6s ease;
+}
+
+.review-panel.open {
+  max-height: 4000px;
+  opacity: 1;
+  margin: 26px auto 0;
+}
+
+.review-card {
+  padding: 30px 26px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(0,240,255,0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 25px rgba(0,240,255,0.1);
+  text-align: left;
+}
+
+.review-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #ff00ff;
+  border: 1px solid rgba(255,0,255,0.4);
+  background: rgba(255,0,255,0.08);
+  padding: 6px 14px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  text-shadow: 0 0 8px rgba(255,0,255,0.5);
+}
+
+.review-title {
+  font-size: 19px;
+  color: #00f0ff;
+  text-align: left;
+  letter-spacing: 1px;
+  margin: 0 0 18px;
+}
+
+.review-text {
+  font-size: 14px;
+  line-height: 1.85;
+  color: #d7d7d7;
+  letter-spacing: 0.3px;
+  margin: 0 0 14px;
+}
+
+.review-text strong {
+  color: #00f0ff;
+}
+
+.review-signoff {
+  font-size: 12.5px;
+  color: #888888;
+  letter-spacing: 0.5px;
+  margin: 4px 0 22px;
+  text-align: right;
+}
+
+/* shared star rating widget - same numbers for every visitor, not just this browser */
+.rating-widget {
+  margin: 6px 0 24px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+}
+
+.rating-label {
+  font-size: 11px;
+  color: #b0b0b0;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.rating-stars {
+  font-size: 30px;
+  letter-spacing: 6px;
+  line-height: 1;
+  margin-bottom: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rating-star {
+  display: inline-block;
+  color: rgba(255,255,255,0.22);
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.rating-star:hover {
+  transform: scale(1.12);
+}
+
+.rating-star.filled {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.55);
+}
+
+.rating-widget.voted .rating-star {
+  cursor: default;
+}
+
+.rating-widget.voted .rating-star:hover {
+  transform: none;
+}
+
+.rating-summary {
+  font-size: 12px;
+  color: #999999;
+  letter-spacing: 0.4px;
+}
+
+.rating-summary strong {
+  color: #00f0ff;
+}
+
+.review-cta-wrap {
+  text-align: center;
+  margin-top: 22px;
+}
+
+a.review-cta {
+  display: inline-block;
+  padding: 13px 26px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #00f0ff;
+  border: 1px solid rgba(0,240,255,0.4);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.25s ease;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-shadow: 0 0 12px rgba(0,240,255,0.18);
+}
+
+a.review-cta:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 22px rgba(0,240,255,0.5);
+  background: rgba(255,255,255,0.05);
+}
+
+@media (max-width: 600px) {
+  .review-card { padding: 22px 18px; }
+  .review-title { font-size: 16px; }
+  .review-text { font-size: 13px; }
+}
+
+.info-section {
+  margin-top: 40px;
+  padding: 30px 25px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(0,240,255,0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 25px rgba(0,240,255,0.1);
+}
+
+@keyframes sectionGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,240,255,0.08); border-color: rgba(0,240,255,0.15); }
+  50% { box-shadow: 0 0 32px rgba(0,240,255,0.16); border-color: rgba(0,240,255,0.3); }
+}
+
+.bio {
+  font-size: 15px;
+  line-height: 1.9;
+  color: #d7d7d7;
+  max-width: 700px;
+  margin: 0 auto 40px auto;
+}
+
+.thank-you-image {
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  border-radius: 15px;
+  margin-top: 20px;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.gear-heading {
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #00f0ff;
+  margin: 30px 0 16px;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+}
+
+/* Visually hides content while keeping it in the DOM for search engines
+   and screen readers — NOT display:none / visibility:hidden, which are
+   removed from the accessibility tree and can be ignored by crawlers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.gear-photo {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 15px;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+}
+
+/* christmas atmosphere overlay */
+#christmas-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9998;
+  display: none;
+}
+
+#christmas-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(10, 10, 15, 0.92);
+  color: #d7d7d7;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#christmas-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* spotify section */
+.spotify {
+  margin-top: 50px;
+  padding: 22px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(0,240,255,0.18);
+  backdrop-filter: blur(8px);
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow:
+    0 0 25px rgba(0,240,255,0.08);
+}
+
+iframe {
+  width: 100%;
+  height: 152px;
+  border-radius: 12px;
+  border: none;
+}
+
+/* Radio Player Custom Design — collapsible, opened via the Demo Music toggle */
+.radio-section {
+  max-width: 440px;
+  margin: 0 auto;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 20px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.65);
+  border: 1px solid rgba(255,0,255,0.25);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 25px rgba(255,0,255,0.08);
+  transition: max-height 0.6s ease, opacity 0.45s ease, margin 0.6s ease, padding 0.6s ease;
+}
+
+.radio-section.open {
+  max-height: 4000px;
+  opacity: 1;
+  margin: 26px auto 0;
+  padding: 25px 20px;
+}
+
+@keyframes sectionGlowMagenta {
+  0%, 100% { box-shadow: 0 0 20px rgba(255,0,255,0.08); border-color: rgba(255,0,255,0.2); }
+  50% { box-shadow: 0 0 32px rgba(255,0,255,0.18); border-color: rgba(255,0,255,0.38); }
+}
+
+.radio-status {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #ff00ff;
+  margin-bottom: 5px;
+  text-shadow: 0 0 8px rgba(255,0,255,0.5);
+}
+
+.radio-title {
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 15px;
+  font-weight: 600;
+  min-height: 20px;
+  letter-spacing: 0.5px;
+}
+
+/* Equalizer Design */
+.equalizer {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 4px;
+  height: 35px;
+  margin-bottom: 20px;
+  opacity: 0.2; 
+  transition: opacity 0.3s ease;
+}
+
+.equalizer.active {
+  opacity: 1;
+}
+
+.equalizer .bar {
+  width: 6px;
+  height: 5px;
+  background: #00f0ff;
+  border-radius: 3px;
+  box-shadow: 0 0 8px #00f0ff;
+  transition: height 0.1s ease;
+}
+
+.equalizer.active .bar {
+  animation: bounce 0.8s infinite ease-in-out alternate;
+}
+
+/* Bar staggered animations and alternating colors */
+.equalizer .bar:nth-child(1) { animation-delay: 0.1s; }
+.equalizer .bar:nth-child(2) { animation-delay: 0.4s; background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
+.equalizer .bar:nth-child(3) { animation-delay: 0.2s; }
+.equalizer .bar:nth-child(4) { animation-delay: 0.5s; background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
+.equalizer .bar:nth-child(5) { animation-delay: 0.3s; }
+.equalizer .bar:nth-child(6) { animation-delay: 0.6s; background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
+.equalizer .bar:nth-child(7) { animation-delay: 0.2s; }
+
+@keyframes bounce {
+  0% { height: 5px; }
+  100% { height: 35px; }
+}
+
+/* Custom Selector Styles */
+.radio-select {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: #fff;
+  border-radius: 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.radio-select:hover {
+  border-color: #00f0ff;
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.radio-select option {
+  background: #000010;
+  color: #fff;
+}
+
+.radio-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.radio-btn {
+  font-family: 'Orbitron', sans-serif;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  color: #00f0ff;
+  padding: 12px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 1px;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+}
+
+.radio-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: #00f0ff;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.radio-btn:active {
+  transform: translateY(1px);
+}
+
+#radio-play-btn {
+  min-width: 130px;
+}
+
+/* Radio Description Text */
+.radio-description {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #b0b0b0;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+.radio-description strong {
+  color: #00f0ff;
+  font-weight: 600;
+}
+
+/* App download (Google Play) */
+.app-download {
+  padding: 30px 25px 34px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(0,240,255,0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 0 25px rgba(0,240,255,0.1);
+}
+
+.app-status {
+  display: inline-block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #ff00ff;
+  border: 1px solid rgba(255,0,255,0.4);
+  background: rgba(255,0,255,0.08);
+  padding: 6px 14px;
+  border-radius: 20px;
+  margin-bottom: 18px;
+  text-shadow: 0 0 8px rgba(255,0,255,0.5);
+}
+
+.app-title {
+  font-size: 17px;
+  margin: 0 0 14px;
+}
+
+.app-desc {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #b0b0b0;
+  max-width: 360px;
+  margin: 0 auto 24px;
+  letter-spacing: 0.3px;
+}
+
+.play-store-link {
+  display: inline-block;
+  line-height: 0;
+  transition: transform 0.25s ease, filter 0.25s ease;
+  filter: drop-shadow(0 0 8px rgba(0,240,255,0.25));
+}
+
+.play-store-link:hover {
+  transform: translateY(-2px) scale(1.04);
+  filter: drop-shadow(0 0 18px rgba(0,240,255,0.55));
+}
+
+.play-store-link:focus-visible {
+  outline: 2px solid #00f0ff;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.play-store-link img {
+  height: 58px;
+  width: auto;
+  display: block;
+  border-radius: 8px;
+}
+
+.app-alt {
+  font-size: 11.5px;
+  color: #888888;
+  margin: 18px 0 0;
+  letter-spacing: 0.3px;
+}
+
+/* links */
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 45px;
+  align-items: center;
+}
+
+a.button {
+  width: 100%;
+  max-width: 330px;
+  padding: 15px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #00f0ff;
+  border: 1px solid rgba(0,240,255,0.35);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.25s ease;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(0,240,255,0.12);
+}
+
+a.button:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow:
+    0 0 20px rgba(0,240,255,0.45);
+  background: rgba(255,255,255,0.05);
+}
+
+.privacy-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #888888;
+  text-decoration: none;
+  letter-spacing: 0.4px;
+  opacity: 0.65;
+  transition: 0.2s;
+}
+
+.privacy-link:hover {
+  opacity: 1;
+  color: #00f0ff;
+}
+
+/* logo styling */
+.footer-logo {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  margin: 50px auto 15px auto;
+  animation: logoPulse 3.5s ease-in-out infinite;
+  cursor: default !important;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+@keyframes logoPulse {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.35)); }
+  50% { filter: drop-shadow(0 0 22px rgba(0, 240, 255, 0.65)); }
+}
+
+/* hidden visitor stats panel — revealed by clicking the footer logo 5x */
+.visitor-stats-panel {
+  display: none;
+  max-width: 260px;
+  margin: 16px auto 0 auto;
+  padding: 14px 20px;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(0, 240, 255, 0.045);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: #9fdfe8;
+  text-align: center;
+  line-height: 1.9;
+}
+
+.visitor-stats-panel.visible {
+  display: block;
+}
+
+.visitor-stats-panel strong {
+  color: #00f0ff;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+footer {
+  margin-top: 20px;
+  font-size: 11px;
+  color: #666666;
+  letter-spacing: 1px;
+}
+
+/* mobile */
+@media (max-width: 600px) {
+
+  main.container {
+    padding: 45px 16px;
+  }
+
+  .bio {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  a.button {
+    font-size: 13px;
+  }
+
+  .app-download {
+    padding: 26px 18px 28px;
+  }
+
+  .play-store-link img {
+    height: 52px;
+  }
+
+  .footer-logo {
+    max-width: 130px;
+    margin-top: 40px;
+  }
+
+  h1 {
+    letter-spacing: 1.5px;
+  }
+
+}
+
+/* backdrop-filter (frosted-glass blur) is one of the more expensive CSS
+   effects to composite, especially on low-end/mobile GPUs. Drop it on
+   small screens — the underlying rgba() backgrounds already give enough
+   contrast without it — while keeping the nicer glass look on desktop. */
+@media (max-width: 480px) {
+  .relax-player-badge,
+  .review-toggle-btn,
+  .demo-toggle-btn,
+  .quick-link-btn,
+  .ms-store-badge,
+  .review-card,
+  .info-section,
+  .spotify,
+  .platforms-panel,
+  .app-download {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Language toggle button (CZ / EN) — placed inline above the
+   "Atmospheric Electronic Music & Sound Design" section rather than
+   fixed top-left, since the top-left corner is already used by the
+   header menu / badges. */
+.lang-toggle-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 18px 0;
+}
+
+.lang-toggle-btn {
+  border: 1px solid rgba(0,240,255,0.4);
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  color: #00f0ff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  padding: 8px 18px;
+  border-radius: 20px;
+  box-shadow: 0 0 15px rgba(0,240,255,0.15);
+  transition: 0.25s ease;
+}
+
+.lang-toggle-btn:hover {
+  background: #00f0ff;
+  color: #000000;
+  box-shadow: 0 0 20px #00f0ff, 0 0 35px #ff00ff;
+  transform: translateY(-2px);
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="ambient-horizon" aria-hidden="true"></div>
+
+<main class="container">
+
+<header>
+
+<div class="header-nightsky" aria-hidden="true"></div>
+<div class="header-stars" aria-hidden="true"></div>
+<div class="header-sea" aria-hidden="true">
+<div class="header-sea-img"></div>
+<div class="header-sea-fade"></div>
+</div>
+
+<div class="synth-sun-starblock" aria-hidden="true"></div>
+<div class="synth-sun" aria-hidden="true">
+<div class="synth-sun-rays"></div>
+<div class="synth-sun-halo"></div>
+<div class="synth-sun-disc"></div>
+</div>
+
+<canvas class="sun-birds-canvas" id="sunBirdsCanvas" aria-hidden="true"></canvas>
+
+<div class="hero-title">
+<h1>SYNTHLUCIDA</h1>
+
+<div class="hero-moon" aria-hidden="true">
+<span class="hero-moon-line hero-moon-line--l"></span>
+<svg class="hero-moon-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<radialGradient id="heroMoonGrad" cx="32%" cy="28%" r="80%">
+<stop offset="0%" stop-color="#fefeff"/>
+<stop offset="30%" stop-color="#cdeeff"/>
+<stop offset="60%" stop-color="#8fd9f0"/>
+<stop offset="100%" stop-color="#4a9fd6"/>
+</radialGradient>
+<mask id="heroMoonMask" maskUnits="userSpaceOnUse" x="-40" y="-40" width="140" height="140">
+<rect x="-40" y="-40" width="140" height="140" fill="#fff"/>
+<circle cx="13" cy="0" r="22" fill="#000"/>
+</mask>
+</defs>
+<circle class="hero-moon-star hero-moon-star--a" cx="49" cy="12" r="1.4" fill="#eafcff"/>
+<circle class="hero-moon-star hero-moon-star--b" cx="11" cy="48" r="1" fill="#eafcff"/>
+<g transform="translate(30,30) rotate(-18)">
+<circle r="21" fill="url(#heroMoonGrad)" mask="url(#heroMoonMask)"/>
+</g>
+</svg>
+<span class="hero-moon-line hero-moon-line--r"></span>
+</div>
+</div>
+
+<div class="subtitle visually-hidden" data-i18n="hero-subtitle">Producent elektronické hudby • Chillout • Ambient • Progressive</div>
+
+</header>
+
+<div class="header-buttons-row">
+
+<button class="menu-toggle-btn" id="menu-toggle-btn" onclick="toggleHeaderMenu()" aria-expanded="false" aria-controls="header-menu-panel" aria-label="Menu" title="Menu">
+<span class="badge-icon">☰</span><span class="label-full" data-i18n="menu-label">Menu</span>
+</button>
+
+<div class="header-menu-panel" id="header-menu-panel">
+
+<div class="header-topleft">
+<a class="ms-store-badge" href="https://apps.microsoft.com/detail/9nbv1tn33b57?cid=DevShareMCLPCS&hl=cs-CZ&gl=CZ" target="_blank" rel="noopener noreferrer" aria-label="Get SYNTHLUCIDA on Microsoft Store" title="Microsoft Store">
+<span class="ms-logo-icon">
+<svg viewBox="0 0 21 21" width="12" height="12" aria-hidden="true">
+<rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+<rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+<rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+<rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+</svg>
+</span>
+<span class="ms-label-full" data-i18n="ms-store-label">Microsoft Store</span>
+</a>
+<button class="demo-toggle-btn" id="demo-toggle-btn" onclick="toggleDemo()" aria-expanded="false" aria-controls="radio-section" aria-label="Demo Music" title="Demo Music">
+<span class="badge-icon">🎵</span><span class="label-full" data-i18n="demo-label">Ukázka hudby</span>
+</button>
+</div>
+
+<div class="header-topright">
+<a class="relax-player-badge" href="player.html" aria-label="Open the SYNTHLUCIDA Relax Player" title="Relax Player">
+<span class="badge-icon">🎧</span><span class="label-full" data-i18n="relax-label">Relax Player</span>
+</a>
+<button class="review-toggle-btn" id="review-toggle-btn" onclick="toggleReview()" aria-expanded="false" aria-controls="review-panel" aria-label="Review" title="Review">
+<span class="badge-icon">★</span><span class="label-full" data-i18n="review-label">Recenze</span>
+</button>
+</div>
+
+<nav class="quick-links" aria-label="Quick links">
+<a class="quick-link-btn" href="https://synthlucida.com/news.html" aria-label="News & Updates" title="News & Updates">
+<span class="badge-icon">📰</span><span class="label-full" data-i18n="news-label">Novinky</span>
+</a>
+<a class="quick-link-btn" href="https://synthlucida.com/download.html" aria-label="Download Software" title="Download Software">
+<span class="badge-icon">💾</span><span class="label-full" data-i18n="download-label">Stažení</span>
+</a>
+<a class="quick-link-btn" href="https://synthlucida.com/bio.html" aria-label="Bio" title="Bio">
+<span class="badge-icon">👤</span><span class="label-full" data-i18n="bio-label">Bio</span>
+</a>
+<a class="quick-link-btn" href="https://synthlucida.com/services.html" aria-label="Services & Collabs" title="Services & Collabs">
+<span class="badge-icon">🛠️</span><span class="label-full" data-i18n="services-label">Služby</span>
+</a>
+</nav>
+
+<button class="app-toggle-btn" id="app-toggle-btn" onclick="toggleApp()" aria-expanded="false" aria-controls="app-download-panel" aria-label="SYNTHLUCIDA for Android" title="SYNTHLUCIDA for Android">
+<span class="badge-icon">📱</span><span class="label-full" data-i18n="android-label">Android aplikace</span>
+</button>
+
+</div>
+
+</div>
+
+<div class="app-download-wrap" id="app-download-panel">
+<section class="app-download">
+
+<div class="app-status" data-i18n="app-status">Alfa · Uzavřené testování</div>
+
+<h2 class="app-title" data-i18n="app-title">📱 SYNTHLUCIDA pro Android</h2>
+
+<p class="app-desc" data-i18n="app-desc">Získejte plný ambientní zážitek SYNTHLUCIDA jako instalovatelnou aplikaci pro Android. Rané alfa vydání — děkuji za pomoc s testováním. Pokud se chcete zapojit do testovacího programu, napište mi prosím e-mail. Děkuji!</p>
+
+<a class="play-store-link"
+href="https://play.google.com/apps/testing/io.github.synthlucida.twa"
+target="_blank"
+rel="noopener noreferrer"
+aria-label="Get SYNTHLUCIDA on Google Play">
+<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" loading="lazy">
+</a>
+
+<p class="app-alt" data-i18n="app-alt">Nechcete nic instalovat? Můžete aplikaci použít i přímo v prohlížeči — viz odkaz níže.</p>
+
+</section>
+</div>
+
+<section class="radio-section" id="radio-section">
+  <div class="radio-status" id="radio-status">Radio Offline</div>
+  <div class="radio-title" id="radio-title">Click Play to Tune In</div>
+  
+  <div class="equalizer" id="visual-equalizer">
+    <div class="bar"></div>
+    <div class="bar"></div>
+    <div class="bar"></div>
+    <div class="bar"></div>
+    <div class="bar"></div>
+    <div class="bar"></div>
+    <div class="bar"></div>
+  </div>
+
+  <select id="track-selector" class="radio-select">
+    <option value="" disabled selected>-- Select a track --</option>
+  </select>
+
+  <audio id="main-audio-player"></audio>
+
+  <div class="radio-controls">
+    <button class="radio-btn" id="radio-play-btn" data-i18n="radio-play">▶ PŘEHRÁT</button>
+    <button class="radio-btn" id="radio-next-btn" data-i18n="radio-next">⏭ DALŠÍ</button>
+  </div>
+
+  <div class="radio-description" data-i18n="radio-desc"><strong>Nepřetržité vysílání 24/7.</strong><br>Užijte si nepřerušované, bezplatné poslouchání kdykoli a kdekoli. Ať už potřebujete hudbu na pozadí pro soustředění, hluboké uvolnění nebo běžné činnosti, toto rádio nabízí dokonalý atmosférický doprovod a zároveň slouží jako ucelená ukázka mé původní elektronické tvorby.</div>
+</section>
+
+<section class="review-panel" id="review-panel">
+<div class="review-card">
+
+<span class="review-tag" data-i18n="review-tag">Rozsáhlý článek</span>
+
+<h2 class="review-title" data-i18n="review-title">Uvnitř Relax Playeru: podrobný pohled na každou funkci</h2>
+
+<p class="review-text" data-i18n="review-p1">Relax Player je srdcem SYNTHLUCIDA — bezplatný ambientní přehrávač v prohlížeči, stvořený pro uvolnění, soustředění nebo usínání. Vyrostl daleko za jednoduchý nástroj typu „stiskni play“, a tak tu je pořádný, podrobný pohled na vše, co se v něm skrývá.</p>
+
+<p class="review-text" data-i18n="review-p2"><strong>Playlisty:</strong> Nahoře na obrazovce jsou tři kurátorované kategorie — ASMR, PIANO a CHILL — a přepínání mezi nimi už nepřeruší to, co právě hraje, takže procházení je volné a bez tlaku. Poslední přehrávaný playlist se automaticky zapamatuje pro příští otevření přehrávače, takže ho nemusíte znovu hledat.</p>
+
+<p class="review-text" data-i18n="review-p3"><strong>20 vizuálních motivů:</strong> NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT a SOLAR přebarví celé rozhraní i jeho ambientní záři. Většina motivů má stálou paletu, ale NEON a AURORA jsou animované — jejich barvy se samy jemně proměňují v čase, takže obrazovka nikdy nepůsobí staticky.</p>
+
+<p class="review-text" data-i18n="review-p4"><strong>Počasí a nebeské efekty:</strong> WEATHER prochází čtyřmi stavy, které lze vrstvit na libovolný motiv: teplá scéna SUN s pomalu prolínajícími se fotkami západu slunce a letícím hejnem ptáků, jemná animace deště RAIN, tichý sníh WINTER a větrnější sněhová bouře WINTER II s rychlejším, šikmým sněžením. SUNSET přidává druhou, nezávislou vrstvu, která střídá teplý gradient západu slunce a živou hvězdnou NIGHT oblohu s jemně zářícím měsícem — obě vrstvy se po uložení pamatují automaticky.</p>
+
+<p class="review-text" data-i18n="review-p5"><strong>Vedené dýchání:</strong> Tlačítko BREATHE otevře celoobrazovkovou relaci postavenou kolem pomalu pulzující koule s pěti technikami na výběr — 4-7-8, Box, Coherent, Calm a Sigh — každá vysvětlená ve vlastním průvodci přímo na obrazovce. Přirozeně doplňuje SLEEP TIMER, který dokáže automaticky vypnout přehrávání po 15, 30 nebo 60 minutách, nebo jej lze kdykoli zrušit.</p>
+
+<p class="review-text" data-i18n="review-p6"><strong>Prolínání a historie přehrávání:</strong> CROSSFADE plynule prolne konec jedné skladby se začátkem další v délce 3, 6, 8 nebo 10 sekund, nebo jej lze úplně vypnout pro tvrdý střih — a funguje správně i společně s náhodným přehráváním a opakováním. Panel 🕘 HISTORY zaznamenává každou přehranou skladbu s playlistem a časovým razítkem, takže lze skladbu opětovně přehrát klepnutím, exportovat jako textový soubor nebo celý záznam vymazat.</p>
+
+<p class="review-text" data-i18n="review-p7"><strong>Můj playlist:</strong> Klepnutím na ♥ u libovolné skladby — v hlavním playlistu nebo v HISTORY — ji přidáte do 🎵 MY PLAYLIST, opětovným klepnutím ji odeberete, přičemž výběry zůstávají označené i mezi návštěvami. Skladby lze přeřazovat pomocí ▲▼ nebo odebírat pomocí ✕ a pak je přehrávat přesně v tomto pořadí, stále plně kompatibilní s náhodným přehráváním a opakováním. Zálohovací nástroje pokrývají oba směry: 📄 EXPORT TXT pro čitelný seznam, 💾 EXPORT PLAYLIST pro uložení znovu načitatelného souboru a 📂 IMPORT PLAYLIST pro obnovení uloženého playlistu.</p>
+
+<p class="review-text" data-i18n="review-p8"><strong>XP, úrovně a odemykání stažení:</strong> Běžné používání tiše přináší zkušenosti — zhruba 2 XP za minutu poslechu, 4 XP za každou skladbu přehranou přes 20 sekund, 20 XP za každou relaci BREATHE trvající alespoň minutu a bonus 30 XP za každý nový den otevření aplikace, což odměňuje jak denní návštěvy, tak delší série. Každých 180 XP zvýší úroveň o jednu. Jakmile je skladba přidána srdíčkem do MY PLAYLIST, hromadící se XP ji postupně odemyká pro skutečné ⬇ MP3 stažení — vždy jednu skladbu, v pořadí přidání, za cenu 270 XP na odemknutí. Tlačítko S zobrazuje aktuální úroveň, postup XP a přesně to, které skladby jsou odemčené.</p>
+
+<p class="review-text" data-i18n="review-p9"><strong>Moje soubory:</strong> Tlačítko F otevře osobní knihovnu, kam lze nahrát audio soubory přímo ze zařízení pomocí ＋ ADD AUDIO FILES a poté je kombinovat do pojmenovaných playlistů, které volně mísí vlastní skladby uživatele s katalogem SYNTHLUCIDA. Vše přehrávané z My Files funguje se stejným náhodným přehráváním, opakováním a prolínáním jako hlavní přehrávač a vše zůstává lokálně na zařízení — nic se nikam neodesílá.</p>
+
+<p class="review-text" data-i18n="review-p10"><strong>Uložení, celá obrazovka a offline poslech:</strong> SAVE uloží aktuální motiv, efekty a další nastavení tak, aby se při příští návštěvě načetly automaticky, a FULLSCREEN skryje rozhraní prohlížeče pro čistší obrazovku bez rušivých prvků. ⬇ DOWNLOAD OFFLINE uloží aktuální playlist pro offline přehrávání — to však funguje pouze uvnitř nainstalované aplikace, ne v běžné záložce prohlížeče.</p>
+
+<p class="review-text" data-i18n="review-p11"><strong>Jemná připomenutí:</strong> 🔔 REMINDERS odesílá krátká lokální oznámení ve zvoleném intervalu — každých 15 minut, 30 minut, 1, 2 nebo 4 hodiny — jako jemné pobídnutí k přestávce. Vše běží lokálně na zařízení, nic se neodesílá na žádný server, a celou funkci lze kdykoli vypnout ze stejného panelu.</p>
+
+<p class="review-text" data-i18n="review-p12">Děkuji, že jste si našli čas přečíst si tohle vše — a ještě víc za to, že jste dali Relax Playeru šanci. Každý poslech, srdíčko a uložený playlist mají opravdu smysl.</p>
+
+<p class="review-signoff" data-i18n="review-signoff">— Dave, SYNTHLUCIDA</p>
+
+<div class="rating-widget" id="rating-widget">
+<div class="rating-label">Rate the Relax Player</div>
+<div class="rating-stars" id="rating-stars" role="radiogroup" aria-label="Rate the Relax Player from 1 to 5 stars">
+<span class="rating-star" data-value="1">★</span><span class="rating-star" data-value="2">★</span><span class="rating-star" data-value="3">★</span><span class="rating-star" data-value="4">★</span><span class="rating-star" data-value="5">★</span>
+</div>
+<div class="rating-summary" id="rating-summary">Loading ratings…</div>
+</div>
+
+<div class="review-cta-wrap">
+<a class="review-cta" href="https://synthlucida.com/player.html" target="_blank" rel="noopener noreferrer">🎧 TRY THE RELAX PLAYER</a>
+</div>
+
+</div>
+</section>
+
+<section class="info-section">
+
+<div class="lang-toggle-wrap">
+<button class="lang-toggle-btn" id="lang-toggle-btn" onclick="toggleLang()" aria-label="Přepnout jazyk / Switch language" title="Přepnout jazyk / Switch language">🇬🇧 EN</button>
+</div>
+
+<h2 data-i18n="info-h2">Atmosférická elektronická hudba a sound design</h2>
+
+<div class="bio">
+<span data-i18n="info-bio">Se zálibou v elektronické hudbě vytvářím kompozice a nahrávám zvuky, které vyvolávají emoce a přenášejí posluchače do jedinečných zvukových krajin.<br><br>Specializujeme se na nahrávání široké škály zvuků a šumů, které jsou následně upravovány a přizpůsobovány pro další využití.<br><br>Zaměřujeme se také na tvorbu elektronické hudby v různých stylech, jako je Chillout, Progressive House, Melodic House, Tropical House, Ambient, New Age, Chillout Dreams a podobné žánry.<br><br>Naším cílem je vytvářet atmosférické a emotivní skladby, které spojují moderní elektronické prvky s uklidňujícími a harmonickými tóny.<br><br>Nabízíme hudbu a zvuky pro nejrůznější účely, od relaxace až po komerční projekty.<br><br>Zaměřujeme se na nezávislou hudební produkci.</span>
+
+<h3 class="gear-heading visually-hidden">Studio & Sound Design Gear</h3>
+
+<img src="nord-lead-4.jpg" alt="Nord Lead 4 analog modeling synthesizer on the SYNTHLUCIDA studio desk, used for sound design and patch programming" class="gear-photo" loading="lazy" width="1600" height="900">
+
+<br><br>
+
+<span data-i18n="info-thanks">Děkuji za váš čas a návštěvu.</span>
+
+<br>
+
+Dave - SYNTHLUCIDA rec.
+
+<img id="thank-you-photo" src="dazante.jpg" alt="Dave, the producer behind SYNTHLUCIDA, in his home studio" class="thank-you-image" loading="lazy" style="display: block; margin: 20px auto 0 auto;">
+
+</div>
+
+</section>
+
+<nav class="links">
+
+<button class="contact-form-toggle-btn" id="contact-form-toggle-btn" onclick="toggleContactForm()" aria-expanded="false" aria-controls="contact-form-panel">
+<span data-i18n="contact-toggle">✉ KONTAKTNÍ FORMULÁŘ</span> <span class="chevron">▾</span>
+</button>
+
+<div class="contact-form-panel" id="contact-form-panel">
+<form class="contact-form" id="contact-form" action="https://api.web3forms.com/submit" method="POST">
+
+<p class="contact-recipient" data-i18n="contact-recipient">Poslat zprávu <strong>Davidu Zantovi</strong></p>
+
+<input type="hidden" name="access_key" value="6b472aad-796b-4254-924d-45180b6cbaee">
+<input type="hidden" name="subject" value="New message from SYNTHLUCIDA website">
+<input type="text" name="botcheck" style="display:none" tabindex="-1" autocomplete="off">
+
+<input type="text" name="name" class="contact-input" placeholder="Vaše jméno" data-i18n-placeholder="ph-name" required>
+<input type="email" name="email" class="contact-input" placeholder="Váš e-mail" data-i18n-placeholder="ph-email" required>
+<textarea name="message" class="contact-textarea" placeholder="Vaše zpráva" data-i18n-placeholder="ph-message" rows="5" required></textarea>
+
+<button type="submit" class="contact-submit-btn" data-i18n="contact-submit">ODESLAT ZPRÁVU</button>
+<p class="contact-status" id="contact-status" aria-live="polite"></p>
+
+</form>
+</div>
+
+</nav>
+
+<section class="platforms">
+
+<button class="platforms-toggle-btn" id="platforms-toggle-btn" onclick="togglePlatforms()" aria-expanded="false" aria-controls="platforms-panel">
+<span data-i18n="platforms-toggle">🎧 Poslouchejte a sledujte</span> <span class="chevron">▾</span>
+</button>
+
+<div class="platforms-panel" id="platforms-panel">
+<div class="platforms-grid">
+
+<a class="platform-link"
+href="https://dazante.bandcamp.com"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎵</span>Bandcamp
+</a>
+
+<a class="platform-link"
+href="https://www.facebook.com/synthlucida"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">📘</span>Facebook
+</a>
+
+<a class="platform-link"
+href="https://www.supraphonline.cz/umelec/994236-dazante"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎵</span>Supraphonline
+</a>
+
+<a class="platform-link"
+href="https://pond5.com/artist/dzcreation?ref=dzcreation"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎥</span>Pond5
+</a>
+
+<a class="platform-link"
+href="https://audiojungle.net/user/synthlucida/portfolio?sso=1"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎼</span>AudioJungle
+</a>
+
+<a class="platform-link"
+href="https://www.youtube.com/@synthlucida"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎬</span>YouTube
+</a>
+
+<a class="platform-link"
+href="https://open.spotify.com/artist/4OSHQSirFlyQQ9ueUH7CFE"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎧</span>Spotify
+</a>
+
+<a class="platform-link"
+href="https://synthreviews.github.io/"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🎹</span>Synth Reviews
+</a>
+
+</div>
+</div>
+</section>
+
+<img src="logo.jpg" alt="SYNTHLUCIDA Logo" class="footer-logo" id="footer-logo" loading="lazy">
+
+<a class="privacy-link"
+href="https://synthlucida.com/privacy_policy.html"
+data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
+
+<div class="visitor-stats-panel" id="visitor-stats-panel" aria-hidden="true">
+  <div>Zobrazení stránky celkem: <strong id="visitor-stats-total">…</strong></div>
+  <div>Zobrazení dnes: <strong id="visitor-stats-today">…</strong></div>
+</div>
+
+<footer data-i18n="footer">© 2026 SYNTHLUCIDA www.synthlucida.com • DAZANTE Český producent elektronické hudby</footer>
+
+</main>
+
+<canvas id="christmas-canvas"></canvas>
+<div id="christmas-toast"></div>
+
+<script>
+  // ==========================================
+  // Shared helper for talking to the third-party CountAPI service
+  // (used by both the rating widget and the visitor stats below).
+  // A plain fetch() has no timeout of its own — if the free service
+  // is slow or unreachable, the request can hang indefinitely and
+  // leave the UI stuck showing "…" forever. This wraps fetch with an
+  // AbortController so any call gives up after a fixed time and falls
+  // back to the normal .catch() handling instead of hanging.
+  // ==========================================
+  function fetchWithTimeout(url, timeoutMs) {
+    timeoutMs = timeoutMs || 6000;
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+    return fetch(url, { signal: controller.signal }).finally(function () {
+      clearTimeout(timer);
+    });
+  }
+</script>
+
+<script>
+  // ==========================================
+  // SHARED STAR RATING WIDGET
+  // Uses CountAPI (countapi.mileshilliard.com — a free, key-free public
+  // counter service and the actively maintained successor to the now-dead
+  // api.countapi.xyz) to store two running totals - a rating sum and a vote
+  // count - so the SAME average is shown to every visitor, not just saved
+  // in one browser's localStorage.
+  // Note: this is an unauthenticated third-party service, so this is a
+  // lightweight community rating, not a tamper-proof one.
+  // ==========================================
+  (function() {
+    const RATING_API = 'https://countapi.mileshilliard.com/api/v1';
+    const RATING_SUM_KEY = 'synthlucida_player_rating_sum';
+    const RATING_COUNT_KEY = 'synthlucida_player_rating_count';
+    const RATING_STORAGE_KEY = 'synthlucida_player_rating_voted';
+
+    function renderRatingSummary(sum, count) {
+      const summaryEl = document.getElementById('rating-summary');
+      if (!summaryEl) return;
+      if (!count || count <= 0) {
+        summaryEl.textContent = 'No ratings yet — be the first!';
+        return;
+      }
+      const avg = sum / count;
+      summaryEl.innerHTML = '<strong>' + avg.toFixed(1) + '★</strong> average from ' + count + ' rating' + (count === 1 ? '' : 's');
+    }
+
+    function fillStars(upToValue) {
+      document.querySelectorAll('#rating-stars .rating-star').forEach(function(star) {
+        const val = parseInt(star.getAttribute('data-value'), 10);
+        star.classList.toggle('filled', val <= upToValue);
+      });
+    }
+
+    // Reads a counter's current value. Treats a missing key (never voted
+    // on yet, anywhere) as 0 instead of erroring out.
+    function getCounter(key) {
+      return fetchWithTimeout(RATING_API + '/get/' + key)
+        .then(function(r) { return r.ok ? r.json() : { value: 0 }; })
+        .then(function(data) { return parseInt(data.value, 10) || 0; })
+        .catch(function() { return 0; });
+    }
+
+    function setCounter(key, value) {
+      return fetchWithTimeout(RATING_API + '/set/' + key + '?value=' + value).catch(function(){});
+    }
+
+    function hitCounter(key) {
+      return fetchWithTimeout(RATING_API + '/hit/' + key).catch(function(){});
+    }
+
+    function initRatingWidget() {
+      const widget = document.getElementById('rating-widget');
+      if (!widget) return;
+      const stars = widget.querySelectorAll('.rating-star');
+      let hasVoted = !!localStorage.getItem(RATING_STORAGE_KEY);
+      if (hasVoted) widget.classList.add('voted');
+
+      function loadCurrent() {
+        Promise.all([getCounter(RATING_SUM_KEY), getCounter(RATING_COUNT_KEY)])
+          .then(function(results) {
+            const sum = results[0];
+            const count = results[1];
+            renderRatingSummary(sum, count);
+            if (hasVoted) {
+              fillStars(parseInt(localStorage.getItem(RATING_STORAGE_KEY), 10));
+            } else if (count > 0) {
+              fillStars(Math.round(sum / count));
+            }
+          });
+      }
+
+      loadCurrent();
+      if (hasVoted) return;
+
+      stars.forEach(function(star) {
+        star.addEventListener('mouseenter', function() {
+          if (hasVoted) return;
+          fillStars(parseInt(star.getAttribute('data-value'), 10));
+        });
+        star.addEventListener('click', function() {
+          if (hasVoted) return;
+          const value = parseInt(star.getAttribute('data-value'), 10);
+          hasVoted = true;
+          widget.classList.add('voted');
+          localStorage.setItem(RATING_STORAGE_KEY, String(value));
+          fillStars(value);
+          // Read-modify-write the running sum, then bump the vote count by 1.
+          getCounter(RATING_SUM_KEY)
+            .then(function(currentSum) { return setCounter(RATING_SUM_KEY, currentSum + value); })
+            .then(function() { return hitCounter(RATING_COUNT_KEY); })
+            .then(function() { loadCurrent(); })
+            .catch(function() { /* ignore network errors */ });
+        });
+      });
+
+      widget.addEventListener('mouseleave', function() {
+        if (hasVoted) return;
+        loadCurrent();
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initRatingWidget);
+    } else {
+      initRatingWidget();
+    }
+  })();
+
+  // Header menu toggle - shows/hides all the header buttons (store badge,
+  // demo/review/relax player, quick links, Android app)
+  function toggleHeaderMenu() {
+    const panel = document.getElementById('header-menu-panel');
+    const btn = document.getElementById('menu-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
+
+  // Review panel toggle - shows/hides the "Inside the Relax Player" article
+  function toggleReview() {
+    const panel = document.getElementById('review-panel');
+    const btn = document.getElementById('review-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    }
+  }
+
+  // Demo Music panel toggle - shows/hides the radio player
+  function toggleDemo() {
+    const panel = document.getElementById('radio-section');
+    const btn = document.getElementById('demo-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    }
+  }
+
+  // SYNTHLUCIDA for Android panel toggle - same collapse mechanic as Demo Music
+  function toggleApp() {
+    const panel = document.getElementById('app-download-panel');
+    const btn = document.getElementById('app-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    }
+  }
+
+  // Platforms panel toggle - shows/hides the "Listen & Follow" links grid
+  function togglePlatforms() {
+    const panel = document.getElementById('platforms-panel');
+    const btn = document.getElementById('platforms-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    }
+  }
+
+  // Contact form panel toggle - shows/hides the contact form
+  function toggleContactForm() {
+    const panel = document.getElementById('contact-form-panel');
+    const btn = document.getElementById('contact-form-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    }
+  }
+
+  // Contact form submission via Web3Forms AJAX endpoint (fetch) - the page
+  // never navigates away or reloads, the user just sees an inline
+  // "Sending…" then "Thank you" message right in the panel.
+  (function initContactForm() {
+    const form = document.getElementById('contact-form');
+    if (!form) return;
+    const statusEl = document.getElementById('contact-status');
+    const submitBtn = form.querySelector('.contact-submit-btn');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      statusEl.textContent = 'Sending…';
+      statusEl.className = 'contact-status sending';
+
+      const formData = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Accept': 'application/json' }
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.success) throw new Error('Send failed');
+          form.innerHTML = '<p class="contact-thanks">✔ Thank you! Your message has been sent.</p>';
+        })
+        .catch(() => {
+          statusEl.textContent = 'Something went wrong, please try again.';
+          statusEl.className = 'contact-status error';
+          submitBtn.disabled = false;
+        });
+    });
+  })();
+
+  const playlist = [
+    { title: "SYNTHLUCIDA - Everything", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/everything.mp3" },
+    { title: "SYNTHLUCIDA - Spirits of Spring", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spring.mp3" },
+    { title: "SYNTHLUCIDA - Fly With The Soul part2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/fly_with_the_soul_part2.mp3" },
+    { title: "SYNTHLUCIDA - Run Machine", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/machine.mp3" },
+    { title: "SYNTHLUCIDA - Spirits Of Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spirits_of_summer.mp3" },
+    { title: "SYNTHLUCIDA - Sky", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sky.mp3" },
+    { title: "SYNTHLUCIDA - SunSets", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sunset.mp3" },
+    { title: "SYNTHLUCIDA - Stranger Visitors", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/stranger.mp3" },
+    { title: "SYNTHLUCIDA - Last Sunset", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/last_sunset.mp3" },
+    { title: "SYNTHLUCIDA - Echoes Of Freedom", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/echoes_freedom.mp3" },
+    { title: "SYNTHLUCIDA - Magic Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/magic_waves.mp3" },
+    { title: "SYNTHLUCIDA - Night Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/night_waves.mp3" },
+    { title: "SYNTHLUCIDA - Raindrops", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/raindrops.mp3" },
+    { title: "SYNTHLUCIDA - Winning Moments", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/winning_moments.mp3" },
+    { title: "SYNTHLUCIDA - You and Me", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/you_and_me.mp3" },
+    { title: "SYNTHLUCIDA - Tropical Free Tones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tropical.mp3" },
+  ];
+
+  const audio = document.getElementById('main-audio-player');
+  const playBtn = document.getElementById('radio-play-btn');
+  const nextBtn = document.getElementById('radio-next-btn');
+  const statusDiv = document.getElementById('radio-status');
+  const titleDiv = document.getElementById('radio-title');
+  const trackSelector = document.getElementById('track-selector');
+  const visualizer = document.getElementById('visual-equalizer'); // Načtení vizualizéru
+
+  // Fill the dropdown with tracks
+  playlist.forEach((track, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.text = track.title;
+    trackSelector.appendChild(option);
+  });
+
+  let currentTrackIndex = -1;
+  let isPlaying = false;
+
+  function getRandomTrackIndex() {
+    if (playlist.length <= 1) return 0;
+    let newIndex;
+    do {
+      newIndex = Math.floor(Math.random() * playlist.length);
+    } while (newIndex === currentTrackIndex);
+    return newIndex;
+  }
+
+  function loadAndPlayTrack(index) {
+    currentTrackIndex = index;
+    const track = playlist[currentTrackIndex];
+    
+    // Sync dropdown with current track
+    trackSelector.value = index;
+    
+    audio.src = track.src;
+    titleDiv.innerText = track.title;
+    statusDiv.innerText = "Tuning in...";
+    
+    audio.play()
+      .then(() => {
+        isPlaying = true;
+        playBtn.innerText = "⏸ PAUSE";
+        statusDiv.innerText = "• LIVE RADIO";
+        visualizer.classList.add('active'); // Spuštění ekvalizéru
+      })
+      .catch(err => {
+        console.log("Autoplay blocked or error: ", err);
+        statusDiv.innerText = "Radio Paused";
+        playBtn.innerText = "▶ PLAY";
+        isPlaying = false;
+        visualizer.classList.remove('active'); // Zastavení ekvalizéru při chybě
+      });
+  }
+
+  // Dropdown event listener
+  trackSelector.addEventListener('change', (e) => {
+    loadAndPlayTrack(parseInt(e.target.value));
+  });
+
+  playBtn.addEventListener('click', () => {
+    if (isPlaying) {
+      audio.pause();
+      isPlaying = false;
+      playBtn.innerText = "▶ PLAY";
+      statusDiv.innerText = "Radio Paused";
+      visualizer.classList.remove('active'); // Zastavení ekvalizéru při pauze
+    } else {
+      if (currentTrackIndex === -1) {
+        loadAndPlayTrack(getRandomTrackIndex());
+      } else {
+        audio.play();
+        isPlaying = true;
+        playBtn.innerText = "⏸ PAUSE";
+        statusDiv.innerText = "• LIVE RADIO";
+        visualizer.classList.add('active'); // Spuštění ekvalizéru při stisknutí Play
+      }
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    loadAndPlayTrack(getRandomTrackIndex());
+  });
+
+  audio.addEventListener('ended', () => {
+    loadAndPlayTrack(getRandomTrackIndex());
+  });
+
+  statusDiv.innerText = "Radio Ready";
+  titleDiv.innerText = "Press Play to Shuffle Demos";
+
+  // ==========================================
+  // VÁNOČNÍ ATMOSFÉRA — stejný princip jako v player.html: automaticky se
+  // aktivuje od 1. do 31. prosince a jemně přidá poletující barevná světýlka
+  // girlandy a tichý padající "confetti" sníh přes celou stránku.
+  // christmasOverride: null = automatický režim podle data, true/false = vývojářské vynucení.
+  // Aktivace/deaktivace vynuceného režimu: 5x klik na fotku pod úvodním textem do 2 vteřin.
+  // ==========================================
+  let christmasOverride = null;
+  let christmasPhotoClicks = 0;
+  let christmasPhotoClickTimer = null;
+  let christmasLights = [];
+  let christmasSnow = [];
+  let christmasFrame = 0;
+  let christmasCanvasLoopActive = false;
+
+  const christmasCanvas = document.getElementById('christmas-canvas');
+  const christmasCtx = christmasCanvas.getContext('2d');
+  const christmasToastEl = document.getElementById('christmas-toast');
+  const thankYouPhoto = document.getElementById('thank-you-photo');
+
+  function isChristmasSeason() {
+      return new Date().getMonth() === 11; // prosinec (0 = leden ... 11 = prosinec)
+  }
+
+  function isChristmasActive() {
+      return christmasOverride === null ? isChristmasSeason() : christmasOverride;
+  }
+
+  try {
+      const savedOverride = localStorage.getItem('synthlucida_christmas_override');
+      if (savedOverride === 'true') christmasOverride = true;
+      else if (savedOverride === 'false') christmasOverride = false;
+  } catch (e) { /* ignore */ }
+
+  let christmasToastTimer = null;
+  function showChristmasToast(text) {
+      christmasToastEl.innerText = text;
+      christmasToastEl.classList.add('visible');
+      if (christmasToastTimer) clearTimeout(christmasToastTimer);
+      christmasToastTimer = setTimeout(() => {
+          christmasToastEl.classList.remove('visible');
+      }, 2600);
+  }
+
+  function resizeChristmasCanvas() {
+      christmasCanvas.width = window.innerWidth;
+      christmasCanvas.height = window.innerHeight;
+      initChristmasLights();
+      initChristmasSnow();
+  }
+
+  function initChristmasLights() {
+      christmasLights = [];
+      const colors = ['#ff3b3b', '#ffd93b', '#3bff6e', '#3bb0ff', '#ff3bd6'];
+
+      // horní girlanda (o něco hustší než dřív)
+      const count = Math.max(24, Math.min(52, Math.floor(christmasCanvas.width / 22)));
+      for (let i = 0; i < count; i++) {
+          christmasLights.push({
+              x: (christmasCanvas.width / count) * i + (Math.random() * 20 - 10),
+              yBase: christmasCanvas.height * 0.02 + Math.sin(i * 0.9) * 10,
+              color: colors[i % colors.length],
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.04 + 0.02,
+              radius: 8
+          });
+      }
+
+      // jemně roztroušená světýlka po celé ploše stránky
+      const scatteredCount = Math.max(15, Math.min(35, Math.floor((christmasCanvas.width * christmasCanvas.height) / 45000)));
+      for (let i = 0; i < scatteredCount; i++) {
+          christmasLights.push({
+              x: Math.random() * christmasCanvas.width,
+              yBase: Math.random() * christmasCanvas.height,
+              color: colors[Math.floor(Math.random() * colors.length)],
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.03 + 0.015,
+              radius: Math.random() * 2 + 3
+          });
+      }
+  }
+
+  function initChristmasSnow() {
+      christmasSnow = [];
+      const count = Math.max(25, Math.min(70, Math.floor((christmasCanvas.width * christmasCanvas.height) / 20000)));
+      for (let i = 0; i < count; i++) {
+          christmasSnow.push({
+              x: Math.random() * christmasCanvas.width,
+              y: Math.random() * christmasCanvas.height,
+              r: Math.random() * 1.8 + 1,
+              speed: Math.random() * 0.5 + 0.3,
+              alpha: Math.random() * 0.35 + 0.25
+          });
+      }
+  }
+
+  function drawChristmasOverlay() {
+      christmasCtx.clearRect(0, 0, christmasCanvas.width, christmasCanvas.height);
+      christmasFrame++;
+
+      // girlanda světýlek v horní části obrazovky, jemně blikající
+      for (let i = 0; i < christmasLights.length; i++) {
+          let l = christmasLights[i];
+          l.phase += l.speed;
+          let tw = 0.5 + 0.5 * Math.sin(l.phase);
+          let y = l.yBase + Math.sin(christmasFrame * 0.01 + i) * 3;
+          let radius = l.radius || 8;
+          let r = christmasCtx.createRadialGradient(l.x, y, 0, l.x, y, radius);
+          r.addColorStop(0, l.color);
+          r.addColorStop(1, 'rgba(0,0,0,0)');
+          christmasCtx.save();
+          christmasCtx.globalAlpha = 0.25 + tw * 0.45;
+          christmasCtx.fillStyle = r;
+          christmasCtx.beginPath();
+          christmasCtx.arc(l.x, y, radius, 0, Math.PI * 2);
+          christmasCtx.fill();
+          christmasCtx.restore();
+      }
+
+      // tichý padající vánoční "confetti" sníh
+      for (let i = 0; i < christmasSnow.length; i++) {
+          let s = christmasSnow[i];
+          s.y += s.speed;
+          if (s.y > christmasCanvas.height + 4) { s.y = -4; s.x = Math.random() * christmasCanvas.width; }
+          christmasCtx.fillStyle = `rgba(255, 245, 230, ${s.alpha.toFixed(3)})`;
+          christmasCtx.beginPath();
+          christmasCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          christmasCtx.fill();
+      }
+
+      if (christmasCanvasLoopActive) requestAnimationFrame(drawChristmasOverlay);
+  }
+
+  function updateChristmasCanvasState() {
+      if (isChristmasActive()) {
+          christmasCanvas.style.display = 'block';
+          resizeChristmasCanvas();
+          if (!christmasCanvasLoopActive) {
+              christmasCanvasLoopActive = true;
+              drawChristmasOverlay();
+          }
+      } else {
+          christmasCanvasLoopActive = false;
+          christmasCanvas.style.display = 'none';
+          christmasCtx.clearRect(0, 0, christmasCanvas.width, christmasCanvas.height);
+      }
+  }
+
+  window.addEventListener('resize', () => {
+      if (isChristmasActive()) resizeChristmasCanvas();
+  });
+
+  if (thankYouPhoto) {
+      thankYouPhoto.addEventListener('click', () => {
+          christmasPhotoClicks++;
+          if (christmasPhotoClickTimer) clearTimeout(christmasPhotoClickTimer);
+          christmasPhotoClickTimer = setTimeout(() => { christmasPhotoClicks = 0; }, 2000);
+
+          if (christmasPhotoClicks >= 5) {
+              christmasPhotoClicks = 0;
+              clearTimeout(christmasPhotoClickTimer);
+              // Cyklus: automaticky (podle data) -> vynuceně ZAPNUTO -> vynuceně VYPNUTO -> automaticky ...
+              if (christmasOverride === null) christmasOverride = true;
+              else if (christmasOverride === true) christmasOverride = false;
+              else christmasOverride = null;
+
+              try {
+                  if (christmasOverride === null) localStorage.removeItem('synthlucida_christmas_override');
+                  else localStorage.setItem('synthlucida_christmas_override', String(christmasOverride));
+              } catch (e) { /* ignore */ }
+
+              const label = christmasOverride === null ? 'AUTO (dle data)' : (christmasOverride ? 'VYNUCENĚ ZAPNUTO' : 'VYNUCENĚ VYPNUTO');
+              showChristmasToast('🎄 Vánoční atmosféra: ' + label);
+              updateChristmasCanvasState();
+          }
+      });
+  }
+
+  updateChristmasCanvasState();
+</script>
+
+<script>
+  // Pause decorative, always-running animations (background drift +
+  // synth control strip) while this tab isn't visible, to save
+  // battery/GPU. Christmas overlay and the footer logo pulse are left
+  // alone — the Christmas canvas already manages its own render loop,
+  // and the logo pulse was asked to keep running as-is.
+  (function () {
+    function applyVisibility() {
+      document.body.classList.toggle('tab-hidden', document.hidden);
+    }
+    document.addEventListener('visibilitychange', applyVisibility);
+    applyVisibility();
+  })();
+</script>
+
+<script>
+  // ==========================================
+  // VISITOR STATS — hidden page-view counter.
+  // Uses the same free, key-free CountAPI service already used by the
+  // star rating widget above. Every page load "hits" (increments) a
+  // running total and a per-day counter. The numbers are only revealed
+  // by clicking the footer logo 5 times in a row (and hidden again the
+  // same way) — the logo itself stays a plain, non-clickable-looking
+  // image (no pointer cursor) so this stays a hidden Easter egg.
+  // ==========================================
+  (function () {
+    const STATS_API = 'https://countapi.mileshilliard.com/api/v1';
+    const STATS_TOTAL_KEY = 'synthlucida_index_views_total';
+
+    function todayKey() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return 'synthlucida_index_views_' + y + '-' + m + '-' + day;
+    }
+
+    function hit(key) {
+      return fetchWithTimeout(STATS_API + '/hit/' + key)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) { return data && typeof data.value !== 'undefined' ? data.value : null; })
+        .catch(function () { return null; });
+    }
+
+    function formatNumber(n) {
+      return n.toLocaleString('cs-CZ');
+    }
+
+    // Record this page view once on load, and remember the resulting
+    // counts so opening the panel later doesn't inflate them further.
+    let cachedTotal = null;
+    let cachedToday = null;
+    const statsReady = Promise.all([hit(STATS_TOTAL_KEY), hit(todayKey())]).then(function (results) {
+      cachedTotal = results[0];
+      cachedToday = results[1];
+    });
+
+    function renderStats() {
+      const totalEl = document.getElementById('visitor-stats-total');
+      const todayEl = document.getElementById('visitor-stats-today');
+      if (!totalEl || !todayEl) return;
+      totalEl.textContent = '…';
+      todayEl.textContent = '…';
+      statsReady.then(function () {
+        totalEl.textContent = cachedTotal !== null ? formatNumber(cachedTotal) : '—';
+        todayEl.textContent = cachedToday !== null ? formatNumber(cachedToday) : '—';
+      });
+    }
+
+    function initLogoToggle() {
+      const logo = document.getElementById('footer-logo');
+      const panel = document.getElementById('visitor-stats-panel');
+      if (!logo || !panel) return;
+
+      let clicks = 0;
+      let clickTimer = null;
+
+      logo.addEventListener('click', function () {
+        clicks++;
+        if (clickTimer) clearTimeout(clickTimer);
+        clickTimer = setTimeout(function () { clicks = 0; }, 2000);
+
+        if (clicks >= 5) {
+          clicks = 0;
+          clearTimeout(clickTimer);
+          const willShow = !panel.classList.contains('visible');
+          panel.classList.toggle('visible');
+          panel.setAttribute('aria-hidden', willShow ? 'false' : 'true');
+          if (willShow) renderStats();
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initLogoToggle);
+    } else {
+      initLogoToggle();
+    }
+  })();
+</script>
+
+<script>
+  // Safety net for a Chrome/Edge-on-mobile rendering glitch: scroll all
+  // the way down, then scroll fast back up, and part of the header —
+  // sometimes a button, sometimes even the SYNTHLUCIDA title itself —
+  // can stay blank. This looks like the browser evicting/failing to
+  // re-rasterize the header's tiles once it scrolls back into view,
+  // rather than just a compositing-layer issue, so a plain transform
+  // nudge (recompose only) isn't enough — this forces an actual
+  // repaint by briefly nudging opacity (which does NOT affect layout,
+  // unlike the previous display:none/back approach, which shrank the
+  // page height for a frame and made the browser clamp/jump the scroll
+  // position back up).
+  (function () {
+    const header = document.querySelector('header');
+    // The button row (Menu button + the panel it reveals) lives outside
+    // <header> and was not covered by this fix before, even though the
+    // same glitch made its buttons vanish on scroll — so it's forced to
+    // repaint here too.
+    const buttonsRow = document.querySelector('.header-buttons-row');
+    if (!header && !buttonsRow) return;
+    // Only run on mobile/touch devices — this is where the rendering
+    // glitch actually happens.
+    const isMobile = window.matchMedia('(pointer: coarse)').matches;
+    if (!isMobile) return;
+    let timer = null;
+    function forceRepaint(el) {
+      if (!el) return;
+      const prevOpacity = el.style.opacity;
+      el.style.opacity = '0.999';
+      void el.offsetHeight; // forces the browser to apply it before we undo it
+      el.style.opacity = prevOpacity;
+    }
+    function schedule() {
+      document.body.classList.add('is-scrolling');
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        document.body.classList.remove('is-scrolling');
+        forceRepaint(header);
+        forceRepaint(buttonsRow);
+      }, 150);
+    }
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+  })();
+</script>
+
+<script>
+  // ==========================================
+  // CZ / EN LANGUAGE TOGGLE
+  // The button lives above the "Atmospheric Electronic Music & Sound
+  // Design" section. It swaps innerHTML on every [data-i18n] element
+  // (and placeholders on [data-i18n-placeholder] fields) between the
+  // original English markup and the Czech dictionary below, and
+  // remembers the choice in localStorage. Note: a few dynamically-set
+  // strings driven by other scripts on this page (live radio status
+  // messages, the star-rating summary, the visitor-stats panel) are
+  // controlled elsewhere and are not translated by this toggle.
+  // ==========================================
+    const i18n_en = {
+    'info-h2': 'Atmospheric Electronic Music & Sound Design',
+    'info-bio': 'With a passion for electronic music I create compositions and record sounds that evoke emotions and transport listeners to unique sonic landscapes.  We specialize in recording a wide range of sounds and noises, which are then edited and adapted for further use.  We also focus on creating electronic music in various styles such as Chillout, Progressive House, Melodic House, Tropical House, Ambient, New Age, Chillout Dreams and similar genres.  Our goal is to produce atmospheric and emotive tracks that blend modern electronic elements with relaxing and harmonious tones.  We offer music and sounds for various purposes, from relaxation to commercial projects.  <br><br>  We are focused on independent music production.',
+    'info-thanks': 'Thank you for your time and visit.',
+    'hero-subtitle': 'Electronic Music Producer • Chillout • Ambient • Progressive',
+    'menu-label': 'Menu',
+    'ms-store-label': 'Microsoft Store',
+    'demo-label': 'Demo Music',
+    'relax-label': 'Relax Player',
+    'review-label': 'Review',
+    'news-label': 'News',
+    'download-label': 'Download',
+    'bio-label': 'Bio',
+    'services-label': 'Services',
+    'android-label': 'Android App',
+    'app-status': 'Alpha · Closed Testing',
+    'app-title': '📱 SYNTHLUCIDA for Android',
+    'app-desc': 'Get the full ambient SYNTHLUCIDA experience as an installable Android app. Early alpha build — thank you for helping test it. For participation in the testing program, please contact me by email. Thank you!',
+    'app-alt': 'Prefer no install? You can also use it right in your browser — see the link below.',
+    'radio-play': '▶ PLAY',
+    'radio-next': '⏭ NEXT',
+    'radio-desc': '<strong>Experience 24/7 uninterrupted streaming.</strong><br>      Enjoy continuous, free listening anytime and anywhere. Whether you need background music for focus, deep relaxation, or daily activities, this radio stream provides the perfect atmospheric soundtrack while serving as a comprehensive showcase of my original electronic production.',
+    'review-tag': 'Feature Article',
+    'review-title': 'Inside the Relax Player: A Deep Dive Into Every Feature',
+    'review-p1': 'The Relax Player is the heart of SYNTHLUCIDA — a free, browser-based ambient player built for winding down, focusing, or falling asleep. It has grown far beyond a simple "press play" tool, so here\'s a proper, detailed look at everything inside it.',
+    'review-p2': '<strong>Playlists:</strong> Three curated categories sit at the top of the screen — ASMR, PIANO and CHILL — and switching between them no longer interrupts whatever is already playing, so browsing is free and low-pressure. Whichever playlist was played last is remembered automatically the next time the player opens, so there\'s no need to hunt it down again.',
+    'review-p3': '<strong>20 visual themes:</strong> NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT and SOLAR each recolor the whole interface and its ambient glow. Most themes hold a steady palette, but NEON and AURORA are animated — their colors drift and shift gently on their own over time, so the screen never feels static even at a standstill.',
+    'review-p4': '<strong>Weather & sky effects:</strong> WEATHER cycles through four states that can be layered on top of any theme: a warm SUN scene with slowly crossfading sunset photos and a drifting flock of birds, a soft falling RAIN animation, a quiet WINTER snowfall, and a windier WINTER II blizzard with faster, slanted snow. SUNSET adds a second, independent layer that cycles between a warm sunset gradient and a living, starry NIGHT sky with a softly glowing moon — and both layers are remembered automatically once saved.',
+    'review-p5': '<strong>Guided breathing:</strong> The BREATHE button opens a full-screen session built around a slowly pulsing orb, with five techniques to choose from — 4-7-8, Box, Coherent, Calm and Sigh — each explained in its own dedicated in-screen guide. It pairs naturally with the SLEEP TIMER, which can shut playback off automatically after 15, 30 or 60 minutes, or be cancelled at any time.',
+    'review-p6': '<strong>Crossfade & playback history:</strong> CROSSFADE blends the end of one track into the start of the next over 3, 6, 8 or 10 seconds, or can be switched off entirely for a hard cut — and it works correctly alongside both shuffle and repeat. The 🕘 HISTORY panel logs every track played, with its playlist and timestamp, so a track can be tapped to replay it, exported as a plain text file, or the whole log cleared for a fresh start.',
+    'review-p7': '<strong>My Playlist:</strong> Tapping the ♥ next to any track — in the main playlist or in HISTORY — adds it to 🎵 MY PLAYLIST, and tapping it again removes it, with picks staying marked between visits. Tracks can be reordered with ▲▼ or removed with ✕, then played through in that exact order, still fully compatible with shuffle and repeat. Backup tools cover both directions: 📄 EXPORT TXT for a readable list, 💾 EXPORT PLAYLIST to save a reloadable file, and 📂 IMPORT PLAYLIST to bring a saved playlist back in.',
+    'review-p8': '<strong>XP, levels & unlocking downloads:</strong> Ordinary use quietly earns experience — roughly 2 XP per minute listened, 4 XP for every track played past the 20-second mark, 20 XP for every BREATHE session held for at least a minute, and a 30 XP bonus for each new day the app is opened, rewarding both daily visits and longer streaks. Every 180 XP raises the level by one. Once a track is hearted into MY PLAYLIST, accumulating XP gradually unlocks it for a genuine ⬇ MP3 download — one track at a time, in the order it was added, at a cost of 270 XP per unlock. The S button shows the current level, XP progress, and exactly which tracks are unlocked.',
+    'review-p9': '<strong>My Files:</strong> The F button opens a personal library where audio files can be uploaded straight from a device with ＋ ADD AUDIO FILES, then combined into named playlists that freely mix a user\'s own tracks with SYNTHLUCIDA\'s catalog. Anything playing from My Files works with the same shuffle, repeat and crossfade controls as the main player, and everything stays local to the device — nothing is ever uploaded anywhere.',
+    'review-p10': '<strong>Save, fullscreen & offline listening:</strong> SAVE stores the current theme, effects and other preferences so they load automatically on the next visit, and FULLSCREEN hides the browser interface for a cleaner, distraction-free screen. ⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback — though that only works inside the installed app, not a regular browser tab.',
+    'review-p11': '<strong>Gentle reminders:</strong> 🔔 REMINDERS sends short local notifications on a chosen interval — every 15 minutes, 30 minutes, 1, 2 or 4 hours — as a gentle nudge to take a break. Everything runs locally on-device, nothing is sent to any server, and the whole thing can be switched off from the same panel at any time.',
+    'review-p12': 'Thanks for taking the time to read all this — and even more for giving the Relax Player a try. Every listen, heart and saved playlist genuinely makes this worth building.',
+    'review-signoff': '— Dave, SYNTHLUCIDA',
+    'contact-toggle': '✉ CONTACT FORM',
+    'contact-recipient': 'Send a message to <strong>David Zanta</strong>',
+    'contact-submit': 'SEND MESSAGE',
+    'ph-name': 'Your name',
+    'ph-email': 'Your email',
+    'ph-message': 'Your message',
+    'platforms-toggle': '🎧 Listen & Follow',
+    'privacy-link': 'Privacy Policy',
+    'footer': '© 2026 SYNTHLUCIDA www.synthlucida.com • DAZANTE CZECH Electronic Music Producer'
+  };
+
+  let currentLang = 'cz';
+  const originalHTML = {};
+  const originalPlaceholders = {};
+
+  function initLang() {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      originalHTML[el.getAttribute('data-i18n')] = el.innerHTML;
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+      originalPlaceholders[el.getAttribute('data-i18n-placeholder')] = el.placeholder;
+    });
+    let saved = 'cz';
+    try { saved = localStorage.getItem('synthlucida_lang') || 'cz'; } catch (e) {}
+    if (saved === 'en') setLang('en');
+  }
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      const key = el.getAttribute('data-i18n');
+      el.innerHTML = (lang === 'en' && i18n_en[key]) ? i18n_en[key] : originalHTML[key];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+      const key = el.getAttribute('data-i18n-placeholder');
+      el.placeholder = (lang === 'en' && i18n_en[key]) ? i18n_en[key] : originalPlaceholders[key];
+    });
+    const btn = document.getElementById('lang-toggle-btn');
+    if (btn) btn.textContent = lang === 'en' ? '🇨🇿 CZ' : '🇬🇧 EN';
+    try { localStorage.setItem('synthlucida_lang', lang); } catch (e) {}
+  }
+
+  function toggleLang() {
+    setLang(currentLang === 'cz' ? 'en' : 'cz');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLang);
+  } else {
+    initLang();
+  }
+</script>
+
+<script>
+  // ==========================================
+  // Header "sun birds" — a small canvas overlay drawn behind/around the
+  // synth sun, using the exact same bird math as the WEATHER: SUN
+  // ambient effect in the Relax Player (drifting flock + curved,
+  // flapping-wing strokes + soft glints), just scoped to the header
+  // instead of the whole viewport. Kept as its own tiny rAF loop so it
+  // doesn't depend on anything else on this page.
+  // ==========================================
+  (function () {
+    const canvas = document.getElementById('sunBirdsCanvas');
+    if (!canvas) return;
+    const header = canvas.closest('header');
+    const ctx = canvas.getContext('2d');
+
+    let birds = [];
+    let glints = [];
+    let frame = 0;
+    let running = true;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function initFlock() {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const birdCount = Math.max(3, Math.min(7, Math.floor(w / 160)));
+      birds = [];
+      for (let i = 0; i < birdCount; i++) {
+        const size = Math.random() * 8 + 4; // 4–12: keeps birds small in the header
+        birds.push({
+          x: Math.random() * w * 1.4 - w * 0.2,
+          y: h * (0.1 + Math.random() * 0.5),
+          speed: (Math.random() * 0.45 + 0.12) * (size < 7 ? 1.4 : 1),
+          size: size,
+          flap: Math.random() * Math.PI * 2,
+          flapSpeed: Math.random() * 0.06 + 0.05,
+          bobPhase: Math.random() * Math.PI * 2,
+          bobAmount: Math.random() * 6 + 3
+        });
+      }
+
+      const glintCount = Math.max(10, Math.min(26, Math.floor(w / 30)));
+      glints = [];
+      for (let i = 0; i < glintCount; i++) {
+        glints.push({
+          x: Math.random() * w,
+          yRatio: 0.7 + Math.random() * 0.28,
+          r: Math.random() * 1.2 + 0.4,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.035 + 0.015
+        });
+      }
+    }
+
+    function resize() {
+      const rect = header ? header.getBoundingClientRect() : canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      initFlock();
+    }
+
+    // Soft glints of reflected light, low in the header — echoes the
+    // water-glint layer from the player's SUN ambient effect.
+    function drawGlints() {
+      for (let i = 0; i < glints.length; i++) {
+        const g = glints[i];
+        g.phase += g.speed;
+        const tw = Math.max(0, Math.sin(g.phase));
+        if (tw <= 0.03) continue;
+        const gy = canvas.height * g.yRatio;
+        ctx.fillStyle = `rgba(255, 224, 180, ${(tw * 0.35).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(g.x, gy, g.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Same curved, flapping-wing bird silhouette as the player: a single
+    // quadratic-curve stroke per wing, wings flap via a sine offset, and
+    // the whole bird bobs gently up and down as it drifts across.
+    function drawBirds() {
+      for (let i = 0; i < birds.length; i++) {
+        const b = birds[i];
+        b.x += b.speed;
+        b.flap += b.flapSpeed;
+        if (b.x > canvas.width + 30) {
+          b.x = -30 - Math.random() * 120;
+          b.y = canvas.height * (0.1 + Math.random() * 0.5);
+          b.size = Math.random() * 8 + 4;
+          b.speed = (Math.random() * 0.45 + 0.12) * (b.size < 7 ? 1.4 : 1);
+          b.flapSpeed = Math.random() * 0.06 + 0.05;
+        }
+        const bob = Math.sin(frame * 0.02 + b.bobPhase) * b.bobAmount * 0.15;
+        const wing = Math.sin(b.flap) * b.size * 0.6;
+        const by = b.y + bob;
+        ctx.strokeStyle = 'rgba(35, 20, 18, 0.5)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(b.x - b.size, by + wing);
+        ctx.quadraticCurveTo(b.x - b.size * 0.4, by - b.size * 0.5, b.x, by);
+        ctx.quadraticCurveTo(b.x + b.size * 0.4, by - b.size * 0.5, b.x + b.size, by + wing);
+        ctx.stroke();
+      }
+    }
+
+    function draw() {
+      if (!running) return;
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGlints();
+      drawBirds();
+      requestAnimationFrame(draw);
+    }
+
+    // Pause with the rest of the page's ambient motion — same triggers
+    // used elsewhere on this page (hidden tab, active mobile scroll) —
+    // and respect prefers-reduced-motion by never starting at all.
+    function pause() {
+      if (!running) return;
+      running = false;
+    }
+    function resume() {
+      if (running || prefersReducedMotion) return;
+      running = true;
+      requestAnimationFrame(draw);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) pause(); else resume();
+    });
+
+    if (prefersReducedMotion) {
+      resize();
+      return;
+    }
+
+    window.addEventListener('resize', resize, { passive: true });
+    resize();
+    requestAnimationFrame(draw);
+  })();
+</script>
+
+<script>
+  // ==========================================
+  // PWA: registrace stejného service workeru jako v player.html.
+  // Jen registrace + kontrola aktualizace + reload po převzetí kontroly -
+  // žádné notifikace ani vlastní "Add to Home Screen" tlačítko (to zůstává
+  // jen v playeru). Díky scope "./" v manifestu tenhle SW klidně obsluhuje
+  // i tuhle stránku, aniž by se cokoliv měnilo na tom, jak funguje player.
+  // ==========================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then((reg) => {
+          console.log('Service Worker zaregistrován:', reg);
+          reg.update().catch(() => {});
+        })
+        .catch((err) => console.log('Registrace SW selhala:', err));
+    });
+
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg) reg.update().catch(() => {});
+        });
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
