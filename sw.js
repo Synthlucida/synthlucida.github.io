@@ -10,13 +10,14 @@
 // "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v713';
+const APP_CACHE_NAME = 'synthlucida-app-v714';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './index-cz.html',
   './player.html',
   './game.html',
   './relax.html',
