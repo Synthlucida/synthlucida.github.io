@@ -383,6 +383,8 @@
       <div class="transport">
         <button class="cta primary" id="playBtn">▶ Play</button>
         <button class="cta" id="playChordsBtn">♪ Chords only</button>
+        <button class="cta" id="playMelodyBtn">♪ Melody only</button>
+        <button class="cta" id="playBassBtn">♪ Bass only</button>
         <button class="cta" id="exportBtn">⇩ Export MIDI (all)</button>
       </div>
       <div class="actions" style="margin-top:10px;">
@@ -923,51 +925,64 @@ function clearLeds(){
 }
 
 async function startPlayback(mode){
-  mode = mode === 'chords' ? 'chords' : 'full';
+  mode = ['chords','melody','bass'].includes(mode) ? mode : 'full';
   if(!current) return;
   const myToken = ++playToken;
   const playBtnEl = document.getElementById('playBtn');
   const playChordsBtnEl = document.getElementById('playChordsBtn');
-  playBtnEl.disabled = true;
-  playChordsBtnEl.disabled = true;
+  const playMelodyBtnEl = document.getElementById('playMelodyBtn');
+  const playBassBtnEl = document.getElementById('playBassBtn');
+  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl];
+  allBtns.forEach(b=>b.disabled = true);
   await Tone.start();
-  playBtnEl.disabled = false;
-  playChordsBtnEl.disabled = false;
+  allBtns.forEach(b=>b.disabled = false);
   if(myToken !== playToken) return; // a stop/newer start happened while we were awaiting Tone.start()
   disposeAll();
   buildSynths();
   Tone.Transport.bpm.value = current.tempo;
 
-  // chords: one per bar, held for a whole note — always plays, in both modes
-  const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
-  chordPart = new Tone.Part((time, ev)=>{
-    if(!chordSynth) return;
-    try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
-  }, chordEvents);
-  chordPart.loop = true;
-  chordPart.loopEnd = `${current.chords.length}m`;
-  chordPart.start(0);
+  // Which parts play in this mode: 'full' plays all three, the other modes
+  // isolate a single part so you can preview it on its own.
+  const playChords = mode === 'full' || mode === 'chords';
+  const playMelody = mode === 'full' || mode === 'melody';
+  const playBass   = mode === 'full' || mode === 'bass';
+
+  if(playChords){
+    // chords: one per bar, held for a whole note
+    const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
+    chordPart = new Tone.Part((time, ev)=>{
+      if(!chordSynth) return;
+      try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
+    }, chordEvents);
+    chordPart.loop = true;
+    chordPart.loopEnd = `${current.chords.length}m`;
+    chordPart.start(0);
+  }
 
   let totalSteps;
-  if(mode === 'full'){
+  if(playMelody || playBass){
     // melody + bass: 4 steps of quarter notes per bar, across all bars
     const melFlat = current.melody.flat();
     const bassFlat = current.bass.flat();
     totalSteps = melFlat.length;
 
-    melSeq = new Tone.Sequence((time, note)=>{
-      if(!melodySynth) return;
-      try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
-    }, melFlat, '4n');
-    melSeq.loop = true;
-    melSeq.start(0);
+    if(playMelody){
+      melSeq = new Tone.Sequence((time, note)=>{
+        if(!melodySynth) return;
+        try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
+      }, melFlat, '4n');
+      melSeq.loop = true;
+      melSeq.start(0);
+    }
 
-    bassSeq = new Tone.Sequence((time, note)=>{
-      if(!bassSynth) return;
-      try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
-    }, bassFlat, '4n');
-    bassSeq.loop = true;
-    bassSeq.start(0);
+    if(playBass){
+      bassSeq = new Tone.Sequence((time, note)=>{
+        if(!bassSynth) return;
+        try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
+      }, bassFlat, '4n');
+      bassSeq.loop = true;
+      bassSeq.start(0);
+    }
   } else {
     // chords-only mode: no melody/bass sequences, just step LEDs for the bar grid
     totalSteps = current.chords.length * 4;
@@ -993,6 +1008,8 @@ async function startPlayback(mode){
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Stop' : '▶ Play';
   playChordsBtnEl.textContent = mode === 'chords' ? '■ Stop' : '♪ Chords only';
+  playMelodyBtnEl.textContent = mode === 'melody' ? '■ Stop' : '♪ Melody only';
+  playBassBtnEl.textContent = mode === 'bass' ? '■ Stop' : '♪ Bass only';
 }
 
 function stopPlayback(){
@@ -1005,6 +1022,8 @@ function stopPlayback(){
   playMode = null;
   document.getElementById('playBtn').textContent = '▶ Play';
   document.getElementById('playChordsBtn').textContent = '♪ Chords only';
+  document.getElementById('playMelodyBtn').textContent = '♪ Melody only';
+  document.getElementById('playBassBtn').textContent = '♪ Bass only';
 }
 
 /* Used after a melody/bass-only regeneration: if a loop is already playing,
@@ -1027,6 +1046,16 @@ document.getElementById('playBtn').addEventListener('click', ()=>{
 document.getElementById('playChordsBtn').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'chords') stopPlayback(); else startPlayback('chords');
+});
+
+document.getElementById('playMelodyBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying && playMode === 'melody') stopPlayback(); else startPlayback('melody');
+});
+
+document.getElementById('playBassBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying && playMode === 'bass') stopPlayback(); else startPlayback('bass');
 });
 
 /* ================= MIDI EXPORT ================= */
