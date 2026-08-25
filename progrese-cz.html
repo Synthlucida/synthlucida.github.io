@@ -198,7 +198,7 @@
   .step-led.bar-edge{margin-left:6px;}
 
   /* chord pads */
-  .pads{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;}
+  .pads{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px;}
   .pad{
     background:var(--bg); border:1px solid var(--line); border-radius:8px;
     padding:16px 8px; text-align:center; transition:border-color .12s, background .12s;
@@ -284,7 +284,8 @@
   <p style="color:var(--text-dim); font-size:13px; line-height:1.7; max-width:640px; margin:-10px 0 20px;">
     Bezplatný online generátor akordových postupů. Vyber si tóninu a náladu — šťastnou,
     smutnou, snovou, epickou, chill/lo-fi nebo temnou — a nástroj sestaví hudebně smysluplný
-    4taktový postup akordů, ke kterému rovnou navrhne melodii i basovou linku. Postup si
+    6taktový postup akordů, ke kterému rovnou navrhne melodii i basovou linku. Vyber si
+    konkrétní styl melodie nebo basy, nebo nech volbu na "auto" pro pestrost. Postup si
     přehraj přímo v prohlížeči, nebo si ho stáhni jako standardní MIDI soubor a použij ve
     svém DAW (Ableton, FL Studio, Logic, Reaper a dalších).
   </p>
@@ -307,9 +308,22 @@
     <span class="label" style="display:block; margin-top:16px;">Nálada / vibe</span>
     <div class="vibe-grid" id="vibeGrid"></div>
 
+    <div class="row" style="margin-top:16px;">
+      <div class="field">
+        <span class="label">Styl melodie</span>
+        <select id="melodyStyleSelect"></select>
+      </div>
+      <div class="field">
+        <span class="label">Styl basy</span>
+        <select id="bassStyleSelect"></select>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="cta primary" id="genBtn">Vygenerovat postup</button>
       <button class="cta" id="regenBtn" disabled>Nová varianta</button>
+      <button class="cta" id="newMelodyBtn" disabled>Nová melodie</button>
+      <button class="cta" id="newBassBtn" disabled>Nová basa</button>
     </div>
   </div>
 
@@ -356,14 +370,16 @@
         <div>
           <h3>K akordům se dopočítá melodie a basa</h3>
           <p>Melodie vychází z tónů aktuálního akordu (kvintakord/septakord) v rytmických vzorech,
-          basová linka hraje kořen a kvintu — obojí je proto vždy v souzvuku s akordy nahoře.</p>
+          basová linka hraje kořen, kvintu a oktávu — obojí je proto vždy v souzvuku s akordy nahoře.
+          V rozbalovacích nabídkách si můžeš vybrat konkrétní styl melodie nebo basy, nebo nechat
+          volbu na „Auto“ a dostat pokaždé jiný vzor.</p>
         </div>
       </div>
       <div class="info-step">
         <div class="info-num">04</div>
         <div>
           <h3>Přehraj, nebo exportuj</h3>
-          <p>Tlačítko Přehrát pustí 4taktovou smyčku přímo v prohlížeči. Export MIDI stáhne .mid
+          <p>Tlačítko Přehrát pustí 6taktovou smyčku přímo v prohlížeči. Export MIDI stáhne .mid
           soubor se třemi stopami (akordy / melodie / basa), který otevřeš v jakémkoli DAW a stavíš na něm dál.</p>
         </div>
       </div>
@@ -371,8 +387,9 @@
 
     <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:18px 0 0; border-top:1px solid var(--line); padding-top:16px;">
       Tip: „Nová varianta“ nechá tóninu i náladu beze změny a jen vylosuje jiný postup ze stejné
-      rodiny — hodí se, když se ti líbí nálada, ale chceš zkusit jiné akordy. Vyexportovaný MIDI
-      soubor můžeš v DAW libovolně transponovat, prodloužit smyčku nebo vyměnit zvuky za vlastní.
+      rodiny — hodí se, když se ti líbí nálada, ale chceš zkusit jiné akordy. „Nová melodie“ a „Nová basa“
+      přelosují jen danou část a akordy nechají beze změny, takže si je můžeš libovolně kombinovat.
+      Vyexportovaný MIDI soubor můžeš v DAW libovolně transponovat, prodloužit smyčku nebo vyměnit zvuky za vlastní.
     </p>
   </div>
 
@@ -398,7 +415,7 @@
   </div>
 
   <footer>
-    <p>4taktová smyčka · akordy + melodie + basová linka · export jako standardní .mid soubor (3 stopy, 480 tpqn)</p>
+    <p>6taktová smyčka · akordy + melodie + basová linka · export jako standardní .mid soubor (3 stopy, 480 tpqn)</p>
     <nav class="footer-nav">
       <a href="https://synthlucida.com/">SYNTHLUCIDA</a>
       <span aria-hidden="true">·</span>
@@ -427,17 +444,17 @@ const ROMAN = {
 
 const VIBES = {
   happy:  { name:'Šťastný', desc:'Durová, jasná — pop postupy (I–V–vi–IV)', mode:'major', tempo:112, ext:'triad',
-    progressions:[[0,4,5,3],[0,3,4,0],[5,3,0,4],[0,5,3,4]] },
+    progressions:[[0,4,5,3,0,4],[0,3,4,0,5,4],[5,3,0,4,0,4],[0,5,3,4,0,3]] },
   sad:    { name:'Smutný', desc:'Mollová, melancholická nálada', mode:'minor', tempo:76, ext:'triad',
-    progressions:[[0,5,2,6],[0,3,6,5],[0,6,5,3],[0,2,5,6]] },
+    progressions:[[0,5,2,6,0,4],[0,3,6,5,0,4],[0,6,5,3,0,5],[0,2,5,6,0,3]] },
   dreamy: { name:'Snový', desc:'Durová, 7 akordy, pomalá a plovoucí', mode:'major', tempo:70, ext:'7th',
-    progressions:[[0,5,3,4],[1,4,0,5],[0,3,1,4],[5,3,4,0]] },
+    progressions:[[0,5,3,4,0,3],[1,4,0,5,3,4],[0,3,1,4,0,5],[5,3,4,0,3,4]] },
   epic:   { name:'Epický', desc:'Mollová, dramatická, filmová', mode:'minor', tempo:90, ext:'triad',
-    progressions:[[0,3,5,4],[0,5,3,4],[0,4,5,3],[0,3,4,5]] },
+    progressions:[[0,3,5,4,0,3],[0,5,3,4,0,4],[0,4,5,3,0,5],[0,3,4,5,0,4]] },
   chill:  { name:'Chill / Lo-fi', desc:'Mollová, 7 akordy, uvolněný groove', mode:'minor', tempo:82, ext:'7th',
-    progressions:[[0,3,4,0],[0,5,4,3],[3,4,0,5],[0,4,3,5]] },
+    progressions:[[0,3,4,0,3,4],[0,5,4,3,0,4],[3,4,0,5,3,4],[0,4,3,5,0,3]] },
   dark:   { name:'Temný', desc:'Mollová, tajemná a napjatá', mode:'minor', tempo:80, ext:'triad',
-    progressions:[[0,3,0,6],[0,6,3,0],[0,3,6,3],[0,6,0,3]] }
+    progressions:[[0,3,0,6,0,3],[0,6,3,0,6,0],[0,3,6,3,0,6],[0,6,0,3,0,6]] }
 };
 
 const CHORD_SYMBOLS = {
@@ -469,15 +486,57 @@ function chordSymbol(rootName, tones){
 
 /* melody rhythmic/tonal patterns: indices into chord-tone list (0=root,1=3rd,2=5th,3=7th if present) */
 const MELODY_PATTERNS = [
-  [0,1,2,1], [0,2,1,2], [2,1,0,1], [0,1,2,0], [2,0,1,0], [1,2,0,2]
+  { name:'Vlna',           pat:[0,1,2,1] },
+  { name:'Skok',           pat:[0,2,1,2] },
+  { name:'Sestupná',       pat:[2,1,0,1] },
+  { name:'Rámec',          pat:[0,1,2,0] },
+  { name:'Oblouk',         pat:[2,0,1,0] },
+  { name:'Výstup',         pat:[1,2,0,2] },
+  { name:'Vzestupný běh',  pat:[0,1,2,3] },
+  { name:'Poskočná',       pat:[0,2,0,2] },
+  { name:'Statická',       pat:[0,0,1,0] },
+  { name:'Klikatá',        pat:[1,0,2,0] }
 ];
+/* seznam basových tónů na akord: [0]=kořen, [1]=kvinta, [2]=kořen o oktávu výš */
 const BASS_PATTERNS = [
-  [0,0,2,0], [0,2,0,2], [0,0,0,2], [0,2,2,0]
+  { name:'Kořen – kvinta', pat:[0,0,1,0] },
+  { name:'Střídavá',       pat:[0,1,0,1] },
+  { name:'Držený kořen',   pat:[0,0,0,1] },
+  { name:'Poskok',         pat:[0,1,1,0] },
+  { name:'Jen kořen',      pat:[0,0,0,0] },
+  { name:'Oktávový skok',  pat:[0,2,0,2] },
+  { name:'Walking bass',   pat:[0,1,2,1] },
+  { name:'Synkopovaná',    pat:[1,0,1,0] }
 ];
 
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
-function generateProgression(rootIdx, vibeKey){
+/* styleVal je buď řetězec 'auto' (náhodný vzor pro každý takt) nebo
+   stringový index do daného seznamu vzorů (pevný vzor zvolený uživatelem) */
+function pickPattern(list, styleVal){
+  if(styleVal===undefined || styleVal===null || styleVal==='auto') return pick(list);
+  const idx = parseInt(styleVal,10);
+  return list[idx] !== undefined ? list[idx] : pick(list);
+}
+
+function genMelody(chords, style){
+  return chords.map(c=>{
+    const p = pickPattern(MELODY_PATTERNS, style);
+    return p.pat.map(i => c.tones[i % c.tones.length] + 12);
+  });
+}
+
+function genBass(chords, style){
+  return chords.map(c=>{
+    const root = c.tones[0] - 12;
+    const fifth = root + 7;
+    const tones = [root, fifth, root + 12];
+    const p = pickPattern(BASS_PATTERNS, style);
+    return p.pat.map(i => tones[i % tones.length]);
+  });
+}
+
+function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle){
   const vibe = VIBES[vibeKey];
   const scaleArr = SCALES[vibe.mode];
   const romanArr = ROMAN[vibe.mode];
@@ -497,17 +556,8 @@ function generateProgression(rootIdx, vibeKey){
     };
   });
 
-  const melody = chords.map(c=>{
-    const pat = pick(MELODY_PATTERNS);
-    return pat.map(i => c.tones[i % c.tones.length] + 12);
-  });
-
-  const bass = chords.map(c=>{
-    const pat = pick(BASS_PATTERNS);
-    const root = c.tones[0] - 12;
-    const fifth = root + 7;
-    return pat.map(i => i===0 ? root : fifth);
-  });
+  const melody = genMelody(chords, melodyStyle);
+  const bass = genBass(chords, bassStyle);
 
   return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass };
 }
@@ -539,6 +589,22 @@ Object.keys(VIBES).forEach(key=>{
   vibeGrid.appendChild(btn);
 });
 
+const melodyStyleSelect = document.getElementById('melodyStyleSelect');
+const bassStyleSelect = document.getElementById('bassStyleSelect');
+
+function populateStyleSelect(sel, list, autoLabel){
+  const optAuto = document.createElement('option');
+  optAuto.value = 'auto'; optAuto.textContent = autoLabel;
+  sel.appendChild(optAuto);
+  list.forEach((p,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+}
+populateStyleSelect(melodyStyleSelect, MELODY_PATTERNS, 'Auto (mění se v každém taktu)');
+populateStyleSelect(bassStyleSelect, BASS_PATTERNS, 'Auto (mění se v každém taktu)');
+
 const tempoSlider = document.getElementById('tempoSlider');
 const tempoVal = document.getElementById('tempoVal');
 tempoSlider.addEventListener('input', ()=>{
@@ -568,7 +634,8 @@ function renderProgression(data){
 
   const steps = document.getElementById('steps');
   steps.innerHTML = '';
-  for(let i=0;i<16;i++){
+  const stepCount = data.chords.length * 4;
+  for(let i=0;i<stepCount;i++){
     const led = document.createElement('div');
     led.className = 'step-led' + (i%4===0 ? ' bar-edge':'');
     led.id = 'led'+i;
@@ -576,21 +643,39 @@ function renderProgression(data){
   }
 }
 
+function setResultButtonsEnabled(enabled){
+  document.getElementById('regenBtn').disabled = !enabled;
+  document.getElementById('newMelodyBtn').disabled = !enabled;
+  document.getElementById('newBassBtn').disabled = !enabled;
+}
+
 document.getElementById('genBtn').addEventListener('click', ()=>{
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
-  document.getElementById('regenBtn').disabled = false;
+  setResultButtonsEnabled(true);
   stopPlayback();
 });
 
 document.getElementById('regenBtn').addEventListener('click', ()=>{
   if(!current) return;
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
+  stopPlayback();
+});
+
+document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  stopPlayback();
+});
+
+document.getElementById('newBassBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  current.bass = genBass(current.chords, bassStyleSelect.value);
   stopPlayback();
 });
 
@@ -656,7 +741,7 @@ function disposeAll(){
 }
 
 function clearLeds(){
-  for(let i=0;i<16;i++){ const el=document.getElementById('led'+i); if(el) el.classList.remove('lit'); }
+  document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
 }
 
@@ -679,12 +764,13 @@ async function startPlayback(){
     try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
   }, chordEvents);
   chordPart.loop = true;
-  chordPart.loopEnd = '4m';
+  chordPart.loopEnd = `${current.chords.length}m`;
   chordPart.start(0);
 
-  // melody + bass: 16 steps of quarter notes across 4 bars
+  // melody + bass: 4 steps of quarter notes per bar, across all bars
   const melFlat = current.melody.flat();
   const bassFlat = current.bass.flat();
+  const totalSteps = melFlat.length;
 
   melSeq = new Tone.Sequence((time, note)=>{
     if(!melodySynth) return;
@@ -702,7 +788,7 @@ async function startPlayback(){
 
   let step = 0;
   stepEvent = new Tone.Loop((time)=>{
-    const s = step % 16;
+    const s = step % totalSteps;
     Tone.Draw.schedule(()=>{
       clearLeds();
       const led = document.getElementById('led'+s);
@@ -782,7 +868,7 @@ function buildTempoTrack(bpm, endTick){
 function exportMidi(){
   if(!current) return;
   const barTicks = TPQN * 4;
-  const totalTicks = barTicks * 4;
+  const totalTicks = barTicks * current.chords.length;
 
   // chords: whole note per bar
   const chordEvents = [];

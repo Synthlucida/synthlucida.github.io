@@ -198,7 +198,7 @@
   .step-led.bar-edge{margin-left:6px;}
 
   /* chord pads */
-  .pads{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;}
+  .pads{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px;}
   .pad{
     background:var(--bg); border:1px solid var(--line); border-radius:8px;
     padding:16px 8px; text-align:center; transition:border-color .12s, background .12s;
@@ -284,7 +284,8 @@
   <p style="color:var(--text-dim); font-size:13px; line-height:1.7; max-width:640px; margin:-10px 0 20px;">
     A free online chord progression generator. Pick a key and mood — happy, sad,
     dreamy, epic, chill/lo-fi, or dark — and the tool builds a musically coherent
-    4-bar chord progression, complete with a matching melody and bassline. Play it
+    6-bar chord progression, complete with a matching melody and bassline. Choose
+    a specific melody or bass style, or leave it on auto for variety. Play it
     right in your browser, or download it as a standard MIDI file to use in your
     DAW (Ableton, FL Studio, Logic, Reaper, and more).
   </p>
@@ -307,9 +308,22 @@
     <span class="label" style="display:block; margin-top:16px;">Mood / vibe</span>
     <div class="vibe-grid" id="vibeGrid"></div>
 
+    <div class="row" style="margin-top:16px;">
+      <div class="field">
+        <span class="label">Melody style</span>
+        <select id="melodyStyleSelect"></select>
+      </div>
+      <div class="field">
+        <span class="label">Bass style</span>
+        <select id="bassStyleSelect"></select>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="cta primary" id="genBtn">Generate progression</button>
       <button class="cta" id="regenBtn" disabled>New variation</button>
+      <button class="cta" id="newMelodyBtn" disabled>New melody</button>
+      <button class="cta" id="newBassBtn" disabled>New bass</button>
     </div>
   </div>
 
@@ -356,14 +370,16 @@
         <div>
           <h3>Melody and bass are derived from the chords</h3>
           <p>The melody draws on the tones of the current chord (triad/seventh chord) in rhythmic patterns,
-          while the bassline plays the root and fifth — both always stay in harmony with the chords above.</p>
+          while the bassline plays the root, fifth, and octave — both always stay in harmony with the chords
+          above. Pick a specific melody or bass style from the dropdowns, or leave them on "Auto" to get a
+          different pattern on every bar.</p>
         </div>
       </div>
       <div class="info-step">
         <div class="info-num">04</div>
         <div>
           <h3>Play it, or export it</h3>
-          <p>The Play button starts a 4-bar loop right in your browser. MIDI export downloads a .mid
+          <p>The Play button starts a 6-bar loop right in your browser. MIDI export downloads a .mid
           file with three tracks (chords / melody / bass) that you can open in any DAW and build on.</p>
         </div>
       </div>
@@ -371,8 +387,9 @@
 
     <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:18px 0 0; border-top:1px solid var(--line); padding-top:16px;">
       Tip: "New variation" keeps the key and mood unchanged and just rolls a different progression from the
-      same family — handy when you like the mood but want to try different chords. The exported MIDI
-      file can be freely transposed in your DAW, looped longer, or have its sounds swapped for your own.
+      same family — handy when you like the mood but want to try different chords. "New melody" and "New bass"
+      re-roll just that part while keeping the current chords in place, so you can mix and match. The exported
+      MIDI file can be freely transposed in your DAW, looped longer, or have its sounds swapped for your own.
     </p>
   </div>
 
@@ -398,7 +415,7 @@
   </div>
 
   <footer>
-    <p>4-bar loop · chords + melody + bassline · export as a standard .mid file (3 tracks, 480 tpqn)</p>
+    <p>6-bar loop · chords + melody + bassline · export as a standard .mid file (3 tracks, 480 tpqn)</p>
     <nav class="footer-nav">
       <a href="https://synthlucida.com/">SYNTHLUCIDA</a>
       <span aria-hidden="true">·</span>
@@ -427,17 +444,17 @@ const ROMAN = {
 
 const VIBES = {
   happy:  { name:'Happy', desc:'Major, bright — pop progressions (I–V–vi–IV)', mode:'major', tempo:112, ext:'triad',
-    progressions:[[0,4,5,3],[0,3,4,0],[5,3,0,4],[0,5,3,4]] },
+    progressions:[[0,4,5,3,0,4],[0,3,4,0,5,4],[5,3,0,4,0,4],[0,5,3,4,0,3]] },
   sad:    { name:'Sad', desc:'Minor, melancholic mood', mode:'minor', tempo:76, ext:'triad',
-    progressions:[[0,5,2,6],[0,3,6,5],[0,6,5,3],[0,2,5,6]] },
+    progressions:[[0,5,2,6,0,4],[0,3,6,5,0,4],[0,6,5,3,0,5],[0,2,5,6,0,3]] },
   dreamy: { name:'Dreamy', desc:'Major, 7th chords, slow and floating', mode:'major', tempo:70, ext:'7th',
-    progressions:[[0,5,3,4],[1,4,0,5],[0,3,1,4],[5,3,4,0]] },
+    progressions:[[0,5,3,4,0,3],[1,4,0,5,3,4],[0,3,1,4,0,5],[5,3,4,0,3,4]] },
   epic:   { name:'Epic', desc:'Minor, dramatic, cinematic', mode:'minor', tempo:90, ext:'triad',
-    progressions:[[0,3,5,4],[0,5,3,4],[0,4,5,3],[0,3,4,5]] },
+    progressions:[[0,3,5,4,0,3],[0,5,3,4,0,4],[0,4,5,3,0,5],[0,3,4,5,0,4]] },
   chill:  { name:'Chill / Lo-fi', desc:'Minor, 7th chords, relaxed groove', mode:'minor', tempo:82, ext:'7th',
-    progressions:[[0,3,4,0],[0,5,4,3],[3,4,0,5],[0,4,3,5]] },
+    progressions:[[0,3,4,0,3,4],[0,5,4,3,0,4],[3,4,0,5,3,4],[0,4,3,5,0,3]] },
   dark:   { name:'Dark', desc:'Minor, mysterious and tense', mode:'minor', tempo:80, ext:'triad',
-    progressions:[[0,3,0,6],[0,6,3,0],[0,3,6,3],[0,6,0,3]] }
+    progressions:[[0,3,0,6,0,3],[0,6,3,0,6,0],[0,3,6,3,0,6],[0,6,0,3,0,6]] }
 };
 
 const CHORD_SYMBOLS = {
@@ -469,15 +486,57 @@ function chordSymbol(rootName, tones){
 
 /* melody rhythmic/tonal patterns: indices into chord-tone list (0=root,1=3rd,2=5th,3=7th if present) */
 const MELODY_PATTERNS = [
-  [0,1,2,1], [0,2,1,2], [2,1,0,1], [0,1,2,0], [2,0,1,0], [1,2,0,2]
+  { name:'Wave',          pat:[0,1,2,1] },
+  { name:'Skip',          pat:[0,2,1,2] },
+  { name:'Descending',    pat:[2,1,0,1] },
+  { name:'Bookend',       pat:[0,1,2,0] },
+  { name:'Arch',          pat:[2,0,1,0] },
+  { name:'Climb',         pat:[1,2,0,2] },
+  { name:'Ascending run', pat:[0,1,2,3] },
+  { name:'Bouncy',        pat:[0,2,0,2] },
+  { name:'Static',        pat:[0,0,1,0] },
+  { name:'Zigzag',        pat:[1,0,2,0] }
 ];
+/* bass tone list per chord: [0]=root, [1]=fifth, [2]=root one octave up */
 const BASS_PATTERNS = [
-  [0,0,2,0], [0,2,0,2], [0,0,0,2], [0,2,2,0]
+  { name:'Root – Fifth', pat:[0,0,1,0] },
+  { name:'Alternating',  pat:[0,1,0,1] },
+  { name:'Root hold',    pat:[0,0,0,1] },
+  { name:'Bounce',       pat:[0,1,1,0] },
+  { name:'Root only',    pat:[0,0,0,0] },
+  { name:'Octave jump',  pat:[0,2,0,2] },
+  { name:'Walking',      pat:[0,1,2,1] },
+  { name:'Syncopated',   pat:[1,0,1,0] }
 ];
 
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
-function generateProgression(rootIdx, vibeKey){
+/* styleVal is either the string 'auto' (random pattern each call) or a
+   stringified index into the given pattern list (fixed pattern, chosen by the user) */
+function pickPattern(list, styleVal){
+  if(styleVal===undefined || styleVal===null || styleVal==='auto') return pick(list);
+  const idx = parseInt(styleVal,10);
+  return list[idx] !== undefined ? list[idx] : pick(list);
+}
+
+function genMelody(chords, style){
+  return chords.map(c=>{
+    const p = pickPattern(MELODY_PATTERNS, style);
+    return p.pat.map(i => c.tones[i % c.tones.length] + 12);
+  });
+}
+
+function genBass(chords, style){
+  return chords.map(c=>{
+    const root = c.tones[0] - 12;
+    const fifth = root + 7;
+    const tones = [root, fifth, root + 12];
+    const p = pickPattern(BASS_PATTERNS, style);
+    return p.pat.map(i => tones[i % tones.length]);
+  });
+}
+
+function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle){
   const vibe = VIBES[vibeKey];
   const scaleArr = SCALES[vibe.mode];
   const romanArr = ROMAN[vibe.mode];
@@ -497,17 +556,8 @@ function generateProgression(rootIdx, vibeKey){
     };
   });
 
-  const melody = chords.map(c=>{
-    const pat = pick(MELODY_PATTERNS);
-    return pat.map(i => c.tones[i % c.tones.length] + 12);
-  });
-
-  const bass = chords.map(c=>{
-    const pat = pick(BASS_PATTERNS);
-    const root = c.tones[0] - 12;
-    const fifth = root + 7;
-    return pat.map(i => i===0 ? root : fifth);
-  });
+  const melody = genMelody(chords, melodyStyle);
+  const bass = genBass(chords, bassStyle);
 
   return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass };
 }
@@ -539,6 +589,22 @@ Object.keys(VIBES).forEach(key=>{
   vibeGrid.appendChild(btn);
 });
 
+const melodyStyleSelect = document.getElementById('melodyStyleSelect');
+const bassStyleSelect = document.getElementById('bassStyleSelect');
+
+function populateStyleSelect(sel, list, autoLabel){
+  const optAuto = document.createElement('option');
+  optAuto.value = 'auto'; optAuto.textContent = autoLabel;
+  sel.appendChild(optAuto);
+  list.forEach((p,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+}
+populateStyleSelect(melodyStyleSelect, MELODY_PATTERNS, 'Auto (varies per bar)');
+populateStyleSelect(bassStyleSelect, BASS_PATTERNS, 'Auto (varies per bar)');
+
 const tempoSlider = document.getElementById('tempoSlider');
 const tempoVal = document.getElementById('tempoVal');
 tempoSlider.addEventListener('input', ()=>{
@@ -568,7 +634,8 @@ function renderProgression(data){
 
   const steps = document.getElementById('steps');
   steps.innerHTML = '';
-  for(let i=0;i<16;i++){
+  const stepCount = data.chords.length * 4;
+  for(let i=0;i<stepCount;i++){
     const led = document.createElement('div');
     led.className = 'step-led' + (i%4===0 ? ' bar-edge':'');
     led.id = 'led'+i;
@@ -576,21 +643,39 @@ function renderProgression(data){
   }
 }
 
+function setResultButtonsEnabled(enabled){
+  document.getElementById('regenBtn').disabled = !enabled;
+  document.getElementById('newMelodyBtn').disabled = !enabled;
+  document.getElementById('newBassBtn').disabled = !enabled;
+}
+
 document.getElementById('genBtn').addEventListener('click', ()=>{
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
-  document.getElementById('regenBtn').disabled = false;
+  setResultButtonsEnabled(true);
   stopPlayback();
 });
 
 document.getElementById('regenBtn').addEventListener('click', ()=>{
   if(!current) return;
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
+  stopPlayback();
+});
+
+document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  stopPlayback();
+});
+
+document.getElementById('newBassBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  current.bass = genBass(current.chords, bassStyleSelect.value);
   stopPlayback();
 });
 
@@ -656,7 +741,7 @@ function disposeAll(){
 }
 
 function clearLeds(){
-  for(let i=0;i<16;i++){ const el=document.getElementById('led'+i); if(el) el.classList.remove('lit'); }
+  document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
 }
 
@@ -679,12 +764,13 @@ async function startPlayback(){
     try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
   }, chordEvents);
   chordPart.loop = true;
-  chordPart.loopEnd = '4m';
+  chordPart.loopEnd = `${current.chords.length}m`;
   chordPart.start(0);
 
-  // melody + bass: 16 steps of quarter notes across 4 bars
+  // melody + bass: 4 steps of quarter notes per bar, across all bars
   const melFlat = current.melody.flat();
   const bassFlat = current.bass.flat();
+  const totalSteps = melFlat.length;
 
   melSeq = new Tone.Sequence((time, note)=>{
     if(!melodySynth) return;
@@ -702,7 +788,7 @@ async function startPlayback(){
 
   let step = 0;
   stepEvent = new Tone.Loop((time)=>{
-    const s = step % 16;
+    const s = step % totalSteps;
     Tone.Draw.schedule(()=>{
       clearLeds();
       const led = document.getElementById('led'+s);
@@ -782,7 +868,7 @@ function buildTempoTrack(bpm, endTick){
 function exportMidi(){
   if(!current) return;
   const barTicks = TPQN * 4;
-  const totalTicks = barTicks * 4;
+  const totalTicks = barTicks * current.chords.length;
 
   // chords: whole note per bar
   const chordEvents = [];
