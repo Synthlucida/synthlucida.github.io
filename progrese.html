@@ -176,6 +176,12 @@
   .vibe-btn .vdesc{font-size:11px; color:var(--text-dim); display:block; margin-top:3px; line-height:1.4;}
 
   .actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+  .status-msg{
+    font-size:11.5px; color:var(--amber); margin-top:10px; min-height:14px;
+    opacity:0; transform:translateY(-3px); transition:opacity .25s ease, transform .25s ease;
+    letter-spacing:0.02em;
+  }
+  .status-msg.show{opacity:1; transform:translateY(0);}
   button.cta{
     font-family:inherit; font-size:13px; letter-spacing:0.04em; text-transform:uppercase;
     border-radius:7px; padding:12px 18px; cursor:pointer; border:1px solid var(--line);
@@ -325,6 +331,7 @@
       <button class="cta" id="newMelodyBtn" disabled>New melody</button>
       <button class="cta" id="newBassBtn" disabled>New bass</button>
     </div>
+    <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
 
   <div class="panel" id="resultPanel">
@@ -649,6 +656,22 @@ function setResultButtonsEnabled(enabled){
   document.getElementById('newBassBtn').disabled = !enabled;
 }
 
+const statusMsg = document.getElementById('statusMsg');
+let statusTimer = null;
+function showStatus(msg){
+  statusMsg.textContent = msg;
+  statusMsg.classList.add('show');
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(()=>{ statusMsg.classList.remove('show'); }, 2400);
+}
+
+/* returns the chosen pattern's name if a specific style is picked, or null when on Auto */
+function styleName(select, list){
+  if(select.value === 'auto') return null;
+  const idx = parseInt(select.value,10);
+  return list[idx] ? list[idx].name : null;
+}
+
 document.getElementById('genBtn').addEventListener('click', ()=>{
   const rootIdx = parseInt(rootSelect.value,10);
   current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value);
@@ -656,6 +679,7 @@ document.getElementById('genBtn').addEventListener('click', ()=>{
   renderProgression(current);
   setResultButtonsEnabled(true);
   stopPlayback();
+  showStatus(`Generated ${current.rootName} ${VIBES[selectedVibe].name} progression`);
 });
 
 document.getElementById('regenBtn').addEventListener('click', ()=>{
@@ -665,18 +689,23 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
   stopPlayback();
+  showStatus('New variation generated');
 });
 
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
   stopPlayback();
+  const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
+  showStatus(name ? `New melody generated — ${name}` : 'New melody generated');
 });
 
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
   stopPlayback();
+  const name = styleName(bassStyleSelect, BASS_PATTERNS);
+  showStatus(name ? `New bass line generated — ${name}` : 'New bass line generated');
 });
 
 /* ================= PLAYBACK (Tone.js) ================= */
@@ -912,6 +941,7 @@ function exportMidi(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  showStatus(`MIDI file exported — ${a.download}`);
 }
 
 document.getElementById('exportBtn').addEventListener('click', exportMidi);
