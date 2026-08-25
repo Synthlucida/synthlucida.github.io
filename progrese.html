@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ===== Primary SEO ===== -->
+<title>Free Online Chord Progression Generator — MIDI Export | Progrese</title>
+<meta name="description" content="Free online chord progression generator. Pick a key and mood (happy, sad, dreamy, epic, lo-fi, dark) and get a musically coherent progression with melody and bassline. Play it instantly or export it as a MIDI file for your DAW.">
+<meta name="keywords" content="chord generator, MIDI generator, chord progressions, chord progression generator, melody generator, MIDI export, online music tool, music production, songwriting tool, beatmaking">
+<meta name="author" content="Progrese">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#141210">
+<link rel="canonical" href="https://synthlucida.com/progrese.html">
+<link rel="alternate" hreflang="en" href="https://synthlucida.com/progrese.html">
+<link rel="alternate" hreflang="cs" href="https://synthlucida.com/progrese-cz.html">
+<link rel="alternate" hreflang="x-default" href="https://synthlucida.com/progrese.html">
+
+<!-- ===== Open Graph (Facebook, LinkedIn, Discord…) ===== -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Progrese">
+<meta property="og:title" content="Free Online Chord Progression Generator — MIDI Export">
+<meta property="og:description" content="Pick a key and mood and get a musically coherent chord progression with melody and bassline. Play it online or download it as MIDI.">
+<meta property="og:url" content="https://synthlucida.com/progrese.html">
+<meta property="og:image" content="https://synthlucida.com/progrese-og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="cs_CZ">
+
+<!-- ===== Twitter / X card ===== -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Free Online Chord Progression Generator — MIDI Export">
+<meta name="twitter:description" content="Pick a key and mood and get a musically coherent chord progression with melody and bassline. Play it online or download it as MIDI.">
+<meta name="twitter:image" content="https://synthlucida.com/progrese-og.png">
+
+<!-- ===== Favicon ===== -->
+<link rel="icon" href="/progrese-favicon.ico" sizes="any">
+<link rel="icon" href="/progrese-favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/progrese-apple-touch-icon.png">
+
+<!-- ===== Structured data (JSON-LD) ===== -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Progrese — chord progression generator",
+  "url": "https://synthlucida.com/progrese.html",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Web",
+  "description": "Online chord progression generator with automatic melody and bassline suggestions. Play back in the browser and export to a standard MIDI file.",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Chord progression generation by key and mood",
+    "Automatic melody and bassline suggestions",
+    "Playback directly in the browser",
+    "Export to a MIDI file (.mid) with 3 tracks"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is the chord generator free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, the tool is completely free and runs right in your browser, no sign-up needed." }
+    },
+    {
+      "@type": "Question",
+      "name": "Are the generated progressions musically correct?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — every progression is built solely from chords diatonic to the chosen key and scale, so it always sounds coherent. The melody and bassline are generated from the tones of those chords." }
+    },
+    {
+      "@type": "Question",
+      "name": "What format is the export?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The export is a standard MIDI file (.mid, format 1, 480 tpqn) with three tracks — chords, melody, and bass — compatible with all major DAWs." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which moods can I choose from?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Happy, sad, dreamy, epic, chill/lo-fi, and dark — each mood has its own tempo, key mode, and set of typical progressions." }
+    }
+  ]
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<style>
+  :root{
+    --bg:#141210;
+    --panel:#1d1a16;
+    --panel-2:#252019;
+    --line:#3a332a;
+    --text:#ece4d6;
+    --text-dim:#9a9082;
+    --amber:#ff8a3d;
+    --amber-dim:#5a3a20;
+    --teal:#4dd2c4;
+    --violet:#b79cef;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, #241d14 0%, transparent 55%),
+      radial-gradient(ellipse at 90% 110%, #1a2320 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family: ui-monospace, "SFMono-Regular", "IBM Plex Mono", Menlo, Consolas, monospace;
+    min-height:100vh;
+    padding:28px 16px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;}
+
+  .brand{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:22px; flex-wrap:wrap; gap:8px;
+  }
+  .brand h1{
+    font-family: ui-sans-serif, "Segoe UI", Arial, sans-serif;
+    font-weight:700; font-size:22px; letter-spacing:0.02em; margin:0;
+    color:var(--text);
+  }
+  .brand h1 span{color:var(--amber);}
+  .brand .sub{color:var(--text-dim); font-size:12px; letter-spacing:0.08em; text-transform:uppercase;}
+
+  .panel{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px;
+    margin-bottom:16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 8px 20px rgba(0,0,0,0.25);
+  }
+
+  .row{display:flex; gap:10px; flex-wrap:wrap;}
+  .field{flex:1; min-width:140px;}
+  .label{
+    font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:8px; display:block;
+  }
+
+  select{
+    width:100%; background:var(--bg); color:var(--text);
+    border:1px solid var(--line); border-radius:6px;
+    padding:10px 12px; font:inherit; font-size:14px;
+    appearance:none; cursor:pointer;
+  }
+  select:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+
+  .vibe-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:8px; margin-top:8px;
+  }
+  .vibe-btn{
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; text-align:left; cursor:pointer; color:var(--text);
+    font-family:inherit; transition:border-color .15s, background .15s;
+  }
+  .vibe-btn:hover{border-color:#5a5040;}
+  .vibe-btn.active{border-color:var(--amber); background:#241a10;}
+  .vibe-btn:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+  .vibe-btn .vname{font-size:13px; font-weight:600; display:block;}
+  .vibe-btn.active .vname{color:var(--amber);}
+  .vibe-btn .vdesc{font-size:11px; color:var(--text-dim); display:block; margin-top:3px; line-height:1.4;}
+
+  .actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+  button.cta{
+    font-family:inherit; font-size:13px; letter-spacing:0.04em; text-transform:uppercase;
+    border-radius:7px; padding:12px 18px; cursor:pointer; border:1px solid var(--line);
+    background:var(--bg); color:var(--text); transition:transform .1s, border-color .15s;
+  }
+  button.cta:hover{border-color:#5a5040;}
+  button.cta:active{transform:scale(0.98);}
+  button.cta:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+  button.primary{background:var(--amber); color:#1c1208; border-color:var(--amber); font-weight:700;}
+  button.primary:hover{border-color:var(--amber); filter:brightness(1.06);}
+  button.cta:disabled{opacity:0.4; cursor:not-allowed;}
+
+  /* step LED strip */
+  .steps{display:flex; gap:5px; margin:16px 0 4px;}
+  .step-led{
+    flex:1; height:6px; border-radius:3px; background:var(--panel-2);
+    border:1px solid var(--line);
+  }
+  .step-led.lit{background:var(--amber); border-color:var(--amber); box-shadow:0 0 8px rgba(255,138,61,0.7);}
+  .step-led.bar-edge{margin-left:6px;}
+
+  /* chord pads */
+  .pads{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;}
+  .pad{
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:16px 8px; text-align:center; transition:border-color .12s, background .12s;
+  }
+  .pad.on{border-color:var(--amber); background:#241a10;}
+  .pad .roman{font-size:11px; color:var(--text-dim); letter-spacing:0.08em;}
+  .pad.on .roman{color:var(--amber);}
+  .pad .sym{font-size:22px; font-weight:700; margin-top:6px; color:var(--text); font-family:ui-sans-serif, Arial, sans-serif;}
+
+  .legend{display:flex; gap:16px; margin-top:14px; flex-wrap:wrap;}
+  .legend span{font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:6px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .dot.amber{background:var(--amber);}
+  .dot.violet{background:var(--violet);}
+  .dot.teal{background:var(--teal);}
+
+  .transport{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:18px;}
+  .tempo-wrap{display:flex; flex-direction:column; align-items:stretch; gap:8px; flex:1; min-width:180px;}
+  input[type=range]{width:100%; accent-color:var(--amber);}
+  .tempo-val{font-size:13px; color:var(--text-dim); text-align:center;}
+
+  .empty{
+    text-align:center; color:var(--text-dim); font-size:13px; padding:30px 10px;
+  }
+
+  footer{text-align:center; color:var(--text-dim); font-size:11px; margin-top:26px; line-height:1.6;}
+  footer p{margin:0 0 12px;}
+
+  .back-link{
+    display:inline-block; color:var(--text-dim); font-size:11px; text-decoration:none;
+    letter-spacing:0.04em; border-bottom:1px solid transparent;
+    transition:color .15s, border-color .15s;
+  }
+  .back-link:hover{color:var(--amber); border-color:var(--amber);}
+  .back-link:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+  .top-row{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
+  .lang-switch{display:flex; align-items:center; gap:6px; font-size:11px; letter-spacing:0.04em;}
+  .lang-switch a{color:var(--text-dim); text-decoration:none; padding:2px 3px; border-bottom:1px solid transparent; transition:color .15s, border-color .15s;}
+  .lang-switch a:hover{color:var(--amber); border-color:var(--amber);}
+  .lang-switch a.active{color:var(--amber); font-weight:700;}
+  .lang-switch .sep{color:var(--line);}
+
+  .footer-nav{display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .footer-nav a{color:var(--text-dim); text-decoration:none; font-size:11px; letter-spacing:0.03em;}
+  .footer-nav a:hover{color:var(--amber);}
+  .footer-nav a:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .footer-nav span{color:var(--line);}
+  .footer-copy{color:#5a5245; font-size:10px;}
+
+  .info-steps{display:flex; flex-direction:column; gap:16px;}
+  .info-step{display:flex; gap:14px; align-items:flex-start;}
+  .info-num{
+    font-size:11px; color:var(--amber); font-weight:700; letter-spacing:0.06em;
+    border:1px solid var(--line); border-radius:6px; padding:4px 7px; flex-shrink:0;
+    background:var(--bg);
+  }
+  .info-step h3{font-size:13.5px; margin:0 0 5px; color:var(--text); font-family:ui-sans-serif, Arial, sans-serif;}
+  .info-step p{font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.65;}
+
+  @media (max-width:520px){
+    .pads{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top-row">
+    <a href="https://synthlucida.com/" class="back-link">← back to synthlucida.com</a>
+    <div class="lang-switch">
+      <a href="https://synthlucida.com/progrese.html" class="active">EN</a>
+      <span class="sep">/</span>
+      <a href="https://synthlucida.com/progrese-cz.html">CZ</a>
+    </div>
+  </div>
+
+  <div class="brand">
+    <h1>PROG<span>RESE</span></h1>
+    <div class="sub">chord progression generator · playback · MIDI export</div>
+  </div>
+
+  <p style="color:var(--text-dim); font-size:13px; line-height:1.7; max-width:640px; margin:-10px 0 20px;">
+    A free online chord progression generator. Pick a key and mood — happy, sad,
+    dreamy, epic, chill/lo-fi, or dark — and the tool builds a musically coherent
+    4-bar chord progression, complete with a matching melody and bassline. Play it
+    right in your browser, or download it as a standard MIDI file to use in your
+    DAW (Ableton, FL Studio, Logic, Reaper, and more).
+  </p>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <span class="label">Key</span>
+        <select id="rootSelect"></select>
+      </div>
+      <div class="field">
+        <span class="label">Tempo</span>
+        <div class="tempo-wrap" style="margin-top:6px;">
+          <input type="range" id="tempoSlider" min="55" max="150" value="100">
+          <span class="tempo-val" id="tempoVal">100 BPM</span>
+        </div>
+      </div>
+    </div>
+
+    <span class="label" style="display:block; margin-top:16px;">Mood / vibe</span>
+    <div class="vibe-grid" id="vibeGrid"></div>
+
+    <div class="actions">
+      <button class="cta primary" id="genBtn">Generate progression</button>
+      <button class="cta" id="regenBtn" disabled>New variation</button>
+    </div>
+  </div>
+
+  <div class="panel" id="resultPanel">
+    <div class="empty" id="emptyMsg">Pick a key and mood, then click “Generate progression”.</div>
+    <div id="resultContent" style="display:none;">
+      <div class="pads" id="pads"></div>
+      <div class="steps" id="steps"></div>
+      <div class="legend">
+        <span><span class="dot amber"></span>chords</span>
+        <span><span class="dot violet"></span>melody</span>
+        <span><span class="dot teal"></span>bass</span>
+      </div>
+
+      <div class="transport">
+        <button class="cta primary" id="playBtn">▶ Play</button>
+        <button class="cta" id="exportBtn">⇩ Export MIDI</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px; margin:0 0 16px;">How it works</h2>
+
+    <div class="info-steps">
+      <div class="info-step">
+        <div class="info-num">01</div>
+        <div>
+          <h3>Pick a key and mood</h3>
+          <p>The key sets the starting note; the mood (happy, sad, dreamy, epic, chill/lo-fi, dark)
+          sets the major or minor mode, tempo, and typical character of the progression.</p>
+        </div>
+      </div>
+      <div class="info-step">
+        <div class="info-num">02</div>
+        <div>
+          <h3>The tool builds chords only from the scale</h3>
+          <p>The progression is built exclusively from chords diatonic to the chosen key and scale —
+          no random or foreign notes. That's why it always sounds coherent and "in tune," whatever combination comes up.</p>
+        </div>
+      </div>
+      <div class="info-step">
+        <div class="info-num">03</div>
+        <div>
+          <h3>Melody and bass are derived from the chords</h3>
+          <p>The melody draws on the tones of the current chord (triad/seventh chord) in rhythmic patterns,
+          while the bassline plays the root and fifth — both always stay in harmony with the chords above.</p>
+        </div>
+      </div>
+      <div class="info-step">
+        <div class="info-num">04</div>
+        <div>
+          <h3>Play it, or export it</h3>
+          <p>The Play button starts a 4-bar loop right in your browser. MIDI export downloads a .mid
+          file with three tracks (chords / melody / bass) that you can open in any DAW and build on.</p>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:18px 0 0; border-top:1px solid var(--line); padding-top:16px;">
+      Tip: "New variation" keeps the key and mood unchanged and just rolls a different progression from the
+      same family — handy when you like the mood but want to try different chords. The exported MIDI
+      file can be freely transposed in your DAW, looped longer, or have its sounds swapped for your own.
+    </p>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px; margin:0 0 14px;">Frequently asked questions</h2>
+
+    <div style="margin-bottom:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Is the chord generator free?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes, the tool is completely free and runs right in your browser, no sign-up needed.</p>
+    </div>
+    <div style="margin-bottom:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Are the generated progressions musically correct?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — every progression is built solely from chords diatonic to the chosen key and scale, so it always sounds coherent and "in tune." The melody and bassline are generated from the tones of those chords.</p>
+    </div>
+    <div style="margin-bottom:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">What format is the export?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">The export is a standard MIDI file (.mid, format 1, 480 tpqn) with three tracks — chords, melody, and bass — compatible with all major DAWs.</p>
+    </div>
+    <div>
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Which moods can I choose from?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Happy, sad, dreamy, epic, chill/lo-fi, and dark — each mood has its own tempo, key mode, and set of typical progressions.</p>
+    </div>
+  </div>
+
+  <footer>
+    <p>4-bar loop · chords + melody + bassline · export as a standard .mid file (3 tracks, 480 tpqn)</p>
+    <nav class="footer-nav">
+      <a href="https://synthlucida.com/">SYNTHLUCIDA</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://synthlucida.com/player.html">Player</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://synthlucida.com/tarot.html">Tarot</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://synthlucida.com/game.html">Game</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://synthlucida.com/relax.html">Relax</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://synthlucida.com/draw.html">Canvas</a>
+    </nav>
+    <p class="footer-copy">Progrese is part of SYNTHLUCIDA — © 2026</p>
+  </footer>
+</div>
+
+<script>
+/* ================= MUSIC THEORY CORE ================= */
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SCALES = { major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
+const ROMAN = {
+  major: ['I','ii','iii','IV','V','vi','vii°'],
+  minor: ['i','ii°','III','iv','v','VI','VII']
+};
+
+const VIBES = {
+  happy:  { name:'Happy', desc:'Major, bright — pop progressions (I–V–vi–IV)', mode:'major', tempo:112, ext:'triad',
+    progressions:[[0,4,5,3],[0,3,4,0],[5,3,0,4],[0,5,3,4]] },
+  sad:    { name:'Sad', desc:'Minor, melancholic mood', mode:'minor', tempo:76, ext:'triad',
+    progressions:[[0,5,2,6],[0,3,6,5],[0,6,5,3],[0,2,5,6]] },
+  dreamy: { name:'Dreamy', desc:'Major, 7th chords, slow and floating', mode:'major', tempo:70, ext:'7th',
+    progressions:[[0,5,3,4],[1,4,0,5],[0,3,1,4],[5,3,4,0]] },
+  epic:   { name:'Epic', desc:'Minor, dramatic, cinematic', mode:'minor', tempo:90, ext:'triad',
+    progressions:[[0,3,5,4],[0,5,3,4],[0,4,5,3],[0,3,4,5]] },
+  chill:  { name:'Chill / Lo-fi', desc:'Minor, 7th chords, relaxed groove', mode:'minor', tempo:82, ext:'7th',
+    progressions:[[0,3,4,0],[0,5,4,3],[3,4,0,5],[0,4,3,5]] },
+  dark:   { name:'Dark', desc:'Minor, mysterious and tense', mode:'minor', tempo:80, ext:'triad',
+    progressions:[[0,3,0,6],[0,6,3,0],[0,3,6,3],[0,6,0,3]] }
+};
+
+const CHORD_SYMBOLS = {
+  '0,4,7':'', '0,3,7':'m', '0,3,6':'dim', '0,4,8':'aug',
+  '0,4,7,11':'maj7', '0,4,7,10':'7', '0,3,7,10':'m7', '0,3,6,10':'m7b5', '0,3,6,9':'dim7'
+};
+
+function midiToName(m){
+  const oct = Math.floor(m/12) - 1;
+  return NOTE_NAMES[((m%12)+12)%12] + oct;
+}
+
+function chordTones(rootBase, scaleArr, degree, ext){
+  const size = scaleArr.length;
+  const offs = ext==='7th' ? [0,2,4,6] : [0,2,4];
+  return offs.map(off=>{
+    const idx = (degree+off)%size;
+    const octShift = Math.floor((degree+off)/size);
+    return rootBase + scaleArr[idx] + 12*octShift;
+  });
+}
+
+function chordSymbol(rootName, tones){
+  const intervals = tones.map(t=>t-tones[0]);
+  const key = intervals.join(',');
+  const suffix = CHORD_SYMBOLS[key] !== undefined ? CHORD_SYMBOLS[key] : '';
+  return rootName + suffix;
+}
+
+/* melody rhythmic/tonal patterns: indices into chord-tone list (0=root,1=3rd,2=5th,3=7th if present) */
+const MELODY_PATTERNS = [
+  [0,1,2,1], [0,2,1,2], [2,1,0,1], [0,1,2,0], [2,0,1,0], [1,2,0,2]
+];
+const BASS_PATTERNS = [
+  [0,0,2,0], [0,2,0,2], [0,0,0,2], [0,2,2,0]
+];
+
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function generateProgression(rootIdx, vibeKey){
+  const vibe = VIBES[vibeKey];
+  const scaleArr = SCALES[vibe.mode];
+  const romanArr = ROMAN[vibe.mode];
+  const rootName = NOTE_NAMES[rootIdx];
+  const chordBase = 48 + rootIdx; // ~C3 register
+
+  const degrees = pick(vibe.progressions);
+
+  const chords = degrees.map(deg=>{
+    const tones = chordTones(chordBase, scaleArr, deg, vibe.ext);
+    const rName = NOTE_NAMES[(rootIdx + scaleArr[deg])%12];
+    return {
+      degree: deg,
+      roman: romanArr[deg],
+      tones: tones,
+      symbol: chordSymbol(rName, tones)
+    };
+  });
+
+  const melody = chords.map(c=>{
+    const pat = pick(MELODY_PATTERNS);
+    return pat.map(i => c.tones[i % c.tones.length] + 12);
+  });
+
+  const bass = chords.map(c=>{
+    const pat = pick(BASS_PATTERNS);
+    const root = c.tones[0] - 12;
+    const fifth = root + 7;
+    return pat.map(i => i===0 ? root : fifth);
+  });
+
+  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass };
+}
+
+/* ================= UI SETUP ================= */
+const rootSelect = document.getElementById('rootSelect');
+NOTE_NAMES.forEach((n,i)=>{
+  const opt = document.createElement('option');
+  opt.value = i; opt.textContent = n;
+  rootSelect.appendChild(opt);
+});
+rootSelect.value = 0;
+
+const vibeGrid = document.getElementById('vibeGrid');
+let selectedVibe = 'happy';
+Object.keys(VIBES).forEach(key=>{
+  const v = VIBES[key];
+  const btn = document.createElement('button');
+  btn.className = 'vibe-btn' + (key===selectedVibe ? ' active' : '');
+  btn.innerHTML = `<span class="vname">${v.name}</span><span class="vdesc">${v.desc}</span>`;
+  btn.addEventListener('click', ()=>{
+    selectedVibe = key;
+    document.querySelectorAll('.vibe-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    tempoSlider.value = v.tempo;
+    tempoVal.textContent = v.tempo + ' BPM';
+  });
+  btn.dataset.key = key;
+  vibeGrid.appendChild(btn);
+});
+
+const tempoSlider = document.getElementById('tempoSlider');
+const tempoVal = document.getElementById('tempoVal');
+tempoSlider.addEventListener('input', ()=>{
+  const bpm = parseInt(tempoSlider.value,10);
+  tempoVal.textContent = bpm + ' BPM';
+  if(current) current.tempo = bpm;
+  if(isPlaying) Tone.Transport.bpm.value = bpm;
+});
+tempoVal.textContent = VIBES[selectedVibe].tempo + ' BPM';
+tempoSlider.value = VIBES[selectedVibe].tempo;
+
+let current = null;
+
+function renderProgression(data){
+  document.getElementById('emptyMsg').style.display = 'none';
+  document.getElementById('resultContent').style.display = 'block';
+
+  const pads = document.getElementById('pads');
+  pads.innerHTML = '';
+  data.chords.forEach((c,i)=>{
+    const pad = document.createElement('div');
+    pad.className = 'pad';
+    pad.id = 'pad'+i;
+    pad.innerHTML = `<div class="roman">${c.roman}</div><div class="sym">${c.symbol}</div>`;
+    pads.appendChild(pad);
+  });
+
+  const steps = document.getElementById('steps');
+  steps.innerHTML = '';
+  for(let i=0;i<16;i++){
+    const led = document.createElement('div');
+    led.className = 'step-led' + (i%4===0 ? ' bar-edge':'');
+    led.id = 'led'+i;
+    steps.appendChild(led);
+  }
+}
+
+document.getElementById('genBtn').addEventListener('click', ()=>{
+  const rootIdx = parseInt(rootSelect.value,10);
+  current = generateProgression(rootIdx, selectedVibe);
+  current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
+  renderProgression(current);
+  document.getElementById('regenBtn').disabled = false;
+  stopPlayback();
+});
+
+document.getElementById('regenBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  const rootIdx = parseInt(rootSelect.value,10);
+  current = generateProgression(rootIdx, selectedVibe);
+  current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
+  renderProgression(current);
+  stopPlayback();
+});
+
+/* ================= PLAYBACK (Tone.js) ================= */
+let chordSynth=null, melodySynth=null, bassSynth=null, chordPart=null, melSeq=null, bassSeq=null, stepEvent=null;
+let isPlaying = false;
+let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
+
+function buildSynths(){
+  // Built once and kept alive for the whole page session — see disposeAll()
+  // below for why we never dispose+recreate these on regenerate/stop.
+  if(chordSynth) return;
+  chordSynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
+  }).toDestination();
+  chordSynth.volume.value = -10;
+
+  melodySynth = new Tone.Synth({
+    oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
+  }).toDestination();
+  melodySynth.volume.value = -6;
+
+  bassSynth = new Tone.Synth({
+    oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
+  }).toDestination();
+  bassSynth.volume.value = -8;
+}
+
+function disposeAll(){
+  // Only the scheduling objects (Part/Sequence/Loop) get torn down and
+  // rebuilt on every regenerate/stop — they have no pending internal
+  // "voice reclaim" callbacks, so stop()+dispose() on them is always safe.
+  //
+  // The synths themselves (chordSynth/melodySynth/bassSynth) are deliberately
+  // NEVER disposed here anymore. Root cause of the earlier silent-forever bug:
+  // PolySynth schedules an internal callback to reclaim a voice once its
+  // release tail finishes (release=1.2s on chordSynth). If you dispose the
+  // synth while a note is still ringing/releasing, that internal callback
+  // later fires against a disposed synth and throws "Synth was already
+  // disposed" from inside Tone's own shared clock loop (Context._timeoutLoop).
+  // That loop self-reschedules at the end of its run — an uncaught error
+  // there skips the reschedule and kills Tone.js's entire clock permanently
+  // for the rest of the page's life (only a reload fixes it). releaseAll()
+  // alone doesn't reliably prevent this because it only re-triggers the
+  // release envelope; it doesn't cancel the reclaim callback already queued
+  // internally by PolySynth. The only fully race-free fix is to not dispose
+  // the synth in the first place: build it once and reuse it for the whole
+  // session, and just silence it (releaseAll/triggerRelease) between plays.
+  [chordPart, melSeq, bassSeq, stepEvent].forEach(o=>{
+    if(o){
+      try{ o.stop(); }catch(e){ console.warn('disposeAll: stop() failed', e); }
+      try{ o.dispose(); }catch(e){ console.warn('disposeAll: dispose() failed', e); }
+    }
+  });
+  chordPart = melSeq = bassSeq = stepEvent = null;
+  if(chordSynth){ try{ chordSynth.releaseAll(); }catch(e){ console.warn('disposeAll: chordSynth.releaseAll() failed', e); } }
+  if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('disposeAll: melodySynth.triggerRelease() failed', e); } }
+  if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: bassSynth.triggerRelease() failed', e); } }
+  // Hard reset: clear any scheduled events left dangling on the Transport so a
+  // failed stop/dispose above can't leave stale callbacks that block the next
+  // startPlayback() from ever reaching Tone.Transport.start().
+  try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
+}
+
+function clearLeds(){
+  for(let i=0;i<16;i++){ const el=document.getElementById('led'+i); if(el) el.classList.remove('lit'); }
+  document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
+}
+
+async function startPlayback(){
+  if(!current) return;
+  const myToken = ++playToken;
+  const playBtnEl = document.getElementById('playBtn');
+  playBtnEl.disabled = true;
+  await Tone.start();
+  playBtnEl.disabled = false;
+  if(myToken !== playToken) return; // a stop/newer start happened while we were awaiting Tone.start()
+  disposeAll();
+  buildSynths();
+  Tone.Transport.bpm.value = current.tempo;
+
+  // chords: one per bar, held for a whole note
+  const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
+  chordPart = new Tone.Part((time, ev)=>{
+    if(!chordSynth) return;
+    try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
+  }, chordEvents);
+  chordPart.loop = true;
+  chordPart.loopEnd = '4m';
+  chordPart.start(0);
+
+  // melody + bass: 16 steps of quarter notes across 4 bars
+  const melFlat = current.melody.flat();
+  const bassFlat = current.bass.flat();
+
+  melSeq = new Tone.Sequence((time, note)=>{
+    if(!melodySynth) return;
+    try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
+  }, melFlat, '4n');
+  melSeq.loop = true;
+  melSeq.start(0);
+
+  bassSeq = new Tone.Sequence((time, note)=>{
+    if(!bassSynth) return;
+    try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
+  }, bassFlat, '4n');
+  bassSeq.loop = true;
+  bassSeq.start(0);
+
+  let step = 0;
+  stepEvent = new Tone.Loop((time)=>{
+    const s = step % 16;
+    Tone.Draw.schedule(()=>{
+      clearLeds();
+      const led = document.getElementById('led'+s);
+      if(led) led.classList.add('lit');
+      const pad = document.getElementById('pad'+Math.floor(s/4));
+      if(pad) pad.classList.add('on');
+    }, time);
+    step++;
+  }, '4n');
+  stepEvent.start(0);
+
+  Tone.Transport.position = 0;
+  Tone.Transport.start();
+  isPlaying = true;
+  document.getElementById('playBtn').textContent = '■ Stop';
+}
+
+function stopPlayback(){
+  playToken++; // cancel any startPlayback() still waiting on Tone.start()
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
+  disposeAll();
+  clearLeds();
+  isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+document.getElementById('playBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying) stopPlayback(); else startPlayback();
+});
+
+/* ================= MIDI EXPORT ================= */
+const TPQN = 480;
+
+function encodeVarLen(value){
+  let bytes = [value & 0x7f];
+  value >>= 7;
+  while(value > 0){
+    bytes.unshift((value & 0x7f) | 0x80);
+    value >>= 7;
+  }
+  return bytes;
+}
+
+function u32(n){ return [(n>>>24)&0xff,(n>>>16)&0xff,(n>>>8)&0xff,n&0xff]; }
+function u16(n){ return [(n>>>8)&0xff, n&0xff]; }
+function strBytes(s){ return Array.from(s).map(c=>c.charCodeAt(0)); }
+
+function buildTrackChunk(events, endTick){
+  // events: [{tick, type:'on'|'off', note, vel, channel}]
+  events.sort((a,b)=> a.tick - b.tick || (a.type==='off'?-1:1)); // note-offs before note-ons at same tick
+  let data = [];
+  let lastTick = 0;
+  events.forEach(ev=>{
+    const delta = ev.tick - lastTick;
+    lastTick = ev.tick;
+    data.push(...encodeVarLen(delta));
+    const status = (ev.type==='on' ? 0x90 : 0x80) | (ev.channel & 0x0f);
+    data.push(status, ev.note & 0x7f, ev.vel & 0x7f);
+  });
+  // end of track
+  const endDelta = Math.max(0, endTick - lastTick);
+  data.push(...encodeVarLen(endDelta), 0xff, 0x2f, 0x00);
+  return [...strBytes('MTrk'), ...u32(data.length), ...data];
+}
+
+function buildTempoTrack(bpm, endTick){
+  const mpqn = Math.round(60000000 / bpm);
+  let data = [];
+  data.push(0x00, 0xff, 0x51, 0x03, (mpqn>>16)&0xff, (mpqn>>8)&0xff, mpqn&0xff);
+  data.push(0x00, 0xff, 0x58, 0x04, 4, 2, 24, 8); // 4/4 time signature
+  data.push(...encodeVarLen(endTick), 0xff, 0x2f, 0x00);
+  return [...strBytes('MTrk'), ...u32(data.length), ...data];
+}
+
+function exportMidi(){
+  if(!current) return;
+  const barTicks = TPQN * 4;
+  const totalTicks = barTicks * 4;
+
+  // chords: whole note per bar
+  const chordEvents = [];
+  current.chords.forEach((c,i)=>{
+    const start = i * barTicks;
+    c.tones.forEach(n=>{
+      chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
+      chordEvents.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
+    });
+  });
+
+  // melody + bass: quarter notes, 16 steps
+  const melodyEvents = [];
+  current.melody.flat().forEach((n,i)=>{
+    const start = i * TPQN;
+    melodyEvents.push({tick:start, type:'on', note:n, vel:95, channel:1});
+    melodyEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:1});
+  });
+
+  const bassEvents = [];
+  current.bass.flat().forEach((n,i)=>{
+    const start = i * TPQN;
+    bassEvents.push({tick:start, type:'on', note:n, vel:100, channel:2});
+    bassEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:2});
+  });
+
+  const header = [...strBytes('MThd'), ...u32(6), ...u16(1), ...u16(4), ...u16(TPQN)];
+  const tempoTrack = buildTempoTrack(current.tempo, totalTicks);
+  const chordTrack = buildTrackChunk(chordEvents, totalTicks);
+  const melodyTrack = buildTrackChunk(melodyEvents, totalTicks);
+  const bassTrack = buildTrackChunk(bassEvents, totalTicks);
+
+  const fileBytes = new Uint8Array([...header, ...tempoTrack, ...chordTrack, ...melodyTrack, ...bassTrack]);
+  const blob = new Blob([fileBytes], {type:'audio/midi'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const vibeName = VIBES[current.vibeKey].name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  a.href = url;
+  a.download = `progrese_${current.rootName.replace('#','s')}_${vibeName}.mid`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportMidi);
+</script>
+</body>
+</html>
