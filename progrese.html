@@ -695,7 +695,7 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
-  stopPlayback();
+  refreshPlayback();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `New melody generated — ${name}` : 'New melody generated');
 });
@@ -703,9 +703,33 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
-  stopPlayback();
+  refreshPlayback();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `New bass line generated — ${name}` : 'New bass line generated');
+});
+
+/* Picking a different style from the dropdown applies it to the current
+   progression right away — no need to also click "New melody"/"New bass". */
+melodyStyleSelect.addEventListener('change', ()=>{
+  if(!current){
+    showStatus('Generate a progression first, then pick a melody style');
+    return;
+  }
+  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
+  showStatus(name ? `Melody style: ${name}` : 'Melody style: Auto (varies per bar)');
+});
+
+bassStyleSelect.addEventListener('change', ()=>{
+  if(!current){
+    showStatus('Generate a progression first, then pick a bass style');
+    return;
+  }
+  current.bass = genBass(current.chords, bassStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(bassStyleSelect, BASS_PATTERNS);
+  showStatus(name ? `Bass style: ${name}` : 'Bass style: Auto (varies per bar)');
 });
 
 /* ================= PLAYBACK (Tone.js) ================= */
@@ -843,6 +867,16 @@ function stopPlayback(){
   clearLeds();
   isPlaying = false;
   document.getElementById('playBtn').textContent = '▶ Play';
+}
+
+/* Used after a melody/bass-only regeneration: if a loop is already playing,
+   restart it so the new pattern is heard immediately. If nothing is playing,
+   just leave things stopped — no need to force playback to start. */
+function refreshPlayback(){
+  if(isPlaying){
+    stopPlayback();
+    startPlayback();
+  }
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{

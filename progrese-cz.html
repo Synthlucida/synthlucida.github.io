@@ -695,7 +695,7 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
-  stopPlayback();
+  refreshPlayback();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Vygenerována nová melodie — ${name}` : 'Vygenerována nová melodie');
 });
@@ -703,9 +703,33 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
-  stopPlayback();
+  refreshPlayback();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Vygenerována nová basová linka — ${name}` : 'Vygenerována nová basová linka');
+});
+
+/* Výběr jiného stylu v rozbalovací nabídce se rovnou promítne do aktuálního
+   postupu — není potřeba ještě klikat na „Nová melodie“/„Nová basa“. */
+melodyStyleSelect.addEventListener('change', ()=>{
+  if(!current){
+    showStatus('Nejdřív vygeneruj postup, pak vyber styl melodie');
+    return;
+  }
+  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
+  showStatus(name ? `Styl melodie: ${name}` : 'Styl melodie: Auto (mění se v každém taktu)');
+});
+
+bassStyleSelect.addEventListener('change', ()=>{
+  if(!current){
+    showStatus('Nejdřív vygeneruj postup, pak vyber styl basy');
+    return;
+  }
+  current.bass = genBass(current.chords, bassStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(bassStyleSelect, BASS_PATTERNS);
+  showStatus(name ? `Styl basy: ${name}` : 'Styl basy: Auto (mění se v každém taktu)');
 });
 
 /* ================= PLAYBACK (Tone.js) ================= */
@@ -843,6 +867,16 @@ function stopPlayback(){
   clearLeds();
   isPlaying = false;
   document.getElementById('playBtn').textContent = '▶ Přehrát';
+}
+
+/* Použije se po přegenerování jen melodie/basy: pokud už smyčka hraje,
+   restartuje ji, aby byl nový vzor slyšet okamžitě. Pokud nic nehraje,
+   nechá se to zastavené — netřeba přehrávání spouštět násilím. */
+function refreshPlayback(){
+  if(isPlaying){
+    stopPlayback();
+    startPlayback();
+  }
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{
