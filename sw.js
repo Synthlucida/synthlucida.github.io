@@ -10,7 +10,7 @@
 // "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v820';
+const APP_CACHE_NAME = 'synthlucida-app-v821';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -26,14 +26,7 @@ const ASSETS_TO_CACHE = [
   './services.html',
   './tarot.html',
   './news.html',
-  './progrese.html',
-  './progrese-cz.html',
-  './progrese-favicon.ico',
-  './progrese-favicon.svg',
-  './progrese-apple-touch-icon.png',
-  './progrese-og.png',
   './manifest.json',
-  './manifest-progrese.json',
   './privacy_policy.html',
   './draw.html',
   './icon.png',
