@@ -478,10 +478,21 @@
   function hideSuggestions(){ els.suggestions.classList.add("hidden"); els.suggestions.innerHTML = ""; }
 
   function doSearch(q){
-    var url = GEOCODE_URL + "?name=" + encodeURIComponent(q) + "&count=6&language=" + t().geocodeLang + "&format=json";
+    var primaryLang = t().geocodeLang;
+    var fallbackLang = primaryLang === "cs" ? "en" : "cs";
+    searchGeocode(q, primaryLang, function(results){
+      if(results.length){ renderSuggestions(results); return; }
+      searchGeocode(q, fallbackLang, function(fallbackResults){
+        renderSuggestions(fallbackResults);
+      });
+    });
+  }
+
+  function searchGeocode(q, lang, cb){
+    var url = GEOCODE_URL + "?name=" + encodeURIComponent(q) + "&count=6&language=" + lang + "&format=json";
     fetch(url).then(function(r){ return r.json(); }).then(function(data){
-      renderSuggestions(data.results || []);
-    }).catch(function(){ hideSuggestions(); });
+      cb(data.results || []);
+    }).catch(function(){ cb([]); });
   }
 
   function renderSuggestions(results){
