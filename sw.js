@@ -10,7 +10,7 @@
 // "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v822';
+const APP_CACHE_NAME = 'synthlucida-app-v823';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -78,6 +78,14 @@ function isAudioRequest(url) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Weather a Progrese mají vlastní PWA scope (viz jejich manifesty) a
+  // offline/cache pro ně tenhle SW řešit nemá - necháme jejich requesty
+  // projít přímo na síť, bez event.respondWith(). Kdyby jednou dostaly
+  // vlastní offline podporu, dostanou vlastní sw.js se scope jen na sebe.
+  if (/\/(weather|progrese)/i.test(url.pathname)) {
+    return;
+  }
 
   if (isAudioRequest(url)) {
     event.respondWith(handleAudioRequest(event.request));
