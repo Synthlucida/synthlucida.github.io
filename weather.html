@@ -116,6 +116,17 @@
   }
   .brand-datetime .sep{ opacity:0.5; }
 
+  .year-countdown{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; opacity:0.4; letter-spacing:0.3px;
+    margin-top:4px; user-select:none; text-align:center;
+  }
+
+  .day-slogan{
+    font-family:'Poppins', sans-serif; font-size:11px; font-weight:400; font-style:italic;
+    opacity:0.5; margin-top:5px; text-align:center; letter-spacing:0.2px; user-select:none;
+    max-width:340px; margin-left:auto; margin-right:auto;
+  }
+
   .brand-tagline{
     font-family:'Poppins', sans-serif; font-size:12px; font-weight:300; opacity:0.55;
     text-align:center; margin-top:6px; letter-spacing:0.2px;
@@ -266,14 +277,45 @@
 
   /* ---- days ---- */
   .days{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .day-item{ border-radius:16px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); overflow:hidden; transition:border-color 0.3s; }
+  .day-item.has-warn{ border-color:rgba(251,146,60,0.4); }
   .day{
-    display:flex; align-items:center; gap:14px; border-radius:16px; border:1px solid rgba(255,255,255,0.1);
-    background:rgba(255,255,255,0.03); padding:13px 16px;
+    width:100%; display:flex; align-items:center; gap:14px;
+    background:none; border:none; color:#fff; text-align:left; cursor:pointer;
+    padding:13px 16px; font-family:'Poppins', sans-serif;
   }
-  .day-name{ width:60px; font-size:12.5px; font-weight:500; letter-spacing:0.3px; }
+  .day:focus-visible{ outline:2px solid var(--accent-color); outline-offset:-2px; }
+  .day-name{ width:60px; font-size:12.5px; font-weight:500; letter-spacing:0.3px; flex-shrink:0; }
   .day svg{ width:21px; height:21px; color:var(--accent-color); filter:drop-shadow(0 0 5px var(--accent-color)); flex-shrink:0; }
-  .day-range{ margin-left:auto; font-family:'JetBrains Mono', monospace; font-size:13px; display:flex; gap:9px; }
+  .day-cond{ font-size:11.5px; opacity:0.6; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .day-range{ margin-left:auto; font-family:'JetBrains Mono', monospace; font-size:13px; display:flex; gap:9px; flex-shrink:0; }
   .day-range .lo{ opacity:0.45; }
+  .day-warn-dot{ width:7px; height:7px; border-radius:50%; background:#fb923c; box-shadow:0 0 6px #fb923c; flex-shrink:0; }
+  .day-chevron{ flex-shrink:0; transition:transform 0.3s; opacity:0.5; }
+  .day-chevron svg{ width:16px !important; height:16px !important; color:#fff !important; filter:none !important; }
+  .day[aria-expanded="true"] .day-chevron{ transform:rotate(180deg); }
+
+  .day-details{
+    display:flex; flex-direction:column; gap:9px; padding:2px 16px 15px 16px;
+    font-family:'JetBrains Mono', monospace; font-size:12px; opacity:0.85;
+  }
+  .day-detail-row{ display:flex; align-items:center; gap:10px; }
+  .day-detail-row svg{ width:16px; height:16px; color:var(--accent-color); flex-shrink:0; }
+  .day-detail-warn{ color:#fdba74; }
+
+  /* ---- severe weather warning banner ---- */
+  .warn-banner{
+    border-radius:18px; border:1px solid rgba(251,146,60,0.45);
+    background:rgba(251,146,60,0.09); padding:15px 16px; margin-bottom:18px;
+  }
+  .warn-banner.level-high{ border-color:rgba(248,113,113,0.55); background:rgba(248,113,113,0.1); }
+  .warn-banner-head{ display:flex; align-items:center; gap:9px; font-family:'Orbitron', sans-serif; font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:#fdba74; margin-bottom:11px; }
+  .warn-banner.level-high .warn-banner-head{ color:#fca5a5; }
+  .warn-banner-head svg{ width:18px; height:18px; flex-shrink:0; filter:drop-shadow(0 0 6px currentColor); }
+  .warn-list{ display:flex; flex-direction:column; gap:8px; }
+  .warn-item{ display:flex; align-items:flex-start; gap:9px; font-size:12.5px; line-height:1.45; }
+  .warn-item .dot{ width:6px; height:6px; border-radius:50%; background:#fdba74; margin-top:6px; flex-shrink:0; }
+  .warn-item.level-high .dot{ background:#fca5a5; }
 
   /* ---- radar map ---- */
   .radar-block{ margin-bottom:8px; }
@@ -476,16 +518,55 @@
   }
   .admin-logout:hover{ color:#fff; }
 
+  /* ---- info button + "o aplikaci" overlay ---- */
+  .info-btn{
+    position:fixed; top:calc(14px + env(safe-area-inset-top)); left:calc(14px + env(safe-area-inset-left));
+    z-index:60; width:38px; height:38px; border-radius:50%;
+    border:1px solid rgba(255,255,255,0.18); background:rgba(12,20,32,0.7); backdrop-filter:blur(6px);
+    color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 14px rgba(56,189,248,0.15); transition:0.3s;
+  }
+  .info-btn:hover{ border-color:var(--accent-color); box-shadow:0 0 18px rgba(56,189,248,0.3); background:rgba(255,255,255,0.08); }
+  .info-btn:focus-visible{ outline:2px solid var(--accent-color); outline-offset:2px; }
+  .info-btn svg{ width:18px; height:18px; color:var(--accent-color); }
+
+  .info-overlay{
+    position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
+    background:rgba(2,4,8,0.72); backdrop-filter:blur(6px); padding:20px;
+  }
+  .info-box{
+    width:100%; max-width:380px; max-height:80vh; overflow-y:auto;
+    border-radius:22px; border:1px solid rgba(255,255,255,0.14);
+    background:#0c1420; box-shadow:0 20px 50px rgba(0,0,0,0.55); padding:26px 22px 22px; position:relative;
+  }
+  .info-content{ font-size:12.8px; line-height:1.65; opacity:0.85; }
+  .info-content p{ margin:0 0 12px; }
+  .info-content ul{ margin:0 0 14px; padding-left:18px; }
+  .info-content li{ margin-bottom:7px; }
+  .info-content strong{ color:#fff; font-weight:500; }
+  .info-section-title{
+    font-family:'Orbitron', sans-serif; font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--accent-color); margin:16px 0 8px;
+  }
+  .info-section-title:first-child{ margin-top:0; }
+
 </style>
 </head>
 <body>
 <div class="ambient-blobs"><div class="blob b1"></div><div class="blob b2"></div></div>
+
+<button class="info-btn" id="infoBtn" title="O aplikaci" aria-label="O aplikaci">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none"/></svg>
+</button>
+
 
 <div class="wrap">
   <header>
     <div class="brand">SYNTHLUCIDA <span class="dot">·</span> WEATHER</div>
     <div class="brand-tagline">Bezplatná aplikace pro předpověď počasí v ČR</div>
     <div class="brand-datetime" id="brandDateTime"></div>
+    <div class="year-countdown" id="yearCountdown"></div>
+    <div class="day-slogan" id="daySlogan"></div>
     <div class="header-links">
       <a class="home-link" href="https://synthlucida.com" aria-label="Synthlucida.com">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
@@ -543,6 +624,51 @@
   </div>
 </div>
 
+<div class="info-overlay hidden" id="infoOverlay">
+  <div class="info-box" id="infoBox">
+    <button class="admin-close" id="infoCloseBtn" aria-label="Zavřít">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="admin-title">O aplikaci</div>
+    <div class="info-content">
+      <p>SYNTHLUCIDA WEATHER je bezplatná webová aplikace pro předpověď počasí. Data se načítají v reálném čase ze služby Open&#8209;Meteo pro libovolné město na světě, radar pak ze služby Windy.</p>
+
+      <div class="info-section-title">Aktuální počasí</div>
+      <ul>
+        <li>Teplota, pocitová teplota a slovní popis oblohy (jasno, zataženo, déšť, sníh, bouřka…)</li>
+        <li>Vlhkost vzduchu, srážky, sluneční svit, vítr (rychlost, nárazy, směr s kompasem)</li>
+        <li>Oblouk znázorňující polohu slunce mezi východem a západem</li>
+        <li>Fáze měsíce a jeho aktuální osvětlení</li>
+      </ul>
+
+      <div class="info-section-title">Předpověď</div>
+      <ul>
+        <li>Hodinová předpověď na 24 hodin dopředu</li>
+        <li>7denní předpověď – po klepnutí na den se rozbalí detail se srážkami, větrem a UV indexem</li>
+        <li><strong>Výstraha před nepříznivým počasím</strong> – app sama upozorní na bouřky, silný vítr, vydatné srážky nebo sníh, náledí, extrémní horko/mráz či vysoké UV záření v nadcházejících dnech</li>
+        <li>Radarová mapa srážek a bouřek pro celé Česko</li>
+      </ul>
+
+      <div class="info-section-title">Doporučení</div>
+      <ul>
+        <li>Co si obléct podle aktuálních podmínek</li>
+        <li>Vhodnost sportů a aktivit (kolo, brusle, výlet, kemping) podle počasí na dnešek i výhled</li>
+        <li>Časy zlaté a modré hodinky pro fotografy</li>
+      </ul>
+
+      <div class="info-section-title">Ovládání</div>
+      <ul>
+        <li>Vyhledání libovolného města nebo zjištění polohy jedním klepnutím</li>
+        <li>Ukládání oblíbených měst pro rychlý přístup</li>
+        <li>Přepínání barevných motivů podle chuti</li>
+      </ul>
+
+      <p>Aplikace neukládá žádná osobní data na server – všechna nastavení (oblíbená města, motiv) zůstávají jen ve vašem prohlížeči.</p>
+    </div>
+  </div>
+</div>
+
+
 <script>
 (function(){
   "use strict";
@@ -566,7 +692,10 @@
     stateMsg: document.getElementById("stateMsg"),
     brand: document.querySelector(".brand"),
     adminOverlay: document.getElementById("adminOverlay"),
-    adminBox: document.getElementById("adminBox")
+    adminBox: document.getElementById("adminBox"),
+    infoBtn: document.getElementById("infoBtn"),
+    infoOverlay: document.getElementById("infoOverlay"),
+    infoCloseBtn: document.getElementById("infoCloseBtn")
   };
 
   var currentPlace = null;
@@ -593,7 +722,11 @@
       trendDown: '<path d="M4 8l6 6 4-4 6 7"/><path d="M15 17h5v-5"/>',
       trendFlat: '<path d="M4 12h16"/>',
       hike: '<path d="M14 3l-2.5 4M8 21l3-8 2 2 2 6M9 12l2-5 3 2 3-1"/><circle cx="15" cy="5" r="1.6"/>',
-      camera: '<path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/>'
+      camera: '<path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/>',
+      chevron: '<path d="M6 9l6 6 6-6"/>',
+      drop: '<path d="M12 3s6.5 7.2 6.5 12A6.5 6.5 0 0 1 5.5 15C5.5 10.2 12 3 12 3Z"/>',
+      wind: '<path d="M3 8h10.5a2.5 2.5 0 1 0-2.3-3.5M3 12.5h14.5a2.5 2.5 0 1 1-2.3 3.5M3 17h8.5a2 2 0 1 0-1.8-2.8"/>',
+      warning: '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/>'
     };
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+icons[name]+'</svg>';
   }
@@ -698,6 +831,56 @@
     var d = new Date(iso);
     var days = ["v neděli","v pondělí","v úterý","ve středu","ve čtvrtek","v pátek","v sobotu"];
     return days[d.getDay()];
+  }
+
+  function capitalize(s){
+    return s.charAt(0).toUpperCase()+s.slice(1);
+  }
+
+  // ---------- severe weather warnings ----------
+  function buildWarnings(data){
+    var daily = data.daily;
+    var warnings = [];
+    var STORM = { 95:"medium", 96:"high", 99:"high" };
+    var HEAVY_RAIN = { 65:"medium", 67:"high", 82:"medium" };
+    var HEAVY_SNOW = { 75:"medium", 86:"high" };
+    var ICE = { 56:"medium", 57:"high", 66:"medium", 67:"high" };
+
+    for(var d=0; d<daily.time.length; d++){
+      var when = d===0 ? "Dnes" : capitalize(fmtDayName(daily.time[d]));
+      var code = daily.weather_code[d];
+      var gust = daily.wind_gusts_10m_max ? daily.wind_gusts_10m_max[d] : null;
+      var precipSum = daily.precipitation_sum != null ? daily.precipitation_sum[d] : null;
+      var tmax = daily.temperature_2m_max[d];
+      var tmin = daily.temperature_2m_min[d];
+      var uv = daily.uv_index_max ? daily.uv_index_max[d] : null;
+
+      if(STORM[code]){
+        warnings.push({ day:d, level:STORM[code], text: when+" hrozí bouřky"+((code===96||code===99)?" s kroupami":"")+"." });
+      }
+      if(ICE[code]){
+        warnings.push({ day:d, level:ICE[code], text: when+" hrozí náledí (mrznoucí srážky)." });
+      } else if(HEAVY_RAIN[code] || (precipSum != null && precipSum >= 20)){
+        var rainLevel = (precipSum != null && precipSum >= 35) ? "high" : (HEAVY_RAIN[code] || "medium");
+        warnings.push({ day:d, level:rainLevel, text: when+" jsou možné vydatné srážky"+(precipSum!=null?" (kolem "+precipSum.toFixed(0)+" mm)":"")+"." });
+      }
+      if(HEAVY_SNOW[code]){
+        warnings.push({ day:d, level:HEAVY_SNOW[code], text: when+" očekávejte vydatné sněžení." });
+      }
+      if(gust != null && gust >= 70){
+        warnings.push({ day:d, level: gust >= 90 ? "high" : "medium", text: when+" očekávejte silný vítr, nárazy do "+Math.round(gust)+" km/h." });
+      }
+      if(tmax >= 33){
+        warnings.push({ day:d, level: tmax >= 36 ? "high" : "medium", text: when+" hrozí extrémní horko, až "+Math.round(tmax)+" °C." });
+      }
+      if(tmin <= -15){
+        warnings.push({ day:d, level:"high", text: when+" očekávejte silný mráz, až "+Math.round(tmin)+" °C." });
+      }
+      if(uv != null && uv >= 8){
+        warnings.push({ day:d, level: uv >= 10 ? "high" : "medium", text: when+" bude vysoké UV záření (index "+Math.round(uv)+")." });
+      }
+    }
+    return warnings;
   }
 
   function weatherInfo(code, isDay){
@@ -973,9 +1156,9 @@
       longitude: place.longitude,
       current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day",
       hourly: "temperature_2m,weather_code",
-      daily: "sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,sunshine_duration,precipitation_probability_max",
+      daily: "sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,sunshine_duration,precipitation_probability_max,precipitation_sum,wind_gusts_10m_max,wind_speed_10m_max,uv_index_max",
       timezone: "auto",
-      forecast_days: 6
+      forecast_days: 7
     });
     fetch(FORECAST_URL + "?" + params.toString())
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
@@ -1035,7 +1218,21 @@
     var mx = (1-t)*(1-t)*x0 + 2*(1-t)*t*x1 + t*t*x2;
     var my = (1-t)*(1-t)*y0 + 2*(1-t)*t*y1 + t*t*y2;
 
+    var warnings = buildWarnings(data);
+
     var html = "";
+
+    if(warnings.length){
+      var hasHigh = warnings.some(function(w){ return w.level === "high"; });
+      html += '<div class="warn-banner'+(hasHigh?" level-high":"")+'">';
+      html += '<div class="warn-banner-head">'+icon("warning")+'<span>Výstraha před nepříznivým počasím</span></div>';
+      html += '<div class="warn-list">';
+      for(var w=0; w<warnings.length; w++){
+        html += '<div class="warn-item'+(warnings[w].level==="high"?" level-high":"")+'"><span class="dot"></span><span>'+escapeHtml(warnings[w].text)+'</span></div>';
+      }
+      html += '</div></div>';
+    }
+
     html += '<div class="card">';
     html += '<div class="place">'+escapeHtml(placeLabel)+'</div>';
     html += '<div class="updated">Aktualizováno '+fmtHour(cur.time)+'</div>';
@@ -1057,24 +1254,24 @@
     html += '</div>'; // card
 
     html += '<div class="stats">';
-    html += statBlock("Vlhkost", cur.relative_humidity_2m+"%");
-    html += statBlock("Vítr", Math.round(cur.wind_speed_10m)+" km/h");
-    html += statBlock("Srážky", (cur.precipitation||0).toFixed(1)+" mm");
+    html += statBlock("Zapaření", cur.relative_humidity_2m+"%");
+    html += statBlock("Fičák", Math.round(cur.wind_speed_10m)+" km/h");
+    html += statBlock("Nebeská sprcha", (cur.precipitation||0).toFixed(1)+" mm");
     if(data.daily.sunshine_duration && data.daily.sunshine_duration[0] != null){
-      html += statBlock("Sluneční svit", (data.daily.sunshine_duration[0]/3600).toFixed(1)+" h");
+      html += statBlock("Sluneční šajn", (data.daily.sunshine_duration[0]/3600).toFixed(1)+" h");
     }
     html += '</div>';
 
     var advice = outfitAdvice(cur.apparent_temperature, cur.precipitation||0, cur.wind_speed_10m, info.group);
     html += '<div class="outfit-block">';
     html += '<div class="outfit-icon">'+icon("shirt")+'</div>';
-    html += '<div class="outfit-text"><div class="outfit-label">Co na sebe</div><div class="outfit-value">'+advice+'</div></div>';
+    html += '<div class="outfit-text"><div class="outfit-label">Jak se voháknout</div><div class="outfit-value">'+advice+'</div></div>';
     html += '</div>';
 
     var activities = activityAdvice(cur, data);
     var trend = forecastTrend(data);
     html += '<div class="activity-block">';
-    html += '<div class="activity-label">Sport a aktivity</div>';
+    html += '<div class="activity-label">Blbnutí venku</div>';
     html += '<div class="activity-chips">';
     for(var a=0; a<activities.length; a++){
       html += '<div class="activity-chip'+(activities[a].ok ? " good" : " bad")+'">'+icon(activities[a].icon)+'<span>'+activities[a].name+'</span></div>';
@@ -1085,7 +1282,7 @@
 
     html += '<div class="wind-block">';
     html += '<div class="wind-compass">'+windCompassSVG(cur.wind_direction_10m)+'</div>';
-    html += '<div class="wind-text"><div class="wind-label">Vítr</div>';
+    html += '<div class="wind-text"><div class="wind-label">Fičák</div>';
     html += '<div class="wind-value">'+Math.round(cur.wind_speed_10m)+' km/h, nárazy do '+Math.round(cur.wind_gusts_10m)+' km/h</div>';
     html += '<div class="wind-dir">Směr '+windDirLabel(cur.wind_direction_10m)+' ('+Math.round(cur.wind_direction_10m)+'°)</div>';
     html += '</div></div>';
@@ -1121,25 +1318,60 @@
     }
     html += '</div>';
 
-    html += '<div class="section-label">Příštích dní</div>';
+    html += '<div class="section-label">Další dny aneb jak to zase neklapne</div>';
     html += '<div class="days">';
+    var dailyWarnDays = {};
+    for(var w2=0; w2<warnings.length; w2++){ dailyWarnDays[warnings[w2].day] = true; }
     for(var d=0; d<data.daily.time.length; d++){
       var di = weatherInfo(data.daily.weather_code[d], 1);
-      html += '<div class="day">';
+      var precipProb = data.daily.precipitation_probability_max ? Math.round(data.daily.precipitation_probability_max[d]) : null;
+      var precipSum = data.daily.precipitation_sum != null ? data.daily.precipitation_sum[d] : null;
+      var gustMax = data.daily.wind_gusts_10m_max ? Math.round(data.daily.wind_gusts_10m_max[d]) : null;
+      var windMax = data.daily.wind_speed_10m_max ? Math.round(data.daily.wind_speed_10m_max[d]) : null;
+      var uvMax = data.daily.uv_index_max != null ? data.daily.uv_index_max[d] : null;
+      var isWarnDay = !!dailyWarnDays[d];
+
+      html += '<div class="day-item'+(isWarnDay?" has-warn":"")+'">';
+      html += '<button type="button" class="day" data-day-idx="'+d+'" aria-expanded="false">';
       html += '<div class="day-name">'+(d===0?"Dnes":fmtDay(data.daily.time[d]))+'</div>';
       html += icon(di.icon);
+      html += '<div class="day-cond">'+di.label+'</div>';
+      if(isWarnDay) html += '<div class="day-warn-dot" aria-hidden="true"></div>';
       html += '<div class="day-range"><span class="hi">'+Math.round(data.daily.temperature_2m_max[d])+'°</span><span class="lo">'+Math.round(data.daily.temperature_2m_min[d])+'°</span></div>';
+      html += '<div class="day-chevron">'+icon("chevron")+'</div>';
+      html += '</button>';
+
+      html += '<div class="day-details hidden" id="dayDetails'+d+'">';
+      html += '<div class="day-detail-row">'+icon("drop")+'<span>Srážky: '+(precipProb!=null?precipProb+" %":"–")+(precipSum!=null?" · úhrn "+precipSum.toFixed(1)+" mm":"")+'</span></div>';
+      html += '<div class="day-detail-row'+(gustMax!=null && gustMax>=70?" day-detail-warn":"")+'">'+icon("wind")+'<span>Vítr: '+(windMax!=null?windMax+" km/h":"–")+(gustMax!=null?", nárazy do "+gustMax+" km/h":"")+'</span></div>';
+      if(uvMax != null){
+        html += '<div class="day-detail-row'+(uvMax>=8?" day-detail-warn":"")+'">'+icon("sun")+'<span>UV index: '+Math.round(uvMax)+'</span></div>';
+      }
+      html += '<div class="day-detail-row">'+icon(d===0?(cur.is_day?"sun":"moon"):"sun")+'<span>Východ '+fmtHour(data.daily.sunrise[d])+' · Západ '+fmtHour(data.daily.sunset[d])+'</span></div>';
+      html += '</div>';
       html += '</div>';
     }
     html += '</div>';
 
-    html += '<div class="section-label">Bouřky a srážky &ndash; ČR</div>';
+    html += '<div class="section-label">Bouřky a srážky &ndash; kde to zase spadne nejvíc</div>';
     html += '<div class="radar-block">';
     html += '<div class="radar-wrap"><iframe src="https://embed.windy.com/embed2.html?lat=49.80&amp;lon=15.47&amp;detailLat=49.80&amp;detailLon=15.47&amp;width=650&amp;height=450&amp;zoom=7&amp;level=surface&amp;overlay=radar&amp;product=radar&amp;menu=&amp;message=true&amp;marker=&amp;calendar=&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=default&amp;metricTemp=default&amp;radarRange=-1" loading="lazy" title="Radarová mapa srážek a bouřek – Česko" allowfullscreen></iframe></div>';
     html += '<a class="radar-link" href="https://www.windy.com/-Radar-radar?radar,49.80,15.47,7" target="_blank" rel="noopener">Otevřít radar v plné verzi ↗</a>';
     html += '</div>';
 
     els.content.innerHTML = html;
+
+    var dayBtns = els.content.querySelectorAll(".day");
+    for(var db=0; db<dayBtns.length; db++){
+      dayBtns[db].addEventListener("click", function(){
+        var idx = this.getAttribute("data-day-idx");
+        var details = document.getElementById("dayDetails"+idx);
+        if(!details) return;
+        var willOpen = details.classList.contains("hidden");
+        details.classList.toggle("hidden");
+        this.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      });
+    }
   }
 
   function statBlock(label, value){
@@ -1198,7 +1430,7 @@
 
   // ---------- admin (weather station) ----------
   var ADMIN_EMAIL = "zanta.david@gmail.com";
-  var ADMIN_PASSWORD = "meteoska309@";
+  var ADMIN_PASSWORD_HASH = "e333494da039c7d49b98864ae5f3197e49fdfe1e2696943efca9a66b22482d64"; // sha-256 hash, not the plain password
   var ADMIN_SESSION_KEY = "obloha.admin";
   var ADMIN_STICKER_URL = "https://app.weathercloud.net/device/sticker/3371780179";
   var ADMIN_PROFILE_URL = "https://app.weathercloud.net/d3371780179#profile";
@@ -1210,6 +1442,17 @@
   }
   function setAdminLoggedIn(v){
     try { if(v) sessionStorage.setItem(ADMIN_SESSION_KEY, "1"); else sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch(e){}
+  }
+
+  function sha256Hex(text){
+    if(!(window.crypto && window.crypto.subtle)){
+      return Promise.reject(new Error("Web Crypto API není dostupné (vyžaduje HTTPS)."));
+    }
+    var enc = new TextEncoder().encode(text);
+    return window.crypto.subtle.digest("SHA-256", enc).then(function(buf){
+      var bytes = Array.from(new Uint8Array(buf));
+      return bytes.map(function(b){ return b.toString(16).padStart(2, "0"); }).join("");
+    });
   }
 
   function closeAdminOverlay(){
@@ -1235,12 +1478,18 @@
       e.preventDefault();
       var email = document.getElementById("adminEmail").value.trim().toLowerCase();
       var pass = document.getElementById("adminPass").value;
-      if(email === ADMIN_EMAIL && pass === ADMIN_PASSWORD){
-        setAdminLoggedIn(true);
-        renderAdminPanel();
-      } else {
-        document.getElementById("adminError").textContent = "Nesprávný e-mail nebo heslo.";
-      }
+      var errEl = document.getElementById("adminError");
+      errEl.textContent = "";
+      sha256Hex(pass).then(function(hash){
+        if(email === ADMIN_EMAIL && hash === ADMIN_PASSWORD_HASH){
+          setAdminLoggedIn(true);
+          renderAdminPanel();
+        } else {
+          errEl.textContent = "Nesprávný e-mail nebo heslo.";
+        }
+      }).catch(function(){
+        errEl.textContent = "Přihlášení se nezdařilo (vyžaduje HTTPS).";
+      });
     });
   }
 
@@ -1297,13 +1546,108 @@
   els.adminOverlay.addEventListener("click", function(e){
     if(e.target === els.adminOverlay) closeAdminOverlay();
   });
+
+  function openInfo(){ els.infoOverlay.classList.remove("hidden"); }
+  function closeInfo(){ els.infoOverlay.classList.add("hidden"); }
+  els.infoBtn.addEventListener("click", openInfo);
+  els.infoCloseBtn.addEventListener("click", closeInfo);
+  els.infoOverlay.addEventListener("click", function(e){
+    if(e.target === els.infoOverlay) closeInfo();
+  });
+
   document.addEventListener("keydown", function(e){
-    if(e.key === "Escape" && !els.adminOverlay.classList.contains("hidden")) closeAdminOverlay();
+    if(e.key !== "Escape") return;
+    if(!els.adminOverlay.classList.contains("hidden")) closeAdminOverlay();
+    if(!els.infoOverlay.classList.contains("hidden")) closeInfo();
   });
 
   // ---------- header date/time ----------
   var DAY_NAMES = ["Neděle","Pondělí","Úterý","Středa","Čtvrtek","Pátek","Sobota"];
   var MONTH_NAMES = ["ledna","února","března","dubna","května","června","července","srpna","září","října","listopadu","prosince"];
+
+  function daysUntilYearEnd(now){
+    // new Date(year, 11, 31) correctly resolves to Dec 31st regardless of
+    // whether the year is a leap year — JS Date arithmetic already accounts
+    // for February having 29 days in leap years, so no special-casing needed.
+    var endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var msPerDay = 1000 * 60 * 60 * 24;
+    return Math.round((endOfYear - startOfToday) / msPerDay);
+  }
+
+  function czechDaysLabel(n){
+    if(n === 1) return "den";
+    if(n >= 2 && n <= 4) return "dny";
+    return "dní";
+  }
+
+  function updateYearCountdown(){
+    var el = document.getElementById("yearCountdown");
+    if(!el) return;
+    var now = new Date();
+    var n = daysUntilYearEnd(now);
+    if(n <= 0){
+      el.textContent = "Dnes je poslední den roku " + now.getFullYear();
+      return;
+    }
+    var verb = (n >= 2 && n <= 4) ? "Zbývají" : "Zbývá";
+    el.textContent = verb + " " + n + " " + czechDaysLabel(n) + " do konce roku " + now.getFullYear();
+  }
+
+  // ---------- day-of-week slogans ----------
+  var DAY_SLOGANS = {
+    1: [ // pondělí
+      "Pondělí. Ještě 5 dní do víkendu – to zvládneš!",
+      "Nový týden, nové šance. Drž se, víkend je na cestě.",
+      "Pondělní boj se šálkem kávy. 5 dní a je vymalováno."
+    ],
+    2: [ // úterý
+      "Úterý. Pondělí přežito, teď už jen 4 dny.",
+      "Půlku toho nejhoršího máš za sebou. Ještě 4 dny.",
+      "Kafe, práce, opakovat. 4 dny do cíle."
+    ],
+    3: [ // středa
+      "Středa – ekvátor týdne! Zbývají 3 dny.",
+      "Půlka týdne za tebou, půlka před tebou. Drž tempo.",
+      "Středeční rovnováha: nahoru, dolů, pořád stejně. 3 dny do víkendu."
+    ],
+    4: [ // čtvrtek
+      "Čtvrtek! Víkend už je cítit ve vzduchu. Jen 2 dny.",
+      "Skoro tam. Ještě 2 dny a padák.",
+      "Poslední rozjezd před finišem. 2 dny do víkendu."
+    ],
+    5: [ // pátek
+      "Pátek! Poslední den, dej do toho všechno.",
+      "TGIF – dnes to dotáhneš a zítra spíš dlouho.",
+      "Pátek: režim „skoro víkend“ zapnut."
+    ],
+    6: [ // sobota
+      "Sobota – žádný budík, jen ty a klid.",
+      "Víkend v plném proudu, užívej si každou minutu.",
+      "Sobotní mise: odpočívat na plný úvazek."
+    ],
+    0: [ // neděle
+      "Neděle – nabij baterky, zítra to zase rozjedeš.",
+      "Poslední den volna, užij si ho naplno.",
+      "Neděle: ideální den na nicnedělání."
+    ]
+  };
+
+  function dayOfYear(d){
+    var start = new Date(d.getFullYear(), 0, 0);
+    return Math.floor((d - start) / (1000 * 60 * 60 * 24));
+  }
+
+  function updateDaySlogan(){
+    var el = document.getElementById("daySlogan");
+    if(!el) return;
+    var now = new Date();
+    var slogans = DAY_SLOGANS[now.getDay()];
+    if(!slogans || !slogans.length){ el.textContent = ""; return; }
+    var idx = dayOfYear(now) % slogans.length;
+    el.textContent = slogans[idx];
+  }
+
   function updateBrandDateTime(){
     var el = document.getElementById("brandDateTime");
     if(!el) return;
@@ -1311,6 +1655,8 @@
     var dateStr = DAY_NAMES[now.getDay()]+" "+now.getDate()+". "+MONTH_NAMES[now.getMonth()]+" "+now.getFullYear();
     var timeStr = (now.getHours()<10?"0":"")+now.getHours()+":"+(now.getMinutes()<10?"0":"")+now.getMinutes();
     el.innerHTML = '<span class="dt-date">'+dateStr+'</span><span class="sep">·</span><span class="dt-time">'+timeStr+'</span>';
+    updateYearCountdown();
+    updateDaySlogan();
   }
 
   // ---------- init ----------
