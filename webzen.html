@@ -230,7 +230,8 @@
     <button class="save-btn" id="saveProjectBtn" title="Uloží rozpracovanou práci do souboru .json">💾 <span class="btn-label">Uložit projekt</span></button>
     <button class="save-btn" id="loadProjectBtn" title="Načte dříve uložený soubor .json">📂 <span class="btn-label">Načíst projekt</span></button>
     <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
-    <button class="export-btn" id="exportBtn">↓ Stáhnout HTML</button>
+    <button class="export-btn" id="exportBtn" title="Stáhne jen hlavní stránku">↓ Stáhnout HTML</button>
+    <button class="export-btn" id="exportAllBtn" title="Stáhne hlavní stránku i všechny vlastní stránky jako samostatné soubory">↓ Stáhnout celý web</button>
   </div>
 
   <details class="about-section">
@@ -341,10 +342,11 @@ function getDefaultState(){
   nav: {
     showHero: true, heroLabel: 'Domů',
     showFeatures: true, featuresLabel: 'Funkce',
-    showFaq: true, faqLabel: 'FAQ'
+    showFaq: true, faqLabel: 'FAQ',
+    showPagesMenu: true
   },
   sections: [
-    {label:'O nás', title:'O nás', text:'Sem napiš text vlastní sekce. Zobrazí se na stránce a zároveň se přidá jako položka do levého menu.', image:'', imageUrl:'', imageAlt:''}
+    {type:'simple', label:'O nás', title:'O nás', text:'Sem napiš text vlastní stránky. Vygeneruje se jako samostatný .html soubor a zároveň se přidá jako položka do levého menu.', image:'', imageUrl:'', imageAlt:''}
   ],
   pwa: {
     name: '',            // prázdné = použije se "Název webu / značka"
@@ -508,13 +510,18 @@ function renderForm(){
         <input type="checkbox" data-nav-toggle="showFaq" ${state.nav.showFaq?'checked':''}> Odkaz na FAQ
       </label>
       <input type="text" data-nav-label="faqLabel" value="${escapeAttr(state.nav.faqLabel)}" placeholder="text odkazu" style="margin-top:4px;">
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+        <input type="checkbox" data-nav-toggle="showPagesMenu" ${state.nav.showPagesMenu!==false?'checked':''}> Zobrazovat vlastní stránky v menu
+      </label>
+      <div class="note-box" style="margin-top:6px;margin-bottom:0;">Když vypneš, vlastní stránky (níž) se v menu neobjeví — propojíš je jen ručně přes tlačítka/karty s odkazem na "Vlastní stránku".</div>
     </div>
 
     <div class="fieldset">
-      <div class="fieldset-title">Vlastní sekce</div>
-      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Každá přidaná sekce = nová položka v levém menu + nový blok (nadpis + text, volitelně i obrázek) na stránce, v pořadí jak je přidáváš.</div>
+      <div class="fieldset-title">Vlastní stránky</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Každá přidaná stránka se exportuje jako samostatný .html soubor (skutečná podstránka s vlastní adresou, ne jen kotva na jedné stránce) — dobré pro SEO i sdílení odkazů. Zvol typ: <b>Prostá</b> (nadpis + text, volitelně obrázek) nebo <b>Landing</b> (vlastní hero + karty funkcí). Propojíš je buď automaticky přes společné menu, nebo ručně přes tlačítka/karty s odkazem na konkrétní stránku.</div>
       <div id="sectionsList"></div>
-      <button class="add-btn" id="addSection">+ Přidat sekci</button>
+      <button class="add-btn" id="addSection">+ Přidat stránku</button>
     </div>
 
     <div class="fieldset">
@@ -606,7 +613,7 @@ function renderForm(){
   document.getElementById('downloadRobots').onclick = () => downloadTextFile('robots.txt', buildRobotsTXT(state), 'text/plain');
 
   document.getElementById('addSection').onclick = () => {
-    state.sections.push({label:'Nová sekce', title:'Nová sekce', text:'Text sekce.', image:'', imageUrl:'', imageAlt:''});
+    state.sections.push({type:'simple', label:'Nová stránka', title:'Nová stránka', text:'Text stránky.', image:'', imageUrl:'', imageAlt:''});
     renderSections(); renderCtaList(); updatePreview();
   };
   document.getElementById('addCard').onclick = () => {
@@ -674,7 +681,7 @@ function targetOptionsHtml(item, includeNone){
   if (includeNone) opts.push(['none:', 'Bez odkazu']);
   opts.push(['features:', 'Sekce Funkce'], ['faq:', 'Sekce FAQ'], ['hero:', 'Nahoru (Hero)']);
   state.sections.forEach((sec, i) => {
-    opts.push(['section:' + i, 'Vlastní sekce: ' + (sec.label || sec.title || ('#' + (i+1)))]);
+    opts.push(['section:' + i, 'Vlastní stránka: ' + (sec.label || sec.title || ('#' + (i+1)))]);
   });
   opts.push(['url:', 'Vlastní URL / odkaz']);
   const type = item.targetType ?? item.linkType;
@@ -788,32 +795,88 @@ function bindSitemapInputs(){
   });
 }
 
+function ensureLandingDefaults(sec){
+  if (sec.landingSubtitle === undefined) sec.landingSubtitle = 'Krátký doplňující text pod hlavním nadpisem téhle stránky.';
+  if (sec.landingCtaText === undefined) sec.landingCtaText = '';
+  if (sec.landingCtaUrl === undefined) sec.landingCtaUrl = '';
+  if (sec.landingCtaNewTab === undefined) sec.landingCtaNewTab = false;
+  if (!Array.isArray(sec.landingCards)) sec.landingCards = [
+    {icon:'⭐', title:'Vzorová funkce', text:'Krátký popis funkce nebo výhody.'}
+  ];
+}
+
 function renderSections(){
   const el = document.getElementById('sectionsList');
-  el.innerHTML = state.sections.map((sec,i) => `
+  el.innerHTML = state.sections.map((sec,i) => {
+    const type = sec.type || 'simple';
+    if (type === 'landing') ensureLandingDefaults(sec);
+    return `
     <div class="card-item" data-i="${i}">
       <button class="item-remove" data-remove-section="${i}">✕</button>
       ${field('Text v menu', `<input type="text" data-section="${i}" data-key="label" value="${escapeAttr(sec.label)}" placeholder="text odkazu v menu">`)}
-      ${field('Nadpis sekce', `<input type="text" data-section="${i}" data-key="title" value="${escapeAttr(sec.title)}" placeholder="nadpis sekce">`)}
-      ${field('Text sekce', `<textarea data-section="${i}" data-key="text" style="min-height:60px;">${escapeHtml(sec.text)}</textarea>`)}
-      <label>Obrázek sekce (nepovinné)</label>
-      <input type="file" accept="image/*" data-section-image-file="${i}">
-      <input type="text" data-section="${i}" data-key="imageUrl" value="${escapeAttr(sec.imageUrl)}" placeholder="nebo URL obrázku (má přednost)" style="margin-top:6px;">
-      ${sec.image || sec.imageUrl ? `
-        <input type="text" data-section="${i}" data-key="imageAlt" value="${escapeAttr(sec.imageAlt)}" placeholder="alternativní text obrázku (SEO)" style="margin-top:6px;">
-        <div style="position:relative;margin-top:8px;">
-          <img src="${escapeAttr((sec.imageUrl || '').trim() || sec.image)}" style="max-width:100%;border-radius:8px;border:1px solid var(--ui-line);display:block;">
-          <button type="button" class="item-remove" data-remove-section-image="${i}" style="top:6px;right:6px;background:rgba(0,0,0,.55);">✕</button>
-        </div>
-      ` : ''}
+      ${field('Typ stránky', `<select data-section-type="${i}">
+        <option value="simple" ${type==='simple'?'selected':''}>Prostá (nadpis + text)</option>
+        <option value="landing" ${type==='landing'?'selected':''}>Landing (hero + karty)</option>
+      </select>`)}
+      ${field('Nadpis stránky', `<input type="text" data-section="${i}" data-key="title" value="${escapeAttr(sec.title)}" placeholder="nadpis stránky">`)}
+      ${type === 'simple' ? `
+        ${field('Text stránky', `<textarea data-section="${i}" data-key="text" style="min-height:60px;">${escapeHtml(sec.text)}</textarea>`)}
+        <label>Obrázek stránky (nepovinné)</label>
+        <input type="file" accept="image/*" data-section-image-file="${i}">
+        <input type="text" data-section="${i}" data-key="imageUrl" value="${escapeAttr(sec.imageUrl)}" placeholder="nebo URL obrázku (má přednost)" style="margin-top:6px;">
+        ${sec.image || sec.imageUrl ? `
+          <input type="text" data-section="${i}" data-key="imageAlt" value="${escapeAttr(sec.imageAlt)}" placeholder="alternativní text obrázku (SEO)" style="margin-top:6px;">
+          <div style="position:relative;margin-top:8px;">
+            <img src="${escapeAttr((sec.imageUrl || '').trim() || sec.image)}" style="max-width:100%;border-radius:8px;border:1px solid var(--ui-line);display:block;">
+            <button type="button" class="item-remove" data-remove-section-image="${i}" style="top:6px;right:6px;background:rgba(0,0,0,.55);">✕</button>
+          </div>
+        ` : ''}
+      ` : `
+        ${field('Podnadpis (pod hlavním nadpisem)', `<textarea data-section="${i}" data-key="landingSubtitle" style="min-height:50px;">${escapeHtml(sec.landingSubtitle)}</textarea>`)}
+        ${field('Text tlačítka (nepovinné)', `<input type="text" data-section="${i}" data-key="landingCtaText" value="${escapeAttr(sec.landingCtaText)}" placeholder="např. Chci vědět víc">`)}
+        ${sec.landingCtaText ? `
+          ${field('Kam tlačítko vede (URL, nebo název jiné stránky, např. o-nas.html)', `<input type="text" data-section="${i}" data-key="landingCtaUrl" value="${escapeAttr(sec.landingCtaUrl)}" placeholder="https://… nebo jina-stranka.html">`)}
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <input type="checkbox" data-section-cta-newtab="${i}" ${sec.landingCtaNewTab?'checked':''}> Otevřít v nové záložce
+          </label>
+        ` : ''}
+        <div class="fieldset-title" style="margin-top:14px;">Karty této stránky</div>
+        <div id="sectionCards-${i}"></div>
+        <button type="button" class="add-btn" data-add-section-card="${i}">+ Přidat kartu</button>
+      `}
     </div>
-  `).join('');
+  `;
+  }).join('');
+
   el.querySelectorAll('[data-section]').forEach(inp => {
     inp.addEventListener('input', () => {
       state.sections[+inp.dataset.section][inp.dataset.key] = inp.value;
       if(inp.dataset.key === 'label') renderCtaList();
       updatePreview();
     });
+  });
+  el.querySelectorAll('[data-section-type]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const i = +sel.dataset.sectionType;
+      state.sections[i].type = sel.value;
+      if (sel.value === 'landing') ensureLandingDefaults(state.sections[i]);
+      renderSections();
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-section-cta-newtab]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.sections[+cb.dataset.sectionCtaNewtab].landingCtaNewTab = cb.checked;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-add-section-card]').forEach(btn => {
+    btn.onclick = () => {
+      const i = +btn.dataset.addSectionCard;
+      state.sections[i].landingCards.push({icon:'✨', title:'Nová karta', text:'Popis.'});
+      renderSections();
+      updatePreview();
+    };
   });
   el.querySelectorAll('[data-section-image-file]').forEach(fileInput => {
     fileInput.addEventListener('change', () => {
@@ -842,14 +905,50 @@ function renderSections(){
   el.querySelectorAll('[data-remove-section]').forEach(btn => {
     btn.onclick = () => {
       state.sections.splice(+btn.dataset.removeSection,1);
-      // Tlačítka, která odkazovala na smazanou (nebo teď neplatnou) sekci, přesměruj zpět na Funkce.
+      // Tlačítka, která odkazovala na smazanou (nebo teď neplatnou) stránku, přesměruj zpět na Funkce.
       state.ctaButtons.forEach(cb => {
         if(cb.targetType === 'section' && (cb.sectionIndex == null || cb.sectionIndex >= state.sections.length)){
           cb.targetType = 'features'; cb.sectionIndex = null;
         }
       });
-      renderSections(); renderCtaList(); updatePreview();
+      state.cards.forEach(c => {
+        if(c.linkType === 'section' && (c.sectionIndex == null || c.sectionIndex >= state.sections.length)){
+          c.linkType = 'none'; c.sectionIndex = null;
+        }
+      });
+      renderSections(); renderCtaList(); renderCards(); updatePreview();
     };
+  });
+
+  state.sections.forEach((sec,i) => {
+    if ((sec.type||'simple') !== 'landing') return;
+    const box = document.getElementById('sectionCards-'+i);
+    if (!box) return;
+    box.innerHTML = sec.landingCards.map((c,j) => `
+      <div class="card-item" data-j="${j}">
+        <button class="item-remove" data-remove-section-card="${i}:${j}">✕</button>
+        <div class="row2">
+          <input type="text" data-section-card="${i}:${j}" data-key="icon" value="${escapeAttr(c.icon)}" placeholder="emoji">
+          <input type="text" data-section-card="${i}:${j}" data-key="title" value="${escapeAttr(c.title)}" placeholder="nadpis">
+        </div>
+        <textarea data-section-card="${i}:${j}" data-key="text" style="margin-top:6px;min-height:40px;">${escapeHtml(c.text)}</textarea>
+      </div>
+    `).join('');
+    box.querySelectorAll('[data-section-card]').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const [ii,jj] = inp.dataset.sectionCard.split(':').map(Number);
+        state.sections[ii].landingCards[jj][inp.dataset.key] = inp.value;
+        updatePreview();
+      });
+    });
+    box.querySelectorAll('[data-remove-section-card]').forEach(btn => {
+      btn.onclick = () => {
+        const [ii,jj] = btn.dataset.removeSectionCard.split(':').map(Number);
+        state.sections[ii].landingCards.splice(jj,1);
+        renderSections();
+        updatePreview();
+      };
+    });
   });
 }
 
@@ -1079,7 +1178,9 @@ function buildSitemapXML(s){
   const extra = (s.sitemap.extraUrls || '')
     .split('\n').map(l => l.trim()).filter(Boolean)
     .map(l => /^https?:\/\//i.test(l) ? l : domain + l.replace(/^\//,''));
-  const urls = Array.from(new Set([domain, ...extra]));
+  // Vlastní stránky (samostatné .html soubory) se do sitemapy přidají automaticky.
+  const pageUrls = computeCustomSectionsData(s).map(sec => domain + sec.filename);
+  const urls = Array.from(new Set([domain, ...pageUrls, ...extra]));
   const urlEntries = urls.map(u => `  <url>
     <loc>${escapeHtml(u)}</loc>
     <lastmod>${escapeHtml(lastmod)}</lastmod>
@@ -1112,176 +1213,79 @@ function downloadTextFile(filename, content, mime){
 /* ============================================================
    GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML
    ============================================================ */
-function buildSiteHTML(s){
-  const faqJsonLd = s.faq.map(f => `{
-      "@type": "Question",
-      "name": ${JSON.stringify(f.q)},
-      "acceptedAnswer": { "@type": "Answer", "text": ${JSON.stringify(f.a)} }
-    }`).join(',\n');
-
-  const faqHtml = s.faq.map(f => `
-        <details class="faq-item">
-          <summary>${escapeHtml(f.q)}</summary>
-          <p>${richText(f.a)}</p>
-        </details>`).join('');
-
-  const domain = (s.domain || 'https://example.com/').trim();
-
-  const slugify = (str, fallback) => {
-    const out = String(str ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-    return out || fallback;
-  };
-
-  const customSectionsData = (s.sections || []).map((sec, i) => ({
-    ...sec,
-    id: 'sec-' + slugify(sec.label, 'sekce-' + (i+1))
-  }));
-
-  // Pořadí položek levého menu: Hero -> Funkce -> vlastní sekce (= samostatné stránky) -> FAQ
-  const navLinks = [];
-  if (s.nav?.showHero !== false) navLinks.push({ href:'#hero', label: s.nav?.heroLabel || 'Domů', page:'home' });
-  if (s.nav?.showFeatures !== false && s.cards.length) navLinks.push({ href:'#funkce', label: s.nav?.featuresLabel || 'Funkce', page:'home' });
-  customSectionsData.forEach(sec => navLinks.push({ href:'#' + sec.id, label: sec.label || sec.title, page: sec.id }));
-  if (s.nav?.showFaq !== false && s.faq.length) navLinks.push({ href:'#faq', label: s.nav?.faqLabel || 'FAQ', page:'home' });
-
-  const navLinksHtml = navLinks.map(l =>
-    `  <a href="${escapeAttr(l.href)}" data-navlink data-page="${escapeAttr(l.page)}">${escapeHtml(l.label)}</a>`
-  ).join('\n');
-
-  // Každá vlastní sekce = samostatná "stránka" (skrytá/zobrazená přes JS), ne jen posun na téže stránce.
-  const customPagesHtml = customSectionsData.map(sec => {
-    const secImageSrc = (sec.imageUrl || '').trim() || sec.image || '';
-    const secImageHtml = secImageSrc
-      ? `<img class="custom-section-img" src="${escapeAttr(secImageSrc)}" alt="${escapeAttr(sec.imageAlt || sec.title || '')}" loading="lazy">`
-      : '';
-    return `
-    <div class="page" id="page-${sec.id}" data-page="${sec.id}">
-      <section class="custom-section wrap">
-        <a href="#hero" class="back-home" data-page-link="home">← Zpět na hlavní stránku</a>
-        <h2>${escapeHtml(sec.title)}</h2>
-        ${secImageHtml}
-        <p>${richText(sec.text)}</p>
-      </section>
-    </div>`;
-  }).join('');
-
-  // Sdílený resolver pro cíl odkazu (používá CTA tlačítka i odkazované karty)
-  const resolveLinkAttrs = (targetType, sectionIndex, url, newTab, fallbackAnchor) => {
-    if (targetType === 'url') {
-      const extra = newTab ? ' target="_blank" rel="noopener"' : '';
-      return ` href="${escapeAttr(url || '#')}"${extra}`;
-    }
-    if (targetType === 'section') {
-      const sec = customSectionsData[sectionIndex];
-      if (!sec) return ` href="#${fallbackAnchor}" data-scroll-link`;
-      return ` href="#${sec.id}" data-goto-page="${sec.id}"`;
-    }
-    const anchor = targetType === 'faq' ? 'faq' : (targetType === 'hero' ? 'hero' : fallbackAnchor);
-    return ` href="#${anchor}" data-scroll-link`;
-  };
-
-  // CTA tlačítka v hero sekci (jedno až N, každé může mířit jinam)
-  const ctaButtonsHtml = (s.ctaButtons || []).map(btn => {
-    const cls = 'cta' + (btn.style === 'secondary' ? ' cta-secondary' : '');
-    const text = escapeHtml(btn.text || '');
-    const attrs = resolveLinkAttrs(btn.targetType, btn.sectionIndex, btn.url, btn.newTab, 'funkce');
-    return `<a class="${cls}"${attrs}>${text}</a>`;
-  }).join('\n          ');
-
-  // Karty / funkce — nepovinně klikatelné (vlastní sekce, FAQ, hero, nebo libovolná URL)
-  const cardsHtml = s.cards.map(c => {
-    const isLinkCard = !!(c.linkType && c.linkType !== 'none');
-    // Pozn.: pokud je celá karta odkaz (<a>), text uvnitř nesmí obsahovat další <a> (vnořené odkazy jsou neplatné HTML) — proto se tam [odkazy] nepřevádí.
-    const inner = `
-          <div class="card-icon">${escapeHtml(c.icon)}</div>
-          <h3>${escapeHtml(c.title)}</h3>
-          <p>${isLinkCard ? escapeHtml(c.text) : richText(c.text)}</p>`;
-    if (!isLinkCard) {
-      return `\n        <article class="card">${inner}\n        </article>`;
-    }
-    const attrs = resolveLinkAttrs(c.linkType, c.sectionIndex, c.url, c.newTab, 'funkce');
-    return `\n        <a class="card card-link"${attrs}>${inner}\n        </a>`;
-  }).join('');
-
-  // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
-  const footerLinksHtml = (s.footer.links || []).length
-    ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
-    : '';
-  const footerTextHtml = (s.footer.text || '').trim()
-    ? `<p class="footer-text">${richText(s.footer.text)}</p>`
-    : '';
-  const footerCopyrightHtml = s.footer.showCopyright
-    ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>`
-    : '';
-
-  // Vizuál v hero sekci: nic / vlastní obrázek
-  const customImageSrc = (s.heroImageUrl || '').trim() || s.heroImage || '';
-  const heroVisualHtml = s.heroVisual === 'custom' && customImageSrc
-    ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
-    : '';
-
-  return `<!DOCTYPE html>
-<html lang="cs">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="${s.accent}">
-
-<title>${escapeHtml(s.title)}</title>
-<meta name="description" content="${escapeAttr(s.description)}">
-<link rel="canonical" href="${escapeAttr(domain)}">
-<!-- TODO: až bude i AJ verze, přidej:
-<link rel="alternate" hreflang="cs" href="${escapeAttr(domain)}">
-<link rel="alternate" hreflang="en" href="${escapeAttr(domain)}en/">
-<link rel="alternate" hreflang="x-default" href="${escapeAttr(domain)}">
--->
-
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="${escapeAttr(s.brand)}">
-<meta property="og:title" content="${escapeAttr(s.title)}">
-<meta property="og:description" content="${escapeAttr(s.description)}">
-<meta property="og:url" content="${escapeAttr(domain)}">
-<meta property="og:image" content="${escapeAttr(domain)}og-image.png">
-<meta property="og:locale" content="cs_CZ">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${escapeAttr(s.title)}">
-<meta name="twitter:description" content="${escapeAttr(s.description)}">
-<meta name="twitter:image" content="${escapeAttr(domain)}og-image.png">
-<meta name="robots" content="index, follow">
-
-<!-- TODO: nahraj skutečné obrázky ikon pod těmito názvy (jen odkazy se generují automaticky) -->
-<link rel="icon" href="favicon.ico" sizes="any">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<!-- manifest.json a sw.js stáhneš tlačítky v sekci "PWA" vlevo v generátoru -->
-<link rel="manifest" href="manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": ${JSON.stringify(s.brand)},
-  "url": ${JSON.stringify(domain)},
-  "description": ${JSON.stringify(s.description)},
-  "inLanguage": "cs"
+function slugifyPage(str, fallback){
+  const out = String(str ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  return out || fallback;
 }
-<\/script>${s.faq.length ? `
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-${faqJsonLd}
-  ]
-}
-<\/script>` : ''}
 
-<style>
+function getHomeFilename(s){
+  const slug = (s.brand || 'web').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'web';
+  return slug + '.html';
+}
+
+// Spočítá pro každou vlastní stránku unikátní slug + název souboru — používá to
+// jak hlavní stránka (kvůli menu a odkazům), tak generátor jednotlivých souborů,
+// aby si názvy vždy odpovídaly.
+function computeCustomSectionsData(s){
+  const used = new Set();
+  return (s.sections || []).map((sec, i) => {
+    const base = slugifyPage(sec.label || sec.title, 'stranka-' + (i+1));
+    let slug = base, n = 2;
+    while (used.has(slug)) { slug = base + '-' + n; n++; }
+    used.add(slug);
+    return { ...sec, type: sec.type || 'simple', id: 'sec-' + slug, slug, filename: slug + '.html' };
+  });
+}
+
+// Pořadí položek levého menu: Hero -> Funkce -> vlastní stránky (pokud jsou zapnuté) -> FAQ.
+// ctx.isHome = generujeme hlavní stránku (kotvy #hero/#funkce/#faq fungují lokálně),
+// jinak jde o vlastní podstránku a stejné odkazy musí mířit zpátky na hlavní soubor.
+function buildNavLinksData(s, customSectionsData, ctx){
+  const links = [];
+  if (s.nav?.showHero !== false) {
+    links.push({ href: ctx.isHome ? '#hero' : ctx.homeFilename, label: s.nav?.heroLabel || 'Domů', local: ctx.isHome, id: 'home' });
+  }
+  if (s.nav?.showFeatures !== false && s.cards.length) {
+    links.push({ href: ctx.isHome ? '#funkce' : (ctx.homeFilename + '#funkce'), label: s.nav?.featuresLabel || 'Funkce', local: ctx.isHome, id: 'home' });
+  }
+  if (s.nav?.showPagesMenu !== false) {
+    customSectionsData.forEach(sec => links.push({ href: sec.filename, label: sec.label || sec.title, local: false, id: sec.slug }));
+  }
+  if (s.nav?.showFaq !== false && s.faq.length) {
+    links.push({ href: ctx.isHome ? '#faq' : (ctx.homeFilename + '#faq'), label: s.nav?.faqLabel || 'FAQ', local: ctx.isHome, id: 'home' });
+  }
+  return links;
+}
+
+// Vykreslí sdílené postranní menu — na hlavní stránce se aktivní položka řeší za běhu
+// (scroll/klik), na vlastní podstránce už víme dopředu, která položka je aktivní.
+function renderSideNavHtml(s, navLinksData, ctx){
+  const brandHref = ctx.isHome ? '#hero' : ctx.homeFilename;
+  const brandAttrs = ctx.isHome ? ' data-scroll-link' : '';
+  const linksHtml = navLinksData.map(l => {
+    const parts = [];
+    if (l.local) parts.push('data-scroll-link');
+    if (!ctx.isHome && l.id === ctx.currentSlug) parts.push('class="active"');
+    const attrs = parts.length ? ' ' + parts.join(' ') : '';
+    return `  <a href="${escapeAttr(l.href)}"${attrs}>${escapeHtml(l.label)}</a>`;
+  }).join('\n');
+  return `  <button class="menu-toggle" id="menuToggle" aria-label="Otevřít menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-scrim" id="navScrim"></div>
+
+  <nav class="side-nav" id="sideNav" aria-label="Hlavní navigace">
+    <a href="${escapeAttr(brandHref)}" class="side-nav-brand" id="sideNavBrand"${brandAttrs}>${escapeHtml(s.brand)}</a>
+${linksHtml}
+  </nav>`;
+}
+
+// Veškeré sdílené CSS webu — používá ho jak hlavní stránka, tak každá vlastní podstránka,
+// aby vypadaly konzistentně se zvoleným barevným motivem a písmem.
+function sharedStyleTag(s){
+  return `<style>
   :root{
     --accent: ${s.accent};
     --glow: ${s.glow};
@@ -1362,7 +1366,7 @@ ${faqJsonLd}
   .faq-item p{color:#c7c7ce;font-size:13.5px;line-height:1.6;margin:10px 0 0;}
 
   .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
-  .custom-section h2{font-size:clamp(22px,3.5vw,28px);margin:0 0 14px;}
+  .custom-section h1{font-size:clamp(22px,3.5vw,32px);margin:0 0 14px;}
   .custom-section-img{
     display:block;width:100%;max-height:420px;object-fit:cover;
     border-radius:14px;margin:0 0 24px;
@@ -1373,10 +1377,6 @@ ${faqJsonLd}
     font-size:13px;font-weight:500;
   }
   .back-home:hover{text-decoration:underline;}
-
-  /* ---------- stránky: každá vlastní sekce z menu = samostatná stránka ---------- */
-  .page{display:none;}
-  .page.active{display:block;}
 
   footer{text-align:center;padding:26px 20px;color:#8a8a92;font-size:12.5px;}
   footer .footer-text{margin:0 0 8px;white-space:pre-line;}
@@ -1427,63 +1427,15 @@ ${faqJsonLd}
     .nav-scrim{display:none;}
     .page-content{margin-left:230px;}
   }
-</style>
-</head>
-<body>
+</style>`;
+}
 
-  <button class="menu-toggle" id="menuToggle" aria-label="Otevřít menu" aria-expanded="false">
-    <span></span><span></span><span></span>
-  </button>
-  <div class="nav-scrim" id="navScrim"></div>
-
-  <nav class="side-nav" id="sideNav" aria-label="Hlavní navigace">
-    <a href="#hero" class="side-nav-brand" id="sideNavBrand">${escapeHtml(s.brand)}</a>
-${navLinksHtml}
-  </nav>
-
-  <div class="page-content" id="pageContent">
-
-    <div class="page active" id="page-home" data-page="home">
-      <section class="hero" id="hero">
-        <div class="wrap">
-          ${heroVisualHtml}
-          <span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>
-          <h1>${escapeHtml(s.heroTitle)}</h1>
-          <p>${richText(s.heroSubtitle)}</p>
-          <div class="cta-group">
-          ${ctaButtonsHtml}
-          </div>
-        </div>
-      </section>
-
-      <section class="cards-section wrap" id="funkce">
-        <h2>${escapeHtml(s.cardsHeading || 'Co nabízíme')}</h2>
-        <div class="cards">${cardsHtml}
-        </div>
-      </section>
-
-      <section class="faq-section" id="faq">
-        <h2>Časté otázky</h2>${faqHtml}
-      </section>
-    </div>
-${customPagesHtml}
-
-    <footer>${footerTextHtml}${footerLinksHtml}${footerCopyrightHtml}</footer>
-
-  </div>
-
-  <script>
-    var yEl = document.getElementById('y');
-    if (yEl) yEl.textContent = new Date().getFullYear();
-
-    // ---------- levé menu: hamburger na mobilu + přepínání "stránek" ----------
-    (function () {
+// Sdílený JS pro hamburger menu na mobilu — používá ho hlavní stránka i každá vlastní podstránka.
+function menuToggleScript(){
+  return `(function () {
       var toggle = document.getElementById('menuToggle');
       var nav = document.getElementById('sideNav');
       var scrim = document.getElementById('navScrim');
-      var links = Array.prototype.slice.call(document.querySelectorAll('.side-nav a[data-navlink]'));
-      var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
-
       function setOpen(open) {
         if (!toggle || !nav || !scrim) return;
         nav.classList.toggle('open', open);
@@ -1494,98 +1446,221 @@ ${customPagesHtml}
         toggle.addEventListener('click', function () { setOpen(!nav.classList.contains('open')); });
         scrim.addEventListener('click', function () { setOpen(false); });
       }
+      window.__wzCloseMenu = function () { setOpen(false); };
+    })();`;
+}
 
-      // Zobrazí danou "stránku" (home = úvod/funkce/FAQ, jinak samostatná vlastní sekce)
-      // a nastaví odpovídající aktivní odkaz v menu — ostatní odkazy se vždy odaktivní,
-      // aby menu nikdy neukazovalo dvě aktivní položky najednou.
-      function showPage(pageId) {
-        pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === pageId); });
-        if (pageId !== 'home') {
-          links.forEach(function (a) { a.classList.toggle('active', a.dataset.page === pageId); });
-        }
+// Sdílený resolver pro cíl odkazu (CTA tlačítka i klikatelné karty na hlavní stránce).
+// U cíle "section" teď vede na skutečný, samostatný .html soubor té stránky.
+function resolveLinkAttrs(targetType, sectionIndex, url, newTab, fallbackAnchor, customSectionsData){
+  if (targetType === 'url') {
+    const extra = newTab ? ' target="_blank" rel="noopener"' : '';
+    return ` href="${escapeAttr(url || '#')}"${extra}`;
+  }
+  if (targetType === 'section') {
+    const sec = customSectionsData[sectionIndex];
+    if (!sec) return ` href="#${fallbackAnchor}" data-scroll-link`;
+    return ` href="${escapeAttr(sec.filename)}"`;
+  }
+  const anchor = targetType === 'faq' ? 'faq' : (targetType === 'hero' ? 'hero' : fallbackAnchor);
+  return ` href="#${anchor}" data-scroll-link`;
+}
+
+/* ============================================================
+   GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML — hlavní stránka
+   ============================================================ */
+function buildSiteHTML(s){
+  const faqJsonLd = s.faq.map(f => `{
+      "@type": "Question",
+      "name": ${JSON.stringify(f.q)},
+      "acceptedAnswer": { "@type": "Answer", "text": ${JSON.stringify(f.a)} }
+    }`).join(',\n');
+
+  const faqHtml = s.faq.map(f => `
+        <details class="faq-item">
+          <summary>${escapeHtml(f.q)}</summary>
+          <p>${richText(f.a)}</p>
+        </details>`).join('');
+
+  const domain = (s.domain || 'https://example.com/').trim();
+  const customSectionsData = computeCustomSectionsData(s);
+  const homeFilename = getHomeFilename(s);
+
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: true, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: true, homeFilename });
+
+  // CTA tlačítka v hero sekci (jedno až N, každé může mířit jinam)
+  const ctaButtonsHtml = (s.ctaButtons || []).map(btn => {
+    const cls = 'cta' + (btn.style === 'secondary' ? ' cta-secondary' : '');
+    const text = escapeHtml(btn.text || '');
+    const attrs = resolveLinkAttrs(btn.targetType, btn.sectionIndex, btn.url, btn.newTab, 'funkce', customSectionsData);
+    return `<a class="${cls}"${attrs}>${text}</a>`;
+  }).join('\n          ');
+
+  // Karty / funkce — nepovinně klikatelné (vlastní stránka, FAQ, hero, nebo libovolná URL)
+  const cardsHtml = s.cards.map(c => {
+    const isLinkCard = !!(c.linkType && c.linkType !== 'none');
+    // Pozn.: pokud je celá karta odkaz (<a>), text uvnitř nesmí obsahovat další <a> (vnořené odkazy jsou neplatné HTML) — proto se tam [odkazy] nepřevádí.
+    const inner = `
+          <div class="card-icon">${escapeHtml(c.icon)}</div>
+          <h3>${escapeHtml(c.title)}</h3>
+          <p>${isLinkCard ? escapeHtml(c.text) : richText(c.text)}</p>`;
+    if (!isLinkCard) {
+      return `\n        <article class="card">${inner}\n        </article>`;
+    }
+    const attrs = resolveLinkAttrs(c.linkType, c.sectionIndex, c.url, c.newTab, 'funkce', customSectionsData);
+    return `\n        <a class="card card-link"${attrs}>${inner}\n        </a>`;
+  }).join('');
+
+  // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
+  const footerLinksHtml = (s.footer.links || []).length
+    ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
+    : '';
+  const footerTextHtml = (s.footer.text || '').trim()
+    ? `<p class="footer-text">${richText(s.footer.text)}</p>`
+    : '';
+  const footerCopyrightHtml = s.footer.showCopyright
+    ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>`
+    : '';
+
+  // Vizuál v hero sekci: nic / vlastní obrázek
+  const customImageSrc = (s.heroImageUrl || '').trim() || s.heroImage || '';
+  const heroVisualHtml = s.heroVisual === 'custom' && customImageSrc
+    ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>${escapeHtml(s.title)}</title>
+<meta name="description" content="${escapeAttr(s.description)}">
+<link rel="canonical" href="${escapeAttr(domain)}">
+<!-- TODO: až bude i AJ verze, přidej:
+<link rel="alternate" hreflang="cs" href="${escapeAttr(domain)}">
+<link rel="alternate" hreflang="en" href="${escapeAttr(domain)}en/">
+<link rel="alternate" hreflang="x-default" href="${escapeAttr(domain)}">
+-->
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escapeAttr(s.brand)}">
+<meta property="og:title" content="${escapeAttr(s.title)}">
+<meta property="og:description" content="${escapeAttr(s.description)}">
+<meta property="og:url" content="${escapeAttr(domain)}">
+<meta property="og:image" content="${escapeAttr(domain)}og-image.png">
+<meta property="og:locale" content="cs_CZ">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeAttr(s.title)}">
+<meta name="twitter:description" content="${escapeAttr(s.description)}">
+<meta name="twitter:image" content="${escapeAttr(domain)}og-image.png">
+<meta name="robots" content="index, follow">
+
+<!-- TODO: nahraj skutečné obrázky ikon pod těmito názvy (jen odkazy se generují automaticky) -->
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- manifest.json a sw.js stáhneš tlačítky v sekci "PWA" vlevo v generátoru -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": ${JSON.stringify(s.brand)},
+  "url": ${JSON.stringify(domain)},
+  "description": ${JSON.stringify(s.description)},
+  "inLanguage": "cs"
+}
+<\/script>${s.faq.length ? `
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+${faqJsonLd}
+  ]
+}
+<\/script>` : ''}
+
+${sharedStyleTag(s)}
+</head>
+<body>
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+
+    <section class="hero" id="hero">
+      <div class="wrap">
+        ${heroVisualHtml}
+        <span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>
+        <h1>${escapeHtml(s.heroTitle)}</h1>
+        <p>${richText(s.heroSubtitle)}</p>
+        <div class="cta-group">
+        ${ctaButtonsHtml}
+        </div>
+      </div>
+    </section>
+
+    <section class="cards-section wrap" id="funkce">
+      <h2>${escapeHtml(s.cardsHeading || 'Co nabízíme')}</h2>
+      <div class="cards">${cardsHtml}
+      </div>
+    </section>
+
+    <section class="faq-section" id="faq">
+      <h2>Časté otázky</h2>${faqHtml}
+    </section>
+
+    <footer>${footerTextHtml}${footerLinksHtml}${footerCopyrightHtml}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+
+    ${menuToggleScript()}
+
+    // ---------- kotevní odkazy (hero/funkce/faq) + zvýraznění aktivní položky v menu ----------
+    (function () {
+      var localLinks = Array.prototype.slice.call(document.querySelectorAll('[data-scroll-link]'));
+
+      function setActive(link) {
+        document.querySelectorAll('.side-nav a').forEach(function (l) { l.classList.remove('active'); });
+        if (link) link.classList.add('active');
       }
 
-      links.forEach(function (a) {
-        a.addEventListener('click', function (e) {
-          var pageId = a.dataset.page || 'home';
-          e.preventDefault();
-          if (pageId !== 'home') {
-            showPage(pageId);
-            window.scrollTo({ top: 0 });
-          } else {
-            showPage('home');
-            var target = document.querySelector(a.getAttribute('href'));
-            if (target) target.scrollIntoView({ behavior: 'smooth' });
-          }
-          setOpen(false);
-        });
-      });
-
-      // Kotevní odkazy uvnitř úvodní stránky (např. CTA tlačítko v hero sekci) —
-      // klik ošetříme ručně místo nativní navigace na #kotvu. Nativní skok na
-      // kotvu uvnitř iframe (v náhledu generátoru) totiž může způsobit, že se
-      // celý obsah iframe znovu načte od začátku a vypadá to, jako by se
-      // stránka "restartovala".
-      document.querySelectorAll('[data-scroll-link]').forEach(function (a) {
+      localLinks.forEach(function (a) {
         a.addEventListener('click', function (e) {
           var target = document.querySelector(a.getAttribute('href'));
           if (!target) return;
           e.preventDefault();
-          showPage('home');
           target.scrollIntoView({ behavior: 'smooth' });
+          setActive(a);
+          if (window.__wzCloseMenu) window.__wzCloseMenu();
         });
       });
 
-      // Odkaz "Zpět na hlavní stránku" uvnitř vlastní sekce
-      document.querySelectorAll('[data-page-link="home"]').forEach(function (a) {
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          showPage('home');
-          window.scrollTo({ top: 0 });
-        });
-      });
+      if (localLinks.length) setActive(localLinks[0]);
 
-      // CTA tlačítko mířící na vlastní sekci (samostatnou "stránku")
-      document.querySelectorAll('[data-goto-page]').forEach(function (a) {
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          showPage(a.dataset.gotoPage);
-          window.scrollTo({ top: 0 });
-        });
-      });
-
-      // Název webu nahoře v menu vždy vrátí na hlavní stránku a nahoru
-      // (dřív to byl obyčejný odkaz na #hero, který na vlastní stránce nic neudělal
-      // a mohl vypadat jako by se "otevřela" celá stránka znovu)
-      var brandLink = document.getElementById('sideNavBrand');
-      if (brandLink) {
-        brandLink.addEventListener('click', function (e) {
-          e.preventDefault();
-          showPage('home');
-          window.scrollTo({ top: 0 });
-          setOpen(false);
-        });
-      }
-
-      // Výchozí aktivní odkaz v menu = první odkaz vedoucí na "home"
-      var firstHome = links.find ? links.find(function (a) { return a.dataset.page === 'home'; }) : null;
-      if (firstHome) firstHome.classList.add('active');
-
-      // ---------- zvýraznění aktivní sekce při scrollování — POUZE na úvodní stránce ----------
-      var homeLinks = links.filter(function (a) { return a.dataset.page === 'home'; });
-      var homeSections = homeLinks
+      var homeSections = localLinks
         .map(function (a) { return document.querySelector(a.getAttribute('href')); })
         .filter(Boolean);
       if (homeSections.length && 'IntersectionObserver' in window) {
         var observer = new IntersectionObserver(function (entries) {
-          var homePage = document.getElementById('page-home');
-          if (!homePage || !homePage.classList.contains('active')) return; // mimo domovskou stránku menu neplést
           entries.forEach(function (entry) {
             if (!entry.isIntersecting) return;
             var id = '#' + entry.target.id;
-            homeLinks.forEach(function (a) {
-              a.classList.toggle('active', a.getAttribute('href') === id);
-            });
+            var match = localLinks.filter(function (a) { return a.getAttribute('href') === id; })[0];
+            if (match) setActive(match);
           });
         }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
         homeSections.forEach(function (sec) { observer.observe(sec); });
@@ -1600,6 +1675,114 @@ ${customPagesHtml}
         navigator.serviceWorker.register('./sw.js').catch((err) => {
           console.log('[SW] Registrace selhala:', err);
         });
+      });
+    }
+  <\/script>
+</body>
+</html>`;
+}
+
+/* ============================================================
+   GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML — vlastní (samostatná) stránka
+   ============================================================ */
+function buildSectionPageHTML(s, sec, customSectionsData, homeFilename){
+  const domain = (s.domain || 'https://example.com/').trim();
+  const pageUrl = domain.replace(/\/$/, '') + '/' + sec.filename;
+  const description = ((sec.type === 'landing' ? sec.landingSubtitle : sec.text) || s.description || '').trim();
+
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: sec.slug });
+
+  let mainHtml;
+  if (sec.type === 'landing') {
+    const cardsHtml = (sec.landingCards || []).map(c => `
+        <article class="card">
+          <div class="card-icon">${escapeHtml(c.icon)}</div>
+          <h3>${escapeHtml(c.title)}</h3>
+          <p>${richText(c.text)}</p>
+        </article>`).join('');
+    const ctaHtml = (sec.landingCtaText || '').trim() ? `
+          <div class="cta-group">
+            <a class="cta" href="${escapeAttr(sec.landingCtaUrl || '#')}"${sec.landingCtaNewTab ? ' target="_blank" rel="noopener"' : ''}>${escapeHtml(sec.landingCtaText)}</a>
+          </div>` : '';
+    mainHtml = `
+    <section class="hero">
+      <div class="wrap">
+        <h1>${escapeHtml(sec.title)}</h1>
+        <p>${richText(sec.landingSubtitle)}</p>${ctaHtml}
+      </div>
+    </section>
+${(sec.landingCards && sec.landingCards.length) ? `
+    <section class="cards-section wrap">
+      <div class="cards">${cardsHtml}
+      </div>
+    </section>` : ''}`;
+  } else {
+    const imageSrc = (sec.imageUrl || '').trim() || sec.image || '';
+    const imageHtml = imageSrc
+      ? `<img class="custom-section-img" src="${escapeAttr(imageSrc)}" alt="${escapeAttr(sec.imageAlt || sec.title || '')}" loading="lazy">`
+      : '';
+    mainHtml = `
+    <section class="custom-section wrap">
+      <a href="${escapeAttr(homeFilename)}" class="back-home">← Zpět na hlavní stránku</a>
+      <h1>${escapeHtml(sec.title)}</h1>
+      ${imageHtml}
+      <p>${richText(sec.text)}</p>
+    </section>`;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>${escapeHtml(sec.title)} — ${escapeHtml(s.brand)}</title>
+<meta name="description" content="${escapeAttr(description)}">
+<link rel="canonical" href="${escapeAttr(pageUrl)}">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escapeAttr(s.brand)}">
+<meta property="og:title" content="${escapeAttr(sec.title)} — ${escapeAttr(s.brand)}">
+<meta property="og:description" content="${escapeAttr(description)}">
+<meta property="og:url" content="${escapeAttr(pageUrl)}">
+<meta property="og:image" content="${escapeAttr(domain)}og-image.png">
+<meta property="og:locale" content="cs_CZ">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+${sharedStyleTag(s)}
+</head>
+<body>
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+${mainHtml}
+
+    <footer>${s.footer.showCopyright ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>` : ''}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+    ${menuToggleScript()}
+  <\/script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
   <\/script>
@@ -1717,15 +1900,18 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const html = buildSiteHTML(state);
-  const blob = new Blob([html], {type:'text/html'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const slug = (state.brand || 'web').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'web';
-  a.href = url; a.download = `${slug}.html`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  downloadTextFile(getHomeFilename(state), buildSiteHTML(state), 'text/html');
+});
+
+document.getElementById('exportAllBtn').addEventListener('click', () => {
+  const homeFilename = getHomeFilename(state);
+  downloadTextFile(homeFilename, buildSiteHTML(state), 'text/html');
+  const customSectionsData = computeCustomSectionsData(state);
+  customSectionsData.forEach((sec, i) => {
+    setTimeout(() => {
+      downloadTextFile(sec.filename, buildSectionPageHTML(state, sec, customSectionsData, homeFilename), 'text/html');
+    }, (i + 1) * 300);
+  });
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {
