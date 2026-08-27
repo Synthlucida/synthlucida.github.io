@@ -296,11 +296,33 @@
   /* ---- hourly strip ---- */
   .hourly{ display:flex; gap:10px; overflow-x:auto; padding:4px 2px 16px; scrollbar-width:thin; }
 
-  .hourly-graph-wrap{ position:relative; height:78px; margin:2px 0 6px; }
-  .hg-svg{ width:100%; height:100%; overflow:visible; }
-  .hg-line{ fill:none; stroke:var(--accent-color); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; filter:drop-shadow(0 0 6px var(--accent-color)); }
+  .hourly-graph-wrap{ position:relative; height:112px; margin:2px 0 10px; }
+  .hg-svg{ width:100%; height:100%; display:block; overflow:visible; }
+  .hg-line{ fill:none; stroke:var(--accent-color); stroke-width:2.5; vector-effect:non-scaling-stroke; stroke-linejoin:round; stroke-linecap:round; filter:drop-shadow(0 0 6px var(--accent-color)); }
   .hg-area{ stroke:none; fill:url(#hgGrad); }
-  .hg-dot{ fill:var(--accent-color); filter:drop-shadow(0 0 4px var(--accent-color)); }
+  .hg-baseline{ stroke:rgba(255,255,255,0.1); stroke-width:1; vector-effect:non-scaling-stroke; stroke-dasharray:3 4; }
+  .hg-dot{ fill:var(--accent-color); opacity:0.6; }
+  .hg-dot-extreme{ fill:#fff; filter:drop-shadow(0 0 4px var(--accent-color)); }
+  .hg-labels{ position:absolute; inset:0; pointer-events:none; }
+  .hg-val{
+    position:absolute; transform:translate(-50%,-50%);
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; font-weight:500;
+    color:rgba(255,255,255,0.8); white-space:nowrap; text-shadow:0 1px 4px rgba(0,0,0,0.7);
+  }
+  .hg-val-extreme{ color:var(--accent-color); font-weight:600; text-shadow:0 0 8px rgba(56,189,248,0.55); }
+  .hg-hour{
+    position:absolute; bottom:0; transform:translateX(-50%);
+    font-family:'JetBrains Mono', monospace; font-size:9px; letter-spacing:0.2px;
+    color:rgba(255,255,255,0.38); white-space:nowrap;
+  }
+  .hg-hour-now{ color:var(--accent-color); opacity:0.85; }
+  .hg-caption{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.5;
+    letter-spacing:0.2px; margin:0 2px 2px;
+  }
+  .hg-caption .hg-range{ display:inline-flex; align-items:center; gap:4px; }
+  .hg-caption .hg-range svg{ width:11px; height:11px; vertical-align:-1.5px; }
   .hour{
     flex:0 0 auto; width:60px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03);
     padding:13px 0 11px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;
@@ -492,6 +514,7 @@
   .moon-info{ display:flex; flex-direction:column; gap:4px; }
   .moon-name{ font-size:14px; font-weight:500; letter-spacing:0.2px; }
   .moon-illum{ font-size:12px; font-family:'JetBrains Mono', monospace; opacity:0.55; }
+  .moon-next{ font-size:11px; font-family:'JetBrains Mono', monospace; opacity:0.42; letter-spacing:0.2px; margin-top:2px; }
 
   /* ---- photography: golden hour ---- */
   .photo-block{
@@ -587,6 +610,63 @@
     color:var(--accent-color); margin:16px 0 8px;
   }
   .info-section-title:first-child{ margin-top:0; }
+
+  /* ---- export sekce ---- */
+  .export-actions{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+  .export-btn{
+    display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+    padding:13px 16px; border-radius:14px; border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.04); color:#fff; cursor:pointer; transition:0.25s;
+    font-family:'Poppins', sans-serif;
+  }
+  .export-btn:hover{ border-color:var(--accent-color); background:rgba(56,189,248,0.08); box-shadow:0 0 14px rgba(56,189,248,0.15); }
+  .export-btn svg{ width:19px; height:19px; color:var(--accent-color); flex-shrink:0; }
+  .export-btn-label{ display:flex; flex-direction:column; gap:3px; font-size:13.5px; font-weight:400; }
+  .export-btn-sub{ font-size:10.8px; font-weight:300; opacity:0.5; line-height:1.4; }
+  .export-hint{ font-size:11px; opacity:0.4; margin-top:12px; line-height:1.5; }
+
+  /* ---- export: kompletní přehled overlay ---- */
+  .export-overlay{
+    position:fixed; inset:0; z-index:85; display:flex; flex-direction:column;
+    background:rgba(2,4,8,0.92); backdrop-filter:blur(6px);
+  }
+  .export-overlay.hidden{ display:none; }
+  .export-overlay-head{
+    display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+    padding:calc(16px + env(safe-area-inset-top)) 18px 14px; border-bottom:1px solid rgba(255,255,255,0.1);
+  }
+  .export-overlay-title{
+    font-family:'Orbitron', sans-serif; font-size:12.5px; letter-spacing:1.8px; text-transform:uppercase;
+    color:var(--accent-color); text-shadow:0 0 10px var(--accent-color);
+  }
+  .export-overlay-body{
+    flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:18px 16px calc(50px + env(safe-area-inset-bottom));
+  }
+  .export-section-title{
+    font-family:'Orbitron', sans-serif; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--accent-color); margin:26px 0 10px;
+  }
+  .export-section-title:first-child{ margin-top:0; }
+  .export-kv{
+    display:grid; grid-template-columns:1fr auto; gap:9px 14px; font-size:12.5px;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:14px 16px;
+  }
+  .export-kv .k{ opacity:0.55; font-family:'Poppins', sans-serif; }
+  .export-kv .v{ text-align:right; font-family:'JetBrains Mono', monospace; color:#fff; }
+  .export-table-wrap{
+    overflow-x:auto; border-radius:14px; border:1px solid rgba(255,255,255,0.08);
+    -webkit-overflow-scrolling:touch;
+  }
+  .export-table{ width:100%; border-collapse:collapse; font-family:'JetBrains Mono', monospace; font-size:11px; white-space:nowrap; }
+  .export-table th{
+    position:sticky; top:0; text-align:left; padding:9px 12px; font-weight:500;
+    background:#0c1420; color:var(--accent-color); border-bottom:1px solid rgba(255,255,255,0.1);
+  }
+  .export-table td{ padding:8px 12px; border-top:1px solid rgba(255,255,255,0.06); opacity:0.85; }
+  .export-table tr:nth-child(even) td{ background:rgba(255,255,255,0.025); }
+  .export-table td.now-row, .export-table th.now-row{ color:var(--accent-color); }
+  .export-day-group td{ font-weight:500; opacity:1; }
 
 </style>
 </head>
@@ -690,6 +770,34 @@
     </div>
   </details>
 
+  <details class="card info-card" id="exportSection">
+    <summary>
+      <span class="info-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+      </span>
+      Export dat
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
+    <div class="info-content">
+      <p>Stáhni si všechny hodnoty počasí pro aktuálně zvolené místo – aktuální stav, hodinovou i sedmidenní předpověď.</p>
+      <div class="export-actions">
+        <button type="button" class="export-btn" id="exportPdfBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M14 3v5h5"/><path d="M8.5 17v-4h1.3a1.3 1.3 0 1 1 0 2.6H8.5M13 17v-4h1.6a1.4 1.4 0 0 1 0 4H13Zm4.5 0v-4h2"/></svg>
+          <span class="export-btn-label">Export PDF<span class="export-btn-sub">Otevře se tisková nabídka – zvol „Uložit jako PDF“</span></span>
+        </button>
+        <button type="button" class="export-btn" id="exportCsvBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M14 3v5h5"/><path d="M8 17.5c0-1.2.9-2 2-2M8 15.5v2M11.5 17.5v-2M11.5 17.5c0 .3.2.5.5.5h.5M11.5 15.5h1M15.5 15.5h-1c-.6 0-1 .4-1 .8s.4.7 1 .7-1 .3-1 .7.4.8 1 .8h1"/></svg>
+          <span class="export-btn-label">Export CSV<span class="export-btn-sub">Tabulka pro Excel, Google Sheets a podobné nástroje</span></span>
+        </button>
+        <button type="button" class="export-btn" id="exportFullBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M9 9.5V20"/></svg>
+          <span class="export-btn-label">Kompletní přehled<span class="export-btn-sub">Zobrazí úplně všechny načtené hodnoty v tabulce</span></span>
+        </button>
+      </div>
+      <div class="export-hint">Export vychází z aktuálně zobrazeného místa a naposledy načtených dat.</div>
+    </div>
+  </details>
+
   <footer>
     Data: Open&#8209;Meteo.com, radar: Windy.com<br>
     <a href="https://synthlucida.com" target="_blank" rel="noopener">SYNTHLUCIDA</a>
@@ -706,6 +814,16 @@
   <div class="admin-box" id="adminBox">
     <!-- content injected by JS: login form or admin panel -->
   </div>
+</div>
+
+<div class="export-overlay hidden" id="exportOverlay">
+  <div class="export-overlay-head">
+    <div class="export-overlay-title">Kompletní přehled dat</div>
+    <button type="button" class="admin-close" id="exportOverlayClose" aria-label="Zavřít přehled">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="export-overlay-body" id="exportOverlayBody"></div>
 </div>
 
 <script>
@@ -731,10 +849,13 @@
     stateMsg: document.getElementById("stateMsg"),
     brand: document.querySelector(".brand"),
     adminOverlay: document.getElementById("adminOverlay"),
-    adminBox: document.getElementById("adminBox")
+    adminBox: document.getElementById("adminBox"),
+    exportOverlay: document.getElementById("exportOverlay"),
+    exportOverlayBody: document.getElementById("exportOverlayBody")
   };
 
   var currentPlace = null;
+  var currentWeatherData = null;
   var lastWeatherKey = null; // { group, isDay } of the most recent forecast, for "auto" theme
 
   // ---------- icons ----------
@@ -1250,6 +1371,7 @@
   }
 
   function render(place, data){
+    currentWeatherData = data;
     var cur = data.current;
     var info = weatherInfo(cur.weather_code, cur.is_day);
     applyAccent(info.group, cur.is_day === 1);
@@ -1340,9 +1462,12 @@
     html += '</div></div>';
 
     var moonInfo = getMoonPhaseInfo();
+    var moonEvents = nextMoonEvents();
     html += '<div class="moon-block">';
     html += '<div class="wmoon-wrap"><div class="wmoon-glow"></div><div class="wmoon-disc"><div class="wmoon-shadow" style="transform:translateX('+moonInfo.tx.toFixed(1)+'%)"></div></div><div class="wmoon-outline"></div></div>';
-    html += '<div class="moon-info"><div class="moon-name">'+moonInfo.name+'</div><div class="moon-illum">'+moonInfo.illum+'&nbsp;% osvětleno</div></div>';
+    html += '<div class="moon-info"><div class="moon-name">'+moonInfo.name+'</div><div class="moon-illum">'+moonInfo.illum+'&nbsp;% osvětleno</div>';
+    html += '<div class="moon-next">Novoluní '+formatMoonEventDate(moonEvents.nextNewMoon)+' · Úplněk '+formatMoonEventDate(moonEvents.nextFullMoon)+'</div>';
+    html += '</div>';
     html += '</div>';
 
     var gh = goldenHourInfo(data.daily);
@@ -1360,7 +1485,11 @@
     var nowIdx = findCurrentHourIndex(data.hourly.time);
     var graphCount = Math.min(24, data.hourly.time.length - nowIdx);
     var graphTemps = data.hourly.temperature_2m.slice(nowIdx, nowIdx + graphCount);
-    html += '<div class="hourly-graph-wrap">'+buildHourlyGraphSvg(graphTemps)+'</div>';
+    var graphTimes = data.hourly.time.slice(nowIdx, nowIdx + graphCount);
+    var gMin = Math.min.apply(null, graphTemps);
+    var gMax = Math.max.apply(null, graphTemps);
+    html += '<div class="hg-caption"><span>Teplota na dalších '+graphCount+' h</span><span class="hg-range">'+icon("trendDown")+Math.round(gMin)+'° &nbsp;·&nbsp; '+icon("trendUp")+Math.round(gMax)+'°</span></div>';
+    html += '<div class="hourly-graph-wrap">'+buildHourlyGraphSvg(graphTemps, graphTimes)+'</div>';
     html += '<div class="hourly">';
     for(var i=nowIdx; i<Math.min(nowIdx+24, data.hourly.time.length); i++){
       var hi = weatherInfo(data.hourly.weather_code[i], isHourDay(data.hourly.time[i], data.daily));
@@ -1453,40 +1582,57 @@
   }
 
   // ---------- hourly temperature graph ----------
-  function buildHourlyGraphSvg(temps){
+  function buildHourlyGraphSvg(temps, hourTimes){
     var n = temps.length;
     if(n < 2) return "";
     var minT = Math.min.apply(null, temps);
     var maxT = Math.max.apply(null, temps);
     if(minT === maxT){ minT -= 1; maxT += 1; }
-    var width = 700, height = 90;
-    var padX = 6, padTop = 14, padBottom = 14;
-    var innerW = width - padX*2;
-    var innerH = height - padTop - padBottom;
+    // coordinate space is 0-100 on both axes so point positions double as
+    // CSS percentages for the HTML value/hour labels overlaid on the SVG.
+    var padX = 3, padTop = 24, padBottom = 22;
+    var innerW = 100 - padX*2, innerH = 100 - padTop - padBottom;
     var pts = [];
     for(var i=0;i<n;i++){
       var x = padX + (n===1 ? 0 : innerW * (i/(n-1)));
       var y = padTop + innerH * (1 - (temps[i]-minT)/(maxT-minT));
       pts.push([x,y]);
     }
-    var linePath = "M" + pts.map(function(p){ return p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" L");
-    var areaPath = linePath + " L" + pts[n-1][0].toFixed(1) + "," + (height-padBottom) +
-                   " L" + pts[0][0].toFixed(1) + "," + (height-padBottom) + " Z";
+    var linePath = "M" + pts.map(function(p){ return p[0].toFixed(2)+","+p[1].toFixed(2); }).join(" L");
+    var areaPath = linePath + " L" + pts[n-1][0].toFixed(2) + "," + (100-padBottom) +
+                   " L" + pts[0][0].toFixed(2) + "," + (100-padBottom) + " Z";
 
-    var svg = '<svg viewBox="0 0 '+width+' '+height+'" preserveAspectRatio="none" class="hg-svg">';
+    var minIdx = temps.indexOf(minT), maxIdx = temps.indexOf(maxT);
+    var markIdx = {}; markIdx[0]=1; markIdx[n-1]=1; markIdx[minIdx]=1; markIdx[maxIdx]=1;
+    for(var m=0;m<n;m++){ if(m % 4 === 0) markIdx[m]=1; }
+
+    var svg = '<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="hg-svg">';
     svg += '<defs><linearGradient id="hgGrad" x1="0" y1="0" x2="0" y2="1">';
     svg += '<stop offset="0%" stop-color="var(--accent-color)" stop-opacity="0.32"/>';
     svg += '<stop offset="100%" stop-color="var(--accent-color)" stop-opacity="0"/>';
     svg += '</linearGradient></defs>';
+    svg += '<line class="hg-baseline" x1="'+padX+'" y1="'+(100-padBottom)+'" x2="'+(100-padX)+'" y2="'+(100-padBottom)+'"/>';
     svg += '<path class="hg-area" d="'+areaPath+'"/>';
     svg += '<path class="hg-line" d="'+linePath+'"/>';
-    for(var k=0;k<n;k++){
-      if(k % 3 === 0 || k === n-1){
-        svg += '<circle class="hg-dot" cx="'+pts[k][0].toFixed(1)+'" cy="'+pts[k][1].toFixed(1)+'" r="3"/>';
+
+    var labels = "";
+    for(var k in markIdx){
+      k = +k;
+      var px = pts[k][0], py = pts[k][1];
+      var isExtreme = (k === minIdx || k === maxIdx);
+      svg += '<circle class="hg-dot'+(isExtreme?" hg-dot-extreme":"")+'" cx="'+px.toFixed(2)+'" cy="'+py.toFixed(2)+'" r="'+(isExtreme?1.3:0.9)+'"/>';
+
+      var valTop = py - 11;
+      if(valTop < 5) valTop = py + 9;
+      labels += '<span class="hg-val'+(isExtreme?" hg-val-extreme":"")+'" style="left:'+px.toFixed(2)+'%;top:'+valTop.toFixed(2)+'%;">'+Math.round(temps[k])+'°</span>';
+
+      if(hourTimes && hourTimes[k] != null){
+        var hLabel = (k === 0) ? "nyní" : (new Date(hourTimes[k]).getHours()+"h");
+        labels += '<span class="hg-hour'+(k===0?" hg-hour-now":"")+'" style="left:'+px.toFixed(2)+'%;">'+hLabel+'</span>';
       }
     }
     svg += '</svg>';
-    return svg;
+    return svg + '<div class="hg-labels">' + labels + '</div>';
   }
 
   // ---------- moon phase ----------
@@ -1512,6 +1658,28 @@
     else name = "Couvající srpek";
 
     return { ratio: ratio, tx: tx, illum: illum, name: name };
+  }
+
+  function nextMoonEvents(){
+    var synodic = 29.53058867;
+    var msPerDay = 86400000;
+    var baseNewMoon = new Date('2000-01-06T18:14:00Z');
+    var now = Date.now();
+    var diff = (now - baseNewMoon.getTime()) / msPerDay;
+    var cycleIndex = Math.floor(diff / synodic);
+
+    var nextNewDiff = (cycleIndex + 1) * synodic;
+    var fullDiffThisCycle = cycleIndex * synodic + synodic / 2;
+    var nextFullDiff = fullDiffThisCycle > diff ? fullDiffThisCycle : fullDiffThisCycle + synodic;
+
+    return {
+      nextNewMoon: new Date(baseNewMoon.getTime() + nextNewDiff * msPerDay),
+      nextFullMoon: new Date(baseNewMoon.getTime() + nextFullDiff * msPerDay)
+    };
+  }
+
+  function formatMoonEventDate(d){
+    return d.getDate() + '. ' + MONTH_NAMES[d.getMonth()];
   }
 
   function escapeHtml(s){
@@ -1684,6 +1852,223 @@
 
   var shareLinkEl = document.getElementById("shareLink");
   if(shareLinkEl) shareLinkEl.addEventListener("click", shareApp);
+
+  // ---------- export ----------
+  function buildExportSections(){
+    if(!currentWeatherData || !currentPlace) return null;
+    var data = currentWeatherData, place = currentPlace;
+    var cur = data.current;
+    var placeLabel = place.name;
+    if(place.admin1 && place.admin1 !== place.name) placeLabel += ", " + place.admin1;
+    if(place.country) placeLabel += ", " + place.country;
+
+    var currentKv = [
+      ["Místo", placeLabel],
+      ["Souřadnice", place.latitude.toFixed(4) + ", " + place.longitude.toFixed(4)],
+      ["Aktualizováno", fmtHour(cur.time)],
+      ["Teplota", Math.round(cur.temperature_2m) + " °C"],
+      ["Pocitová teplota", Math.round(cur.apparent_temperature) + " °C"],
+      ["Počasí", weatherInfo(cur.weather_code, cur.is_day).label],
+      ["Vlhkost vzduchu", Math.round(cur.relative_humidity_2m) + " %"],
+      ["Srážky", (cur.precipitation != null ? cur.precipitation.toFixed(1) : "0.0") + " mm"],
+      ["Vítr", Math.round(cur.wind_speed_10m) + " km/h"],
+      ["Nárazy větru", Math.round(cur.wind_gusts_10m) + " km/h"],
+      ["Směr větru", windDirLabel(cur.wind_direction_10m) + " (" + Math.round(cur.wind_direction_10m) + "°)"],
+      ["Denní doba", cur.is_day ? "Den" : "Noc"]
+    ];
+
+    var hourlyRows = [];
+    for(var i=0; i<data.hourly.time.length; i++){
+      var hd = isHourDay(data.hourly.time[i], data.daily);
+      hourlyRows.push({
+        iso: data.hourly.time[i],
+        date: fmtDay(data.hourly.time[i]) + " " + new Date(data.hourly.time[i]).getDate() + ".",
+        time: fmtHour(data.hourly.time[i]),
+        temp: Math.round(data.hourly.temperature_2m[i]),
+        label: weatherInfo(data.hourly.weather_code[i], hd).label
+      });
+    }
+
+    var dailyRows = [];
+    for(var d=0; d<data.daily.time.length; d++){
+      dailyRows.push({
+        day: d===0 ? "Dnes" : fmtDay(data.daily.time[d]),
+        date: data.daily.time[d],
+        tmax: Math.round(data.daily.temperature_2m_max[d]),
+        tmin: Math.round(data.daily.temperature_2m_min[d]),
+        label: weatherInfo(data.daily.weather_code[d], 1).label,
+        precipProb: data.daily.precipitation_probability_max ? Math.round(data.daily.precipitation_probability_max[d]) : null,
+        precipSum: data.daily.precipitation_sum != null ? data.daily.precipitation_sum[d] : null,
+        windMax: data.daily.wind_speed_10m_max ? Math.round(data.daily.wind_speed_10m_max[d]) : null,
+        gustMax: data.daily.wind_gusts_10m_max ? Math.round(data.daily.wind_gusts_10m_max[d]) : null,
+        uvMax: data.daily.uv_index_max != null ? Math.round(data.daily.uv_index_max[d]*10)/10 : null,
+        sunrise: fmtHour(data.daily.sunrise[d]),
+        sunset: fmtHour(data.daily.sunset[d])
+      });
+    }
+
+    return { placeLabel: placeLabel, currentKv: currentKv, hourlyRows: hourlyRows, dailyRows: dailyRows };
+  }
+
+  function csvEscape(v){
+    v = (v == null) ? "" : String(v);
+    if(/[;"\n]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+
+  function exportCSV(){
+    var sec = buildExportSections();
+    if(!sec){ showShareToast("Data ještě nejsou načtena"); return; }
+    var lines = [];
+    lines.push("SYNTHLUCIDA WEATHER – export dat");
+    lines.push("Místo;" + csvEscape(sec.placeLabel));
+    lines.push("");
+    lines.push("AKTUÁLNÍ POČASÍ");
+    for(var i=0;i<sec.currentKv.length;i++){
+      lines.push(csvEscape(sec.currentKv[i][0]) + ";" + csvEscape(sec.currentKv[i][1]));
+    }
+    lines.push("");
+    lines.push("HODINOVÁ PŘEDPOVĚĎ");
+    lines.push(["Datum","Čas","Teplota (°C)","Počasí"].map(csvEscape).join(";"));
+    for(var h=0; h<sec.hourlyRows.length; h++){
+      var r = sec.hourlyRows[h];
+      lines.push([r.date, r.time, r.temp, r.label].map(csvEscape).join(";"));
+    }
+    lines.push("");
+    lines.push("DENNÍ PŘEDPOVĚĎ");
+    lines.push(["Den","Datum","Min (°C)","Max (°C)","Počasí","Srážky (%)","Úhrn (mm)","Vítr (km/h)","Nárazy (km/h)","UV index","Východ","Západ"].map(csvEscape).join(";"));
+    for(var d=0; d<sec.dailyRows.length; d++){
+      var rd = sec.dailyRows[d];
+      lines.push([rd.day, rd.date, rd.tmin, rd.tmax, rd.label, rd.precipProb, rd.precipSum, rd.windMax, rd.gustMax, rd.uvMax, rd.sunrise, rd.sunset].map(csvEscape).join(";"));
+    }
+
+    var csvContent = "\uFEFF" + lines.join("\r\n");
+    var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var fileDate = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = "pocasi-" + sec.placeLabel.split(",")[0].toLowerCase().replace(/[^a-z0-9]+/g,"-") + "-" + fileDate + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function buildPrintableHtml(sec){
+    var html = '<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8">';
+    html += '<title>Počasí – ' + escapeHtml(sec.placeLabel) + '</title>';
+    html += '<style>';
+    html += 'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}';
+    html += 'h1{font-size:19px;margin:0 0 2px;} h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#0369a1;margin:26px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px;}';
+    html += '.sub{color:#555;font-size:12px;margin-bottom:18px;}';
+    html += 'table{width:100%;border-collapse:collapse;font-size:11.5px;}';
+    html += 'th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #ddd;}';
+    html += 'th{background:#f1f5f9;color:#0369a1;}';
+    html += 'tr:nth-child(even) td{background:#fafafa;}';
+    html += '.kv{width:100%;border-collapse:collapse;font-size:12px;}';
+    html += '.kv td{padding:4px 8px;border-bottom:1px solid #eee;}';
+    html += '.kv td.k{color:#666;width:40%;}';
+    html += '@media print{ @page{ margin:16mm; } }';
+    html += '</style></head><body>';
+    html += '<h1>SYNTHLUCIDA WEATHER – export dat</h1>';
+    html += '<div class="sub">' + escapeHtml(sec.placeLabel) + ' &middot; vygenerováno ' + new Date().toLocaleString("cs-CZ") + '</div>';
+
+    html += '<h2>Aktuální počasí</h2><table class="kv">';
+    for(var i=0;i<sec.currentKv.length;i++){
+      html += '<tr><td class="k">'+escapeHtml(sec.currentKv[i][0])+'</td><td>'+escapeHtml(String(sec.currentKv[i][1]))+'</td></tr>';
+    }
+    html += '</table>';
+
+    html += '<h2>Denní předpověď</h2><table><thead><tr><th>Den</th><th>Min</th><th>Max</th><th>Počasí</th><th>Srážky</th><th>Vítr</th><th>UV</th><th>Východ</th><th>Západ</th></tr></thead><tbody>';
+    for(var d=0; d<sec.dailyRows.length; d++){
+      var rd = sec.dailyRows[d];
+      html += '<tr><td>'+escapeHtml(rd.day)+'</td><td>'+rd.tmin+'°</td><td>'+rd.tmax+'°</td><td>'+escapeHtml(rd.label)+'</td>';
+      html += '<td>'+(rd.precipProb!=null?rd.precipProb+"%":"–")+(rd.precipSum!=null?" / "+rd.precipSum.toFixed(1)+"mm":"")+'</td>';
+      html += '<td>'+(rd.windMax!=null?rd.windMax+" km/h":"–")+'</td><td>'+(rd.uvMax!=null?rd.uvMax:"–")+'</td>';
+      html += '<td>'+rd.sunrise+'</td><td>'+rd.sunset+'</td></tr>';
+    }
+    html += '</tbody></table>';
+
+    html += '<h2>Hodinová předpověď</h2><table><thead><tr><th>Datum</th><th>Čas</th><th>Teplota</th><th>Počasí</th></tr></thead><tbody>';
+    for(var h=0; h<sec.hourlyRows.length; h++){
+      var r = sec.hourlyRows[h];
+      html += '<tr><td>'+escapeHtml(r.date)+'</td><td>'+r.time+'</td><td>'+r.temp+'°C</td><td>'+escapeHtml(r.label)+'</td></tr>';
+    }
+    html += '</tbody></table>';
+
+    html += '</body></html>';
+    return html;
+  }
+
+  function exportPDF(){
+    var sec = buildExportSections();
+    if(!sec){ showShareToast("Data ještě nejsou načtena"); return; }
+    var printWin = window.open("", "_blank");
+    if(!printWin){ showShareToast("Prohlížeč zablokoval tiskové okno"); return; }
+    printWin.document.open();
+    printWin.document.write(buildPrintableHtml(sec));
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(function(){
+      try { printWin.print(); } catch(e){}
+    }, 350);
+  }
+
+  function openFullExport(){
+    var sec = buildExportSections();
+    if(!sec){ showShareToast("Data ještě nejsou načtena"); return; }
+    var html = "";
+    html += '<div class="export-section-title">Aktuální počasí – ' + escapeHtml(sec.placeLabel) + '</div>';
+    html += '<div class="export-kv">';
+    for(var i=0;i<sec.currentKv.length;i++){
+      html += '<div class="k">'+escapeHtml(sec.currentKv[i][0])+'</div><div class="v">'+escapeHtml(String(sec.currentKv[i][1]))+'</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="export-section-title">Denní předpověď (' + sec.dailyRows.length + ' dní)</div>';
+    html += '<div class="export-table-wrap"><table class="export-table"><thead><tr><th>Den</th><th>Min</th><th>Max</th><th>Počasí</th><th>Srážky</th><th>Vítr</th><th>Nárazy</th><th>UV</th><th>Východ</th><th>Západ</th></tr></thead><tbody>';
+    for(var d=0; d<sec.dailyRows.length; d++){
+      var rd = sec.dailyRows[d];
+      html += '<tr'+(d===0?' class="now-row"':'')+'><td>'+escapeHtml(rd.day)+'</td><td>'+rd.tmin+'°</td><td>'+rd.tmax+'°</td><td>'+escapeHtml(rd.label)+'</td>';
+      html += '<td>'+(rd.precipProb!=null?rd.precipProb+"%":"–")+(rd.precipSum!=null?" / "+rd.precipSum.toFixed(1)+"mm":"")+'</td>';
+      html += '<td>'+(rd.windMax!=null?rd.windMax+" km/h":"–")+'</td><td>'+(rd.gustMax!=null?rd.gustMax+" km/h":"–")+'</td>';
+      html += '<td>'+(rd.uvMax!=null?rd.uvMax:"–")+'</td><td>'+rd.sunrise+'</td><td>'+rd.sunset+'</td></tr>';
+    }
+    html += '</tbody></table></div>';
+
+    html += '<div class="export-section-title">Hodinová předpověď (' + sec.hourlyRows.length + ' záznamů)</div>';
+    html += '<div class="export-table-wrap"><table class="export-table"><thead><tr><th>Datum</th><th>Čas</th><th>Teplota</th><th>Počasí</th></tr></thead><tbody>';
+    for(var h=0; h<sec.hourlyRows.length; h++){
+      var r = sec.hourlyRows[h];
+      html += '<tr'+(h===0?' class="now-row"':'')+'><td>'+escapeHtml(r.date)+'</td><td>'+r.time+'</td><td>'+r.temp+'°C</td><td>'+escapeHtml(r.label)+'</td></tr>';
+    }
+    html += '</tbody></table></div>';
+
+    els.exportOverlayBody.innerHTML = html;
+    els.exportOverlay.classList.remove("hidden");
+  }
+
+  function closeFullExport(){
+    els.exportOverlay.classList.add("hidden");
+  }
+
+  var exportPdfBtn = document.getElementById("exportPdfBtn");
+  var exportCsvBtn = document.getElementById("exportCsvBtn");
+  var exportFullBtn = document.getElementById("exportFullBtn");
+  var exportOverlayClose = document.getElementById("exportOverlayClose");
+  if(exportPdfBtn) exportPdfBtn.addEventListener("click", exportPDF);
+  if(exportCsvBtn) exportCsvBtn.addEventListener("click", exportCSV);
+  if(exportFullBtn) exportFullBtn.addEventListener("click", openFullExport);
+  if(exportOverlayClose) exportOverlayClose.addEventListener("click", closeFullExport);
+  if(els.exportOverlay){
+    els.exportOverlay.addEventListener("click", function(e){
+      if(e.target === els.exportOverlay) closeFullExport();
+    });
+  }
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && els.exportOverlay && !els.exportOverlay.classList.contains("hidden")) closeFullExport();
+  });
 
   // ---------- header date/time ----------
   var DAY_NAMES = ["Neděle","Pondělí","Úterý","Středa","Čtvrtek","Pátek","Sobota"];
