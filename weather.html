@@ -874,6 +874,7 @@
       bike: '<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 10h4l3.5 7.5M9 10 8 6H6M9 10l3 4"/>',
       skate: '<path d="M4 15h9v3a2 2 0 0 1-2 2H4z"/><path d="M4 15V6.5A1.5 1.5 0 0 1 5.5 5h1A1.5 1.5 0 0 1 8 6.5V9h5"/><circle cx="6" cy="20" r="1.3"/><circle cx="10.5" cy="20" r="1.3"/><path d="M13 15h6.5a1.5 1.5 0 0 1 0 3H13"/>',
       tent: '<path d="M12 4 3 20h18L12 4Z"/><path d="M12 4v16M8 20l4-9 4 9"/>',
+      mushroom: '<path d="M4 11c0-4.4 3.6-7.5 8-7.5S20 6.6 20 11H4Z"/><path d="M10 11v6a2 2 0 0 0 4 0v-6"/>',
       home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9.5 20v-6h5v6"/>',
       trendUp: '<path d="M4 17 10 11l4 4 6-7"/><path d="M15 8h5v5"/>',
       trendDown: '<path d="M4 8l6 6 4-4 6 7"/><path d="M15 17h5v-5"/>',
@@ -937,7 +938,7 @@
     return Math.max(groupWeight, precipProbMax || 0);
   }
 
-  function activityAdvice(cur, data){
+  function activityAdvice(cur, data, mush){
     var precipNow = cur.precipitation || 0;
     var wind = cur.wind_speed_10m;
     var gust = cur.wind_gusts_10m;
@@ -949,6 +950,9 @@
 
     var items = [];
     if(!severe){
+      if(mush && mush.ok){
+        items.push({ name:"Houbaření", icon:"mushroom", ok:true });
+      }
       if(group !== "rain" && group !== "storm" && precipNow < 0.3 && todayProb < 40 && wind < 35 && temp >= 8 && temp <= 30){
         items.push({ name:"Kolo", icon:"bike", ok:true });
       }
@@ -1332,10 +1336,48 @@
       timezone: "auto",
       forecast_days: 7
     });
-    fetch(FORECAST_URL + "?" + params.toString())
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
-      .then(function(data){ render(place, data); })
-      .catch(function(err){ setState("Předpověď se nepodařilo načíst. Zkuste to prosím znovu."); console.error(err); });
+    // samostatný dotaz na uplynulý týden (srážky + teploty) jen pro odhad houbařských podmínek,
+    // aby se nerozhodily indexy v hlavním "daily" poli používaném všude jinde
+    var mushParams = new URLSearchParams({
+      latitude: place.latitude,
+      longitude: place.longitude,
+      daily: "precipitation_sum,temperature_2m_max,temperature_2m_min",
+      past_days: 7,
+      forecast_days: 1,
+      timezone: "auto"
+    });
+    Promise.all([
+      fetch(FORECAST_URL + "?" + params.toString())
+        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }),
+      fetch(FORECAST_URL + "?" + mushParams.toString())
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .catch(function(){ return null; })
+    ]).then(function(results){
+      var mush = computeMushroomConditions(results[1]);
+      render(place, results[0], mush);
+    }).catch(function(err){ setState("Předpověď se nepodařilo načíst. Zkuste to prosím znovu."); console.error(err); });
+  }
+
+  // ---------- houbařské podmínky (uplynulý týden) ----------
+  function computeMushroomConditions(mushData){
+    if(!mushData || !mushData.daily || !mushData.daily.time || !mushData.daily.time.length) return null;
+    var d = mushData.daily;
+    var n = d.time.length;
+    var pastDays = Math.max(0, n - 1); // poslední den je "dnes/zítra" (forecast_days:1), ten do bilance nepočítáme
+    if(pastDays < 3) return null;
+    var rainSum = 0;
+    var tempSum = 0;
+    var tempCount = 0;
+    var frost = false;
+    for(var i=0; i<pastDays; i++){
+      rainSum += (d.precipitation_sum[i] || 0);
+      var tmax = d.temperature_2m_max[i], tmin = d.temperature_2m_min[i];
+      if(tmax != null && tmin != null){ tempSum += (tmax+tmin)/2; tempCount++; }
+      if(tmin != null && tmin <= -1) frost = true;
+    }
+    var avgTemp = tempCount ? tempSum/tempCount : null;
+    var ok = rainSum >= 15 && avgTemp !== null && avgTemp >= 8 && avgTemp <= 24 && !frost;
+    return { ok: ok, rain7d: rainSum, avgTemp: avgTemp, frost: frost };
   }
 
   function fmtHour(iso){
@@ -1370,7 +1412,7 @@
     };
   }
 
-  function render(place, data){
+  function render(place, data, mush){
     currentWeatherData = data;
     var cur = data.current;
     var info = weatherInfo(cur.weather_code, cur.is_day);
@@ -1442,7 +1484,7 @@
     html += '<div class="outfit-text"><div class="outfit-label">Jak se voháknout</div><div class="outfit-value">'+advice+'</div></div>';
     html += '</div>';
 
-    var activities = activityAdvice(cur, data);
+    var activities = activityAdvice(cur, data, mush);
     var trend = forecastTrend(data);
     html += '<div class="activity-block">';
     html += '<div class="activity-label">Blbnutí venku</div>';
