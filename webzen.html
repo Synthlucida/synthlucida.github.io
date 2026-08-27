@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WEBZEN — Tvorba webu snadno a rychle — bez kódování a ZDARMA.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ui-bg-0:#0b0c10;
+    --ui-bg-1:#14161c;
+    --ui-bg-2:#1b1e26;
+    --ui-line:#272b35;
+    --ui-text:#e8e9ee;
+    --ui-text-dim:#8b8f9c;
+    --ui-accent:#7c5cff;
+    --ui-accent-glow:#4c1d95;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--ui-bg-0);color:var(--ui-text);
+    font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  .app{display:flex;flex-direction:column;height:100vh;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:16px;padding:12px 20px;
+    background:var(--ui-bg-1);border-bottom:1px solid var(--ui-line);flex:0 0 auto;
+  }
+  .topbar-brand{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .topbar-sub{color:var(--ui-text-dim);font-size:12.5px;display:none;}
+  @media(min-width:760px){.topbar-sub{display:block;}}
+  .donate-bar{
+    flex:0 0 auto;text-align:center;padding:7px 20px;font-size:12px;
+    color:var(--ui-text-dim);background:var(--ui-bg-2);border-bottom:1px solid var(--ui-line);
+  }
+  .donate-bar a{color:var(--ui-accent);text-decoration:none;font-weight:600;}
+  .donate-bar a:hover{text-decoration:underline;}
+
+  .about-section{
+    flex:0 0 auto;background:var(--ui-bg-1);border-bottom:1px solid var(--ui-line);
+  }
+  .about-section summary{
+    cursor:pointer;padding:10px 20px;font-size:13px;font-weight:600;
+    color:var(--ui-text);list-style:none;user-select:none;
+  }
+  .about-section summary::-webkit-details-marker{display:none;}
+  .about-section summary::before{content:'▸ ';color:var(--ui-accent);}
+  .about-section[open] summary::before{content:'▾ ';}
+  .about-content{
+    padding:0 20px 18px;color:var(--ui-text-dim);font-size:13px;line-height:1.6;
+    max-width:760px;
+  }
+  .about-content h4{
+    color:var(--ui-text);font-size:13px;margin:14px 0 4px;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .about-content p{margin:0 0 4px;}
+  .topbar-spacer{flex:1;}
+  .export-btn{
+    background:var(--ui-accent);color:#fff;border:none;padding:9px 16px;
+    border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
+    cursor:pointer;box-shadow:0 0 0 rgba(124,92,255,0);transition:box-shadow .2s,transform .15s;
+  }
+  .export-btn:hover{box-shadow:0 4px 20px -2px rgba(124,92,255,.55);transform:translateY(-1px);}
+  .export-btn:active{transform:translateY(0);}
+  .save-btn{
+    background:transparent;color:var(--ui-text);border:1px solid var(--ui-line);padding:8px 14px;
+    border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
+    cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;
+  }
+  .save-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+  .autosave-status{font-size:11.5px;color:var(--ui-text-dim);white-space:nowrap;}
+
+  /* ---------- workspace ---------- */
+  .workspace{flex:1;display:flex;min-height:0;}
+  .app-footer{
+    flex:0 0 auto;text-align:center;padding:8px 20px;font-size:11.5px;
+    color:var(--ui-text-dim);background:var(--ui-bg-1);border-top:1px solid var(--ui-line);
+  }
+  .app-footer a{color:var(--ui-text-dim);text-decoration:none;}
+  .app-footer a:hover{color:var(--ui-accent);text-decoration:underline;}
+  .panel{
+    width:360px;flex:0 0 360px;overflow-y:auto;background:var(--ui-bg-1);
+    border-right:1px solid var(--ui-line);padding:18px;
+  }
+  .preview-wrap{flex:1;display:flex;flex-direction:column;min-width:0;background:#08090c;}
+  .preview-toolbar{
+    display:flex;align-items:center;gap:8px;padding:10px 16px;
+    border-bottom:1px solid var(--ui-line);flex:0 0 auto;
+  }
+  .preview-toolbar .label{font-size:12px;color:var(--ui-text-dim);margin-right:4px;}
+  .view-btn{
+    background:transparent;border:1px solid var(--ui-line);color:var(--ui-text-dim);
+    padding:5px 12px;border-radius:6px;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;
+  }
+  .view-btn.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.12);}
+  .preview-frame-holder{flex:1;display:flex;align-items:flex-start;justify-content:center;
+    padding:22px;overflow:auto;}
+  #previewFrame{
+    background:#fff;border:0;width:100%;height:100%;border-radius:12px;
+    box-shadow:0 0 0 1px var(--ui-line), 0 20px 60px -20px rgba(0,0,0,.7);
+    transition:width .25s ease;
+  }
+  .preview-frame-holder.mobile #previewFrame{width:390px;max-width:100%;height:100%;}
+
+  /* ---------- mobile editor/preview switch (hidden on desktop) ---------- */
+  .mobile-tabs{
+    display:none;gap:8px;padding:8px 12px;background:var(--ui-bg-1);
+    border-bottom:1px solid var(--ui-line);flex:0 0 auto;
+  }
+  .mobile-tab{
+    flex:1;background:transparent;border:1px solid var(--ui-line);color:var(--ui-text-dim);
+    padding:9px 10px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .mobile-tab.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.15);}
+
+  /* ---------- responsive layout for editing on phones / narrow tablets ---------- */
+  @media(max-width:860px){
+    .mobile-tabs{display:flex;}
+    .topbar{flex-wrap:wrap;row-gap:8px;padding:10px 12px;}
+    .topbar-brand{font-size:14px;flex:1 1 auto;}
+    .topbar-brand-tagline{display:none;}
+    .topbar-sub{display:none !important;}
+    .autosave-status{order:5;flex:1 1 100%;}
+    .workspace{flex-direction:column;overflow:visible;}
+    .panel{
+      width:100%;flex:1 1 auto;border-right:none;border-bottom:1px solid var(--ui-line);
+      max-height:none;
+    }
+    .preview-wrap{flex:1 1 auto;min-height:60vh;}
+    .workspace.show-editor .preview-wrap{display:none;}
+    .workspace.show-preview .panel{display:none;}
+    .preview-frame-holder{padding:12px;}
+  }
+  @media(max-width:480px){
+    .topbar .btn-label{display:none;}
+    .save-btn{padding:8px 10px;}
+    .export-btn{padding:9px 12px;font-size:13px;}
+    .panel{padding:14px;}
+    .row2{grid-template-columns:1fr;}
+  }
+
+  /* ---------- form ---------- */
+  .fieldset{margin-bottom:22px;}
+  .fieldset-title{
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12.5px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ui-text-dim);
+    margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--ui-line);
+  }
+  label{display:block;font-size:12px;color:var(--ui-text-dim);margin:10px 0 4px;}
+  label:first-child{margin-top:0;}
+  input[type=text],textarea,select{
+    width:100%;background:var(--ui-bg-2);border:1px solid var(--ui-line);color:var(--ui-text);
+    padding:8px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;
+    resize:vertical;
+  }
+  input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--ui-accent);}
+  textarea{min-height:52px;line-height:1.4;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  .swatches{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px;}
+  .swatch{
+    width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+    transition:transform .12s,border-color .12s;
+  }
+  .swatch:hover{transform:scale(1.15);}
+  .swatch.active{border-color:#fff;}
+  .color-row{display:flex;align-items:center;gap:10px;margin-top:6px;}
+  .color-row input[type=color]{
+    width:34px;height:34px;padding:0;border:1px solid var(--ui-line);border-radius:7px;
+    background:none;cursor:pointer;
+  }
+  .color-row span{font-size:12px;color:var(--ui-text-dim);font-family:'JetBrains Mono',monospace;}
+
+  .card-item, .faq-item{
+    background:var(--ui-bg-2);border:1px solid var(--ui-line);border-radius:8px;
+    padding:10px;margin-bottom:8px;position:relative;
+  }
+  .item-remove{
+    position:absolute;top:6px;right:6px;background:none;border:none;color:var(--ui-text-dim);
+    cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;border-radius:4px;
+  }
+  .item-remove:hover{color:#ff6b6b;background:rgba(255,107,107,.1);}
+  .add-btn{
+    width:100%;background:transparent;border:1px dashed var(--ui-line);color:var(--ui-text-dim);
+    padding:8px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;
+    margin-top:2px;
+  }
+  .add-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+
+  .note-box{
+    font-size:12px;line-height:1.5;color:var(--ui-text-dim);background:var(--ui-bg-2);
+    border:1px solid var(--ui-line);border-radius:8px;padding:12px;margin-top:6px;
+  }
+  .note-box b{color:var(--ui-text);}
+  .note-box ul{margin:6px 0 0;padding-left:18px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="topbar-brand">WEBZEN<span class="topbar-brand-tagline"> — Tvorba webu snadno a rychle — bez kódování a ZDARMA.</span></div>
+    <div class="topbar-sub">made in SYNTHLUCIDA</div>
+    <div class="topbar-spacer"></div>
+    <span class="autosave-status" id="autosaveStatus"></span>
+    <button class="save-btn" id="resetProjectBtn" title="Vymaže rozpracovaný obsah a vrátí vzorové texty">🗑️ <span class="btn-label">Nový projekt</span></button>
+    <button class="save-btn" id="saveProjectBtn" title="Uloží rozpracovanou práci do souboru .json">💾 <span class="btn-label">Uložit projekt</span></button>
+    <button class="save-btn" id="loadProjectBtn" title="Načte dříve uložený soubor .json">📂 <span class="btn-label">Načíst projekt</span></button>
+    <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
+    <button class="export-btn" id="exportBtn">↓ Stáhnout HTML</button>
+  </div>
+
+  <details class="about-section">
+    <summary>ℹ️ O aplikaci / Návod k použití</summary>
+    <div class="about-content">
+      <p>WEBZEN je jednoduchý generátor jednostránkových webů. Vlevo vyplňuješ formulář, vpravo hned vidíš živý náhled. Nic se neprogramuje — na konci si stáhneš hotový, funkční HTML soubor, který stačí nahrát na hosting. Hodí se na osobní web, prezentaci produktu, službu nebo landing page.</p>
+
+      <h4>Jak začít</h4>
+      <p>Nahoře vyplň Název webu, Doménu (použije se v odkazech pro vyhledávače a sociální sítě) a Titulek + Popis stránky pro SEO. Pak nastav Hero sekci — hlavní nadpis a podnadpis, které návštěvník uvidí jako první.</p>
+
+      <h4>CTA tlačítka a vizuál</h4>
+      <p>Pod hero textem můžeš přidat jedno nebo víc tlačítek — každé může vést na sekci webu, na vlastní URL, nebo do FAQ. U každého jde nastavit, jestli je hlavní (výrazné) nebo doplňkové, a jestli se otevírá v nové záložce. Do hero sekce lze volitelně vložit i obrázek — buď nahráním ze zařízení, nebo vložením URL — a je dobré k němu doplnit alternativní text (pomáhá SEO i přístupnosti).</p>
+
+      <h4>Vzhled — barvy a písmo</h4>
+      <p>Barvy nastavíš buď rychle přes připravené palety, nebo ručně (accent, glow a dvě barvy pozadí). Zvlášť si vybereš písmo pro nadpisy a pro běžný text.</p>
+
+      <h4>Navigace a vlastní sekce</h4>
+      <p>V sekci Navigace zapneš/vypneš a přejmenuješ odkazy na Hero, Funkce a FAQ v levém menu webu. Přes „Vlastní sekce" můžeš přidat další podstránky — každá přidaná sekce se automaticky objeví jako nová položka v menu i jako nový blok obsahu (nadpis + text) na webu.</p>
+
+      <h4>Karty, FAQ a patička</h4>
+      <p>V sekci Karty / funkce popíšeš jednotlivé výhody nebo služby (ikona, nadpis, text). V sekci FAQ přidáš časté otázky a odpovědi — automaticky se z nich vygeneruje i strukturovaná data pro Google. V Patičce nastavíš, jestli se má zobrazit „© rok značka", volitelný vlastní text (např. IČO, adresa) a odkazy (obchodní podmínky, kontakt apod.).</p>
+
+      <h4>PWA, sitemapa a robots.txt</h4>
+      <p>Dole najdeš pokročilé volby: vygenerování manifest.json a sw.js, díky kterým si návštěvníci mohou web „nainstalovat" jako appku (PWA); dále sitemap.xml a robots.txt pro vyhledávače. Tyto soubory se stahují zvlášť tlačítky a po exportu je nahraješ vedle hlavního HTML souboru. Nezapomeň doplnit i skutečné obrázky ikon (favicon, apple-touch-icon, ikony 192×192 a 512×512, og-image) — ty generátor sám nevytváří.</p>
+
+      <h4>Náhled na mobilu</h4>
+      <p>V pravé části přepínáš náhled mezi Desktop a Mobil, ať vidíš, jak bude web vypadat na telefonu. Pokud upravuješ web přímo z mobilního zařízení, nahoře se objeví přepínač „Upravit obsah / Náhled webu" pro pohodlnější práci na malé obrazovce.</p>
+
+      <h4>Uložení rozpracované práce</h4>
+      <p>Appka průběžně automaticky ukládá rozpracovaný projekt do prohlížeče (localStorage), takže se při zavření karty o nic nepřijde. Přes „💾 Uložit projekt" si navíc můžeš stáhnout .json soubor s celým rozpracovaným webem a později ho přes „📂 Načíst projekt" znovu otevřít — třeba na jiném počítači. Tlačítko „🗑️ Nový projekt" vše vrátí zpět na vzorové texty.</p>
+
+      <h4>Export hotového webu</h4>
+      <p>Tlačítko „↓ Stáhnout HTML" vpravo nahoře stáhne hotový, samostatný web jako jeden .html soubor — ten stačí nahrát na jakýkoli hosting (nebo přejmenovat na index.html). Pokud používáš i PWA nebo sitemapu/robots.txt, stáhni jejich soubory zvlášť a nahraj je vedle hlavního HTML.</p>
+    </div>
+  </details>
+
+  <div class="donate-bar">
+    Pokud tě aplikace baví a chceš projekt podpořit, budeme moc rádi. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Kup nám kávu</a>. Děkujeme! ☕
+  </div>
+
+  <div class="mobile-tabs" id="mobileTabs">
+    <button class="mobile-tab active" data-tab="editor" type="button">✏️ Upravit obsah</button>
+    <button class="mobile-tab" data-tab="preview" type="button">👁️ Náhled webu</button>
+  </div>
+
+  <div class="workspace show-editor" id="workspace">
+    <aside class="panel" id="panel"></aside>
+    <main class="preview-wrap">
+      <div class="preview-toolbar">
+        <span class="label">Náhled:</span>
+        <button class="view-btn active" data-view="desktop">Desktop</button>
+        <button class="view-btn" data-view="mobile">Mobil</button>
+      </div>
+      <div class="preview-frame-holder" id="frameHolder">
+        <iframe id="previewFrame" title="Náhled webu"></iframe>
+      </div>
+    </main>
+  </div>
+
+  <div class="app-footer">© 2026 SYNTHLUCIDA — <a href="https://www.synthlucida.com" target="_blank" rel="noopener">www.synthlucida.com</a></div>
+</div>
+
+<script>
+/* ============================================================
+   STAV — jediný zdroj pravdy pro formulář i náhled
+   ============================================================ */
+const PALETTES = [
+  ['#ff7700','#993300'], ['#2196f3','#0d3d7a'], ['#9c27b0','#4a0e59'],
+  ['#43a047','#1b5e20'], ['#ff4d8d','#85114a'], ['#12c2c2','#0a5c5c'],
+  ['#ef4444','#7f1d1d'], ['#6366f1','#312e81'], ['#fbbf24','#78350f'],
+  ['#0ea5e9','#0c4a6e'], ['#34d399','#065f46'], ['#f43f5e','#831843'],
+  ['#a855f7','#581c87'], ['#84cc16','#365314'], ['#64748b','#1e293b'],
+  ['#c2410c','#6c2e0c'], ['#eab308','#5b2c06']
+];
+
+function getDefaultState(){
+  return {
+  brand: 'Název webu',
+  domain: 'https://tvuj-web.cz/',
+  title: 'Název webu — vzorový nadpis stránky',
+  description: 'Sem napiš krátký popis webu pro vyhledávače (SEO). Obvykle jedna až dvě věty o tom, co web nabízí.',
+  heroEyebrow: 'Vzorový podnadpis nad hlavním titulkem',
+  heroTitle: 'Toto je hlavní nadpis stránky',
+  heroSubtitle: 'Sem patří krátký doplňující text, který vysvětlí návštěvníkovi, o co na webu jde.',
+  ctaButtons: [
+    { text: 'Vzorové tlačítko', targetType: 'features', sectionIndex: 0, url: '', newTab: false, style: 'primary' }
+  ],
+  heroVisual: 'none', // 'none' | 'custom'
+  heroImage: '',     // base64 data URL z nahraného souboru
+  heroImageUrl: '',  // volitelná externí URL (má přednost před nahraným souborem)
+  heroImageAlt: '',  // alternativní text obrázku (SEO + přístupnost)
+  fontDisplay: "'Space Grotesk', sans-serif",
+  fontBody: "'Inter', sans-serif",
+  accent: '#a855f7',
+  glow: '#581c87',
+  bg1: '#2b1150',
+  bg2: '#0a0612',
+  cardsHeading: 'Co nabízíme',
+  cards: [
+    {icon:'⭐', title:'Vzorová funkce 1', text:'Sem napiš krátký popis první funkce nebo výhody, kterou chceš na webu vyzdvihnout.', linkType:'none', sectionIndex:0, url:'', newTab:false},
+    {icon:'⚡', title:'Vzorová funkce 2', text:'Sem napiš krátký popis druhé funkce nebo výhody, kterou chceš na webu vyzdvihnout.', linkType:'none', sectionIndex:0, url:'', newTab:false},
+    {icon:'🔒', title:'Vzorová funkce 3', text:'Sem napiš krátký popis třetí funkce nebo výhody, kterou chceš na webu vyzdvihnout.', linkType:'none', sectionIndex:0, url:'', newTab:false}
+  ],
+  faq: [
+    {q:'Vzorová otázka číslo jedna?', a:'Sem napiš odpověď na první často kladenou otázku.'},
+    {q:'Vzorová otázka číslo dva?', a:'Sem napiš odpověď na druhou často kladenou otázku.'}
+  ],
+  nav: {
+    showHero: true, heroLabel: 'Domů',
+    showFeatures: true, featuresLabel: 'Funkce',
+    showFaq: true, faqLabel: 'FAQ'
+  },
+  sections: [
+    {label:'O nás', title:'O nás', text:'Sem napiš text vlastní sekce. Zobrazí se na stránce a zároveň se přidá jako položka do levého menu.', image:'', imageUrl:'', imageAlt:''}
+  ],
+  pwa: {
+    name: '',            // prázdné = použije se "Název webu / značka"
+    shortName: '',        // prázdné = použije se "Název webu / značka"
+    startUrl: './',
+    scope: './',
+    display: 'standalone',
+    bgColor: '',           // prázdné = použije se "pozadí — dolní"
+    icon192: 'icon-192.png',
+    icon512: 'icon-512.png',
+    cacheVersion: 'v1',    // zvyš při každé nové verzi webu
+    extraFiles: 'manifest.json\nicon-192.png\nicon-512.png\nfavicon.ico\napple-touch-icon.png'
+  },
+  sitemap: {
+    lastmod: new Date().toISOString().slice(0,10),
+    extraUrls: ''
+  },
+  footer: {
+    showCopyright: true,
+    text: 'Vzorový text v patičce — např. IČO, adresa nebo krátký slogan.',
+    links: [
+      {label:'Obchodní podmínky', url:'#'},
+      {label:'Ochrana osobních údajů', url:'#'},
+      {label:'Kontakt', url:'#'}
+    ]
+  }
+  };
+}
+
+let state = getDefaultState();
+
+const PWA_DISPLAY_OPTIONS = [
+  ['standalone','standalone (jako appka)'],
+  ['fullscreen','fullscreen (na celou obrazovku)'],
+  ['minimal-ui','minimal-ui (zjednodušený prohlížeč)'],
+  ['browser','browser (klasická karta)']
+];
+
+const FONT_OPTIONS_DISPLAY = [
+  ["'Space Grotesk', sans-serif","Space Grotesk"],
+  ["'Orbitron', sans-serif","Orbitron"],
+  ["'Playfair Display', serif","Playfair Display"],
+  ["'Poppins', sans-serif","Poppins"]
+];
+const FONT_OPTIONS_BODY = [
+  ["'Inter', sans-serif","Inter"],
+  ["'Poppins', sans-serif","Poppins"],
+  ["system-ui, sans-serif","Systémové písmo"]
+];
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+function escapeAttr(s){ return escapeHtml(s); }
+
+// Umožní v textových polích psát odkazy zápisem [text odkazu](https://adresa.cz)
+// a bezpečně je převede na skutečné <a> tagy (zbytek textu zůstává escapovaný jako obyčejný text).
+function richText(str){
+  const s = String(str ?? '');
+  const re = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*|#[^\s)]*|mailto:[^\s)]+)\)/g;
+  let out = '', last = 0, m;
+  while ((m = re.exec(s))){
+    out += escapeHtml(s.slice(last, m.index));
+    const label = escapeHtml(m[1]);
+    const url = escapeAttr(m[2]);
+    const external = /^https?:\/\//.test(m[2]);
+    out += `<a href="${url}"${external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
+    last = re.lastIndex;
+  }
+  out += escapeHtml(s.slice(last));
+  return out;
+}
+
+/* ============================================================
+   FORMULÁŘ
+   ============================================================ */
+const panel = document.getElementById('panel');
+
+function field(labelText, inner){
+  return `<label>${labelText}</label>${inner}`;
+}
+
+function renderForm(){
+  panel.innerHTML = `
+    <div class="fieldset">
+      <div class="fieldset-title">Základní info</div>
+      ${field('Název webu / značka', `<input type="text" data-bind="brand" value="${escapeAttr(state.brand)}">`)}
+      ${field('Titulek stránky (&lt;title&gt;)', `<input type="text" data-bind="title" value="${escapeAttr(state.title)}">`)}
+      ${field('Meta popis (SEO, cca 150 znaků)', `<textarea data-bind="description">${escapeHtml(state.description)}</textarea>`)}
+      ${field('Doména (pro canonical / OG)', `<input type="text" data-bind="domain" value="${escapeAttr(state.domain)}">`)}
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Hero sekce</div>
+      ${field('Eyebrow (malý text nad nadpisem)', `<input type="text" data-bind="heroEyebrow" value="${escapeAttr(state.heroEyebrow)}">`)}
+      ${field('Hlavní nadpis', `<input type="text" data-bind="heroTitle" value="${escapeAttr(state.heroTitle)}">`)}
+      ${field('Podnadpis', `<textarea data-bind="heroSubtitle">${escapeHtml(state.heroSubtitle)}</textarea>`)}
+      <div class="note-box">Do podnadpisu i dalších delších textů (karty, sekce, FAQ, patička) můžeš vložit odkaz zápisem <b>[text odkazu](https://adresa.cz)</b> — na webu se zobrazí jako klikatelný podtržený text.</div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">CTA tlačítka</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Tlačítka pod hero textem. U každého nastav text, kam odkazuje, a jestli je hlavní (výrazné) nebo doplňkové.</div>
+      <div id="ctaList"></div>
+      <button class="add-btn" id="addCta">+ Přidat tlačítko</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Vizuál v hero sekci</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="radio" name="heroVisual" value="none" ${state.heroVisual==='none'?'checked':''}> Nic (bez grafiky)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <input type="radio" name="heroVisual" value="custom" ${state.heroVisual==='custom'?'checked':''}> Vlastní obrázek
+      </label>
+      <div id="customImageBox" style="margin-top:10px;${state.heroVisual==='custom'?'':'display:none;'}">
+        <label style="margin-top:0;">Nahrát obrázek ze zařízení</label>
+        <input type="file" id="heroImageFile" accept="image/*">
+        <label>Nebo URL obrázku (má přednost)</label>
+        <input type="text" data-bind="heroImageUrl" value="${escapeAttr(state.heroImageUrl)}" placeholder="https://.../obrazek.png">
+        <label>Alternativní text obrázku (SEO + přístupnost)</label>
+        <input type="text" data-bind="heroImageAlt" value="${escapeAttr(state.heroImageAlt)}" placeholder="např. Ukázka aplikace na notebooku">
+        <div class="note-box" style="margin-top:8px;">Nahraný soubor se vloží přímo do exportovaného HTML (base64), takže funguje i bez dalšího hostování. Pokud vyplníš URL, použije se místo něj. Alternativní text pomáhá vyhledávačům pochopit obsah obrázku a zobrazí se i tehdy, když se obrázek nenačte.</div>
+        ${state.heroImage ? `<img src="${state.heroImage}" style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--ui-line);">` : ''}
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Barvy</div>
+      <div class="swatches" id="swatches"></div>
+      <div class="color-row"><input type="color" data-bind="accent" value="${state.accent}"><span>accent — hlavní barva</span></div>
+      <div class="color-row"><input type="color" data-bind="glow" value="${state.glow}"><span>glow — tmavší odstín / záře</span></div>
+      <div class="color-row"><input type="color" data-bind="bg1" value="${state.bg1}"><span>pozadí — horní</span></div>
+      <div class="color-row"><input type="color" data-bind="bg2" value="${state.bg2}"><span>pozadí — dolní</span></div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Písmo</div>
+      <div class="row2">
+        <div>${field('Nadpisy', selectHtml('fontDisplay', FONT_OPTIONS_DISPLAY, state.fontDisplay))}</div>
+        <div>${field('Text', selectHtml('fontBody', FONT_OPTIONS_BODY, state.fontBody))}</div>
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Navigace / levé menu</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Fixní levé menu (na desktopu vlevo, na mobilu se otevírá přes hamburger). Odkazy níž vedou na pevné sekce stránky, vlastní sekce přidáš dole.</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-nav-toggle="showHero" ${state.nav.showHero?'checked':''}> Odkaz na Hero (úvod)
+      </label>
+      <input type="text" data-nav-label="heroLabel" value="${escapeAttr(state.nav.heroLabel)}" placeholder="text odkazu" style="margin-top:4px;">
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+        <input type="checkbox" data-nav-toggle="showFeatures" ${state.nav.showFeatures?'checked':''}> Odkaz na Karty / funkce
+      </label>
+      <input type="text" data-nav-label="featuresLabel" value="${escapeAttr(state.nav.featuresLabel)}" placeholder="text odkazu" style="margin-top:4px;">
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+        <input type="checkbox" data-nav-toggle="showFaq" ${state.nav.showFaq?'checked':''}> Odkaz na FAQ
+      </label>
+      <input type="text" data-nav-label="faqLabel" value="${escapeAttr(state.nav.faqLabel)}" placeholder="text odkazu" style="margin-top:4px;">
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Vlastní sekce</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Každá přidaná sekce = nová položka v levém menu + nový blok (nadpis + text, volitelně i obrázek) na stránce, v pořadí jak je přidáváš.</div>
+      <div id="sectionsList"></div>
+      <button class="add-btn" id="addSection">+ Přidat sekci</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Karty / funkce</div>
+      ${field('Nadpis sekce', `<input type="text" data-bind="cardsHeading" value="${escapeAttr(state.cardsHeading)}">`)}
+      <div class="note-box" style="margin-top:6px;margin-bottom:10px;">Každá karta může mít vlastní odkaz — třeba na jinou sekci webu, na FAQ, nebo na libovolnou URL (např. e-shop, ceník, kontaktní formulář). Pokud kartu takto proklikneš celou, zápis [odkazu](...) přímo v textu karty se nepoužije (dvojitý odkaz v odkazu nejde) — jinak funguje běžně.</div>
+      <div id="cardsList"></div>
+      <button class="add-btn" id="addCard">+ Přidat kartu</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">FAQ</div>
+      <div id="faqList"></div>
+      <button class="add-btn" id="addFaq">+ Přidat otázku</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Patička</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" id="footerShowCopyright" ${state.footer.showCopyright?'checked':''}> Zobrazit "© rok značka"
+      </label>
+      ${field('Vlastní text v patičce (nepovinné)', `<textarea id="footerText" placeholder="např. IČO, adresa, slogan…">${escapeHtml(state.footer.text)}</textarea>`)}
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Odkazy v patičce (např. Obchodní podmínky, Ochrana údajů, sociální sítě…).</div>
+      <div id="footerLinksList"></div>
+      <button class="add-btn" id="addFooterLink">+ Přidat odkaz</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">PWA — manifest + service worker</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygeneruje se <b>manifest.json</b> a <b>sw.js</b> podle údajů níž. Stáhni je tlačítky dole, ulož je vedle hlavního HTML souboru (přejmenovaného např. na <b>index.html</b>) a nahraj i samotné obrázky ikon ve správných rozměrech — ty generátor sám nevytváří.</div>
+      ${field('Celý název appky (manifest "name")', `<input type="text" data-pwa="name" value="${escapeAttr(state.pwa.name)}" placeholder="${escapeAttr(state.brand)}">`)}
+      ${field('Krátký název (manifest "short_name", ideálně do 12 znaků)', `<input type="text" data-pwa="shortName" value="${escapeAttr(state.pwa.shortName)}" placeholder="${escapeAttr(state.brand)}">`)}
+      <div class="row2">
+        <div>${field('start_url', `<input type="text" data-pwa="startUrl" value="${escapeAttr(state.pwa.startUrl)}">`)}</div>
+        <div>${field('scope', `<input type="text" data-pwa="scope" value="${escapeAttr(state.pwa.scope)}">`)}</div>
+      </div>
+      ${field('Zobrazení (display)', `<select data-pwa="display">${PWA_DISPLAY_OPTIONS.map(([val,label]) => `<option value="${escapeAttr(val)}" ${val===state.pwa.display?'selected':''}>${escapeHtml(label)}</option>`).join('')}</select>`)}
+      <div class="row2">
+        <div>${field('Ikona 192×192 (název souboru)', `<input type="text" data-pwa="icon192" value="${escapeAttr(state.pwa.icon192)}">`)}</div>
+        <div>${field('Ikona 512×512 (název souboru)', `<input type="text" data-pwa="icon512" value="${escapeAttr(state.pwa.icon512)}">`)}</div>
+      </div>
+      ${field('Barva pozadí splash screenu (background_color)', `<input type="text" data-pwa="bgColor" value="${escapeAttr(state.pwa.bgColor)}" placeholder="${escapeAttr(state.bg2)}">`)}
+      ${field('Verze cache (zvyš při KAŽDÉ nové verzi webu — jinak SW může servírovat starý obsah)', `<input type="text" data-pwa="cacheVersion" value="${escapeAttr(state.pwa.cacheVersion)}">`)}
+      ${field('Další soubory pro offline cache (jeden název na řádek; hlavní HTML se přidá automaticky)', `<textarea data-pwa="extraFiles" style="min-height:80px;">${escapeHtml(state.pwa.extraFiles)}</textarea>`)}
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="add-btn" id="downloadManifest" style="margin-top:0;">↓ manifest.json</button>
+        <button class="add-btn" id="downloadSw" style="margin-top:0;">↓ sw.js</button>
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Sitemap.xml</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygeneruje se <b>sitemap.xml</b> s adresou z pole "Doména" výše. Pokud web má i další skutečné podstránky (ne jen kotvy #sekce na jedné stránce), přidej je níž.</div>
+      ${field('Datum poslední změny (lastmod, RRRR-MM-DD)', `<input type="text" data-sitemap="lastmod" value="${escapeAttr(state.sitemap.lastmod)}" placeholder="RRRR-MM-DD">`)}
+      ${field('Další URL adresy (nepovinné, jedna na řádek — relativní cesta nebo celá URL)', `<textarea data-sitemap="extraUrls" style="min-height:60px;" placeholder="napr. o-nas/&#10;https://tvuj-web.cz/en/">${escapeHtml(state.sitemap.extraUrls)}</textarea>`)}
+      <div style="display:flex;gap:8px;">
+        <button class="add-btn" id="downloadSitemap" style="margin-top:0;">↓ sitemap.xml</button>
+        <button class="add-btn" id="downloadRobots" style="margin-top:0;">↓ robots.txt</button>
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="note-box">
+        <b>Po exportu ještě ručně doplň:</b>
+        <ul>
+          <li>samotné obrázky ikon (favicon.ico, apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
+          <li>AJ verzi (index-en.html) + hreflang</li>
+        </ul>
+      </div>
+    </div>
+  `;
+
+  renderSwatches();
+  renderSections();
+  renderCards();
+  renderFaq();
+  renderFooterLinks();
+  renderCtaList();
+  bindSimpleInputs();
+  bindNavInputs();
+  bindHeroVisualInputs();
+  bindPwaInputs();
+  bindSitemapInputs();
+  bindFooterInputs();
+
+  document.getElementById('downloadManifest').onclick = () => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json');
+  document.getElementById('downloadSw').onclick = () => downloadTextFile('sw.js', buildServiceWorkerJS(state), 'text/javascript');
+  document.getElementById('downloadSitemap').onclick = () => downloadTextFile('sitemap.xml', buildSitemapXML(state), 'application/xml');
+  document.getElementById('downloadRobots').onclick = () => downloadTextFile('robots.txt', buildRobotsTXT(state), 'text/plain');
+
+  document.getElementById('addSection').onclick = () => {
+    state.sections.push({label:'Nová sekce', title:'Nová sekce', text:'Text sekce.', image:'', imageUrl:'', imageAlt:''});
+    renderSections(); renderCtaList(); updatePreview();
+  };
+  document.getElementById('addCard').onclick = () => {
+    state.cards.push({icon:'✨', title:'Nová karta', text:'Popis funkce.', linkType:'none', sectionIndex:0, url:'', newTab:false});
+    renderCards(); updatePreview();
+  };
+  document.getElementById('addFaq').onclick = () => {
+    state.faq.push({q:'Nová otázka?', a:'Odpověď.'});
+    renderFaq(); updatePreview();
+  };
+  document.getElementById('addFooterLink').onclick = () => {
+    state.footer.links.push({label:'Nový odkaz', url:'#'});
+    renderFooterLinks(); updatePreview();
+  };
+  document.getElementById('addCta').onclick = () => {
+    state.ctaButtons.push({text:'Nové tlačítko', targetType:'features', sectionIndex:0, url:'', newTab:false, style: state.ctaButtons.length ? 'secondary' : 'primary'});
+    renderCtaList(); updatePreview();
+  };
+}
+
+function bindFooterInputs(){
+  const cbEl = document.getElementById('footerShowCopyright');
+  if(cbEl){
+    cbEl.addEventListener('change', () => {
+      state.footer.showCopyright = cbEl.checked;
+      updatePreview();
+    });
+  }
+  const textEl = document.getElementById('footerText');
+  if(textEl){
+    textEl.addEventListener('input', () => {
+      state.footer.text = textEl.value;
+      updatePreview();
+    });
+  }
+}
+
+function renderFooterLinks(){
+  const el = document.getElementById('footerLinksList');
+  if(!el) return;
+  el.innerHTML = state.footer.links.map((l,i) => `
+    <div class="card-item" data-i="${i}">
+      <button class="item-remove" data-remove-footer-link="${i}">✕</button>
+      ${field('Text odkazu', `<input type="text" data-footer-link="${i}" data-key="label" value="${escapeAttr(l.label)}" placeholder="např. Obchodní podmínky">`)}
+      ${field('URL', `<input type="text" data-footer-link="${i}" data-key="url" value="${escapeAttr(l.url)}" placeholder="https://… nebo #sekce">`)}
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-footer-link]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      state.footer.links[+inp.dataset.footerLink][inp.dataset.key] = inp.value;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-footer-link]').forEach(btn => {
+    btn.onclick = () => { state.footer.links.splice(+btn.dataset.removeFooterLink,1); renderFooterLinks(); updatePreview(); };
+  });
+}
+
+function ctaTargetOptionsHtml(btn){
+  return targetOptionsHtml(btn, false);
+}
+
+function targetOptionsHtml(item, includeNone){
+  const opts = [];
+  if (includeNone) opts.push(['none:', 'Bez odkazu']);
+  opts.push(['features:', 'Sekce Funkce'], ['faq:', 'Sekce FAQ'], ['hero:', 'Nahoru (Hero)']);
+  state.sections.forEach((sec, i) => {
+    opts.push(['section:' + i, 'Vlastní sekce: ' + (sec.label || sec.title || ('#' + (i+1)))]);
+  });
+  opts.push(['url:', 'Vlastní URL / odkaz']);
+  const type = item.targetType ?? item.linkType;
+  const currentKey = type === 'section' ? ('section:' + item.sectionIndex) : (type + ':');
+  return opts.map(([val,label]) =>
+    `<option value="${escapeAttr(val)}" ${val===currentKey?'selected':''}>${escapeHtml(label)}</option>`
+  ).join('');
+}
+
+function renderCtaList(){
+  const el = document.getElementById('ctaList');
+  if(!el) return;
+  el.innerHTML = state.ctaButtons.map((btn,i) => `
+    <div class="card-item" data-i="${i}">
+      <button class="item-remove" data-remove-cta="${i}">✕</button>
+      ${field('Text tlačítka', `<input type="text" data-cta="${i}" data-key="text" value="${escapeAttr(btn.text)}" placeholder="text tlačítka">`)}
+      ${field('Kam odkazuje', `<select data-cta-target="${i}">${ctaTargetOptionsHtml(btn)}</select>`)}
+      ${btn.targetType === 'url' ? `
+        ${field('URL adresa', `<input type="text" data-cta="${i}" data-key="url" value="${escapeAttr(btn.url)}" placeholder="https://…">`)}
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" data-cta-newtab="${i}" ${btn.newTab?'checked':''}> Otevřít v nové záložce
+        </label>
+      ` : ''}
+      ${field('Styl', `<select data-cta="${i}" data-key="style">
+        <option value="primary" ${btn.style==='primary'?'selected':''}>Hlavní (výrazné)</option>
+        <option value="secondary" ${btn.style==='secondary'?'selected':''}>Doplňkové (obrys)</option>
+      </select>`)}
+    </div>
+  `).join('');
+
+  el.querySelectorAll('[data-cta]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      state.ctaButtons[+inp.dataset.cta][inp.dataset.key] = inp.value;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-cta-target]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const i = +sel.dataset.ctaTarget;
+      const [type, val] = sel.value.split(':');
+      state.ctaButtons[i].targetType = type;
+      state.ctaButtons[i].sectionIndex = type === 'section' ? +val : null;
+      renderCtaList();
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-cta-newtab]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.ctaButtons[+cb.dataset.ctaNewtab].newTab = cb.checked;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-cta]').forEach(btn => {
+    btn.onclick = () => { state.ctaButtons.splice(+btn.dataset.removeCta,1); renderCtaList(); updatePreview(); };
+  });
+}
+
+function bindHeroVisualInputs(){
+  panel.querySelectorAll('input[name="heroVisual"]').forEach(el => {
+    el.addEventListener('change', () => {
+      state.heroVisual = el.value;
+      renderForm();
+      updatePreview();
+    });
+  });
+  const fileInput = document.getElementById('heroImageFile');
+  if(fileInput){
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.heroImage = reader.result;
+        renderForm();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+function bindNavInputs(){
+  panel.querySelectorAll('[data-nav-toggle]').forEach(el => {
+    el.addEventListener('change', () => {
+      state.nav[el.dataset.navToggle] = el.checked;
+      updatePreview();
+    });
+  });
+  panel.querySelectorAll('[data-nav-label]').forEach(el => {
+    el.addEventListener('input', () => {
+      state.nav[el.dataset.navLabel] = el.value;
+      updatePreview();
+    });
+  });
+}
+
+function bindPwaInputs(){
+  panel.querySelectorAll('[data-pwa]').forEach(el => {
+    el.addEventListener('input', () => {
+      state.pwa[el.dataset.pwa] = el.value;
+      updatePreview();
+    });
+  });
+}
+
+function bindSitemapInputs(){
+  panel.querySelectorAll('[data-sitemap]').forEach(el => {
+    el.addEventListener('input', () => {
+      state.sitemap[el.dataset.sitemap] = el.value;
+    });
+  });
+}
+
+function renderSections(){
+  const el = document.getElementById('sectionsList');
+  el.innerHTML = state.sections.map((sec,i) => `
+    <div class="card-item" data-i="${i}">
+      <button class="item-remove" data-remove-section="${i}">✕</button>
+      ${field('Text v menu', `<input type="text" data-section="${i}" data-key="label" value="${escapeAttr(sec.label)}" placeholder="text odkazu v menu">`)}
+      ${field('Nadpis sekce', `<input type="text" data-section="${i}" data-key="title" value="${escapeAttr(sec.title)}" placeholder="nadpis sekce">`)}
+      ${field('Text sekce', `<textarea data-section="${i}" data-key="text" style="min-height:60px;">${escapeHtml(sec.text)}</textarea>`)}
+      <label>Obrázek sekce (nepovinné)</label>
+      <input type="file" accept="image/*" data-section-image-file="${i}">
+      <input type="text" data-section="${i}" data-key="imageUrl" value="${escapeAttr(sec.imageUrl)}" placeholder="nebo URL obrázku (má přednost)" style="margin-top:6px;">
+      ${sec.image || sec.imageUrl ? `
+        <input type="text" data-section="${i}" data-key="imageAlt" value="${escapeAttr(sec.imageAlt)}" placeholder="alternativní text obrázku (SEO)" style="margin-top:6px;">
+        <div style="position:relative;margin-top:8px;">
+          <img src="${escapeAttr((sec.imageUrl || '').trim() || sec.image)}" style="max-width:100%;border-radius:8px;border:1px solid var(--ui-line);display:block;">
+          <button type="button" class="item-remove" data-remove-section-image="${i}" style="top:6px;right:6px;background:rgba(0,0,0,.55);">✕</button>
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-section]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      state.sections[+inp.dataset.section][inp.dataset.key] = inp.value;
+      if(inp.dataset.key === 'label') renderCtaList();
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-section-image-file]').forEach(fileInput => {
+    fileInput.addEventListener('change', () => {
+      const i = +fileInput.dataset.sectionImageFile;
+      const file = fileInput.files && fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.sections[i].image = reader.result;
+        renderSections();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  el.querySelectorAll('[data-remove-section-image]').forEach(btn => {
+    btn.onclick = () => {
+      const i = +btn.dataset.removeSectionImage;
+      state.sections[i].image = '';
+      state.sections[i].imageUrl = '';
+      state.sections[i].imageAlt = '';
+      renderSections();
+      updatePreview();
+    };
+  });
+  el.querySelectorAll('[data-remove-section]').forEach(btn => {
+    btn.onclick = () => {
+      state.sections.splice(+btn.dataset.removeSection,1);
+      // Tlačítka, která odkazovala na smazanou (nebo teď neplatnou) sekci, přesměruj zpět na Funkce.
+      state.ctaButtons.forEach(cb => {
+        if(cb.targetType === 'section' && (cb.sectionIndex == null || cb.sectionIndex >= state.sections.length)){
+          cb.targetType = 'features'; cb.sectionIndex = null;
+        }
+      });
+      renderSections(); renderCtaList(); updatePreview();
+    };
+  });
+}
+
+function selectHtml(bindKey, options, current){
+  return `<select data-bind="${bindKey}">` +
+    options.map(([val,label]) =>
+      `<option value="${escapeAttr(val)}" ${val===current?'selected':''}>${escapeHtml(label)}</option>`
+    ).join('') +
+    `</select>`;
+}
+
+function renderSwatches(){
+  const box = document.getElementById('swatches');
+  box.innerHTML = PALETTES.map(([a,g]) =>
+    `<div class="swatch ${a===state.accent?'active':''}" style="background:${a}" data-accent="${a}" data-glow="${g}" title="${a}"></div>`
+  ).join('');
+  box.querySelectorAll('.swatch').forEach(el => {
+    el.onclick = () => {
+      state.accent = el.dataset.accent;
+      state.glow = el.dataset.glow;
+      renderForm();
+      updatePreview();
+    };
+  });
+}
+
+function renderCards(){
+  const el = document.getElementById('cardsList');
+  el.innerHTML = state.cards.map((c,i) => `
+    <div class="card-item" data-i="${i}">
+      <button class="item-remove" data-remove-card="${i}">✕</button>
+      <div class="row2">
+        <input type="text" data-card="${i}" data-key="icon" value="${escapeAttr(c.icon)}" placeholder="emoji">
+        <input type="text" data-card="${i}" data-key="title" value="${escapeAttr(c.title)}" placeholder="nadpis">
+      </div>
+      <textarea data-card="${i}" data-key="text" style="margin-top:6px;min-height:40px;">${escapeHtml(c.text)}</textarea>
+      ${field('Kam karta odkazuje', `<select data-card-target="${i}">${targetOptionsHtml(c, true)}</select>`)}
+      ${c.linkType === 'url' ? `
+        <input type="text" data-card="${i}" data-key="url" value="${escapeAttr(c.url)}" placeholder="https://…" style="margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" data-card-newtab="${i}" ${c.newTab?'checked':''}> Otevřít v nové záložce
+        </label>
+      ` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-card]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      state.cards[+inp.dataset.card][inp.dataset.key] = inp.value;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-card-target]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const i = +sel.dataset.cardTarget;
+      const [type, val] = sel.value.split(':');
+      state.cards[i].linkType = type;
+      state.cards[i].sectionIndex = type === 'section' ? +val : null;
+      renderCards();
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-card-newtab]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.cards[+cb.dataset.cardNewtab].newTab = cb.checked;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-card]').forEach(btn => {
+    btn.onclick = () => { state.cards.splice(+btn.dataset.removeCard,1); renderCards(); updatePreview(); };
+  });
+}
+
+function renderFaq(){
+  const el = document.getElementById('faqList');
+  el.innerHTML = state.faq.map((f,i) => `
+    <div class="faq-item" data-i="${i}">
+      <button class="item-remove" data-remove-faq="${i}">✕</button>
+      <input type="text" data-faq="${i}" data-key="q" value="${escapeAttr(f.q)}" placeholder="otázka">
+      <textarea data-faq="${i}" data-key="a" style="margin-top:6px;min-height:40px;">${escapeHtml(f.a)}</textarea>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-faq]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      state.faq[+inp.dataset.faq][inp.dataset.key] = inp.value;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-faq]').forEach(btn => {
+    btn.onclick = () => { state.faq.splice(+btn.dataset.removeFaq,1); renderFaq(); updatePreview(); };
+  });
+}
+
+function bindSimpleInputs(){
+  panel.querySelectorAll('[data-bind]').forEach(el => {
+    const key = el.dataset.bind;
+    const evt = (el.tagName === 'SELECT' || el.type === 'color') ? 'input' : 'input';
+    el.addEventListener(evt, () => {
+      state[key] = el.value;
+      if(key==='accent' || key==='glow'){ document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active')); }
+      updatePreview();
+    });
+  });
+}
+
+/* ============================================================
+   GENEROVÁNÍ manifest.json / sw.js / sitemap.xml
+   ============================================================ */
+function slugifyGlobal(str, fallback){
+  const out = String(str ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  return out || fallback || 'web';
+}
+
+function buildManifestJSON(s){
+  const name = (s.pwa.name || s.brand || 'App').trim();
+  const shortName = (s.pwa.shortName || s.brand || name).trim();
+  const bg = (s.pwa.bgColor || s.bg2 || '#000000').trim();
+  const manifest = {
+    id: s.pwa.startUrl || './',
+    name: name,
+    short_name: shortName,
+    description: s.description,
+    start_url: s.pwa.startUrl || './',
+    scope: s.pwa.scope || './',
+    display: s.pwa.display || 'standalone',
+    background_color: bg,
+    theme_color: s.accent,
+    lang: 'cs',
+    icons: [
+      { src: s.pwa.icon192 || 'icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: s.pwa.icon512 || 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+    ]
+  };
+  return JSON.stringify(manifest, null, 2);
+}
+
+function buildServiceWorkerJS(s){
+  const slug = slugifyGlobal(s.brand, 'web');
+  const version = (s.pwa.cacheVersion || 'v1').trim().replace(/\s+/g,'-');
+  const cacheName = `${slug}-app-${version}`;
+  const extra = (s.pwa.extraFiles || '')
+    .split('\n').map(l => l.trim()).filter(Boolean);
+  const files = Array.from(new Set(['./', './index.html', ...extra]));
+  const filesJs = files.map(f => `  '${f.replace(/'/g, "\\'")}'`).join(',\n');
+
+  return `// ==========================================
+// Service worker — ${s.brand}
+// Vygenerováno Layout generátorem.
+// DŮLEŽITÉ: při KAŽDÉ nové verzi webu zvyš hodnotu pole "Verze cache"
+// v generátoru (a znovu stáhni sw.js) - jinak si prohlížeč může držet
+// starou zacachovanou verzi appky i po nahrání nového obsahu na server.
+// ==========================================
+
+const CACHE_NAME = '${cacheName}';
+
+// Soubory app shellu cachované při instalaci (a použité jako offline záloha)
+const ASSETS_TO_CACHE = [
+${filesJs}
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // Soubory přidáváme jednotlivě - když se jeden nepodaří stáhnout
+      // (404, překlep v názvu...), instalace kvůli tomu neselže jako celek.
+      return Promise.all(
+        ASSETS_TO_CACHE.map((url) =>
+          cache.add(url).catch((err) => {
+            console.log('[SW] Nepodařilo se zacachovat:', url, err);
+          })
+        )
+      );
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          }
+        })
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// Network-first: vždy se nejdřív zkusí čerstvá verze ze sítě, cache
+// slouží jen jako offline záloha, když uživatel nemá připojení.
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const networkResponse = await fetch(event.request, { cache: 'no-cache' });
+        if (networkResponse && networkResponse.ok) {
+          cache.put(event.request, networkResponse.clone()).catch(() => {});
+        }
+        return networkResponse;
+      } catch (err) {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+        // Poslední záloha pro navigaci (otevření stránky offline)
+        if (event.request.mode === 'navigate') {
+          const fallback = (await cache.match('./index.html')) || (await cache.match('./'));
+          if (fallback) return fallback;
+        }
+        throw err;
+      }
+    })()
+  );
+});
+`;
+}
+
+function buildSitemapXML(s){
+  const domain = (s.domain || 'https://example.com/').trim().replace(/\/?$/, '/');
+  const lastmod = (s.sitemap.lastmod || new Date().toISOString().slice(0,10)).trim();
+  const extra = (s.sitemap.extraUrls || '')
+    .split('\n').map(l => l.trim()).filter(Boolean)
+    .map(l => /^https?:\/\//i.test(l) ? l : domain + l.replace(/^\//,''));
+  const urls = Array.from(new Set([domain, ...extra]));
+  const urlEntries = urls.map(u => `  <url>
+    <loc>${escapeHtml(u)}</loc>
+    <lastmod>${escapeHtml(lastmod)}</lastmod>
+  </url>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urlEntries}
+</urlset>
+`;
+}
+
+function buildRobotsTXT(s){
+  const domain = (s.domain || 'https://example.com/').trim().replace(/\/?$/, '/');
+  return `User-agent: *
+Allow: /
+
+Sitemap: ${domain}sitemap.xml
+`;
+}
+
+function downloadTextFile(filename, content, mime){
+  const blob = new Blob([content], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ============================================================
+   GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML
+   ============================================================ */
+function buildSiteHTML(s){
+  const faqJsonLd = s.faq.map(f => `{
+      "@type": "Question",
+      "name": ${JSON.stringify(f.q)},
+      "acceptedAnswer": { "@type": "Answer", "text": ${JSON.stringify(f.a)} }
+    }`).join(',\n');
+
+  const faqHtml = s.faq.map(f => `
+        <details class="faq-item">
+          <summary>${escapeHtml(f.q)}</summary>
+          <p>${richText(f.a)}</p>
+        </details>`).join('');
+
+  const domain = (s.domain || 'https://example.com/').trim();
+
+  const slugify = (str, fallback) => {
+    const out = String(str ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    return out || fallback;
+  };
+
+  const customSectionsData = (s.sections || []).map((sec, i) => ({
+    ...sec,
+    id: 'sec-' + slugify(sec.label, 'sekce-' + (i+1))
+  }));
+
+  // Pořadí položek levého menu: Hero -> Funkce -> vlastní sekce (= samostatné stránky) -> FAQ
+  const navLinks = [];
+  if (s.nav?.showHero !== false) navLinks.push({ href:'#hero', label: s.nav?.heroLabel || 'Domů', page:'home' });
+  if (s.nav?.showFeatures !== false && s.cards.length) navLinks.push({ href:'#funkce', label: s.nav?.featuresLabel || 'Funkce', page:'home' });
+  customSectionsData.forEach(sec => navLinks.push({ href:'#' + sec.id, label: sec.label || sec.title, page: sec.id }));
+  if (s.nav?.showFaq !== false && s.faq.length) navLinks.push({ href:'#faq', label: s.nav?.faqLabel || 'FAQ', page:'home' });
+
+  const navLinksHtml = navLinks.map(l =>
+    `  <a href="${escapeAttr(l.href)}" data-navlink data-page="${escapeAttr(l.page)}">${escapeHtml(l.label)}</a>`
+  ).join('\n');
+
+  // Každá vlastní sekce = samostatná "stránka" (skrytá/zobrazená přes JS), ne jen posun na téže stránce.
+  const customPagesHtml = customSectionsData.map(sec => {
+    const secImageSrc = (sec.imageUrl || '').trim() || sec.image || '';
+    const secImageHtml = secImageSrc
+      ? `<img class="custom-section-img" src="${escapeAttr(secImageSrc)}" alt="${escapeAttr(sec.imageAlt || sec.title || '')}" loading="lazy">`
+      : '';
+    return `
+    <div class="page" id="page-${sec.id}" data-page="${sec.id}">
+      <section class="custom-section wrap">
+        <a href="#hero" class="back-home" data-page-link="home">← Zpět na hlavní stránku</a>
+        <h2>${escapeHtml(sec.title)}</h2>
+        ${secImageHtml}
+        <p>${richText(sec.text)}</p>
+      </section>
+    </div>`;
+  }).join('');
+
+  // Sdílený resolver pro cíl odkazu (používá CTA tlačítka i odkazované karty)
+  const resolveLinkAttrs = (targetType, sectionIndex, url, newTab, fallbackAnchor) => {
+    if (targetType === 'url') {
+      const extra = newTab ? ' target="_blank" rel="noopener"' : '';
+      return ` href="${escapeAttr(url || '#')}"${extra}`;
+    }
+    if (targetType === 'section') {
+      const sec = customSectionsData[sectionIndex];
+      if (!sec) return ` href="#${fallbackAnchor}" data-scroll-link`;
+      return ` href="#${sec.id}" data-goto-page="${sec.id}"`;
+    }
+    const anchor = targetType === 'faq' ? 'faq' : (targetType === 'hero' ? 'hero' : fallbackAnchor);
+    return ` href="#${anchor}" data-scroll-link`;
+  };
+
+  // CTA tlačítka v hero sekci (jedno až N, každé může mířit jinam)
+  const ctaButtonsHtml = (s.ctaButtons || []).map(btn => {
+    const cls = 'cta' + (btn.style === 'secondary' ? ' cta-secondary' : '');
+    const text = escapeHtml(btn.text || '');
+    const attrs = resolveLinkAttrs(btn.targetType, btn.sectionIndex, btn.url, btn.newTab, 'funkce');
+    return `<a class="${cls}"${attrs}>${text}</a>`;
+  }).join('\n          ');
+
+  // Karty / funkce — nepovinně klikatelné (vlastní sekce, FAQ, hero, nebo libovolná URL)
+  const cardsHtml = s.cards.map(c => {
+    const isLinkCard = !!(c.linkType && c.linkType !== 'none');
+    // Pozn.: pokud je celá karta odkaz (<a>), text uvnitř nesmí obsahovat další <a> (vnořené odkazy jsou neplatné HTML) — proto se tam [odkazy] nepřevádí.
+    const inner = `
+          <div class="card-icon">${escapeHtml(c.icon)}</div>
+          <h3>${escapeHtml(c.title)}</h3>
+          <p>${isLinkCard ? escapeHtml(c.text) : richText(c.text)}</p>`;
+    if (!isLinkCard) {
+      return `\n        <article class="card">${inner}\n        </article>`;
+    }
+    const attrs = resolveLinkAttrs(c.linkType, c.sectionIndex, c.url, c.newTab, 'funkce');
+    return `\n        <a class="card card-link"${attrs}>${inner}\n        </a>`;
+  }).join('');
+
+  // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
+  const footerLinksHtml = (s.footer.links || []).length
+    ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
+    : '';
+  const footerTextHtml = (s.footer.text || '').trim()
+    ? `<p class="footer-text">${richText(s.footer.text)}</p>`
+    : '';
+  const footerCopyrightHtml = s.footer.showCopyright
+    ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>`
+    : '';
+
+  // Vizuál v hero sekci: nic / vlastní obrázek
+  const customImageSrc = (s.heroImageUrl || '').trim() || s.heroImage || '';
+  const heroVisualHtml = s.heroVisual === 'custom' && customImageSrc
+    ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>${escapeHtml(s.title)}</title>
+<meta name="description" content="${escapeAttr(s.description)}">
+<link rel="canonical" href="${escapeAttr(domain)}">
+<!-- TODO: až bude i AJ verze, přidej:
+<link rel="alternate" hreflang="cs" href="${escapeAttr(domain)}">
+<link rel="alternate" hreflang="en" href="${escapeAttr(domain)}en/">
+<link rel="alternate" hreflang="x-default" href="${escapeAttr(domain)}">
+-->
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escapeAttr(s.brand)}">
+<meta property="og:title" content="${escapeAttr(s.title)}">
+<meta property="og:description" content="${escapeAttr(s.description)}">
+<meta property="og:url" content="${escapeAttr(domain)}">
+<meta property="og:image" content="${escapeAttr(domain)}og-image.png">
+<meta property="og:locale" content="cs_CZ">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeAttr(s.title)}">
+<meta name="twitter:description" content="${escapeAttr(s.description)}">
+<meta name="twitter:image" content="${escapeAttr(domain)}og-image.png">
+<meta name="robots" content="index, follow">
+
+<!-- TODO: nahraj skutečné obrázky ikon pod těmito názvy (jen odkazy se generují automaticky) -->
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- manifest.json a sw.js stáhneš tlačítky v sekci "PWA" vlevo v generátoru -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": ${JSON.stringify(s.brand)},
+  "url": ${JSON.stringify(domain)},
+  "description": ${JSON.stringify(s.description)},
+  "inLanguage": "cs"
+}
+<\/script>${s.faq.length ? `
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+${faqJsonLd}
+  ]
+}
+<\/script>` : ''}
+
+<style>
+  :root{
+    --accent: ${s.accent};
+    --glow: ${s.glow};
+    --bg1: ${s.bg1};
+    --bg2: ${s.bg2};
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;min-height:100vh;color:#fff;
+    font-family:${s.fontBody};font-weight:400;
+    background:radial-gradient(circle at 50% 10%, var(--bg1), var(--bg2) 60%, #000);
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.brand,.cta{font-family:${s.fontDisplay};}
+  a{color:inherit;}
+  .hero p a, .card p a, .faq-item p a, .custom-section p a, footer .footer-text a{
+    color:var(--accent);text-decoration:underline;text-underline-offset:2px;
+  }
+  .hero p a:hover, .card p a:hover, .faq-item p a:hover, .custom-section p a:hover, footer .footer-text a:hover{
+    color:#fff;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+
+  header.site{display:flex;align-items:center;justify-content:space-between;padding:20px;}
+  .brand{font-weight:700;font-size:18px;letter-spacing:.02em;}
+
+  .hero{padding:70px 20px 60px;text-align:center;position:relative;}
+  .hero-visual-img{
+    display:block;max-width:220px;max-height:200px;width:auto;height:auto;
+    margin:0 auto 26px;border-radius:16px;object-fit:contain;
+  }
+  .eyebrow{
+    display:inline-block;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    padding:5px 12px;border-radius:99px;margin-bottom:18px;
+  }
+  h1{font-size:clamp(28px,5.5vw,48px);line-height:1.15;margin:0 0 16px;}
+  .hero p{font-size:clamp(15px,2vw,18px);color:#d8d8de;max-width:560px;margin:0 auto 30px;line-height:1.6;}
+  .cta{
+    display:inline-block;background:linear-gradient(135deg, var(--accent), var(--glow));
+    color:#fff;text-decoration:none;font-weight:600;font-size:15px;
+    padding:14px 34px;border-radius:99px;box-shadow:0 10px 30px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .cta-group{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;}
+  .cta-secondary{
+    background:transparent;box-shadow:none;
+    border:1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    color:#fff;padding:12.5px 32.5px;
+  }
+  .cta-secondary:hover{border-color:var(--accent);background:rgba(255,255,255,.04);}
+
+  .cards-section{padding:50px 20px 70px;}
+  .cards-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 34px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;}
+  .card{
+    display:block;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;padding:24px 20px;backdrop-filter:blur(6px);
+    transition:border-color .2s,transform .2s;
+  }
+  .card:hover{border-color:color-mix(in srgb, var(--accent) 60%, transparent);transform:translateY(-3px);}
+  .card-link{text-decoration:none;cursor:pointer;}
+  .card-link:hover{box-shadow:0 12px 30px -14px color-mix(in srgb, var(--accent) 55%, transparent);}
+  .card-icon{font-size:28px;margin-bottom:10px;}
+  .card h3{font-size:16px;margin:0 0 8px;}
+  .card p{font-size:13.5px;color:#c7c7ce;line-height:1.55;margin:0;}
+
+  .faq-section{padding:20px 20px 80px;max-width:720px;margin:0 auto;}
+  .faq-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 28px;}
+  .faq-item{
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;padding:14px 18px;margin-bottom:10px;
+  }
+  .faq-item summary{cursor:pointer;font-weight:500;font-size:14.5px;list-style:none;}
+  .faq-item summary::-webkit-details-marker{display:none;}
+  .faq-item summary::after{content:'+';float:right;color:var(--accent);}
+  .faq-item[open] summary::after{content:'–';}
+  .faq-item p{color:#c7c7ce;font-size:13.5px;line-height:1.6;margin:10px 0 0;}
+
+  .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
+  .custom-section h2{font-size:clamp(22px,3.5vw,28px);margin:0 0 14px;}
+  .custom-section-img{
+    display:block;width:100%;max-height:420px;object-fit:cover;
+    border-radius:14px;margin:0 0 24px;
+  }
+  .custom-section p{color:#c7c7ce;font-size:14.5px;line-height:1.7;margin:0;white-space:pre-line;}
+  .back-home{
+    display:inline-block;margin-bottom:22px;color:var(--accent);text-decoration:none;
+    font-size:13px;font-weight:500;
+  }
+  .back-home:hover{text-decoration:underline;}
+
+  /* ---------- stránky: každá vlastní sekce z menu = samostatná stránka ---------- */
+  .page{display:none;}
+  .page.active{display:block;}
+
+  footer{text-align:center;padding:26px 20px;color:#8a8a92;font-size:12.5px;}
+  footer .footer-text{margin:0 0 8px;white-space:pre-line;}
+  footer .footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin:0 0 8px;padding:0;list-style:none;}
+  footer .footer-links a{color:#c7c7ce;text-decoration:none;}
+  footer .footer-links a:hover{color:var(--accent);text-decoration:underline;}
+
+  /* ---------- levé menu ---------- */
+  .menu-toggle{
+    position:fixed;top:16px;left:16px;z-index:1001;width:42px;height:42px;
+    background:rgba(8,3,16,.85);border:1px solid rgba(255,255,255,.15);border-radius:9px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    cursor:pointer;backdrop-filter:blur(6px);
+  }
+  .menu-toggle span{width:18px;height:2px;background:#fff;border-radius:2px;transition:.25s;}
+  .menu-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(6px) rotate(45deg);}
+  .menu-toggle[aria-expanded="true"] span:nth-child(2){opacity:0;}
+  .menu-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+
+  .nav-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;opacity:0;pointer-events:none;transition:opacity .35s ease;}
+  .nav-scrim.open{opacity:1;pointer-events:auto;}
+
+  .side-nav{
+    position:fixed;top:0;left:0;height:100vh;height:100dvh;width:230px;z-index:1000;
+    background:rgba(8,3,16,.97);border-right:1px solid rgba(255,255,255,.1);
+    padding:84px 22px 24px;display:flex;flex-direction:column;gap:4px;
+    transform:translateX(-100%);transition:transform .35s ease;
+    backdrop-filter:blur(10px);overflow-y:auto;
+  }
+  .side-nav.open{transform:translateX(0);}
+  .side-nav-brand{
+    display:block;font-family:${s.fontDisplay};font-size:13px;letter-spacing:3px;
+    opacity:.85;margin-bottom:22px;color:#fff;text-decoration:none;
+  }
+  .side-nav a{
+    color:#fff;text-decoration:none;font-size:12.5px;letter-spacing:.5px;
+    padding:11px 10px;border-radius:8px;opacity:.7;transition:.25s;
+    border-left:2px solid transparent;flex-shrink:0;
+  }
+  .side-nav a:hover, .side-nav a.active{
+    opacity:1;background:color-mix(in srgb, var(--accent) 12%, transparent);
+    border-left-color:var(--accent);color:var(--accent);
+  }
+
+  @media (min-width:900px){
+    .menu-toggle{display:none;}
+    .side-nav{transform:translateX(0);}
+    .nav-scrim{display:none;}
+    .page-content{margin-left:230px;}
+  }
+</style>
+</head>
+<body>
+
+  <button class="menu-toggle" id="menuToggle" aria-label="Otevřít menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-scrim" id="navScrim"></div>
+
+  <nav class="side-nav" id="sideNav" aria-label="Hlavní navigace">
+    <a href="#hero" class="side-nav-brand" id="sideNavBrand">${escapeHtml(s.brand)}</a>
+${navLinksHtml}
+  </nav>
+
+  <div class="page-content" id="pageContent">
+
+    <div class="page active" id="page-home" data-page="home">
+      <section class="hero" id="hero">
+        <div class="wrap">
+          ${heroVisualHtml}
+          <span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>
+          <h1>${escapeHtml(s.heroTitle)}</h1>
+          <p>${richText(s.heroSubtitle)}</p>
+          <div class="cta-group">
+          ${ctaButtonsHtml}
+          </div>
+        </div>
+      </section>
+
+      <section class="cards-section wrap" id="funkce">
+        <h2>${escapeHtml(s.cardsHeading || 'Co nabízíme')}</h2>
+        <div class="cards">${cardsHtml}
+        </div>
+      </section>
+
+      <section class="faq-section" id="faq">
+        <h2>Časté otázky</h2>${faqHtml}
+      </section>
+    </div>
+${customPagesHtml}
+
+    <footer>${footerTextHtml}${footerLinksHtml}${footerCopyrightHtml}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+
+    // ---------- levé menu: hamburger na mobilu + přepínání "stránek" ----------
+    (function () {
+      var toggle = document.getElementById('menuToggle');
+      var nav = document.getElementById('sideNav');
+      var scrim = document.getElementById('navScrim');
+      var links = Array.prototype.slice.call(document.querySelectorAll('.side-nav a[data-navlink]'));
+      var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
+
+      function setOpen(open) {
+        if (!toggle || !nav || !scrim) return;
+        nav.classList.toggle('open', open);
+        scrim.classList.toggle('open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      if (toggle && nav && scrim) {
+        toggle.addEventListener('click', function () { setOpen(!nav.classList.contains('open')); });
+        scrim.addEventListener('click', function () { setOpen(false); });
+      }
+
+      // Zobrazí danou "stránku" (home = úvod/funkce/FAQ, jinak samostatná vlastní sekce)
+      // a nastaví odpovídající aktivní odkaz v menu — ostatní odkazy se vždy odaktivní,
+      // aby menu nikdy neukazovalo dvě aktivní položky najednou.
+      function showPage(pageId) {
+        pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === pageId); });
+        if (pageId !== 'home') {
+          links.forEach(function (a) { a.classList.toggle('active', a.dataset.page === pageId); });
+        }
+      }
+
+      links.forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          var pageId = a.dataset.page || 'home';
+          e.preventDefault();
+          if (pageId !== 'home') {
+            showPage(pageId);
+            window.scrollTo({ top: 0 });
+          } else {
+            showPage('home');
+            var target = document.querySelector(a.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth' });
+          }
+          setOpen(false);
+        });
+      });
+
+      // Kotevní odkazy uvnitř úvodní stránky (např. CTA tlačítko v hero sekci) —
+      // klik ošetříme ručně místo nativní navigace na #kotvu. Nativní skok na
+      // kotvu uvnitř iframe (v náhledu generátoru) totiž může způsobit, že se
+      // celý obsah iframe znovu načte od začátku a vypadá to, jako by se
+      // stránka "restartovala".
+      document.querySelectorAll('[data-scroll-link]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          var target = document.querySelector(a.getAttribute('href'));
+          if (!target) return;
+          e.preventDefault();
+          showPage('home');
+          target.scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+
+      // Odkaz "Zpět na hlavní stránku" uvnitř vlastní sekce
+      document.querySelectorAll('[data-page-link="home"]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          showPage('home');
+          window.scrollTo({ top: 0 });
+        });
+      });
+
+      // CTA tlačítko mířící na vlastní sekci (samostatnou "stránku")
+      document.querySelectorAll('[data-goto-page]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          showPage(a.dataset.gotoPage);
+          window.scrollTo({ top: 0 });
+        });
+      });
+
+      // Název webu nahoře v menu vždy vrátí na hlavní stránku a nahoru
+      // (dřív to byl obyčejný odkaz na #hero, který na vlastní stránce nic neudělal
+      // a mohl vypadat jako by se "otevřela" celá stránka znovu)
+      var brandLink = document.getElementById('sideNavBrand');
+      if (brandLink) {
+        brandLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          showPage('home');
+          window.scrollTo({ top: 0 });
+          setOpen(false);
+        });
+      }
+
+      // Výchozí aktivní odkaz v menu = první odkaz vedoucí na "home"
+      var firstHome = links.find ? links.find(function (a) { return a.dataset.page === 'home'; }) : null;
+      if (firstHome) firstHome.classList.add('active');
+
+      // ---------- zvýraznění aktivní sekce při scrollování — POUZE na úvodní stránce ----------
+      var homeLinks = links.filter(function (a) { return a.dataset.page === 'home'; });
+      var homeSections = homeLinks
+        .map(function (a) { return document.querySelector(a.getAttribute('href')); })
+        .filter(Boolean);
+      if (homeSections.length && 'IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function (entries) {
+          var homePage = document.getElementById('page-home');
+          if (!homePage || !homePage.classList.contains('active')) return; // mimo domovskou stránku menu neplést
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            var id = '#' + entry.target.id;
+            homeLinks.forEach(function (a) {
+              a.classList.toggle('active', a.getAttribute('href') === id);
+            });
+          });
+        }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+        homeSections.forEach(function (sec) { observer.observe(sec); });
+      }
+    })();
+  <\/script>
+  <script>
+    // Registrace service workera - stáhni sw.js tlačítkem v sekci "PWA"
+    // v generátoru a ulož ho vedle tohoto HTML souboru.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+          console.log('[SW] Registrace selhala:', err);
+        });
+      });
+    }
+  <\/script>
+</body>
+</html>`;
+}
+
+/* ============================================================
+   NÁHLED + EXPORT
+   ============================================================ */
+const frame = document.getElementById('previewFrame');
+let previewTimer = null;
+function updatePreview(){
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    frame.srcdoc = buildSiteHTML(state);
+    autosaveState();
+  }, 120);
+}
+
+/* ============================================================
+   ULOŽENÍ / NAČTENÍ PRÁCE (aby se nepřišlo o rozpracovaný web)
+   ============================================================ */
+const STORAGE_KEY = 'layoutGenerator.state.v1';
+const autosaveStatusEl = document.getElementById('autosaveStatus');
+
+function formatTime(d){
+  return d.toLocaleTimeString('cs-CZ', {hour:'2-digit', minute:'2-digit'});
+}
+
+let autosaveTimer = null;
+function autosaveState(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }));
+      if (autosaveStatusEl) autosaveStatusEl.textContent = `Automaticky uloženo ${formatTime(new Date())}`;
+    }catch(err){
+      // Např. překročený limit localStorage (velký nahraný obrázek) — na tichém autosave to necháme být,
+      // uživatel má pořád k dispozici ruční "Uložit projekt" do souboru.
+      if (autosaveStatusEl) autosaveStatusEl.textContent = 'Automatické uložení selhalo (zkus "Uložit projekt")';
+      console.warn('Autosave selhal:', err);
+    }
+  }, 400);
+}
+
+function restoreAutosave(){
+  let raw;
+  try{ raw = localStorage.getItem(STORAGE_KEY); }catch(err){ return; }
+  if (!raw) return;
+  try{
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.state){
+      state = Object.assign({}, state, parsed.state);
+      const savedAt = parsed.savedAt ? new Date(parsed.savedAt) : null;
+      if (autosaveStatusEl){
+        autosaveStatusEl.textContent = savedAt
+          ? `Obnovena rozpracovaná verze (${formatTime(savedAt)})`
+          : 'Obnovena rozpracovaná verze';
+      }
+    }
+  }catch(err){
+    console.warn('Nepodařilo se načíst automatické uložení:', err);
+  }
+}
+
+function downloadProjectFile(){
+  const payload = JSON.stringify({ savedAt: new Date().toISOString(), state }, null, 2);
+  const blob = new Blob([payload], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const slug = (state.brand || 'projekt').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'projekt';
+  a.href = url; a.download = `${slug}.generator.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  if (autosaveStatusEl) autosaveStatusEl.textContent = `Projekt uložen do souboru ${formatTime(new Date())}`;
+}
+
+document.getElementById('saveProjectBtn').addEventListener('click', downloadProjectFile);
+
+document.getElementById('resetProjectBtn').addEventListener('click', () => {
+  if (!confirm('Opravdu zahodit rozpracovaný obsah a začít znovu se vzorovými texty? Tuto akci nejde vrátit zpět.')) return;
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(err){}
+  state = getDefaultState();
+  renderForm();
+  updatePreview();
+  if (autosaveStatusEl) autosaveStatusEl.textContent = 'Nový projekt — vzorové texty obnoveny';
+});
+
+document.getElementById('loadProjectBtn').addEventListener('click', () => {
+  document.getElementById('loadProjectFile').click();
+});
+
+document.getElementById('loadProjectFile').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      const loadedState = parsed && parsed.state ? parsed.state : parsed;
+      if (!loadedState || typeof loadedState !== 'object') throw new Error('Neplatný formát souboru');
+      state = Object.assign({}, state, loadedState);
+      renderForm();
+      updatePreview();
+      if (autosaveStatusEl) autosaveStatusEl.textContent = `Projekt načten ze souboru ${formatTime(new Date())}`;
+    }catch(err){
+      alert('Soubor se nepodařilo načíst — zkontroluj, že jde o .json export z tohoto generátoru.');
+      console.warn('Načtení projektu selhalo:', err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const html = buildSiteHTML(state);
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const slug = (state.brand || 'web').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'web';
+  a.href = url; a.download = `${slug}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+document.querySelectorAll('.mobile-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const ws = document.getElementById('workspace');
+    ws.classList.toggle('show-editor', tab.dataset.tab === 'editor');
+    ws.classList.toggle('show-preview', tab.dataset.tab === 'preview');
+    if (tab.dataset.tab === 'preview') window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('frameHolder').classList.toggle('mobile', btn.dataset.view === 'mobile');
+  });
+});
+
+restoreAutosave();
+renderForm();
+updatePreview();
+</script>
+</body>
+</html>
