@@ -111,6 +111,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
+<script data-goatcounter="https://tripcost.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+
 <style>
   @property --accent-color { syntax: '<color>'; inherits: true; initial-value: #fbbf24; }
   @property --accent-glow  { syntax: '<color>'; inherits: true; initial-value: #3a2405; }
@@ -326,6 +329,32 @@
   }
   .route-chip .rc-del:hover{ background:rgba(248,113,113,0.2); color:#f87171; }
   .route-chip .rc-del svg{ width:12px; height:12px; }
+  .route-chip .rc-map{
+    width:26px; height:26px; flex-shrink:0; border-radius:50%; border:none; background:rgba(255,255,255,0.06);
+    color:rgba(255,255,255,0.55); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.25s;
+    text-decoration:none;
+  }
+  .route-chip .rc-map:hover{ background:rgba(251,191,36,0.2); color:var(--accent-color); }
+  .route-chip .rc-map svg{ width:13px; height:13px; }
+  .route-chip .rc-actions{ display:flex; gap:6px; flex-shrink:0; }
+
+  .routes-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .routes-card-head h2{ margin:0; }
+  .btn-sm{
+    display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:30px;
+    border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7);
+    font-family:'Poppins', sans-serif; font-size:10.5px; font-weight:400; cursor:pointer; transition:0.25s;
+  }
+  .btn-sm:hover{ background:rgba(255,255,255,0.1); color:#fff; }
+  .btn-sm svg{ width:12px; height:12px; }
+
+  .map-link-row{
+    display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:14px;
+    padding:10px 16px; border-radius:30px; border:1px solid rgba(251,191,36,0.3); background:rgba(251,191,36,0.08);
+    color:var(--accent-color); font-family:'Poppins', sans-serif; font-size:12px; text-decoration:none; cursor:pointer;
+  }
+  .map-link-row:hover{ background:rgba(251,191,36,0.16); }
+  .map-link-row svg{ width:14px; height:14px; }
 
   .save-row{ display:flex; gap:8px; margin-top:14px; }
   .save-row input{
@@ -460,6 +489,11 @@
       <div class="field-label"><span>Další náklady <span style="opacity:.6">(volitelné)</span></span><span class="unit">Kč</span></div>
       <input type="text" id="extra" inputmode="decimal" placeholder="dálniční známka, parkovné…" aria-label="Další náklady">
     </div>
+
+    <div class="field">
+      <div class="field-label"><span>Odkaz na mapu <span style="opacity:.6">(volitelné)</span></span><span class="unit">mapy.cz / Google</span></div>
+      <input type="url" id="mapLink" inputmode="url" placeholder="vlož odkaz z mapy.cz nebo Google Maps" aria-label="Odkaz na mapu trasy">
+    </div>
   </section>
 
   <section class="card result-card" aria-label="Výsledek výpočtu" id="resultSection" aria-live="polite">
@@ -490,6 +524,11 @@
         </div>
       </div>
 
+      <a href="#" id="rMapLink" class="map-link-row" target="_blank" rel="noopener" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Otevřít trasu na mapě
+      </a>
+
       <div class="result-actions">
         <button class="btn primary" id="saveBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 17.3l-6.16 3.6 1.64-7-5.36-4.64 7.06-.6L12 2l2.82 6.66 7.06.6-5.36 4.64 1.64 7z"/></svg>
@@ -498,6 +537,14 @@
         <button class="btn" id="copyBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
           Kopírovat
+        </button>
+        <button class="btn" id="exportPdfBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          Export PDF
+        </button>
+        <button class="btn" id="exportCsvBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+          Export CSV
         </button>
         <button class="btn ghost" id="resetBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -513,7 +560,13 @@
   </section>
 
   <section class="card" id="routesCard" style="display:none;" aria-label="Uložené trasy">
-    <h2>Uložené trasy</h2>
+    <div class="routes-card-head">
+      <h2>Uložené trasy</h2>
+      <button class="btn-sm" id="exportRoutesCsvBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+        CSV
+      </button>
+    </div>
     <div class="routes-list" id="routesList"></div>
   </section>
 
@@ -595,6 +648,7 @@
     pMinus: document.getElementById("pMinus"),
     pPlus: document.getElementById("pPlus"),
     extra: document.getElementById("extra"),
+    mapLink: document.getElementById("mapLink"),
     resultEmpty: document.getElementById("resultEmpty"),
     resultBody: document.getElementById("resultBody"),
     rTotal: document.getElementById("rTotal"),
@@ -604,8 +658,12 @@
     rPerKm: document.getElementById("rPerKm"),
     rPerPerson: document.getElementById("rPerPerson"),
     rPerPersonWrap: document.getElementById("rPerPersonWrap"),
+    rMapLink: document.getElementById("rMapLink"),
     saveBtn: document.getElementById("saveBtn"),
     copyBtn: document.getElementById("copyBtn"),
+    exportPdfBtn: document.getElementById("exportPdfBtn"),
+    exportCsvBtn: document.getElementById("exportCsvBtn"),
+    exportRoutesCsvBtn: document.getElementById("exportRoutesCsvBtn"),
     resetBtn: document.getElementById("resetBtn"),
     saveRow: document.getElementById("saveRow"),
     routeName: document.getElementById("routeName"),
@@ -615,6 +673,15 @@
     roadCar: document.getElementById("roadCar"),
     toast: document.getElementById("toast")
   };
+
+  var FUEL_LABELS = { benzin:"Benzín", nafta:"Nafta", lpg:"LPG", elektro:"Elektro" };
+
+  function normalizeUrl(u){
+    u = (u || "").trim();
+    if(!u) return "";
+    if(!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return u;
+  }
 
   var fuelType = "benzin";
   var lastCalc = null;
@@ -686,6 +753,7 @@
   });
   els.passengers.addEventListener("input", function(){ calc(); persistState(); });
   els.roundTrip.addEventListener("change", function(){ calc(); persistState(); });
+  els.mapLink.addEventListener("input", function(){ calc(); persistState(); });
 
   function calc(){
     var distance = parseFloat(els.distance.value);
@@ -700,6 +768,7 @@
     if(!valid){
       els.resultEmpty.style.display = "block";
       els.resultBody.style.display = "none";
+      els.rMapLink.style.display = "none";
       lastCalc = null;
       moveCar(0.06);
       return;
@@ -733,9 +802,17 @@
       els.rPerPerson.textContent = fmt(totalCost, 2) + " Kč";
     }
 
+    var mapLink = (els.mapLink.value || "").trim();
+    if(mapLink){
+      els.rMapLink.href = normalizeUrl(mapLink);
+      els.rMapLink.style.display = "flex";
+    } else {
+      els.rMapLink.style.display = "none";
+    }
+
     lastCalc = {
       fuelType: fuelType, distance: distance, roundTrip: roundTrip, consumption: consumption,
-      price: price, passengers: passengers, extra: extra,
+      price: price, passengers: passengers, extra: extra, mapLink: mapLink,
       totalKm: totalKm, fuelUsed: fuelUsed, totalCost: totalCost, perKm: perKm, perPerson: perPerson
     };
 
@@ -757,6 +834,7 @@
       "Cena za km: " + fmt(lastCalc.perKm,2) + " Kč"
     ];
     if(lastCalc.passengers > 1) lines.push("Na osobu (" + lastCalc.passengers + "x): " + fmt(lastCalc.perPerson,2) + " Kč");
+    if(lastCalc.mapLink) lines.push("Mapa: " + normalizeUrl(lastCalc.mapLink));
     return lines.join("\n");
   }
 
@@ -774,6 +852,7 @@
   els.resetBtn.addEventListener("click", function(){
     els.distance.value = ""; els.consumption.value = ""; els.price.value = "";
     els.passengers.value = 1; els.extra.value = ""; els.roundTrip.checked = false;
+    els.mapLink.value = "";
     calc(); persistState();
     showToast("Formulář vymazán");
   });
@@ -805,6 +884,7 @@
       price: lastCalc.price,
       passengers: lastCalc.passengers,
       extra: lastCalc.extra,
+      mapLink: lastCalc.mapLink || "",
       totalCost: lastCalc.totalCost
     });
     if(routes.length > 12) routes = routes.slice(0,12);
@@ -835,17 +915,23 @@
     var html = "";
     for(var i=0;i<routes.length;i++){
       var r = routes[i];
-      var fuelLabel = { benzin:"Benzín", nafta:"Nafta", lpg:"LPG", elektro:"Elektro" }[r.fuelType] || r.fuelType;
+      var fuelLabel = FUEL_LABELS[r.fuelType] || r.fuelType;
+      var mapBtn = r.mapLink
+        ? '<a class="rc-map" href="'+escapeHtml(normalizeUrl(r.mapLink))+'" target="_blank" rel="noopener" aria-label="Otevřít trasu na mapě"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></a>'
+        : '';
       html += '<div class="route-chip" data-id="'+r.id+'">'
         + '<div><div class="rc-name">'+escapeHtml(r.name)+'</div>'
         + '<div class="rc-meta">'+fmt(r.distance,0)+' km'+(r.roundTrip?' · tam a zpět':'')+' · '+fuelLabel+' · '+fmt(r.totalCost,0)+' Kč</div></div>'
+        + '<div class="rc-actions">'
+        + mapBtn
         + '<button class="rc-del" data-id="'+r.id+'" aria-label="Smazat trasu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
-        + '</div>';
+        + '</div></div>';
     }
     els.routesList.innerHTML = html;
   }
 
   els.routesList.addEventListener("click", function(e){
+    if(e.target.closest(".rc-map")) return;
     var delBtn = e.target.closest(".rc-del");
     if(delBtn){
       var id = delBtn.getAttribute("data-id");
@@ -866,6 +952,7 @@
       els.price.value = route.price;
       els.passengers.value = route.passengers;
       els.extra.value = route.extra || "";
+      els.mapLink.value = route.mapLink || "";
       calc(); persistState();
       showToast("Trasa načtena");
       window.scrollTo({ top:0, behavior:"smooth" });
@@ -881,7 +968,8 @@
         consumption: els.consumption.value,
         price: els.price.value,
         passengers: els.passengers.value,
-        extra: els.extra.value
+        extra: els.extra.value,
+        mapLink: els.mapLink.value
       }));
     } catch(e){}
   }
@@ -897,7 +985,118 @@
     if(s.price) els.price.value = s.price;
     if(s.passengers) els.passengers.value = s.passengers;
     if(s.extra) els.extra.value = s.extra;
+    if(s.mapLink) els.mapLink.value = s.mapLink;
   }
+
+  /* ---- export: CSV + PDF ---- */
+  function csvEscape(v){
+    v = String(v === null || v === undefined ? "" : v);
+    if(/[;"\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  }
+
+  function downloadBlob(filename, content, mime){
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function rowsToCsv(rows){
+    return rows.map(function(r){ return r.map(csvEscape).join(";"); }).join("\r\n");
+  }
+
+  els.exportCsvBtn.addEventListener("click", function(){
+    if(!lastCalc){ showToast("Nejdřív spočítej cestu"); return; }
+    var u = FUEL_UNITS[lastCalc.fuelType];
+    var rows = [
+      ["Pole", "Hodnota"],
+      ["Typ pohonu", FUEL_LABELS[lastCalc.fuelType] || lastCalc.fuelType],
+      ["Vzdálenost (km)", fmt(lastCalc.totalKm, 1)],
+      ["Tam a zpět", lastCalc.roundTrip ? "Ano" : "Ne"],
+      ["Průměrná spotřeba", fmt(lastCalc.consumption, 1) + " " + u.cons],
+      ["Cena paliva", fmt(lastCalc.price, 2) + " " + u.price],
+      ["Spotřebováno celkem", fmt(lastCalc.fuelUsed, 1) + " " + u.fuelWord],
+      ["Počet osob", String(lastCalc.passengers)],
+      ["Další náklady (Kč)", fmt(lastCalc.extra, 2)],
+      ["Celkové náklady (Kč)", fmt(lastCalc.totalCost, 2)],
+      ["Cena za km (Kč)", fmt(lastCalc.perKm, 2)],
+      ["Cena na osobu (Kč)", fmt(lastCalc.perPerson, 2)]
+    ];
+    if(lastCalc.mapLink) rows.push(["Odkaz na mapu", normalizeUrl(lastCalc.mapLink)]);
+    downloadBlob("tripcost-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
+    showToast("CSV exportováno");
+  });
+
+  els.exportRoutesCsvBtn.addEventListener("click", function(){
+    var routes = loadRoutes();
+    if(!routes.length){ showToast("Žádné uložené trasy"); return; }
+    var rows = [["Název", "Typ pohonu", "Vzdálenost (km)", "Tam a zpět", "Spotřeba", "Cena paliva", "Počet osob", "Další náklady (Kč)", "Celkové náklady (Kč)", "Odkaz na mapu"]];
+    routes.forEach(function(r){
+      rows.push([
+        r.name, FUEL_LABELS[r.fuelType] || r.fuelType, r.distance, r.roundTrip ? "Ano" : "Ne",
+        r.consumption, r.price, r.passengers, fmt(r.extra || 0, 2), fmt(r.totalCost, 2), r.mapLink ? normalizeUrl(r.mapLink) : ""
+      ]);
+    });
+    downloadBlob("tripcost-trasy-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
+    showToast("Trasy exportovány do CSV");
+  });
+
+  els.exportPdfBtn.addEventListener("click", function(){
+    if(!lastCalc){ showToast("Nejdřív spočítej cestu"); return; }
+    var u = FUEL_UNITS[lastCalc.fuelType];
+    var rowsData = [
+      ["Typ pohonu", FUEL_LABELS[lastCalc.fuelType] || lastCalc.fuelType],
+      ["Vzdálenost", fmt(lastCalc.totalKm, lastCalc.totalKm % 1 === 0 ? 0 : 1) + " km" + (lastCalc.roundTrip ? " (tam a zpět)" : "")],
+      ["Průměrná spotřeba", fmt(lastCalc.consumption, 1) + " " + u.cons],
+      ["Cena paliva", fmt(lastCalc.price, 2) + " " + u.price],
+      ["Spotřebováno celkem", fmt(lastCalc.fuelUsed, 1) + " " + u.fuelWord],
+      ["Počet osob", String(lastCalc.passengers)],
+      ["Další náklady", fmt(lastCalc.extra, 2) + " Kč"],
+      ["Cena za km", fmt(lastCalc.perKm, 2) + " Kč"]
+    ];
+    if(lastCalc.passengers > 1) rowsData.push(["Na osobu (" + lastCalc.passengers + "x)", fmt(lastCalc.perPerson, 2) + " Kč"]);
+    if(lastCalc.mapLink) rowsData.push(["Odkaz na mapu", normalizeUrl(lastCalc.mapLink)]);
+
+    var rowsHtml = rowsData.map(function(r){
+      return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + escapeHtml(r[1]) + "</td></tr>";
+    }).join("");
+
+    var dateStr = new Date().toLocaleDateString("cs-CZ");
+    var html = "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>SYNTHLUCIDA TRIP COST</title><style>"
+      + "body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;max-width:640px;margin:0 auto;}"
+      + "h1{font-size:20px;margin:0 0 4px;letter-spacing:0.5px;}"
+      + ".sub{color:#777;font-size:12px;margin-bottom:18px;}"
+      + ".total-label{color:#999;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}"
+      + ".total{font-size:32px;font-weight:bold;margin:2px 0 18px;color:#b45309;}"
+      + "table{width:100%;border-collapse:collapse;font-size:13px;}"
+      + "td{padding:9px 6px;border-bottom:1px solid #eee;}"
+      + "td:first-child{color:#666;}"
+      + "td:last-child{text-align:right;font-weight:600;word-break:break-all;}"
+      + "footer{margin-top:26px;font-size:11px;color:#999;}"
+      + "@media print{ body{padding:0;} }"
+      + "</style></head><body>"
+      + "<h1>SYNTHLUCIDA TRIP COST</h1>"
+      + "<div class=\"sub\">Kalkulace nákladů na cestu autem &middot; " + dateStr + "</div>"
+      + "<div class=\"total-label\">Celkové náklady na cestu</div>"
+      + "<div class=\"total\">" + fmt(lastCalc.totalCost, lastCalc.totalCost < 100 ? 2 : 0) + " Kč</div>"
+      + "<table>" + rowsHtml + "</table>"
+      + "<footer>Vygenerováno v SYNTHLUCIDA TRIP COST &middot; synthlucida.com/tripcost.html</footer>"
+      + "</body></html>";
+
+    var w = window.open("", "_blank");
+    if(!w){ showToast("Export PDF byl zablokován prohlížečem"); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); }, 350);
+    showToast("Otevři dialog tisku a zvol „Uložit jako PDF“");
+  });
 
   function init(){
     restoreState();
