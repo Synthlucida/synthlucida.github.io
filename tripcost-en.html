@@ -60,7 +60,7 @@
   "offers": {
     "@type": "Offer",
     "price": "0",
-    "priceCurrency": "CZK"
+    "priceCurrency": "USD"
   },
   "inLanguage": "en",
   "creator": {
@@ -480,8 +480,8 @@
     </div>
 
     <div class="field">
-      <div class="field-label"><span>Fuel price</span><span class="unit" id="priceUnit">Kč/l</span></div>
-      <input type="text" id="price" inputmode="decimal" placeholder="e.g. 37.90" aria-label="Fuel price">
+      <div class="field-label"><span>Fuel price</span><span class="unit" id="priceUnit">$/l</span></div>
+      <input type="text" id="price" inputmode="decimal" placeholder="e.g. 3.79" aria-label="Fuel price">
     </div>
 
     <div class="field">
@@ -494,7 +494,7 @@
     </div>
 
     <div class="field">
-      <div class="field-label"><span>Additional costs <span style="opacity:.6">(optional)</span></span><span class="unit">Kč</span></div>
+      <div class="field-label"><span>Additional costs <span style="opacity:.6">(optional)</span></span><span class="unit">$</span></div>
       <input type="text" id="extra" inputmode="decimal" placeholder="toll sticker, parking…" aria-label="Additional costs">
     </div>
 
@@ -510,7 +510,7 @@
 
     <div id="resultBody" class="hidden" style="display:none;">
       <div class="result-total-label">Total trip cost</div>
-      <div class="result-total"><span id="rTotal">0</span><span class="cur">Kč</span></div>
+      <div class="result-total"><span id="rTotal">0</span><span class="cur">$</span></div>
       <div class="result-sub" id="rSub"></div>
 
       <div class="result-grid">
@@ -523,11 +523,11 @@
           <div class="k">Fuel used</div>
         </div>
         <div class="result-stat">
-          <div class="v" id="rPerKm">0 Kč</div>
+          <div class="v" id="rPerKm">0 $</div>
           <div class="k">Price per km</div>
         </div>
         <div class="result-stat highlight" id="rPerPersonWrap">
-          <div class="v" id="rPerPerson">0 Kč</div>
+          <div class="v" id="rPerPerson">0 $</div>
           <div class="k">Per person</div>
         </div>
       </div>
@@ -695,10 +695,10 @@
   var lastCalc = null;
 
   var FUEL_UNITS = {
-    benzin:  { cons:"l/100 km", price:"Kč/l",   fuelWord:"l" },
-    nafta:   { cons:"l/100 km", price:"Kč/l",   fuelWord:"l" },
-    lpg:     { cons:"l/100 km", price:"Kč/l",   fuelWord:"l" },
-    elektro: { cons:"kWh/100 km", price:"Kč/kWh", fuelWord:"kWh" }
+    benzin:  { cons:"l/100 km", price:"$/l",   fuelWord:"l" },
+    nafta:   { cons:"l/100 km", price:"$/l",   fuelWord:"l" },
+    lpg:     { cons:"l/100 km", price:"$/l",   fuelWord:"l" },
+    elektro: { cons:"kWh/100 km", price:"$/kWh", fuelWord:"kWh" }
   };
 
   function fmt(n, decimals){
@@ -795,19 +795,19 @@
     els.rTotal.textContent = fmt(totalCost, totalCost < 100 ? 2 : 0);
     var subParts = [];
     subParts.push((roundTrip ? "round trip · " : "") + fmt(totalKm, totalKm % 1 === 0 ? 0 : 1) + " km");
-    if(extra > 0) subParts.push("incl. " + fmt(extra,0) + " Kč additional costs");
+    if(extra > 0) subParts.push("incl. " + fmt(extra,0) + " $ additional costs");
     els.rSub.textContent = subParts.join(" · ");
 
     els.rDistance.textContent = fmt(totalKm, totalKm % 1 === 0 ? 0 : 1) + " km";
     els.rFuel.textContent = fmt(fuelUsed, 1) + " " + FUEL_UNITS[fuelType].fuelWord;
-    els.rPerKm.textContent = fmt(perKm, 2) + " Kč";
+    els.rPerKm.textContent = fmt(perKm, 2) + " $";
 
     if(passengers > 1){
       els.rPerPersonWrap.style.display = "";
-      els.rPerPerson.textContent = fmt(perPerson, 2) + " Kč";
+      els.rPerPerson.textContent = fmt(perPerson, 2) + " $";
     } else {
       els.rPerPersonWrap.style.display = "";
-      els.rPerPerson.textContent = fmt(totalCost, 2) + " Kč";
+      els.rPerPerson.textContent = fmt(totalCost, 2) + " $";
     }
 
     var mapLink = (els.mapLink.value || "").trim();
@@ -838,10 +838,10 @@
       "SYNTHLUCIDA TRIP COST",
       "Distance: " + fmt(lastCalc.totalKm, lastCalc.totalKm % 1 === 0 ? 0 : 1) + " km" + (lastCalc.roundTrip ? " (round trip)" : ""),
       "Consumption: " + fmt(lastCalc.fuelUsed,1) + " " + u.fuelWord,
-      "Total cost: " + fmt(lastCalc.totalCost,2) + " Kč",
-      "Price per km: " + fmt(lastCalc.perKm,2) + " Kč"
+      "Total cost: " + fmt(lastCalc.totalCost,2) + " $",
+      "Price per km: " + fmt(lastCalc.perKm,2) + " $"
     ];
-    if(lastCalc.passengers > 1) lines.push("Per person (" + lastCalc.passengers + "x): " + fmt(lastCalc.perPerson,2) + " Kč");
+    if(lastCalc.passengers > 1) lines.push("Per person (" + lastCalc.passengers + "x): " + fmt(lastCalc.perPerson,2) + " $");
     if(lastCalc.mapLink) lines.push("Map: " + normalizeUrl(lastCalc.mapLink));
     return lines.join("\n");
   }
@@ -929,7 +929,7 @@
         : '';
       html += '<div class="route-chip" data-id="'+r.id+'">'
         + '<div><div class="rc-name">'+escapeHtml(r.name)+'</div>'
-        + '<div class="rc-meta">'+fmt(r.distance,0)+' km'+(r.roundTrip?' · round trip':'')+' · '+fuelLabel+' · '+fmt(r.totalCost,0)+' Kč</div></div>'
+        + '<div class="rc-meta">'+fmt(r.distance,0)+' km'+(r.roundTrip?' · round trip':'')+' · '+fuelLabel+' · '+fmt(r.totalCost,0)+' $</div></div>'
         + '<div class="rc-actions">'
         + mapBtn
         + '<button class="rc-del" data-id="'+r.id+'" aria-label="Delete route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
@@ -1030,10 +1030,10 @@
       ["Fuel price", fmt(lastCalc.price, 2) + " " + u.price],
       ["Total fuel used", fmt(lastCalc.fuelUsed, 1) + " " + u.fuelWord],
       ["Number of passengers", String(lastCalc.passengers)],
-      ["Additional costs (Kč)", fmt(lastCalc.extra, 2)],
-      ["Total cost (Kč)", fmt(lastCalc.totalCost, 2)],
-      ["Price per km (Kč)", fmt(lastCalc.perKm, 2)],
-      ["Price per person (Kč)", fmt(lastCalc.perPerson, 2)]
+      ["Additional costs ($)", fmt(lastCalc.extra, 2)],
+      ["Total cost ($)", fmt(lastCalc.totalCost, 2)],
+      ["Price per km ($)", fmt(lastCalc.perKm, 2)],
+      ["Price per person ($)", fmt(lastCalc.perPerson, 2)]
     ];
     if(lastCalc.mapLink) rows.push(["Map link", normalizeUrl(lastCalc.mapLink)]);
     downloadBlob("tripcost-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
@@ -1043,7 +1043,7 @@
   els.exportRoutesCsvBtn.addEventListener("click", function(){
     var routes = loadRoutes();
     if(!routes.length){ showToast("No saved routes"); return; }
-    var rows = [["Name", "Fuel type", "Distance (km)", "Round trip", "Consumption", "Fuel price", "Passengers", "Additional costs (Kč)", "Total cost (Kč)", "Map link"]];
+    var rows = [["Name", "Fuel type", "Distance (km)", "Round trip", "Consumption", "Fuel price", "Passengers", "Additional costs ($)", "Total cost ($)", "Map link"]];
     routes.forEach(function(r){
       rows.push([
         r.name, FUEL_LABELS[r.fuelType] || r.fuelType, r.distance, r.roundTrip ? "Yes" : "No",
@@ -1064,10 +1064,10 @@
       ["Fuel price", fmt(lastCalc.price, 2) + " " + u.price],
       ["Total fuel used", fmt(lastCalc.fuelUsed, 1) + " " + u.fuelWord],
       ["Number of passengers", String(lastCalc.passengers)],
-      ["Additional costs", fmt(lastCalc.extra, 2) + " Kč"],
-      ["Price per km", fmt(lastCalc.perKm, 2) + " Kč"]
+      ["Additional costs", fmt(lastCalc.extra, 2) + " $"],
+      ["Price per km", fmt(lastCalc.perKm, 2) + " $"]
     ];
-    if(lastCalc.passengers > 1) rowsData.push(["Per person (" + lastCalc.passengers + "x)", fmt(lastCalc.perPerson, 2) + " Kč"]);
+    if(lastCalc.passengers > 1) rowsData.push(["Per person (" + lastCalc.passengers + "x)", fmt(lastCalc.perPerson, 2) + " $"]);
     if(lastCalc.mapLink) rowsData.push(["Map link", normalizeUrl(lastCalc.mapLink)]);
 
     var rowsHtml = rowsData.map(function(r){
@@ -1091,7 +1091,7 @@
       + "<h1>SYNTHLUCIDA TRIP COST</h1>"
       + "<div class=\"sub\">Car trip cost calculation &middot; " + dateStr + "</div>"
       + "<div class=\"total-label\">Total trip cost</div>"
-      + "<div class=\"total\">" + fmt(lastCalc.totalCost, lastCalc.totalCost < 100 ? 2 : 0) + " Kč</div>"
+      + "<div class=\"total\">" + fmt(lastCalc.totalCost, lastCalc.totalCost < 100 ? 2 : 0) + " $</div>"
       + "<table>" + rowsHtml + "</table>"
       + "<footer>Generated with SYNTHLUCIDA TRIP COST &middot; synthlucida.com/tripcost-en.html</footer>"
       + "</body></html>";
