@@ -1558,9 +1558,11 @@ function previewNavInterceptScript(){
         var a = e.target.closest && e.target.closest('a[href]');
         if (!a) return;
         var href = a.getAttribute('href');
-        if (!href || !/^[a-z0-9-]+\\.html$/i.test(href)) return;
+        if (!href) return;
+        var m = href.match(/^([a-z0-9-]+\\.html)(#[a-z0-9_-]+)?$/i);
+        if (!m) return;
         e.preventDefault();
-        window.parent.postMessage({ __webzenPreviewNav: true, filename: href }, '*');
+        window.parent.postMessage({ __webzenPreviewNav: true, filename: m[1], hash: m[2] || '' }, '*');
       });
     })();`;
 }
@@ -1951,17 +1953,31 @@ function updatePreview(){
 // když uživatel v náhledu klikne na odkaz vedoucí na hlavní nebo vlastní
 // stránku webu, místo skutečné (a v náhledu nefunkční) navigace na .html soubor
 // sem přijde jen jméno souboru a my podle něj do iframu vložíme vygenerovaný obsah.
+let pendingPreviewHash = '';
+frame.addEventListener('load', () => {
+  if (!pendingPreviewHash) return;
+  const hash = pendingPreviewHash;
+  pendingPreviewHash = '';
+  try {
+    const el = frame.contentDocument.querySelector(hash);
+    if (el) el.scrollIntoView();
+  } catch (err) { /* sandboxed srcdoc — ignore */ }
+});
+
 window.addEventListener('message', (e) => {
   if (!e.data || !e.data.__webzenPreviewNav) return;
   const filename = e.data.filename;
+  const hash = e.data.hash || '';
   const homeFilename = getHomeFilename(state);
   if (filename === homeFilename) {
+    pendingPreviewHash = hash;
     frame.srcdoc = buildSiteHTML(state);
     return;
   }
   const customSectionsData = computeCustomSectionsData(state);
   const sec = customSectionsData.find(cs => cs.filename === filename);
   if (sec) {
+    pendingPreviewHash = hash;
     frame.srcdoc = buildSectionPageHTML(state, sec, customSectionsData, homeFilename);
   }
 });
