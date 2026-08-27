@@ -1543,6 +1543,28 @@ function menuToggleScript(){
     })();`;
 }
 
+// Skript vložený do každé vygenerované stránky (hlavní i vlastní podstránky).
+// V reálném nasazení (na hostingu) nic nedělá — odkazy typu "o-nas.html"
+// normálně navigují na sousední soubor. V náhledu generátoru ale stránka běží
+// v <iframe srcdoc>, takže žádný takový soubor neexistuje a klik by skončil 404.
+// Proto tady detekujeme, jestli běžíme uvnitř iframu (window.self !== window.top),
+// a pokud ano, klik na odkaz na jinou "stránku webu" (holé jméno souboru, např.
+// "o-nas.html" nebo "web.html") přeposíláme postMessage rodiči — ten pak sám
+// přegeneruje obsah dané stránky a vloží ho do náhledu, místo skutečné navigace.
+function previewNavInterceptScript(){
+  return `(function () {
+      if (window.self === window.top) return; // mimo náhled (skutečný hosting) se nic neděje
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href]');
+        if (!a) return;
+        var href = a.getAttribute('href');
+        if (!href || !/^[a-z0-9-]+\\.html$/i.test(href)) return;
+        e.preventDefault();
+        window.parent.postMessage({ __webzenPreviewNav: true, filename: href }, '*');
+      });
+    })();`;
+}
+
 // Sdílený resolver pro cíl odkazu (CTA tlačítka i klikatelné karty na hlavní stránce).
 // U cíle "section" teď vede na skutečný, samostatný .html soubor té stránky.
 function resolveLinkAttrs(targetType, sectionIndex, url, newTab, fallbackAnchor, customSectionsData){
@@ -1721,6 +1743,7 @@ ${sideNavHtml}
     if (yEl) yEl.textContent = new Date().getFullYear();
 
     ${menuToggleScript()}
+    ${previewNavInterceptScript()}
 
     // ---------- kotevní odkazy (hero/funkce/faq) + zvýraznění aktivní položky v menu ----------
     (function () {
@@ -1731,11 +1754,37 @@ ${sideNavHtml}
         if (link) link.classList.add('active');
       }
 
+      // Po kliknutí běží plynulý scroll ke správné sekci a IntersectionObserver
+      // by mezitím krátce hlásil i sekce, kterými scroll "prolétá" — proto se na
+      // dobu scrollu jeho hlášení ignoruje, aby zvýraznění v menu neposkakovalo.
+      var suppressObserver = false;
+      var suppressReleaseTimer = null;
+      var suppressMaxTimer = null;
+
+      function releaseSuppress() {
+        suppressObserver = false;
+        clearTimeout(suppressReleaseTimer);
+        clearTimeout(suppressMaxTimer);
+      }
+
+      function armSuppress() {
+        suppressObserver = true;
+        clearTimeout(suppressMaxTimer);
+        suppressMaxTimer = setTimeout(releaseSuppress, 1000); // pojistka, kdyby scroll event nedoběhl
+      }
+
+      window.addEventListener('scroll', function () {
+        if (!suppressObserver) return;
+        clearTimeout(suppressReleaseTimer);
+        suppressReleaseTimer = setTimeout(releaseSuppress, 120);
+      }, { passive: true });
+
       localLinks.forEach(function (a) {
         a.addEventListener('click', function (e) {
           var target = document.querySelector(a.getAttribute('href'));
           if (!target) return;
           e.preventDefault();
+          armSuppress();
           target.scrollIntoView({ behavior: 'smooth' });
           setActive(a);
           if (window.__wzCloseMenu) window.__wzCloseMenu();
@@ -1749,6 +1798,7 @@ ${sideNavHtml}
         .filter(Boolean);
       if (homeSections.length && 'IntersectionObserver' in window) {
         var observer = new IntersectionObserver(function (entries) {
+          if (suppressObserver) return;
           entries.forEach(function (entry) {
             if (!entry.isIntersecting) return;
             var id = '#' + entry.target.id;
@@ -1871,6 +1921,7 @@ ${mainHtml}
     var yEl = document.getElementById('y');
     if (yEl) yEl.textContent = new Date().getFullYear();
     ${menuToggleScript()}
+    ${previewNavInterceptScript()}
   <\/script>
   <script>
     if ('serviceWorker' in navigator) {
@@ -1895,6 +1946,25 @@ function updatePreview(){
     autosaveState();
   }, 120);
 }
+
+// Zachytává zprávy z náhledového iframu (viz previewNavInterceptScript výš) —
+// když uživatel v náhledu klikne na odkaz vedoucí na hlavní nebo vlastní
+// stránku webu, místo skutečné (a v náhledu nefunkční) navigace na .html soubor
+// sem přijde jen jméno souboru a my podle něj do iframu vložíme vygenerovaný obsah.
+window.addEventListener('message', (e) => {
+  if (!e.data || !e.data.__webzenPreviewNav) return;
+  const filename = e.data.filename;
+  const homeFilename = getHomeFilename(state);
+  if (filename === homeFilename) {
+    frame.srcdoc = buildSiteHTML(state);
+    return;
+  }
+  const customSectionsData = computeCustomSectionsData(state);
+  const sec = customSectionsData.find(cs => cs.filename === filename);
+  if (sec) {
+    frame.srcdoc = buildSectionPageHTML(state, sec, customSectionsData, homeFilename);
+  }
+});
 
 /* ============================================================
    ULOŽENÍ / NAČTENÍ PRÁCE (aby se nepřišlo o rozpracovaný web)
