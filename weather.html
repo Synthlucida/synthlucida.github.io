@@ -456,6 +456,27 @@
   .activity-trend{ display:flex; align-items:flex-start; gap:9px; font-size:12px; opacity:0.65; line-height:1.5; }
   .activity-trend svg{ width:14px; height:14px; color:var(--accent-color); flex-shrink:0; margin-top:2px; }
 
+  /* ---- precipitation / storm outlook ---- */
+  .precip-block{
+    display:flex; align-items:center; gap:16px; border-radius:16px;
+    border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03);
+    padding:15px 18px; margin-bottom:20px; transition:border-color 0.3s, background 0.3s;
+  }
+  .precip-block.is-storm{ border-color:rgba(177,140,249,0.5); background:rgba(177,140,249,0.08); }
+  .precip-block.is-active{ border-color:var(--accent-color); box-shadow:0 0 16px rgba(56,189,248,0.18); }
+  .precip-icon{ width:32px; height:32px; color:var(--accent-color); filter:drop-shadow(0 0 8px var(--accent-color)); flex-shrink:0; }
+  .precip-block.is-storm .precip-icon{ color:#b18cf9; filter:drop-shadow(0 0 8px #b18cf9); }
+  .precip-text{ min-width:0; }
+  .precip-label{ font-family:'Orbitron', sans-serif; font-size:9.5px; letter-spacing:0.8px; text-transform:uppercase; color:var(--accent-color); opacity:0.85; margin-bottom:5px; }
+  .precip-block.is-storm .precip-label{ color:#b18cf9; }
+  .precip-value{ font-size:13.5px; font-weight:500; letter-spacing:0.2px; line-height:1.4; }
+  .precip-detail{ font-size:11.5px; font-family:'JetBrains Mono', monospace; opacity:0.55; margin-top:4px; }
+  .hour-precip{
+    display:flex; align-items:center; gap:2px; font-family:'JetBrains Mono', monospace;
+    font-size:10px; color:#38bdf8; opacity:0.85;
+  }
+  .hour-precip svg{ width:10px; height:10px; flex-shrink:0; }
+
   /* ---- wind detail ---- */
   .wind-block{
     display:flex; align-items:center; gap:16px; border-radius:16px;
@@ -1376,7 +1397,7 @@
       latitude: place.latitude,
       longitude: place.longitude,
       current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day",
-      hourly: "temperature_2m,weather_code",
+      hourly: "temperature_2m,weather_code,precipitation,precipitation_probability",
       daily: "sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,sunshine_duration,precipitation_probability_max,precipitation_sum,wind_gusts_10m_max,wind_speed_10m_max,uv_index_max",
       timezone: "auto",
       forecast_days: 7
@@ -1514,6 +1535,98 @@
     };
   }
 
+  // ---------- srážkový / bouřkový výhled ----------
+  // "Rozumí" hodinovým datům z Open-Meteo a řekne, jestli teď/brzy prší nebo bouří,
+  // kdy to začne, kdy by to podle předpovědi mělo přestat a kolik toho zhruba spadne.
+  function fmtHourLabel(iso){
+    var d = new Date(iso);
+    var now = new Date();
+    var timeStr = fmtHour(iso);
+    if(d.toDateString() === now.toDateString()) return timeStr;
+    var tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
+    if(d.toDateString() === tomorrow.toDateString()) return "zítra "+timeStr;
+    var dayStr = d.toLocaleDateString("cs-CZ", { weekday:"short" });
+    return dayStr.replace(".","")+" "+timeStr;
+  }
+
+  function buildPrecipOutlook(data, nowIdx){
+    var hourly = data.hourly;
+    if(!hourly || !hourly.precipitation || !hourly.precipitation_probability) return null;
+    var scanEnd = Math.min(hourly.time.length, nowIdx + 48);
+    if(scanEnd <= nowIdx) return null;
+
+    function isPrecipHour(i){
+      var p = hourly.precipitation[i] || 0;
+      var prob = hourly.precipitation_probability[i] != null ? hourly.precipitation_probability[i] : 0;
+      return p >= 0.1 || prob >= 55;
+    }
+    function isStormHour(i){
+      return weatherInfo(hourly.weather_code[i], 1).group === "storm";
+    }
+
+    if(isPrecipHour(nowIdx)){
+      var end = scanEnd;
+      for(var i = nowIdx+1; i < scanEnd; i++){ if(!isPrecipHour(i)){ end = i; break; } }
+      var sum = 0, storm = false;
+      for(var j = nowIdx; j < end; j++){ sum += hourly.precipitation[j] || 0; if(isStormHour(j)) storm = true; }
+      var openEnded = (end >= scanEnd) && isPrecipHour(scanEnd-1);
+      return { state:"now", storm:storm, sum:sum, durH: end-nowIdx, endTime: hourly.time[Math.min(end, hourly.time.length-1)], openEnded: openEnded };
+    }
+
+    var start = -1;
+    for(var i2 = nowIdx+1; i2 < scanEnd; i2++){ if(isPrecipHour(i2)){ start = i2; break; } }
+    if(start === -1) return { state:"none" };
+
+    var end2 = scanEnd;
+    for(var k = start+1; k < scanEnd; k++){ if(!isPrecipHour(k)){ end2 = k; break; } }
+    var sum2 = 0, storm2 = false, maxProb = 0;
+    for(var m = start; m < end2; m++){
+      sum2 += hourly.precipitation[m] || 0;
+      if(isStormHour(m)) storm2 = true;
+      var pr = hourly.precipitation_probability[m] || 0;
+      if(pr > maxProb) maxProb = pr;
+    }
+    var openEnded2 = (end2 >= scanEnd) && isPrecipHour(scanEnd-1);
+    return {
+      state:"future", storm:storm2, sum:sum2, maxProb:maxProb,
+      hoursUntil: start-nowIdx, startTime: hourly.time[start],
+      endTime: hourly.time[Math.min(end2, hourly.time.length-1)], openEnded: openEnded2
+    };
+  }
+
+  function precipBlockHtml(outlook){
+    if(!outlook) return "";
+    var what = outlook.storm ? "Bouřka" : "Srážky";
+    var iconName = outlook.storm ? "storm" : "rain";
+    var valueHtml, detailHtml = "";
+
+    if(outlook.state === "none"){
+      iconName = "sun";
+      valueHtml = "V nejbližších 48 h se podle předpovědi nečekají žádné srážky.";
+    } else if(outlook.state === "now"){
+      if(outlook.openEnded){
+        valueHtml = what+" právě probíhají a podle předpovědi budou pokračovat i po "+fmtHourLabel(outlook.endTime)+".";
+      } else {
+        valueHtml = what+" právě probíhají, přestat by měly kolem "+fmtHourLabel(outlook.endTime)+" (za "+outlook.durH+" h).";
+      }
+      detailHtml = "Očekávaný úhrn cca "+outlook.sum.toFixed(1)+" mm";
+    } else {
+      valueHtml = what+" se čekají od "+fmtHourLabel(outlook.startTime)+" (za "+outlook.hoursUntil+" h)"
+        + (outlook.openEnded ? "" : ", konec kolem "+fmtHourLabel(outlook.endTime))+".";
+      detailHtml = "Pravděpodobnost až "+Math.round(outlook.maxProb)+" % · očekávaný úhrn cca "+outlook.sum.toFixed(1)+" mm";
+    }
+
+    var activeClass = outlook.state === "now" ? " is-active" : "";
+    var stormClass = outlook.storm ? " is-storm" : "";
+    var html = '<div class="precip-block'+activeClass+stormClass+'">';
+    html += '<div class="precip-icon">'+icon(iconName)+'</div>';
+    html += '<div class="precip-text"><div class="precip-label">Srážkový výhled</div>';
+    html += '<div class="precip-value">'+valueHtml+'</div>';
+    if(detailHtml) html += '<div class="precip-detail">'+detailHtml+'</div>';
+    html += '</div></div>';
+    return html;
+  }
+
   function render(place, data, mush, iss){
     currentWeatherData = data;
     var cur = data.current;
@@ -1570,6 +1683,10 @@
     html += '<span>Západ '+fmtHour(data.daily.sunset[0])+' '+icon("moon")+'</span>';
     html += '</div>';
     html += '</div>'; // card
+
+    var nowIdx = findCurrentHourIndex(data.hourly.time);
+    var precipOutlook = buildPrecipOutlook(data, nowIdx);
+    html += precipBlockHtml(precipOutlook);
 
     html += '<div class="stats">';
     html += statBlock("Zapaření", cur.relative_humidity_2m+"%");
@@ -1628,7 +1745,6 @@
     html += '</div>';
 
     html += '<div class="section-label">Co nás čeká hodinu po hodině</div>';
-    var nowIdx = findCurrentHourIndex(data.hourly.time);
     var graphCount = Math.min(24, data.hourly.time.length - nowIdx);
     var graphTemps = data.hourly.temperature_2m.slice(nowIdx, nowIdx + graphCount);
     var graphTimes = data.hourly.time.slice(nowIdx, nowIdx + graphCount);
@@ -1644,6 +1760,10 @@
       html += '<div class="hour-time">'+(isNow?"Nyní":fmtHour(data.hourly.time[i]))+'</div>';
       html += icon(hi.icon);
       html += '<div class="hour-temp">'+Math.round(data.hourly.temperature_2m[i])+'°</div>';
+      var hProb = data.hourly.precipitation_probability ? data.hourly.precipitation_probability[i] : null;
+      if(hProb != null && hProb >= 15){
+        html += '<div class="hour-precip">'+icon("drop")+'<span>'+Math.round(hProb)+'%</span></div>';
+      }
       html += '</div>';
     }
     html += '</div>';
