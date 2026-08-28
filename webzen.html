@@ -700,28 +700,43 @@ function escapeAttr(s){ return escapeHtml(s); }
 // běžný text jako "C++" nebo "Firma++" omylem spároval s další "++" dál v textu
 // a smazal/rozbil vše mezi nimi. NB/NA hlídají, že před otevírací a za zavírací
 // značkou není písmeno ani číslice (skutečné formátování má kolem sebe mezeru/interpunkci).
-function tokenizeRichText(str){
-  const s = String(str ?? '');
+// Sdílený zdroj regexu pro rozpoznání formátovacích značek — použit jak pro
+// tokenizaci celého řetězce (tokenizeRichText), tak pro "živé" rozpoznání
+// právě dokončené značky při psaní (richTextMatchRegex). Alternativa pro
+// "***" (tučně+kurzíva zároveň) musí být PŘED alternativou pro "**" — jinak
+// by se u tří hvězdiček za sebou (typicky vzniklých kombinací tučně+kurzíva)
+// spároval jen první pár a třetí hvězdička by zůstala osamocená a viditelná
+// v náhledu jako obyčejný znak.
+function richMarkupSource(){
   const NB = '(?<![\\p{L}\\p{N}])', NA = '(?![\\p{L}\\p{N}])';
-  const re = new RegExp(
-    '\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\s)]+|\\/[^\\s)]*|#[^\\s)]*|mailto:[^\\s)]+)\\)' +
+  // Přísnější varianta hranice jen pro osamocenou "*" (kurzíva): navíc hlídá,
+  // že hvězdička na okraji značky není sama součástí sousední "**"/"***"
+  // sekvence (jinak by se z dvojice/trojice omylem "ukously" jedna hvězdička
+  // pro kurzívu a zbytek by se rozpadl). U __, ++, ~~ to řešit netřeba —
+  // žádný znak nesdílí s jiným typem značky.
+  const NBs = '(?<![\\p{L}\\p{N}*])', NAs = '(?![\\p{L}\\p{N}*])';
+  return '\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\s)]+|\\/[^\\s)]*|#[^\\s)]*|mailto:[^\\s)]+)\\)' +
+    `|${NB}\\*\\*\\*([^\\n]+?)\\*\\*\\*${NA}` +
     `|${NB}\\*\\*([^\\n]+?)\\*\\*${NA}` +
     `|${NB}__([^\\n]+?)__${NA}` +
     `|${NB}\\+\\+([^\\n]+?)\\+\\+${NA}` +
     `|${NB}~~([^\\n]+?)~~${NA}` +
-    `|${NB}\\*([^\\n]+?)\\*${NA}`,
-    'gu'
-  );
+    `|${NBs}\\*(?!\\*)([^\\n]+?)(?<!\\*)\\*${NAs}`;
+}
+function tokenizeRichText(str){
+  const s = String(str ?? '');
+  const re = new RegExp(richMarkupSource(), 'gu');
   const tokens = [];
   let last = 0, m;
   while ((m = re.exec(s))){
     if (m.index > last) tokens.push({type:'text', raw:s.slice(last, m.index)});
     if (m[1] !== undefined) tokens.push({type:'link', label:m[1], url:m[2]});
-    else if (m[3] !== undefined) tokens.push({type:'bold', inner:m[3]});
-    else if (m[4] !== undefined) tokens.push({type:'underline', inner:m[4]});
-    else if (m[5] !== undefined) tokens.push({type:'big', inner:m[5]});
-    else if (m[6] !== undefined) tokens.push({type:'small', inner:m[6]});
-    else if (m[7] !== undefined) tokens.push({type:'italic', inner:m[7]});
+    else if (m[3] !== undefined) tokens.push({type:'boldital', inner:m[3]});
+    else if (m[4] !== undefined) tokens.push({type:'bold', inner:m[4]});
+    else if (m[5] !== undefined) tokens.push({type:'underline', inner:m[5]});
+    else if (m[6] !== undefined) tokens.push({type:'big', inner:m[6]});
+    else if (m[7] !== undefined) tokens.push({type:'small', inner:m[7]});
+    else if (m[8] !== undefined) tokens.push({type:'italic', inner:m[8]});
     last = re.lastIndex;
   }
   if (last < s.length) tokens.push({type:'text', raw:s.slice(last)});
@@ -738,11 +753,17 @@ function richText(str){
       const external = /^https?:\/\//.test(t.url);
       return `<a href="${url}"${external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
     }
-    if (t.type === 'bold') return `<strong>${escapeHtml(t.inner)}</strong>`;
-    if (t.type === 'underline') return `<u>${escapeHtml(t.inner)}</u>`;
-    if (t.type === 'big') return `<span style="font-size:1.18em;">${escapeHtml(t.inner)}</span>`;
-    if (t.type === 'small') return `<span style="font-size:0.85em;">${escapeHtml(t.inner)}</span>`;
-    if (t.type === 'italic') return `<em>${escapeHtml(t.inner)}</em>`;
+    // Vnitřek se rekurzivně projde přes richText() znovu (ne jen escapeHtml) —
+    // díky tomu funguje i vzájemné kombinování formátů (např. tučně + kurzíva),
+    // protože případné další značky uvnitř (**, __, ++, ~~, *) se rozpoznají
+    // a promění se ve skutečné vnořené HTML tagy, místo aby zůstaly jako
+    // syrové znaky viditelné v náhledu.
+    if (t.type === 'boldital') return `<strong><em>${richText(t.inner)}</em></strong>`;
+    if (t.type === 'bold') return `<strong>${richText(t.inner)}</strong>`;
+    if (t.type === 'underline') return `<u>${richText(t.inner)}</u>`;
+    if (t.type === 'big') return `<span style="font-size:1.18em;">${richText(t.inner)}</span>`;
+    if (t.type === 'small') return `<span style="font-size:0.85em;">${richText(t.inner)}</span>`;
+    if (t.type === 'italic') return `<em>${richText(t.inner)}</em>`;
     return '';
   }).join('');
 }
@@ -760,6 +781,13 @@ function richText(str){
 
 // Vytvoří skutečný formátovací element (bez viditelných řídicích znaků).
 function buildRichTag(type, innerText){
+  if (type === 'boldital'){
+    const strong = document.createElement('strong');
+    const em = document.createElement('em');
+    em.innerHTML = richText(innerText);
+    strong.appendChild(em);
+    return strong;
+  }
   let el;
   if (type === 'bold') el = document.createElement('strong');
   else if (type === 'underline') el = document.createElement('u');
@@ -767,7 +795,10 @@ function buildRichTag(type, innerText){
   else if (type === 'big') { el = document.createElement('span'); el.style.fontSize = '1.18em'; }
   else if (type === 'small') { el = document.createElement('span'); el.style.fontSize = '0.85em'; }
   else return document.createTextNode(innerText);
-  el.textContent = innerText;
+  // Stejně jako u richText() — vnitřek necháme projít přes richText(), aby se
+  // i tady rozpoznaly případné další (vnořené) formátovací značky, ne jen
+  // vložily jako obyčejný text.
+  el.innerHTML = richText(innerText);
   return el;
 }
 
@@ -780,38 +811,67 @@ function renderRichCE(ce, raw){
 
 // Převede aktuální DOM obsah editoru zpátky na datový řetězec se značkami —
 // jediné místo, kde značky (**, __, ++, ~~, [ ](...)) vůbec vznikají.
+// Přidá kus textu/značky do rozestavěného výstupu. Pokud by nová část
+// začínající hvězdičkou navazovala přímo na hvězdičku už na konci výstupu
+// (např. konec "**" hned následovaný začátkem "*"), vloží mezi ně neviditelný
+// oddělovač (U+200B) — jinak by dvě sousední značky splynuly v nerozlišitelnou
+// řadu hvězdiček a při zpětném čtení by se špatně spárovaly. Do zobrazeného
+// textu to nijak nezasáhne (nulová šířka).
+function appendRaw(state, s){
+  if (s && s[0] === '*' && state.str.endsWith('*')) state.str += '\u200B';
+  state.str += s;
+}
 function ceToRaw(node){
-  let out = '';
+  const state = {str: ''};
+  ceToRawInto(node, state);
+  return state.str;
+}
+// Vlastní rekurze — na rozdíl od dřívější verze sdílí jeden `state` napříč
+// celým voláním (i mezi vnořenými značkami), aby appendRaw() vždy viděl
+// opravdu poslední zapsaný znak, včetně těch z vnořených dětí.
+function ceToRawInto(node, state){
   node.childNodes.forEach(child => {
     if (child.nodeType === Node.TEXT_NODE){
-      out += child.data;
+      appendRaw(state, child.data);
     } else if (child.nodeType === Node.ELEMENT_NODE){
       const tag = child.tagName;
       if (tag === 'BR'){
-        out += '\n';
+        appendRaw(state, '\n');
       } else if (tag === 'STRONG' || tag === 'B'){
-        out += '**' + ceToRaw(child) + '**';
+        // Pokud tučně obaluje jen a pouze kurzívu (nic jiného), zapíšeme rovnou
+        // jednoznačným "***text***" místo vnořeného "**" + "*text*" + "**" —
+        // ty by se jinak na hranici sloučily do nerozlišitelné řady hvězdiček.
+        const only = child.childNodes.length === 1 ? child.firstChild : null;
+        if (only && only.nodeType === Node.ELEMENT_NODE && (only.tagName === 'EM' || only.tagName === 'I')){
+          appendRaw(state, '***'); ceToRawInto(only, state); appendRaw(state, '***');
+        } else {
+          appendRaw(state, '**'); ceToRawInto(child, state); appendRaw(state, '**');
+        }
       } else if (tag === 'U'){
-        out += '__' + ceToRaw(child) + '__';
+        appendRaw(state, '__'); ceToRawInto(child, state); appendRaw(state, '__');
       } else if (tag === 'EM' || tag === 'I'){
-        out += '*' + ceToRaw(child) + '*';
+        const only = child.childNodes.length === 1 ? child.firstChild : null;
+        if (only && only.nodeType === Node.ELEMENT_NODE && (only.tagName === 'STRONG' || only.tagName === 'B')){
+          appendRaw(state, '***'); ceToRawInto(only, state); appendRaw(state, '***');
+        } else {
+          appendRaw(state, '*'); ceToRawInto(child, state); appendRaw(state, '*');
+        }
       } else if (tag === 'A'){
-        out += '[' + (child.textContent || '') + '](' + (child.getAttribute('href') || '') + ')';
+        appendRaw(state, '[' + (child.textContent || '') + '](' + (child.getAttribute('href') || '') + ')');
       } else if (tag === 'SPAN' && child.style.fontSize === '1.18em'){
-        out += '++' + ceToRaw(child) + '++';
+        appendRaw(state, '++'); ceToRawInto(child, state); appendRaw(state, '++');
       } else if (tag === 'SPAN' && child.style.fontSize === '0.85em'){
-        out += '~~' + ceToRaw(child) + '~~';
+        appendRaw(state, '~~'); ceToRawInto(child, state); appendRaw(state, '~~');
       } else if (tag === 'DIV' || tag === 'P'){
         // Pro jistotu — kdyby prohlížeč přesto vytvořil blokový element,
         // bereme ho jako nový řádek (běžné psaní ho díky ošetření Enteru níž nevytváří).
-        if (out && !out.endsWith('\n')) out += '\n';
-        out += ceToRaw(child);
+        if (state.str && !state.str.endsWith('\n')) appendRaw(state, '\n');
+        ceToRawInto(child, state);
       } else {
-        out += ceToRaw(child);
+        ceToRawInto(child, state);
       }
     }
   });
-  return out;
 }
 
 // Vloží čistý text (bez formátování) na pozici kurzoru — použito pro vkládání
@@ -838,16 +898,7 @@ function insertPlainTextAtCaret(ce, text){
 // Stejná pravidla jako tokenizeRichText — použito pro "živé" rozpoznání právě
 // dokončené značky (viz tryAutoFormatAtCaret).
 function richTextMatchRegex(){
-  const NB = '(?<![\\p{L}\\p{N}])', NA = '(?![\\p{L}\\p{N}])';
-  return new RegExp(
-    '\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\s)]+|\\/[^\\s)]*|#[^\\s)]*|mailto:[^\\s)]+)\\)' +
-    `|${NB}\\*\\*([^\\n]+?)\\*\\*${NA}` +
-    `|${NB}__([^\\n]+?)__${NA}` +
-    `|${NB}\\+\\+([^\\n]+?)\\+\\+${NA}` +
-    `|${NB}~~([^\\n]+?)~~${NA}` +
-    `|${NB}\\*([^\\n]+?)\\*${NA}`,
-    'gu'
-  );
+  return new RegExp(richMarkupSource(), 'gu');
 }
 
 // Umožňuje formátování psát i ručně (**tučně**, *kurzíva*…), stejně jako dřív —
@@ -876,11 +927,12 @@ function tryAutoFormatAtCaret(ce){
     repl = document.createElement('a');
     repl.href = found[2];
     repl.textContent = found[1];
-  } else if (found[3] !== undefined) repl = buildRichTag('bold', found[3]);
-  else if (found[4] !== undefined) repl = buildRichTag('underline', found[4]);
-  else if (found[5] !== undefined) repl = buildRichTag('big', found[5]);
-  else if (found[6] !== undefined) repl = buildRichTag('small', found[6]);
-  else if (found[7] !== undefined) repl = buildRichTag('italic', found[7]);
+  } else if (found[3] !== undefined) repl = buildRichTag('boldital', found[3]);
+  else if (found[4] !== undefined) repl = buildRichTag('bold', found[4]);
+  else if (found[5] !== undefined) repl = buildRichTag('underline', found[5]);
+  else if (found[6] !== undefined) repl = buildRichTag('big', found[6]);
+  else if (found[7] !== undefined) repl = buildRichTag('small', found[7]);
+  else if (found[8] !== undefined) repl = buildRichTag('italic', found[8]);
   else return false;
   const parent = node.parentNode;
   const frag = document.createDocumentFragment();
