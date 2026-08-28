@@ -233,6 +233,27 @@
   input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--ui-accent);}
   textarea{min-height:52px;line-height:1.4;padding-right:30px;}
   .textarea-wrap{position:relative;}
+  .textarea-wrap.rt-active{display:grid;}
+  .textarea-wrap.rt-active textarea,
+  .textarea-wrap.rt-active .richtext-backdrop{grid-area:1/1/2/2;width:100%;min-width:0;}
+  .textarea-wrap.rt-active textarea{
+    position:relative;z-index:1;background:transparent;border-color:transparent;
+    color:transparent;caret-color:var(--ui-text);
+  }
+  .textarea-wrap.rt-active textarea:focus{border-color:transparent;}
+  .textarea-wrap.rt-active textarea::placeholder{color:var(--ui-text-dim);}
+  .textarea-wrap.rt-active textarea::selection{background:rgba(124,92,255,.35);color:transparent;}
+  .richtext-backdrop{
+    pointer-events:none;overflow:hidden;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;
+    font-family:'Inter',sans-serif;color:var(--ui-text);z-index:0;
+  }
+  .panel .richtext-backdrop{
+    font-size:13px;line-height:1.4;padding:8px 30px 8px 10px;
+    background:var(--ui-bg-2);border:1px solid var(--ui-line);border-radius:7px;
+  }
+  .textarea-wrap.rt-active:focus-within .richtext-backdrop{border-color:var(--ui-accent);}
+  .rt-mark{visibility:hidden;}
+  .rt-link{color:var(--ui-accent);text-decoration:underline;}
   .textarea-expand-btn{
     position:absolute;top:6px;right:6px;width:22px;height:22px;padding:0;
     background:var(--ui-bg-1);border:1px solid var(--ui-line);border-radius:5px;
@@ -273,12 +294,25 @@
     padding:6px 12px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:'Inter',sans-serif;
   }
   .expand-modal-header button:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+  .expand-modal .textarea-wrap{flex:1;min-height:0;position:relative;}
+  .expand-modal .textarea-wrap textarea,
+  .expand-modal .textarea-wrap .richtext-backdrop{width:100%;height:100%;}
+  .expand-modal .textarea-wrap.rt-active{display:grid;}
+  .expand-modal .textarea-wrap.rt-active textarea,
+  .expand-modal .textarea-wrap.rt-active .richtext-backdrop{grid-area:1/1/2/2;}
   .expand-modal textarea{
-    flex:1;width:100%;height:100%;resize:none;border:none;border-radius:0;
+    resize:none;border:none;border-radius:0;
     background:var(--ui-bg-0);color:var(--ui-text);padding:16px;font-family:'Inter',sans-serif;
     font-size:14.5px;line-height:1.6;
   }
   .expand-modal textarea:focus{outline:none;}
+  .expand-modal .textarea-wrap.rt-active textarea{
+    background:transparent;color:transparent;caret-color:var(--ui-text);
+  }
+  .expand-modal .textarea-wrap.rt-active textarea::selection{background:rgba(124,92,255,.35);color:transparent;}
+  .expand-modal .richtext-backdrop{
+    overflow-y:auto;font-size:14.5px;line-height:1.6;padding:16px;background:var(--ui-bg-0);
+  }
   .expand-modal-hint{
     flex:0 0 auto;padding:8px 14px;font-size:11.5px;color:var(--ui-text-dim);
     border-top:1px solid var(--ui-line);
@@ -493,7 +527,10 @@
       <button type="button" id="expandModalClose">✕ Zavřít</button>
     </div>
     <div class="fmt-toolbar" id="expandModalToolbar"></div>
-    <textarea id="expandModalTextarea" spellcheck="true"></textarea>
+    <div class="textarea-wrap" id="expandModalTaWrap">
+      <div class="richtext-backdrop" id="expandModalBackdrop"></div>
+      <textarea id="expandModalTextarea" spellcheck="true"></textarea>
+    </div>
     <div class="expand-modal-hint">Změny se ukládají rovnou. Zavřeš klávesou Esc, kliknutím mimo okno nebo tlačítkem Zavřít.</div>
   </div>
 </div>
@@ -634,7 +671,7 @@ function escapeAttr(s){ return escapeHtml(s); }
 // běžný text jako "C++" nebo "Firma++" omylem spároval s další "++" dál v textu
 // a smazal/rozbil vše mezi nimi. NB/NA hlídají, že před otevírací a za zavírací
 // značkou není písmeno ani číslice (skutečné formátování má kolem sebe mezeru/interpunkci).
-function richText(str){
+function tokenizeRichText(str){
   const s = String(str ?? '');
   const NB = '(?<![\\p{L}\\p{N}])', NA = '(?![\\p{L}\\p{N}])';
   const re = new RegExp(
@@ -646,29 +683,60 @@ function richText(str){
     `|${NB}\\*([^\\n]+?)\\*${NA}`,
     'gu'
   );
-  let out = '', last = 0, m;
+  const tokens = [];
+  let last = 0, m;
   while ((m = re.exec(s))){
-    out += escapeHtml(s.slice(last, m.index));
-    if (m[1] !== undefined) {
-      const label = escapeHtml(m[1]);
-      const url = escapeAttr(m[2]);
-      const external = /^https?:\/\//.test(m[2]);
-      out += `<a href="${url}"${external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
-    } else if (m[3] !== undefined) {
-      out += `<strong>${escapeHtml(m[3])}</strong>`;
-    } else if (m[4] !== undefined) {
-      out += `<u>${escapeHtml(m[4])}</u>`;
-    } else if (m[5] !== undefined) {
-      out += `<span style="font-size:1.18em;">${escapeHtml(m[5])}</span>`;
-    } else if (m[6] !== undefined) {
-      out += `<span style="font-size:0.85em;">${escapeHtml(m[6])}</span>`;
-    } else if (m[7] !== undefined) {
-      out += `<em>${escapeHtml(m[7])}</em>`;
-    }
+    if (m.index > last) tokens.push({type:'text', raw:s.slice(last, m.index)});
+    if (m[1] !== undefined) tokens.push({type:'link', label:m[1], url:m[2]});
+    else if (m[3] !== undefined) tokens.push({type:'bold', inner:m[3]});
+    else if (m[4] !== undefined) tokens.push({type:'underline', inner:m[4]});
+    else if (m[5] !== undefined) tokens.push({type:'big', inner:m[5]});
+    else if (m[6] !== undefined) tokens.push({type:'small', inner:m[6]});
+    else if (m[7] !== undefined) tokens.push({type:'italic', inner:m[7]});
     last = re.lastIndex;
   }
-  out += escapeHtml(s.slice(last));
-  return out;
+  if (last < s.length) tokens.push({type:'text', raw:s.slice(last)});
+  return tokens;
+}
+
+// Finální výstup (na webu) — značky zmizí, zůstane jen skutečné HTML formátování.
+function richText(str){
+  return tokenizeRichText(str).map(t => {
+    if (t.type === 'text') return escapeHtml(t.raw);
+    if (t.type === 'link') {
+      const label = escapeHtml(t.label);
+      const url = escapeAttr(t.url);
+      const external = /^https?:\/\//.test(t.url);
+      return `<a href="${url}"${external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
+    }
+    if (t.type === 'bold') return `<strong>${escapeHtml(t.inner)}</strong>`;
+    if (t.type === 'underline') return `<u>${escapeHtml(t.inner)}</u>`;
+    if (t.type === 'big') return `<span style="font-size:1.18em;">${escapeHtml(t.inner)}</span>`;
+    if (t.type === 'small') return `<span style="font-size:0.85em;">${escapeHtml(t.inner)}</span>`;
+    if (t.type === 'italic') return `<em>${escapeHtml(t.inner)}</em>`;
+    return '';
+  }).join('');
+}
+
+// Podklad pod editační textarea — stejné formátování jako richText(), ale samotné
+// řídicí znaky (**, __, ++, ~~, [ ](...)) zůstanou v textu zachované (kvůli exportu),
+// jen jsou vizuálně schované (visibility:hidden — zaberou místo, ale nejsou vidět),
+// aby uživatele při psaní nemátly.
+function richTextEditorHtml(str){
+  return tokenizeRichText(str).map(t => {
+    if (t.type === 'text') return escapeHtml(t.raw);
+    if (t.type === 'link') {
+      const label = escapeHtml(t.label);
+      const tail = escapeHtml(`](${t.url})`);
+      return `<span class="rt-mark">[</span><span class="rt-link">${label}</span><span class="rt-mark">${tail}</span>`;
+    }
+    if (t.type === 'bold') return `<span class="rt-mark">**</span><strong>${escapeHtml(t.inner)}</strong><span class="rt-mark">**</span>`;
+    if (t.type === 'underline') return `<span class="rt-mark">__</span><u>${escapeHtml(t.inner)}</u><span class="rt-mark">__</span>`;
+    if (t.type === 'big') return `<span class="rt-mark">++</span><span style="font-size:1.18em;">${escapeHtml(t.inner)}</span><span class="rt-mark">++</span>`;
+    if (t.type === 'small') return `<span class="rt-mark">~~</span><span style="font-size:0.85em;">${escapeHtml(t.inner)}</span><span class="rt-mark">~~</span>`;
+    if (t.type === 'italic') return `<span class="rt-mark">*</span><em>${escapeHtml(t.inner)}</em><span class="rt-mark">*</span>`;
+    return '';
+  }).join('');
 }
 
 /* ============================================================
@@ -712,6 +780,18 @@ function appendFmtButtons(container, targetGetter){
     container.appendChild(btn);
   });
 }
+// Vytvoří "podklad" pod textarea, který zobrazuje naformátovaný text (tučně/kurzíva/…)
+// se schovanými řídicími znaky, zatímco textarea nad ním zůstává průhledná (jen kurzor/výběr) —
+// uživatel tak píše do skutečné textarey (nic se neláme), ale vidí formátovaný text bez ** apod.
+function attachRichtextBackdrop(ta, backdrop){
+  const sync = () => { backdrop.innerHTML = richTextEditorHtml(ta.value); };
+  const syncScroll = () => { backdrop.scrollTop = ta.scrollTop; backdrop.scrollLeft = ta.scrollLeft; };
+  ta.addEventListener('input', sync);
+  ta.addEventListener('scroll', syncScroll);
+  sync();
+  return sync;
+}
+
 function enhanceTextareas(){
   document.querySelectorAll('#panel textarea:not([data-expand-bound])').forEach(ta => {
     ta.setAttribute('data-expand-bound','1');
@@ -723,8 +803,15 @@ function enhanceTextareas(){
       bar.className = 'fmt-toolbar';
       appendFmtButtons(bar, () => ta);
       wrap.parentNode.insertBefore(bar, wrap);
+      wrap.classList.add('rt-active');
+      wrap.appendChild(ta);
+      const backdrop = document.createElement('div');
+      backdrop.className = 'richtext-backdrop';
+      wrap.appendChild(backdrop);
+      attachRichtextBackdrop(ta, backdrop);
+    } else {
+      wrap.appendChild(ta);
     }
-    wrap.appendChild(ta);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'textarea-expand-btn';
@@ -735,16 +822,24 @@ function enhanceTextareas(){
   });
 }
 appendFmtButtons(document.getElementById('expandModalToolbar'), () => document.getElementById('expandModalTextarea'));
+const expandModalSyncBackdrop = attachRichtextBackdrop(
+  document.getElementById('expandModalTextarea'),
+  document.getElementById('expandModalBackdrop')
+);
 function openTextareaModal(ta){
   expandModalTarget = ta;
   const overlay = document.getElementById('expandModalOverlay');
   const modalTa = document.getElementById('expandModalTextarea');
+  const modalWrap = document.getElementById('expandModalTaWrap');
   const titleEl = document.getElementById('expandModalTitle');
   const toolbarEl = document.getElementById('expandModalToolbar');
   const label = ta.parentElement.previousElementSibling;
   titleEl.textContent = (label && label.tagName === 'LABEL') ? label.textContent : 'Úprava textu';
-  toolbarEl.style.display = ta.dataset.richtext === '1' ? 'flex' : 'none';
+  const isRichtext = ta.dataset.richtext === '1';
+  toolbarEl.style.display = isRichtext ? 'flex' : 'none';
+  modalWrap.classList.toggle('rt-active', isRichtext);
   modalTa.value = ta.value;
+  expandModalSyncBackdrop();
   overlay.classList.add('open');
   setTimeout(() => modalTa.focus(), 30);
 }
@@ -807,7 +902,7 @@ function renderForm(){
       ${field('Eyebrow (malý text nad nadpisem)', `<input type="text" data-bind="heroEyebrow" value="${escapeAttr(state.heroEyebrow)}">`)}
       ${field('Hlavní nadpis', `<input type="text" data-bind="heroTitle" value="${escapeAttr(state.heroTitle)}">`)}
       ${field('Podnadpis', `<textarea data-bind="heroSubtitle" data-richtext="1">${escapeHtml(state.heroSubtitle)}</textarea>`)}
-      <div class="note-box">Do podnadpisu i dalších delších textů (karty, sekce, FAQ, patička) můžeš vložit odkaz zápisem <b>[text odkazu](https://adresa.cz)</b> — na webu se zobrazí jako klikatelný podtržený text. Formátování (tučně, kurzíva…) nejsnáz nastavíš tlačítky nad polem — případně ručně zápisem <b>**tučně**</b>, <b>*kurzíva*</b>, <b>__podtržení__</b>, <b>++větší text++</b>, <b>~~menší text~~</b>.</div>
+      <div class="note-box">Do podnadpisu i dalších delších textů (karty, sekce, FAQ, patička) můžeš vložit odkaz zápisem <b>[text odkazu](https://adresa.cz)</b> — na webu se zobrazí jako klikatelný podtržený text. Formátování (tučně, kurzíva…) nejsnáz nastavíš tlačítky nad polem — případně ručně zápisem <b>**tučně**</b>, <b>*kurzíva*</b>, <b>__podtržení__</b>, <b>++větší text++</b>, <b>~~menší text~~</b>. Jakmile je formátování rozpoznané, samotné znaky se v poli schovají a uvidíš rovnou výsledný vzhled.</div>
     </div>
 
     <div class="fieldset">
