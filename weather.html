@@ -117,42 +117,60 @@
   }
   .brand .dot{ color:var(--accent-color); -webkit-text-fill-color:var(--accent-color); text-shadow:0 0 12px var(--accent-color); }
   .brand-block{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .brand-row{ display:flex; align-items:center; justify-content:center; gap:9px; }
+  .brand-weather-icon{
+    width:clamp(18px, 5.5vw, 26px); height:clamp(18px, 5.5vw, 26px); flex-shrink:0;
+    color:var(--accent-color); filter:drop-shadow(0 0 10px var(--accent-color));
+    display:flex; align-items:center; justify-content:center;
+    animation:brandIconFloat 4s ease-in-out infinite;
+  }
+  .brand-weather-icon svg{ width:100%; height:100%; }
+  @keyframes brandIconFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-3px); } }
   .brand-slogan{
     font-family:'Poppins', sans-serif; font-size:clamp(9px, 2.3vw, 11px); font-weight:300; font-style:italic;
     color:var(--accent-color); opacity:0.8; letter-spacing:0.5px; text-align:center;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; user-select:none;
   }
+  .info-stack{ display:flex; flex-direction:column; align-items:center; gap:3px; margin-top:-10px; }
+
   .brand-datetime{
     display:flex; align-items:center; justify-content:center; gap:10px;
     font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.5; letter-spacing:0.3px;
-    margin-top:6px; user-select:none;
+    user-select:none;
   }
   .brand-datetime .sep{ opacity:0.5; }
 
   .year-countdown{
     font-family:'JetBrains Mono', monospace; font-size:10.5px; opacity:0.4; letter-spacing:0.3px;
-    margin-top:4px; user-select:none; text-align:center;
+    user-select:none; text-align:center;
   }
 
   .day-slogan{
     font-family:'Poppins', sans-serif; font-size:clamp(7.5px, 2vw, 11.5px); font-weight:400; font-style:italic;
     color:rgba(255,255,255,0.68); text-shadow:0 0 10px rgba(56,189,248,0.3);
-    margin-top:6px; text-align:center; letter-spacing:0.2px; user-select:none;
+    text-align:center; letter-spacing:0.2px; user-select:none;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
   }
 
   .weekend-countdown{
     font-family:'JetBrains Mono', monospace; font-size:clamp(9px, 2.3vw, 12.5px);
-    color:rgba(255,255,255,0.55); letter-spacing:0.3px; margin-top:6px; text-align:center;
+    color:rgba(255,255,255,0.55); letter-spacing:0.3px; text-align:center;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; user-select:none;
   }
   .weekend-countdown .wc-num{
     color:var(--accent-color); font-weight:500; text-shadow:0 0 8px rgba(56,189,248,0.45);
   }
 
+  .weather-quip{
+    font-family:'Poppins', sans-serif; font-size:clamp(9.5px, 2.4vw, 12.5px); font-weight:500;
+    color:var(--accent-color); text-shadow:0 0 8px rgba(56,189,248,0.3);
+    text-align:center; letter-spacing:0.2px; user-select:none; margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+  }
+
   .brand-tagline{
     font-family:'Poppins', sans-serif; font-size:12px; font-weight:300; opacity:0.55;
-    text-align:center; margin-top:6px; letter-spacing:0.2px;
+    text-align:center; margin-top:16px; letter-spacing:0.2px;
   }
 
   .search-row{ width:100%; display:flex; gap:8px; position:relative; }
@@ -217,7 +235,20 @@
   .theme-swatch.active .lbl{ opacity:0.95; }
 
   /* ---- header nav links (Home + Player, side by side) ---- */
-  .header-links{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .links-toggle-wrap{ width:100%; display:flex; flex-direction:column; align-items:center; }
+  .links-toggle{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 16px; border-radius:20px;
+    border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.04);
+    color:#fff; font-family:'Poppins', sans-serif; cursor:pointer;
+    font-size:12px; font-weight:500; letter-spacing:0.2px; transition:0.3s;
+  }
+  .links-toggle:hover{ border-color:var(--accent-color); box-shadow:0 0 16px rgba(56,189,248,0.2); background:rgba(255,255,255,0.08); }
+  .links-toggle:focus-visible{ outline:2px solid var(--accent-color); outline-offset:2px; }
+  .links-chevron{ display:flex; flex-shrink:0; opacity:0.6; transition:transform 0.3s; }
+  .links-chevron svg{ width:14px; height:14px; }
+  .links-toggle[aria-expanded="true"] .links-chevron{ transform:rotate(180deg); }
+  .header-links{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:14px; }
 
   .home-link, .player-back{
     display:flex; align-items:center; gap:6px;
@@ -712,47 +743,61 @@
 <div class="wrap">
   <header>
     <div class="brand-block">
-      <div class="brand">SYNTHLUCIDA <span class="dot">·</span> WEATHER</div>
+      <div class="brand-row">
+        <span class="brand-weather-icon" id="brandWeatherIcon" aria-hidden="true"></span>
+        <div class="brand">SYNTHLUCIDA <span class="dot">·</span> WEATHER</div>
+      </div>
       <div class="brand-slogan">Počasí trochu jinak</div>
     </div>
     <div class="brand-tagline">Bezplatná aplikace pro předpověď počasí v ČR</div>
-    <div class="brand-datetime" id="brandDateTime"></div>
-    <div class="year-countdown" id="yearCountdown"></div>
-    <div class="day-slogan" id="daySlogan"></div>
-    <div class="weekend-countdown" id="weekendCountdown"></div>
-    <div class="header-links">
-      <a class="home-link" href="https://synthlucida.com" aria-label="Synthlucida.com">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
-        SYNTHLUCIDA
-      </a>
-      <a class="player-back" href="https://uklidnito.eu" aria-label="Uklidnito.eu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        UKLIDNITO
-      </a>
-      <a class="player-back" href="https://relaxplayer.eu" aria-label="RelaxPlayer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        RELAXPLAYER
-      </a>
-      <a class="player-back" href="https://synthlucida.com/tripcost.html" aria-label="Trip Cost">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        TRIP COST
-      </a>
-      <a class="player-back" href="https://synthlucida.com/vyplata.html" aria-label="Výplata">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        VÝPLATA
-      </a>
-      <a class="player-back" href="https://synthlucida.com/webzen.html" aria-label="Webzen">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        WEBZEN
-      </a>
-      <a class="player-back" href="https://synthlucida.com/progrese-cz.html" aria-label="Progrese">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        PROGRESE
-      </a>
-      <a class="player-back" href="https://synthlucida.com/michani-liquidu.html" aria-label="Míchárna">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        MÍCHÁRNA
-      </a>
+    <div class="info-stack">
+      <div class="brand-datetime" id="brandDateTime"></div>
+      <div class="year-countdown" id="yearCountdown"></div>
+      <div class="day-slogan" id="daySlogan"></div>
+      <div class="weekend-countdown" id="weekendCountdown"></div>
+      <div class="weather-quip" id="weatherQuip"></div>
+    </div>
+    <div class="links-toggle-wrap">
+      <button type="button" class="links-toggle" id="linksToggleBtn" aria-expanded="false" aria-controls="headerLinks">
+        <span>Další aplikace</span>
+        <div class="links-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </button>
+      <div class="header-links hidden" id="headerLinks">
+        <a class="home-link" href="https://synthlucida.com" aria-label="Synthlucida.com">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+          SYNTHLUCIDA
+        </a>
+        <a class="player-back" href="https://uklidnito.eu" aria-label="Uklidnito.eu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          UKLIDNITO
+        </a>
+        <a class="player-back" href="https://relaxplayer.eu" aria-label="RelaxPlayer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          RELAXPLAYER
+        </a>
+        <a class="player-back" href="https://synthlucida.com/tripcost.html" aria-label="Trip Cost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          TRIP COST
+        </a>
+        <a class="player-back" href="https://synthlucida.com/vyplata.html" aria-label="Výplata">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          VÝPLATA
+        </a>
+        <a class="player-back" href="https://synthlucida.com/webzen.html" aria-label="Webzen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          WEBZEN
+        </a>
+        <a class="player-back" href="https://synthlucida.com/progrese-cz.html" aria-label="Progrese">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          PROGRESE
+        </a>
+        <a class="player-back" href="https://synthlucida.com/michani-liquidu.html" aria-label="Míchárna">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          MÍCHÁRNA
+        </a>
+      </div>
     </div>
     <h1 class="sr-only">SYNTHLUCIDA WEATHER – počasí online zdarma, aktuální i hodinová předpověď</h1>
     <div class="search-row">
@@ -864,13 +909,19 @@
     <span class="sep">·</span>
     <a href="https://synthlucida.com/tripcost.html" target="_blank" rel="noopener">TRIP COST</a>
     <span class="sep">·</span>
-    <a href="https://synthlucida.com/michani-liquidu.html" target="_blank" rel="noopener">MÍCHÁRNA</a>
+    <a href="https://synthlucida.com/vyplata.html" target="_blank" rel="noopener">VÝPLATA</a>
     <span class="sep">·</span>
-    <a href="weather-privacy.html">Zásady ochrany osobních údajů</a>
+    <a href="https://synthlucida.com/webzen.html" target="_blank" rel="noopener">WEBZEN</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/progrese-cz.html" target="_blank" rel="noopener">PROGRESE</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/michani-liquidu.html" target="_blank" rel="noopener">MÍCHÁRNA</a>
     <span class="sep">·</span>
     <a href="#" id="shareLink">Sdílet</a>
     <br>
-    <span style="opacity:0.8;">If you enjoy the app and want to support the project, we'd really appreciate it. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Buy us a coffee</a>. Thank you!</span>
+    <a href="weather-privacy.html">Zásady ochrany osobních údajů</a>
+    <br>
+    <span style="opacity:0.8;">Pokud si aplikaci užíváte a chcete projekt podpořit, budeme moc rádi. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Kupte nám kávu</a>. Díky!</span>
   </footer>
 </div>
 
@@ -910,6 +961,8 @@
     themeBtn: document.getElementById("themeBtn"),
     themePanel: document.getElementById("themePanel"),
     themeGrid: document.getElementById("themeGrid"),
+    linksToggleBtn: document.getElementById("linksToggleBtn"),
+    headerLinks: document.getElementById("headerLinks"),
     content: document.getElementById("content"),
     stateMsg: document.getElementById("stateMsg"),
     brand: document.querySelector(".brand"),
@@ -1180,6 +1233,77 @@
     root.setProperty("--accent-glow", pair[1]);
   }
 
+  function updateBrandWeatherIcon(iconName){
+    var el = document.getElementById("brandWeatherIcon");
+    if(!el) return;
+    el.innerHTML = icon(iconName);
+  }
+
+  // ---------- vtipná hláška o počasí (pro línou verzi předpovědi) ----------
+  var WEATHER_QUIPS = {
+    clear_day: [
+      "Slunce dneska hraje sólo, klidně vyrazte ven.",
+      "Nebe bez jedinýho mráčku, hoď brýle a jde se.",
+      "Bezmráček – ideál nedělat nic a bejt u toho venku."
+    ],
+    clear_night: [
+      "Hvězdy dneska svítí na plný pecky.",
+      "Obloha čistá, ideál na noční toulku.",
+      "Měsíc si dnes užívá sólo bez konkurence mraků."
+    ],
+    cloudy: [
+      "Obloha zamračená, ale aspoň suchá – jde se ven bez obav.",
+      "Šedivo jak v pondělí ráno, ale deštník nech doma.",
+      "Mraky se courají po obloze, ale nic vážnýho nechystaj."
+    ],
+    fog: [
+      "Mlha hustá jak guláš, radši rozsviť světla.",
+      "Vidět je tak akorát na špičku nosu, jeď opatrně.",
+      "Dneska je svět v mlze doslova."
+    ],
+    rain: [
+      "Lije jak z konve, deštník je dneska povinná výbava.",
+      "Nebe brečí, tak si vem pláštěnku a jde se to přežít.",
+      "Kapky bubnujou na okna, ideál na čaj a deku."
+    ],
+    snow: [
+      "Sněží jak na pohlednici, sáňky klidně ven.",
+      "Bílá nadílka v plným proudu, obuj pořádný boty.",
+      "Vločky padaj jak v pohádce, jen pozor na náledí."
+    ],
+    storm: [
+      "Blýská se a hřmí, deštník nech doma a radši se schovej.",
+      "Nebe dneska pouští ohňostroj zadarmo, sleduj ho radši z okna.",
+      "Bouřka se řítí jak na objednávku, ven se dneska moc nehrň."
+    ]
+  };
+  var HEAT_QUIPS = [
+    "Vedro jak v sauně, pij vodu a nehrdinuj na sluníčku.",
+    "Teploty šplhaj nahoru jak akcie ve zlatý éře, hledej stín.",
+    "Dneska se smaží i chodník, pít a stín je dneska program."
+  ];
+  var COLD_QUIPS = [
+    "Kosa jak v mrazáku, oblíkni se na cibuli.",
+    "Mráz štípe jak vosa, čepici a rukavice neváhej.",
+    "Venku je zima na kost, radši zůstaň pěkně zabalenej."
+  ];
+
+  function weatherQuip(cur, info){
+    var apparent = cur.apparent_temperature;
+    var pool;
+    if(apparent >= 30){
+      pool = HEAT_QUIPS;
+    } else if(apparent <= -10){
+      pool = COLD_QUIPS;
+    } else {
+      var key = info.group === "clear" ? (cur.is_day ? "clear_day" : "clear_night") : info.group;
+      pool = WEATHER_QUIPS[key] || WEATHER_QUIPS.cloudy;
+    }
+    if(!pool || !pool.length) return "";
+    var idx = dayOfYear(new Date()) % pool.length;
+    return pool[idx];
+  }
+
   // ---------- color themes (manual, saved) ----------
   var COLOR_THEMES = [
     { id:"auto",    name:"Dle počasí", accent:"#38bdf8", glow:"#0b3654", bg1:"#132033", bg2:"#05080d" },
@@ -1244,6 +1368,14 @@
       els.themeBtn.setAttribute("aria-expanded", "false");
     }
   });
+
+  if(els.linksToggleBtn && els.headerLinks){
+    els.linksToggleBtn.addEventListener("click", function(){
+      var willOpen = els.headerLinks.classList.contains("hidden");
+      els.headerLinks.classList.toggle("hidden");
+      els.linksToggleBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+  }
 
   // ---------- geocoding ----------
   var searchTimer = null;
@@ -1632,6 +1764,9 @@
     var cur = data.current;
     var info = weatherInfo(cur.weather_code, cur.is_day);
     applyAccent(info.group, cur.is_day === 1);
+    updateBrandWeatherIcon(info.icon);
+    var quipEl = document.getElementById("weatherQuip");
+    if(quipEl) quipEl.textContent = weatherQuip(cur, info);
 
     var placeLabel = place.name;
     if(place.admin1 && place.admin1 !== place.name) placeLabel += ", " + place.admin1;
