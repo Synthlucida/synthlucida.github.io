@@ -1731,19 +1731,24 @@
     var what = outlook.storm ? "Bouřka" : "Srážky";
     var iconName = outlook.storm ? "storm" : "rain";
     var valueHtml, detailHtml = "";
+    // bouřka = jednotné číslo ("se čeká", "probíhá", "měla by"), srážky = množné ("se čekají", "probíhají", "měly by")
+    var vProbiha = outlook.storm ? "právě probíhá" : "právě probíhají";
+    var vMela = outlook.storm ? "měla by" : "měly by";
+    var vCeka = outlook.storm ? "se čeká" : "se čekají";
 
     if(outlook.state === "none"){
       iconName = "sun";
       valueHtml = "V nejbližších 48 h se podle předpovědi nečekají žádné srážky.";
     } else if(outlook.state === "now"){
       if(outlook.openEnded){
-        valueHtml = what+" právě probíhají a podle předpovědi budou pokračovat i po "+fmtHourLabel(outlook.endTime)+".";
+        var vBude = outlook.storm ? "bude pokračovat" : "budou pokračovat";
+        valueHtml = what+" "+vProbiha+" a podle předpovědi "+vBude+" i po "+fmtHourLabel(outlook.endTime)+".";
       } else {
-        valueHtml = what+" právě probíhají, přestat by měly kolem "+fmtHourLabel(outlook.endTime)+" (za "+outlook.durH+" h).";
+        valueHtml = what+" "+vProbiha+", přestat by "+vMela+" kolem "+fmtHourLabel(outlook.endTime)+" (za "+outlook.durH+" h).";
       }
       detailHtml = "Očekávaný úhrn cca "+outlook.sum.toFixed(1)+" mm";
     } else {
-      valueHtml = what+" se čekají od "+fmtHourLabel(outlook.startTime)+" (za "+outlook.hoursUntil+" h)"
+      valueHtml = what+" "+vCeka+" od "+fmtHourLabel(outlook.startTime)+" (za "+outlook.hoursUntil+" h)"
         + (outlook.openEnded ? "" : ", konec kolem "+fmtHourLabel(outlook.endTime))+".";
       detailHtml = "Pravděpodobnost až "+Math.round(outlook.maxProb)+" % · očekávaný úhrn cca "+outlook.sum.toFixed(1)+" mm";
     }
