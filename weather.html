@@ -1413,9 +1413,14 @@
       n: "5",
       days_ahead: "10"
     });
-    return fetch(ISS_API_URL + "?" + issParams.toString())
+    // ISS API je malá třetí-strana služba, která umí být pomalá nebo dočasně nedostupná.
+    // Dáváme jí vlastní timeout, ať kvůli ní nezůstane trčet načítání celého počasí.
+    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var timeoutId = controller ? setTimeout(function(){ controller.abort(); }, 6000) : null;
+    return fetch(ISS_API_URL + "?" + issParams.toString(), controller ? { signal: controller.signal } : undefined)
       .then(function(r){ return r.ok ? r.json() : null; })
-      .catch(function(){ return null; });
+      .catch(function(){ return null; })
+      .then(function(result){ if(timeoutId) clearTimeout(timeoutId); return result; });
   }
 
   var COMPASS_CZ = {
