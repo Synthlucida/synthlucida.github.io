@@ -259,6 +259,7 @@
     font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;padding:0;
   }
   .fmt-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+  .fmt-btn.active{border-color:var(--ui-accent);background:var(--ui-accent);color:#fff;}
   .fmt-btn.b{font-weight:700;}
   .fmt-btn.i{font-style:italic;}
   .fmt-btn.u{text-decoration:underline;}
@@ -925,9 +926,48 @@ const FMT_BUTTONS = [
   {cls:'big', label:'A+', title:'Větší text', type:'big'},
   {cls:'small', label:'A-', title:'Menší text', type:'small'},
 ];
+// Zjistí, jestli daný DOM element odpovídá formátovací značce daného typu
+// (bold/underline/italic/big/small) — použito pro zvýraznění tlačítek i pro
+// přepínání (zapnuto/vypnuto) při kliknutí.
+function fmtTypeMatches(el, type){
+  if (!el || el.nodeType !== 1) return false;
+  const tag = el.tagName;
+  if (type === 'bold') return tag === 'STRONG' || tag === 'B';
+  if (type === 'underline') return tag === 'U';
+  if (type === 'italic') return tag === 'EM' || tag === 'I';
+  if (type === 'big') return tag === 'SPAN' && el.style.fontSize === '1.18em';
+  if (type === 'small') return tag === 'SPAN' && el.style.fontSize === '0.85em';
+  return false;
+}
+// Najde nejbližšího předka (až po hranici editoru ce), který odpovídá danému typu formátu.
+function findFmtAncestor(node, ce, type){
+  let n = node;
+  while (n && n !== ce){
+    if (fmtTypeMatches(n, type)) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+// Podle aktuálního výběru/kurzoru v editoru zvýrazní (nebo odzvýrazní) tlačítka
+// v jeho toolbaru — tlačítko svítí, pokud je kurzor uvnitř dané značky.
+function updateFmtToolbarState(bar, ce){
+  if (!bar) return;
+  const sel = window.getSelection();
+  let node = null;
+  if (sel.rangeCount){
+    const range = sel.getRangeAt(0);
+    if (ce.contains(range.commonAncestorContainer)) node = range.commonAncestorContainer;
+  }
+  bar.querySelectorAll('.fmt-btn').forEach(btn => {
+    const type = btn.dataset.fmtType;
+    const active = node ? !!findFmtAncestor(node, ce, type) : false;
+    btn.classList.toggle('active', active);
+  });
+}
 // Obalí vybraný text ve WYSIWYG editoru skutečným formátovacím elementem
 // (nebo ho vloží, pokud nic není vybráno) a vyvolá 'input', aby se rovnou
-// promítlo do stavu i náhledu.
+// promítlo do stavu i náhledu. Pokud je výběr/kurzor už uvnitř značky stejného
+// typu, značku naopak odstraní — tlačítko tak funguje jako přepínač zapnuto/vypnuto.
 function wrapSelectionCE(ce, type){
   ce.focus();
   const sel = window.getSelection();
@@ -940,6 +980,23 @@ function wrapSelectionCE(ce, type){
     range.collapse(false);
     sel.removeAllRanges();
     sel.addRange(range);
+  }
+  const existing = findFmtAncestor(range.commonAncestorContainer, ce, type);
+  if (existing){
+    const parent = existing.parentNode;
+    const children = Array.from(existing.childNodes);
+    children.forEach(child => parent.insertBefore(child, existing));
+    parent.removeChild(existing);
+    if (children.length){
+      const newRange = document.createRange();
+      newRange.setStartBefore(children[0]);
+      newRange.setEndAfter(children[children.length - 1]);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+    parent.normalize();
+    ce.dispatchEvent(new Event('input', {bubbles:true}));
+    return;
   }
   const content = range.toString() || 'text';
   const el = buildRichTag(type, content);
@@ -958,9 +1015,25 @@ function appendFmtButtons(container, targetGetter){
     btn.className = 'fmt-btn ' + b.cls;
     btn.title = b.title;
     btn.textContent = b.label;
-    btn.addEventListener('click', () => wrapSelectionCE(targetGetter(), b.type));
+    btn.dataset.fmtType = b.type;
+    btn.addEventListener('click', () => {
+      const ce = targetGetter();
+      wrapSelectionCE(ce, b.type);
+      updateFmtToolbarState(container, ce);
+    });
     container.appendChild(btn);
   });
+  // Sleduje pohyb kurzoru/výběru v editoru a podle toho tlačítka zvýrazňuje.
+  const ce = targetGetter();
+  if (ce){
+    const refresh = () => updateFmtToolbarState(container, targetGetter());
+    ce.addEventListener('keyup', refresh);
+    ce.addEventListener('mouseup', refresh);
+    ce.addEventListener('focus', refresh);
+    ce.addEventListener('blur', () => {
+      container.querySelectorAll('.fmt-btn').forEach(btn => btn.classList.remove('active'));
+    });
+  }
 }
 
 function enhanceTextareas(){
