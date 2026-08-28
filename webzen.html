@@ -303,6 +303,37 @@
     flex:0 0 auto;padding:8px 14px;font-size:11.5px;color:var(--ui-text-dim);
     border-top:1px solid var(--ui-line);
   }
+  /* ---------- relax pauza popup ---------- */
+  .relax-modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(4,5,8,.72);z-index:1200;
+    align-items:center;justify-content:center;padding:24px;
+  }
+  .relax-modal-overlay.open{display:flex;}
+  .relax-modal{
+    width:100%;max-width:380px;background:var(--ui-bg-1);border:1px solid var(--ui-line);
+    border-radius:14px;box-shadow:0 24px 80px -20px rgba(0,0,0,.8);
+    padding:22px 22px 18px;text-align:center;
+  }
+  .relax-modal-icon{font-size:30px;margin-bottom:6px;}
+  .relax-modal h3{
+    margin:0 0 8px;font-family:'Space Grotesk',sans-serif;font-size:16px;color:var(--ui-text);
+  }
+  .relax-modal p{
+    margin:0 0 18px;font-size:13px;line-height:1.6;color:var(--ui-text-dim);
+  }
+  .relax-modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .relax-modal-actions a.relax-go-btn{
+    background:var(--ui-accent);color:#fff;border:none;padding:10px 18px;border-radius:8px;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;
+    text-decoration:none;display:inline-block;
+  }
+  .relax-modal-actions button.relax-close-btn{
+    background:transparent;color:var(--ui-text-dim);border:1px solid var(--ui-line);
+    padding:10px 16px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
+    cursor:pointer;
+  }
+  .relax-modal-actions button.relax-close-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 
   .swatches{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px;}
@@ -481,6 +512,18 @@
 
   <div class="donate-bar">
     Pokud tě aplikace baví a chceš projekt podpořit, budeme moc rádi. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Kup nám kávu</a>. Děkujeme! ☕
+  </div>
+
+  <div class="relax-modal-overlay" id="relaxModalOverlay">
+    <div class="relax-modal">
+      <div class="relax-modal-icon">🌿</div>
+      <h3>Čas na pauzu</h3>
+      <p>Tvoříš už chvíli web — dej si pauzu od tvorby webu a vyzkoušej Relax Player. Pár minut klidu neuškodí.</p>
+      <div class="relax-modal-actions">
+        <a class="relax-go-btn" href="https://synthlucida.com/player.html" target="_blank" rel="noopener">🎧 Otevřít Relax Player</a>
+        <button type="button" class="relax-close-btn" id="relaxModalClose">Teď pauzu nechci</button>
+      </div>
+    </div>
   </div>
 
   <div class="mobile-tabs" id="mobileTabs">
@@ -2879,6 +2922,27 @@ document.querySelectorAll('.view-btn').forEach(btn => {
     document.getElementById('frameHolder').classList.toggle('mobile', btn.dataset.view === 'mobile');
   });
 });
+
+/* ---------- relax pauza: vyskakovací okno každých 30 minut ---------- */
+(function(){
+  const RELAX_INTERVAL_MS = 30 * 60 * 1000; // 30 minut
+  const overlay = document.getElementById('relaxModalOverlay');
+  if (!overlay) return;
+  function openRelaxModal(){
+    overlay.classList.add('open');
+  }
+  function closeRelaxModal(){
+    overlay.classList.remove('open');
+  }
+  document.getElementById('relaxModalClose').addEventListener('click', closeRelaxModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target.id === 'relaxModalOverlay') closeRelaxModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeRelaxModal();
+  });
+  setInterval(openRelaxModal, RELAX_INTERVAL_MS);
+})();
 
 restoreAutosave();
 renderForm();
