@@ -1670,15 +1670,18 @@
   // ---------- srážkový / bouřkový výhled ----------
   // "Rozumí" hodinovým datům z Open-Meteo a řekne, jestli teď/brzy prší nebo bouří,
   // kdy to začne, kdy by to podle předpovědi mělo přestat a kolik toho zhruba spadne.
-  function fmtHourLabel(iso){
+  function fmtHourLabel(iso, prep){
+    // prep = předložka ("kolem", "od", "po"...), aby se u zítřka/jiného dne
+    // řadila správně za den ("zítra kolem 14:20"), ne před něj ("kolem zítra 14:20")
     var d = new Date(iso);
     var now = new Date();
     var timeStr = fmtHour(iso);
-    if(d.toDateString() === now.toDateString()) return timeStr;
+    var pfx = prep ? prep+" " : "";
+    if(d.toDateString() === now.toDateString()) return pfx+timeStr;
     var tomorrow = new Date(now); tomorrow.setDate(now.getDate()+1);
-    if(d.toDateString() === tomorrow.toDateString()) return "zítra "+timeStr;
+    if(d.toDateString() === tomorrow.toDateString()) return "zítra "+pfx+timeStr;
     var dayStr = d.toLocaleDateString("cs-CZ", { weekday:"short" });
-    return dayStr.replace(".","")+" "+timeStr;
+    return dayStr.replace(".","")+" "+pfx+timeStr;
   }
 
   function buildPrecipOutlook(data, nowIdx){
@@ -1742,14 +1745,14 @@
     } else if(outlook.state === "now"){
       if(outlook.openEnded){
         var vBude = outlook.storm ? "bude pokračovat" : "budou pokračovat";
-        valueHtml = what+" "+vProbiha+" a podle předpovědi "+vBude+" i po "+fmtHourLabel(outlook.endTime)+".";
+        valueHtml = what+" "+vProbiha+" a podle předpovědi "+vBude+" i po "+fmtHourLabel(outlook.endTime, "po")+".";
       } else {
-        valueHtml = what+" "+vProbiha+", "+vMela+" přestat kolem "+fmtHourLabel(outlook.endTime)+" (za "+outlook.durH+" h).";
+        valueHtml = what+" "+vProbiha+", "+vMela+" přestat "+fmtHourLabel(outlook.endTime, "kolem")+" (za "+outlook.durH+" h).";
       }
       detailHtml = "Očekávaný úhrn cca "+outlook.sum.toFixed(1)+" mm";
     } else {
-      valueHtml = what+" "+vCeka+" od "+fmtHourLabel(outlook.startTime)+" (za "+outlook.hoursUntil+" h)"
-        + (outlook.openEnded ? "" : ", konec kolem "+fmtHourLabel(outlook.endTime))+".";
+      valueHtml = what+" "+vCeka+" "+fmtHourLabel(outlook.startTime, "od")+" (za "+outlook.hoursUntil+" h)"
+        + (outlook.openEnded ? "" : ", konec "+fmtHourLabel(outlook.endTime, "kolem"))+".";
       detailHtml = "Pravděpodobnost až "+Math.round(outlook.maxProb)+" % · očekávaný úhrn cca "+outlook.sum.toFixed(1)+" mm";
     }
 
