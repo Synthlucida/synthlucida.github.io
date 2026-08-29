@@ -536,7 +536,7 @@
           <p>V sekci Karty / funkce popíšeš jednotlivé výhody nebo služby (ikona, nadpis, text). V sekci FAQ přidáš časté otázky a odpovědi — automaticky se z nich vygeneruje i strukturovaná data pro Google. V Patičce nastavíš, jestli se má zobrazit „© rok značka", volitelný vlastní text (např. IČO, adresa) a odkazy (obchodní podmínky, kontakt apod.).</p>
 
           <h4>PWA, sitemapa a robots.txt</h4>
-          <p>Dole najdeš pokročilé volby: vygenerování manifest.json a sw.js, díky kterým si návštěvníci mohou web „nainstalovat" jako appku (PWA); dále sitemap.xml a robots.txt pro vyhledávače. Tyto soubory se stahují zvlášť tlačítky a po exportu je nahraješ vedle hlavního HTML souboru. Nezapomeň doplnit i skutečné obrázky ikon (favicon, apple-touch-icon, ikony 192×192 a 512×512, og-image) — ty generátor sám nevytváří.</p>
+          <p>Dole najdeš pokročilé volby: vygenerování manifest.json a sw.js, díky kterým si návštěvníci mohou web „nainstalovat" jako appku (PWA); dále sitemap.xml a robots.txt pro vyhledávače. Tyto soubory se stahují zvlášť tlačítky a po exportu je nahraješ vedle hlavního HTML souboru. Vygenerovaný sw.js automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html" a stejně tak i s manifestem a ikonami zadanými výše, takže offline cache funguje bez ohledu na to, jestli si hlavní stránku na hostingu přejmenuješ. Nezapomeň doplnit i skutečné obrázky ikon (favicon, apple-touch-icon, ikony 192×192 a 512×512, og-image) — ty generátor sám nevytváří.</p>
 
           <h4>Náhled na mobilu</h4>
           <p>V pravé části přepínáš náhled mezi Desktop a Mobil, ať vidíš, jak bude web vypadat na telefonu. Pokud upravuješ web přímo z mobilního zařízení, nahoře se objeví přepínač „Upravit obsah / Náhled webu" pro pohodlnější práci na malé obrazovce.</p>
@@ -545,7 +545,7 @@
           <p>Appka průběžně automaticky ukládá rozpracovaný projekt do prohlížeče (localStorage), takže se při zavření karty o nic nepřijde. Přes „💾 Uložit projekt" si navíc můžeš stáhnout .json soubor s celým rozpracovaným webem a později ho přes „📂 Načíst projekt" znovu otevřít — třeba na jiném počítači. Tlačítko „🗑️ Nový projekt" vše vrátí zpět na vzorové texty.</p>
 
           <h4>Export hotového webu</h4>
-          <p>Tlačítko „↓ Stáhnout HTML" vpravo nahoře stáhne jen hlavní stránku jako jeden .html soubor. Pokud máš vytvořené i vlastní stránky, použij tlačítko „↓ Stáhnout celý web" — stáhne hlavní stránku i všechny vlastní stránky najednou, každou jako samostatný soubor (postupně, jeden po druhém). Všechny stažené soubory pak nahraješ vedle sebe na jakýkoli hosting (hlavní stránku případně přejmenuj na index.html). Pokud používáš i PWA nebo sitemapu/robots.txt, stáhni jejich soubory zvlášť a nahraj je vedle ostatních.</p>
+          <p>Tlačítko „↓ Stáhnout HTML" vpravo nahoře stáhne jen hlavní stránku jako jeden .html soubor. Pokud máš vytvořené i vlastní stránky, použij tlačítko „↓ Stáhnout celý web" — stáhne hlavní stránku i všechny vlastní stránky najednou, každou jako samostatný soubor (postupně, jeden po druhém). Všechny stažené soubory pak nahraješ vedle sebe na jakýkoli hosting — hlavní stránku můžeš nechat pod staženým názvem, nebo ji přejmenovat na index.html, pokud chceš, aby se web načítal na holé doméně bez názvu souboru v adrese; PWA offline cache funguje automaticky v obou případech. Pokud používáš i PWA nebo sitemapu/robots.txt, stáhni jejich soubory zvlášť a nahraj je vedle ostatních.</p>
         </div>
 
         <div class="articles-section-content" id="articlesModalContent" style="display:none;">
@@ -959,7 +959,11 @@ function getDefaultState(){
     icon192: 'icon-192.png',
     icon512: 'icon-512.png',
     cacheVersion: 'v1',    // zvyš při každé nové verzi webu
-    extraFiles: 'manifest.json\nicon-192.png\nicon-512.png\nfavicon.ico\napple-touch-icon.png'
+    // Hlavní stránka, manifest.json, favicon, apple-touch-icon a obě PWA
+    // ikony (192×192/512×512) se do offline cache doplňují automaticky
+    // (viz buildServiceWorkerJS) — sem patří jen SKUTEČNĚ další soubory,
+    // třeba obrázky použité přímo v obsahu webu.
+    extraFiles: ''
   },
   sitemap: {
     lastmod: new Date().toISOString().slice(0,10),
@@ -1694,7 +1698,7 @@ function renderForm(){
 
     <div class="fieldset">
       <div class="fieldset-title">PWA — manifest + service worker</div>
-      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygeneruje se <b>manifest.json</b> a <b>sw.js</b> podle údajů níž. Stáhni je tlačítky dole, ulož je vedle hlavního HTML souboru (přejmenovaného např. na <b>index.html</b>) a nahraj i samotné obrázky ikon ve správných rozměrech — ty generátor sám nevytváří.</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygeneruje se <b>manifest.json</b> a <b>sw.js</b> podle údajů níž. <code>sw.js</code> automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html", takže offline cache funguje, ať už si soubor na hostingu přejmenuješ nebo ne — <b>index.html</b> je potřeba jen pokud chceš, aby se web načítal na holé doméně bez názvu souboru v adrese. Stáhni oba soubory tlačítky dole, ulož je vedle hlavního HTML a nahraj i samotné obrázky ikon ve správných rozměrech — ty generátor sám nevytváří.</div>
       ${field('Celý název appky (manifest "name")', `<input type="text" data-pwa="name" value="${escapeAttr(state.pwa.name)}" placeholder="${escapeAttr(state.brand)}">`)}
       ${field('Krátký název (manifest "short_name", ideálně do 12 znaků)', `<input type="text" data-pwa="shortName" value="${escapeAttr(state.pwa.shortName)}" placeholder="${escapeAttr(state.brand)}">`)}
       <div class="row2">
@@ -1708,7 +1712,8 @@ function renderForm(){
       </div>
       ${field('Barva pozadí splash screenu (background_color)', `<input type="text" data-pwa="bgColor" value="${escapeAttr(state.pwa.bgColor)}" placeholder="${escapeAttr(state.bg2)}">`)}
       ${field('Verze cache (zvyš při KAŽDÉ nové verzi webu — jinak SW může servírovat starý obsah)', `<input type="text" data-pwa="cacheVersion" value="${escapeAttr(state.pwa.cacheVersion)}">`)}
-      ${field('Další soubory pro offline cache (jeden název na řádek; hlavní HTML se přidá automaticky)', `<textarea data-pwa="extraFiles" style="min-height:80px;">${escapeHtml(state.pwa.extraFiles)}</textarea>`)}
+      ${field('Další soubory pro offline cache (nepovinné, jeden název na řádek)', `<textarea data-pwa="extraFiles" style="min-height:80px;" placeholder="např. tym-foto.jpg">${escapeHtml(state.pwa.extraFiles)}</textarea>`)}
+      <p class="wz-hint" style="margin:-8px 0 0;">Hlavní stránka, manifest.json, favicon, apple-touch-icon a obě ikony výše (192×192/512×512) se do cache doplňují automaticky — sem piš jen skutečně další soubory, třeba obrázky použité v obsahu.</p>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="add-btn" id="downloadManifest" style="margin-top:0;">↓ manifest.json</button>
         <button class="add-btn" id="downloadSw" style="margin-top:0;">↓ sw.js</button>
@@ -2304,9 +2309,32 @@ function buildServiceWorkerJS(s){
   const slug = slugifyGlobal(s.brand, 'web');
   const version = (s.pwa.cacheVersion || 'v1').trim().replace(/\s+/g,'-');
   const cacheName = `${slug}-app-${version}`;
+
+  // Hlavní stránka se stahuje pod názvem odvozeným ze značky (např.
+  // "mojefirma.html"), ne pod "index.html" — a jestli si ji na hostingu
+  // přejmenuješ, nebo necháš pod původním názvem, je čistě na tobě (viz
+  // poznámka u tlačítek). Aby cache i offline záloha fungovaly v OBOU
+  // případech automaticky, přidáváme do seznamu rovnou obě varianty názvu
+  // (a jako poslední záchranu i samotné "./") — ta neexistující jen tiše
+  // neuspěje při instalaci, nic to nerozbije.
+  const homeFilename = getHomeFilename(s);
+  const homeCandidates = ['./', './index.html', `./${homeFilename}`];
+
+  // Manifest, favicon, apple-touch-icon a obě PWA ikony (192×192/512×512)
+  // se do cache doplňují automaticky podle aktuálních polí výše — nemusíš
+  // je ručně opisovat do pole "Další soubory pro offline cache" a hlídat,
+  // že spolu sedí, i když si názvy ikon přejmenuješ.
+  const autoFiles = [
+    'manifest.json',
+    'favicon.ico',
+    'apple-touch-icon.png',
+    (s.pwa.icon192 || 'icon-192.png').trim(),
+    (s.pwa.icon512 || 'icon-512.png').trim()
+  ];
+
   const extra = (s.pwa.extraFiles || '')
     .split('\n').map(l => l.trim()).filter(Boolean);
-  const files = Array.from(new Set(['./', './index.html', ...extra]));
+  const files = Array.from(new Set([...homeCandidates, ...autoFiles, ...extra]));
   const filesJs = files.map(f => `  '${f.replace(/'/g, "\\'")}'`).join(',\n');
 
   return `// ==========================================
@@ -2319,7 +2347,10 @@ function buildServiceWorkerJS(s){
 
 const CACHE_NAME = '${cacheName}';
 
-// Soubory app shellu cachované při instalaci (a použité jako offline záloha)
+// Soubory app shellu cachované při instalaci (a použité jako offline záloha).
+// Hlavní stránka je v seznamu pod oběma možnými názvy ("${homeFilename}" i
+// "index.html"), takže to funguje, ať už si ji na hostingu přejmenuješ,
+// nebo ne — ten neexistující název jen tiše neuspěje, instalaci to nezastaví.
 const ASSETS_TO_CACHE = [
 ${filesJs}
 ];
@@ -2374,10 +2405,15 @@ self.addEventListener('fetch', (event) => {
       } catch (err) {
         const cached = await cache.match(event.request);
         if (cached) return cached;
-        // Poslední záloha pro navigaci (otevření stránky offline)
+        // Poslední záloha pro navigaci (otevření appky offline) — projde
+        // postupně obě možné varianty názvu hlavní stránky i "./", ať už
+        // je appka na hostingu pod původním názvem, nebo přejmenovaná.
         if (event.request.mode === 'navigate') {
-          const fallback = (await cache.match('./index.html')) || (await cache.match('./'));
-          if (fallback) return fallback;
+          const homeCandidates = [${homeCandidates.map(c => `'${c}'`).join(', ')}];
+          for (const url of homeCandidates) {
+            const fallback = await cache.match(url);
+            if (fallback) return fallback;
+          }
         }
         throw err;
       }
