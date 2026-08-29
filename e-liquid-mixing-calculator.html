@@ -189,6 +189,27 @@
   button.primary:hover{border-color:var(--amber); filter:brightness(1.06);}
 
   .actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+  label.cta{display:inline-flex; align-items:center; justify-content:center; margin:0;}
+
+  .history-list{display:flex; flex-direction:column; gap:8px; margin-top:4px;}
+  .hitem{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; flex-wrap:wrap;
+  }
+  .hinfo{min-width:0;}
+  .htitle{font-size:13px; color:var(--text); font-weight:600;}
+  .hdate{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .hactions{display:flex; gap:6px; flex-shrink:0;}
+  .hbtn{
+    font-family:inherit; font-size:11px; letter-spacing:0.03em; text-transform:uppercase;
+    border-radius:6px; padding:6px 10px; cursor:pointer; border:1px solid var(--line);
+    background:transparent; color:var(--text-dim); transition:color .15s, border-color .15s;
+  }
+  .hbtn:hover{color:var(--text); border-color:#3d4a70;}
+  .hbtn.danger:hover{color:#ffb3ab; border-color:#5a3230;}
+  .history-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+  .history-head .hactions-top{display:flex; gap:8px; flex-wrap:wrap;}
 
   .result-grid{
     display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
@@ -354,6 +375,25 @@
     <div class="result-grid" id="resultGrid"></div>
     <div class="bar" id="bar"></div>
     <div class="summary-line" id="summaryLine"></div>
+    <div class="actions">
+      <button class="cta" id="saveRecipeBtn">💾 Save this mix</button>
+      <button class="cta" id="exportPdfBtn">⬇ Export to PDF</button>
+    </div>
+  </div>
+
+  <div class="panel" id="historyPanel">
+    <div class="history-head">
+      <label class="label" style="margin-bottom:0;">Saved recipes</label>
+      <div class="hactions-top">
+        <button class="cta" id="exportBackupBtn">Download backup</button>
+        <label class="cta" id="importBackupLabel" for="importBackupInput">
+          Upload backup
+          <input type="file" id="importBackupInput" accept="application/json" style="display:none;">
+        </label>
+      </div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+    <p class="hint" id="historyEmptyHint">No saved recipes yet — calculate a mix and click "Save this mix".</p>
   </div>
 
   <footer>
@@ -362,7 +402,11 @@
   </footer>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+let currentRecipe = null;
+const STORAGE_KEY = 'micharna_recepty_v1';
+
 function parseRatio(str){
   const [pg, vg] = str.split('/').map(Number);
   return { pg: pg/100, vg: vg/100 };
@@ -391,12 +435,14 @@ function calculate(){
     statusEl.classList.add('show','err');
     statusEl.textContent = 'Check your inputs — volume and base strength must be positive numbers.';
     resultPanel.style.display = 'none';
+    currentRecipe = null;
     return;
   }
   if(targetNic > baseNic){
     statusEl.classList.add('show','err');
     statusEl.textContent = `Target strength (${fmt(targetNic)} mg/ml) is higher than the base strength (${fmt(baseNic)} mg/ml) — this base can't reach that, you need a stronger one.`;
     resultPanel.style.display = 'none';
+    currentRecipe = null;
     return;
   }
 
@@ -407,6 +453,7 @@ function calculate(){
     statusEl.classList.add('show','err');
     statusEl.textContent = 'The base and flavoring together take up more room than the total volume — lower the nicotine strength or the flavoring percentage.';
     resultPanel.style.display = 'none';
+    currentRecipe = null;
     return;
   }
 
@@ -426,6 +473,7 @@ function calculate(){
     const which = neededPG < 0 ? 'PG' : 'VG';
     statusEl.textContent = `The base (or flavoring) alone already contains more ${which} than your chosen target ratio allows — try a different target PG/VG ratio, or a different base.`;
     resultPanel.style.display = 'none';
+    currentRecipe = null;
     return;
   }
 
@@ -475,7 +523,219 @@ function calculate(){
   statusEl.classList.add('show','ok');
   statusEl.textContent = 'Mixed — your recipe is ready.';
   resultPanel.style.display = 'block';
+
+  currentRecipe = {
+    V, targetNic, baseNic,
+    targetRatioStr: document.getElementById('targetRatio').value,
+    baseRatioStr: document.getElementById('baseRatio').value,
+    flavorPct, noFlavor, flavorIsPG,
+    nicVol, flavorVol, neededPG, neededVG, totalCheck, finalPGpct, finalVGpct
+  };
 }
+
+/* ===== Saved recipe history (localStorage) ===== */
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+
+function saveHistory(arr){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }catch(e){
+    alert('Could not save — your browser may be blocking local storage.');
+  }
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  const emptyHint = document.getElementById('historyEmptyHint');
+  const history = loadHistory();
+  if(!history.length){
+    list.innerHTML = '';
+    emptyHint.style.display = 'block';
+    return;
+  }
+  emptyHint.style.display = 'none';
+  list.innerHTML = history.map(r => {
+    const d = r.savedAt ? new Date(r.savedAt) : new Date();
+    const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    return `
+      <div class="hitem" data-id="${r.id}">
+        <div class="hinfo">
+          <div class="htitle">${fmt(r.V)} ml · ${fmt(r.targetNic)} mg/ml · ${fmt(r.finalPGpct)}/${fmt(r.finalVGpct)} PG/VG</div>
+          <div class="hdate">${dateStr}</div>
+        </div>
+        <div class="hactions">
+          <button class="hbtn" data-action="load" title="Load into form">Load</button>
+          <button class="hbtn" data-action="pdf" title="Export to PDF">PDF</button>
+          <button class="hbtn danger" data-action="delete" title="Delete">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function loadRecordIntoForm(r){
+  document.getElementById('volume').value = r.V;
+  document.getElementById('targetNic').value = r.targetNic;
+  document.getElementById('targetRatio').value = r.targetRatioStr;
+  document.getElementById('baseNic').value = r.baseNic;
+  document.getElementById('baseRatio').value = r.baseRatioStr;
+  document.getElementById('noFlavor').checked = r.noFlavor;
+  document.getElementById('flavorPct').value = r.flavorPct;
+  document.getElementById('flavorPct').disabled = r.noFlavor;
+  document.getElementById('flavorPct').style.opacity = r.noFlavor ? 0.4 : 1;
+  document.getElementById('flavorIsPG').checked = r.flavorIsPG;
+  calculate();
+  document.getElementById('resultPanel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function exportRecipePdf(r){
+  if(!r){
+    alert('Calculate a valid recipe first.');
+    return;
+  }
+  if(!window.jspdf){
+    alert('The PDF library failed to load — check your internet connection and try again.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const d = r.savedAt ? new Date(r.savedAt) : new Date();
+
+  doc.setFontSize(16);
+  doc.text('Michárna — e-liquid mixing recipe', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), 14, 24);
+
+  doc.setTextColor(30);
+  doc.setFontSize(11);
+  let y = 36;
+  const line = (label, value) => { doc.text(`${label}:`, 14, y); doc.text(String(value), 95, y); y += 7; };
+
+  line('Target volume', fmt(r.V) + ' ml');
+  line('Target nicotine strength', fmt(r.targetNic) + ' mg/ml');
+  line('Target PG/VG ratio', r.targetRatioStr.split('/').join(' PG / ') + ' VG');
+  line('Nicotine base strength', fmt(r.baseNic) + ' mg/ml');
+  line('Base PG/VG ratio', r.baseRatioStr.split('/').join(' PG / ') + ' VG');
+  line('Flavoring', r.noFlavor ? 'no flavoring' : (fmt(r.flavorPct) + ' % (as ' + (r.flavorIsPG ? 'PG' : 'VG') + ')'));
+
+  y += 4;
+  doc.setDrawColor(200);
+  doc.line(14, y, 196, y);
+  y += 10;
+
+  doc.setFontSize(13);
+  doc.setTextColor(30);
+  doc.text('Recipe — what to pour', 14, y);
+  y += 9;
+  doc.setFontSize(11);
+  line('Nicotine base', fmt(r.nicVol) + ' ml');
+  line('Flavoring', fmt(r.flavorVol) + ' ml');
+  line('Add PG', fmt(r.neededPG) + ' ml');
+  line('Add VG', fmt(r.neededVG) + ' ml');
+
+  y += 4;
+  doc.setDrawColor(200);
+  doc.line(14, y, 196, y);
+  y += 10;
+
+  doc.text(`Total: ${fmt(r.totalCheck)} ml (target ${fmt(r.V)} ml)`, 14, y); y += 7;
+  doc.text(`Final ratio: ${fmt(r.finalPGpct)} PG / ${fmt(r.finalVGpct)} VG`, 14, y); y += 7;
+  doc.text(`Nicotine: ${fmt(r.targetNic)} mg/ml`, 14, y); y += 12;
+
+  doc.setFontSize(9);
+  doc.setTextColor(150);
+  const warning = 'Concentrated nicotine base is toxic on skin contact and if swallowed — wear gloves and keep it out of reach of children and pets.';
+  doc.text(doc.splitTextToSize(warning, 180), 14, y);
+
+  doc.save(`micharna-recipe-${fmt(r.V)}ml-${fmt(r.targetNic)}mg.pdf`);
+}
+
+document.getElementById('saveRecipeBtn').addEventListener('click', ()=>{
+  if(!currentRecipe){
+    alert('Calculate a valid recipe first.');
+    return;
+  }
+  const history = loadHistory();
+  const record = Object.assign({}, currentRecipe, {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    savedAt: new Date().toISOString()
+  });
+  history.unshift(record);
+  saveHistory(history);
+  renderHistory();
+});
+
+document.getElementById('exportPdfBtn').addEventListener('click', ()=>{
+  exportRecipePdf(currentRecipe);
+});
+
+document.getElementById('historyList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const item = e.target.closest('.hitem');
+  const id = item.getAttribute('data-id');
+  const history = loadHistory();
+  const record = history.find(r => r.id === id);
+  if(!record) return;
+  const action = btn.getAttribute('data-action');
+  if(action === 'load'){
+    loadRecordIntoForm(record);
+  } else if(action === 'pdf'){
+    exportRecipePdf(record);
+  } else if(action === 'delete'){
+    if(confirm('Delete this saved recipe?')){
+      saveHistory(history.filter(r => r.id !== id));
+      renderHistory();
+    }
+  }
+});
+
+document.getElementById('exportBackupBtn').addEventListener('click', ()=>{
+  const history = loadHistory();
+  if(!history.length){
+    alert('No saved recipes to back up yet.');
+    return;
+  }
+  const payload = { app: 'micharna', version: 1, exportedAt: new Date().toISOString(), recepty: history };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `micharna-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBackupInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      const incoming = Array.isArray(data) ? data : (Array.isArray(data.recepty) ? data.recepty : null);
+      if(!incoming) throw new Error('invalid format');
+      const existing = loadHistory();
+      const existingIds = new Set(existing.map(r => r.id));
+      const newOnes = incoming.filter(r => r && r.id && !existingIds.has(r.id));
+      const merged = existing.concat(newOnes);
+      merged.sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
+      saveHistory(merged);
+      renderHistory();
+      alert(`Backup loaded — added ${newOnes.length} new recipe(s).`);
+    }catch(err){
+      alert('Could not read that file — check that it is a valid backup from this calculator.');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
 
 document.getElementById('calcBtn').addEventListener('click', calculate);
 ['volume','targetNic','baseNic','flavorPct'].forEach(id=>{
@@ -491,6 +751,7 @@ noFlavorBox.addEventListener('change', ()=>{
 });
 
 calculate();
+renderHistory();
 </script>
 </body>
 </html>
