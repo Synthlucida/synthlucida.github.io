@@ -755,6 +755,13 @@ header::after {
   transform: rotate(180deg);
 }
 
+/* Breathing room above the "App Descriptions" button — it sits right after
+   the .platforms-seo box, which has no bottom margin of its own, so
+   without this the button was flush against it. */
+.app-descriptions-toggle-btn {
+  margin-top: 22px;
+}
+
 .platforms-panel,
 .contact-form-panel,
 .app-descriptions-panel {
@@ -2772,36 +2779,44 @@ Privacy Policy
   // App descriptions panel toggle - shows/hides all app-card blurbs together
   // as a single collapsible section (same mechanic as togglePlatforms).
   // It's nested inside the outer "Apps / Follow" panel, so opening or
-  // closing it also has to resync that outer panel's max-height, or it
+  // closing it also has to resize that outer panel's max-height, or it
   // would clip (or leave a gap under) this panel's new size.
+  //
+  // Both target heights are worked out by hand, from measurements taken
+  // BEFORE anything changes. The previous version re-measured the outer
+  // panel's scrollHeight right after starting this panel's own transition,
+  // but a synchronous read at that point still sees this panel at its
+  // pre-transition size (the animation hasn't started interpolating yet),
+  // so the outer panel's target came out too small and stayed clipped for
+  // the first ~0.5s. It only caught up once a transitionend listener fired
+  // a second resize — which is exactly the delayed "jump" that was reported.
+  // Computing both target heights up front lets them animate in step.
   function toggleAppDescriptions() {
     const panel = document.getElementById('app-descriptions-panel');
     const btn = document.getElementById('app-descriptions-toggle-btn');
     const outer = document.getElementById('platforms-panel');
-    const isOpen = panel.classList.toggle('open');
-    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    if (isOpen) {
-      panel.style.maxHeight = panel.scrollHeight + 'px';
+    const opening = !panel.classList.contains('open');
+
+    const innerHeight = panel.scrollHeight; // full content height, regardless of current clipping
+    const innerSpacing = 16; // matches .app-descriptions-panel.open's margin-top
+    const outerWasOpen = !!(outer && outer.classList.contains('open'));
+    const outerHeight = outerWasOpen ? outer.scrollHeight : 0;
+
+    panel.classList.toggle('open', opening);
+    btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+
+    if (opening) {
+      panel.style.maxHeight = innerHeight + 'px';
+      if (outerWasOpen) {
+        outer.style.maxHeight = (outerHeight + innerHeight + innerSpacing) + 'px';
+      }
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
     } else {
       panel.style.maxHeight = '';
-    }
-    // The outer "Apps / Follow" panel's own max-height is a fixed px value
-    // set when IT was opened, so it doesn't automatically grow to fit this
-    // nested panel expanding inside it. Resync it now, and again once this
-    // panel's own resize transition has actually finished, so the outer
-    // panel ends up exactly tall enough and nothing stays clipped.
-    function resyncOuter() {
-      if (outer && outer.classList.contains('open')) {
-        outer.style.maxHeight = outer.scrollHeight + 'px';
+      if (outerWasOpen) {
+        outer.style.maxHeight = Math.max(0, outerHeight - innerHeight - innerSpacing) + 'px';
       }
     }
-    resyncOuter();
-    panel.addEventListener('transitionend', function handler(e) {
-      if (e.propertyName && e.propertyName !== 'max-height') return;
-      panel.removeEventListener('transitionend', handler);
-      resyncOuter();
-    });
   }
 
   // Contact form panel toggle - shows/hides the contact form
