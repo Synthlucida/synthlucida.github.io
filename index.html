@@ -704,7 +704,8 @@ header::after {
 }
 
 .platforms-toggle-btn,
-.contact-form-toggle-btn {
+.contact-form-toggle-btn,
+.app-descriptions-toggle-btn {
   width: 100%;
   max-width: 330px;
   padding: 15px;
@@ -726,32 +727,37 @@ header::after {
 }
 
 .platforms-toggle-btn:hover,
-.contact-form-toggle-btn:hover {
+.contact-form-toggle-btn:hover,
+.app-descriptions-toggle-btn:hover {
   transform: translateY(-2px) scale(1.03);
   box-shadow: 0 0 20px rgba(0,240,255,0.45);
   background: rgba(255,255,255,0.05);
 }
 
 .platforms-toggle-btn[aria-expanded="true"],
-.contact-form-toggle-btn[aria-expanded="true"] {
+.contact-form-toggle-btn[aria-expanded="true"],
+.app-descriptions-toggle-btn[aria-expanded="true"] {
   background: rgba(0,240,255,0.1);
   border-color: rgba(0,240,255,0.55);
 }
 
 .platforms-toggle-btn .chevron,
-.contact-form-toggle-btn .chevron {
+.contact-form-toggle-btn .chevron,
+.app-descriptions-toggle-btn .chevron {
   display: inline-block;
   transition: transform 0.3s ease;
   font-size: 11px;
 }
 
 .platforms-toggle-btn[aria-expanded="true"] .chevron,
-.contact-form-toggle-btn[aria-expanded="true"] .chevron {
+.contact-form-toggle-btn[aria-expanded="true"] .chevron,
+.app-descriptions-toggle-btn[aria-expanded="true"] .chevron {
   transform: rotate(180deg);
 }
 
 .platforms-panel,
-.contact-form-panel {
+.contact-form-panel,
+.app-descriptions-panel {
   max-width: 680px;
   margin: 0 auto;
   max-height: 0;
@@ -761,7 +767,8 @@ header::after {
 }
 
 .platforms-panel.open,
-.contact-form-panel.open {
+.contact-form-panel.open,
+.app-descriptions-panel.open {
   opacity: 1;
   margin-top: 16px;
 }
@@ -2197,14 +2204,14 @@ rel="noopener noreferrer">
 href="https://synthlucida.com/michani-liquidu.html"
 target="_blank"
 rel="noopener noreferrer">
-<span class="platform-icon">🧪</span>Míchárna
+<span class="platform-icon">🧪</span>MIXING LAB.
 </a>
 
 <a class="platform-link"
 href="https://synthlucida.com/vodovaha-en.html"
 target="_blank"
 rel="noopener noreferrer">
-<span class="platform-icon">📐</span>Vodováha
+<span class="platform-icon">📐</span>SPIRIT LEVEL
 </a>
 
 </div>
@@ -2281,10 +2288,15 @@ rel="noopener noreferrer">
 <li>Licensed sounds and music on AudioJungle and Pond5</li>
 <li>Reviews and community on Synth Reviews</li>
 <li>Relaxation and wellness apps UklidniTo, RELAXPLAYER and Noctuary Tarot</li>
-<li>Handy tools Weather, TRIPCOST, PAYDAY, WEBZEN, Progrese, Míchárna, Deník vozidla and Vodováha</li>
+<li>Handy tools Weather, TRIPCOST, PAYDAY, WEBZEN, Progrese, Mixing Lab., Vehicle Logbook and Spirit Level</li>
 </ul>
 </div>
 
+<button class="app-descriptions-toggle-btn" id="app-descriptions-toggle-btn" onclick="toggleAppDescriptions()" aria-expanded="false" aria-controls="app-descriptions-panel">
+<span data-i18n="app-descriptions-toggle">📋 App Descriptions</span> <span class="chevron">▾</span>
+</button>
+
+<div class="app-descriptions-panel" id="app-descriptions-panel">
 <div class="platforms-apps">
 
 <div class="app-card" data-i18n="webzen-desc">
@@ -2303,7 +2315,7 @@ rel="noopener noreferrer">
 </div>
 
 <div class="app-card" data-i18n="denik-desc">
-<h3>DENÍK VOZIDLA <span style="opacity:.55; font-weight:400;">(Vehicle Logbook)</span></h3>
+<h3>VEHICLE LOGBOOK</h3>
 <p>A free online mileage log. Record trips by odometer reading, purpose (business/private) and vehicle, track monthly summaries, and export records to PDF, CSV and JSON.</p>
 </div>
 
@@ -2333,15 +2345,16 @@ rel="noopener noreferrer">
 </div>
 
 <div class="app-card" data-i18n="micharna-desc">
-<h3>MÍCHÁRNA</h3>
+<h3>MIXING LAB.</h3>
 <p>A free e-liquid mixing calculator for vapers. Enter bottle size, target nicotine strength and PG/VG ratio, and it works out exactly how much base, nicotine shot and flavoring to mix.</p>
 </div>
 
 <div class="app-card" data-i18n="vodovaha-desc">
-<h3>VODOVÁHA</h3>
+<h3>SPIRIT LEVEL</h3>
 <p>A free digital spirit level and inclinometer right in your browser. Uses your phone's gyroscope and accelerometer to level surfaces or precisely measure slope and angle, no app install required.</p>
 </div>
 
+</div>
 </div>
 
 </div>
@@ -2754,6 +2767,41 @@ Privacy Policy
     } else {
       panel.style.maxHeight = '';
     }
+  }
+
+  // App descriptions panel toggle - shows/hides all app-card blurbs together
+  // as a single collapsible section (same mechanic as togglePlatforms).
+  // It's nested inside the outer "Apps / Follow" panel, so opening or
+  // closing it also has to resync that outer panel's max-height, or it
+  // would clip (or leave a gap under) this panel's new size.
+  function toggleAppDescriptions() {
+    const panel = document.getElementById('app-descriptions-panel');
+    const btn = document.getElementById('app-descriptions-toggle-btn');
+    const outer = document.getElementById('platforms-panel');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+      panel.style.maxHeight = panel.scrollHeight + 'px';
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    } else {
+      panel.style.maxHeight = '';
+    }
+    // The outer "Apps / Follow" panel's own max-height is a fixed px value
+    // set when IT was opened, so it doesn't automatically grow to fit this
+    // nested panel expanding inside it. Resync it now, and again once this
+    // panel's own resize transition has actually finished, so the outer
+    // panel ends up exactly tall enough and nothing stays clipped.
+    function resyncOuter() {
+      if (outer && outer.classList.contains('open')) {
+        outer.style.maxHeight = outer.scrollHeight + 'px';
+      }
+    }
+    resyncOuter();
+    panel.addEventListener('transitionend', function handler(e) {
+      if (e.propertyName && e.propertyName !== 'max-height') return;
+      panel.removeEventListener('transitionend', handler);
+      resyncOuter();
+    });
   }
 
   // Contact form panel toggle - shows/hides the contact form
@@ -3300,6 +3348,7 @@ Privacy Policy
     'ph-email': 'Váš e-mail',
     'ph-message': 'Vaše zpráva',
     'platforms-toggle': 'SYNTHLUCIDA APPS / FOLLOW',
+    'app-descriptions-toggle': '📋 Popis aplikací',
     'platforms-highlight': '<p>⚡ <strong>Všechny nástroje SYNTHLUCIDA fungují samostatně</strong> — každý běží nezávisle přímo ve vašem prohlížeči, zdarma a bez registrace, a dá se nainstalovat jako plnohodnotná aplikace do telefonu, tabletu nebo počítače, bez nutnosti App Store či Google Play.</p><p><strong>Jak si aplikaci nainstalovat přes prohlížeč:</strong></p><ul><li><strong>Android (Chrome):</strong> otevřete stránku aplikace → klepněte na nabídku vpravo nahoře → „přidat na plochu“ nebo „instalovat aplikaci“.</li><li><strong>iPhone / iPad (Safari):</strong> otevřete stránku aplikace → klepněte na ikonu Sdílet → „přidat na plochu“.</li><li><strong>Počítač (Chrome / Edge):</strong> otevřete stránku aplikace → klikněte na ikonu instalace v adresním řádku → „instalovat“.</li></ul>',
     'platforms-group-apps': 'Aplikace',
     'platforms-group-services': 'Služby a odkazy',
@@ -3308,14 +3357,14 @@ Privacy Policy
     'webzen-desc': '<h3>WEBZEN</h3><p>Nástroj SYNTHLUCIDA pro rychlou a jednoduchou tvorbu vlastní webové stránky přímo v prohlížeči, bez nutnosti umět programovat.</p>',
     'uklidnito-desc': '<h3>UKLIDNITO</h3><p>Bezplatné dechové cvičení online, bez registrace a instalace. Osm vědecky podložených technik (4-7-8, Box, Coherent, Calm a další) s vizuální pulzující koulí, která tě provede nádechem, zádrží i výdechem, plus volitelné sledování pokroku — kalendář, nálada, energie a spánek.</p>',
     'tripcost-desc': '<h3>TRIP COST</h3><p>Bezplatná kalkulačka nákladů na cestu autem. Zadáš km, spotřebu a cenu paliva a hned víš, kolik tě bude cesta stát — celkem i na osobu.</p>',
-    'denik-desc': '<h3>DENÍK VOZIDLA <span style="opacity:.55; font-weight:400;">(Vehicle Logbook)</span></h3><p>Bezplatná elektronická kniha jízd online. Zaznamenávej jízdy podle stavu tachometru, účelu (služební/soukromé) a vozidla, sleduj měsíční souhrny a exportuj záznamy do PDF, CSV i JSON.</p>',
+    'denik-desc': '<h3>VEHICLE LOGBOOK <span style="opacity:.55; font-weight:400;">(Vehicle Logbook)</span></h3><p>Bezplatná elektronická kniha jízd online. Zaznamenávej jízdy podle stavu tachometru, účelu (služební/soukromé) a vozidla, sleduj měsíční souhrny a exportuj záznamy do PDF, CSV i JSON.</p>',
     'weather-desc': '<h3>WEATHER</h3><p>Bezplatný nástroj SYNTHLUCIDA pro počasí — aktuální stav a výhled na několik dní pro libovolné místo, přehledně a rychle, bez registrace.</p>',
     'payday-desc': '<h3>PAYDAY</h3><p>Bezplatná kalkulačka čisté mzdy. Zadej hrubou mzdu a hned vidíš, kolik ti přijde na účet po odečtení daní a pojistného.</p>',
     'progrese-desc': '<h3>PROGRESE</h3><p>Bezplatný online generátor akordových postupů. Vyber tóninu a náladu, získej automaticky vygenerovanou melodii, bas a arpeggio s přehráváním přímo v prohlížeči a exportuj výsledek do MIDI.</p>',
     'relaxplayer-desc': '<h3>RELAXPLAYER</h3><p>Bezplatný ambientní hudební přehrávač, srdce SYNTHLUCIDA — playlisty ASMR, Piano a Chill, 20 vizuálních motivů s efekty počasí a oblohy, řízené dýchání, časovač spánku a XP systém odemykající stahování.</p>',
     'noctuary-desc': '<h3>NOCTUARY TAROT</h3><p>Bezplatná stránka s tarotovou kartou dne a AI generovaným měsíčním horoskopem pro všech 12 znamení.</p>',
-    'micharna-desc': '<h3>MÍCHÁRNA</h3><p>Bezplatná kalkulačka pro míchání e-liquidů. Zadej velikost lahvičky, cílovou sílu nikotinu a poměr PG/VG a hned víš, kolik základu, nikotinového shotu a příchutě namíchat.</p>',
-    'vodovaha-desc': '<h3>VODOVÁHA</h3><p>Bezplatná digitální vodováha a sklonoměr přímo v prohlížeči. Využívá gyroskop a akcelerometr telefonu pro vyrovnání ploch nebo přesné měření sklonu a úhlu, bez instalace aplikace.</p>',
+    'micharna-desc': '<h3>MIXING LAB.</h3><p>Bezplatná kalkulačka pro míchání e-liquidů. Zadej velikost lahvičky, cílovou sílu nikotinu a poměr PG/VG a hned víš, kolik základu, nikotinového shotu a příchutě namíchat.</p>',
+    'vodovaha-desc': '<h3>SPIRIT LEVEL</h3><p>Bezplatná digitální vodováha a sklonoměr přímo v prohlížeči. Využívá gyroskop a akcelerometr telefonu pro vyrovnání ploch nebo přesné měření sklonu a úhlu, bez instalace aplikace.</p>',
     'privacy-link': 'Zásady ochrany osobních údajů',
     'footer': '© 2026 SYNTHLUCIDA www.synthlucida.com • DAZANTE Český producent elektronické hudby'
   };
