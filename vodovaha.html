@@ -890,7 +890,13 @@
     try{ return JSON.parse(localStorage.getItem(STORAGE_READINGS)) || []; }catch(e){ return []; }
   }
   function saveReadings(list){
-    localStorage.setItem(STORAGE_READINGS, JSON.stringify(list));
+    try {
+      localStorage.setItem(STORAGE_READINGS, JSON.stringify(list));
+      return true;
+    } catch(err){
+      showToast("Uložení selhalo — prohlížeč odmítl zápis (soukromý režim nebo plné úložiště)");
+      return false;
+    }
   }
   function renderReadings(){
     var list = loadReadings();
@@ -919,7 +925,7 @@
     if(!btn) return;
     var id = btn.getAttribute("data-id");
     var list = loadReadings().filter(function(r){ return String(r.id) !== id; });
-    saveReadings(list);
+    if(!saveReadings(list)) return;
     renderReadings();
     showToast("Hodnota smazána");
   });
@@ -945,7 +951,7 @@
     }
     list.unshift({ id: Date.now(), name: name.slice(0,40), modeLabel: modeLabel, value: value, ts: Date.now() });
     if(list.length > 20) list = list.slice(0,20);
-    saveReadings(list);
+    if(!saveReadings(list)) return;
     renderReadings();
     els.readingName.value = "";
     els.saveRow.classList.add("hidden");
