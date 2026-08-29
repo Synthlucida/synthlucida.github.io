@@ -756,7 +756,7 @@
       <div class="wz-guide">
         <b>Jak na to</b>
         <ol>
-          <li>Nahoře zadej plnou URL, na které appka poběží (např. <code>https://synthlucida.com/neco.html</code> nebo klidně adresu na úplně jiné doméně).</li>
+          <li>Nahoře zadej plnou URL, na které appka poběží (např. <code>https://synthlucida.com/neco.html</code> nebo klidně adresu na úplně jiné doméně). Pokud název souboru končí jazykovou příponou <code>-en</code>, <code>-sk</code>, <code>-de</code> nebo <code>-pl</code> (např. <code>neco-en.html</code>), nástroj to pozná a v manifestu použije pro ikony 192×192 a 512×512 grafiku bez téhle přípony (sdílenou s výchozí/CZ verzí appky) — viz krok 7.</li>
           <li>Nahraj/vlož HTML appky (název titulku, popis a barvy si nástroj na začátek vezme přímo z něj).</li>
           <li>Pokud appka zůstává na synthlucida.com, nahraj/vlož i aktuální <b>sw.js</b> playeru — do jeho vylučovacího seznamu se doplní jen tahle nová appka, zbytek souboru zůstane netknutý. Jde-li appka jinam, toto pole klidně přeskoč (viz krok 5).</li>
           <li>Klikni na <b>Vygenerovat</b> — níž se objeví panel <b>„Zkontroluj a uprav hlavní SEO údaje"</b> s tím, co nástroj z appky vytáhl.</li>
@@ -769,7 +769,7 @@
           </li>
           <li>Stáhni si všechny tři soubory (HTML, manifest.json, sw.js) tlačítky u výstupu.</li>
           <li>Na server nahraj: opravené HTML appky a nový <code>&lt;slug&gt;-manifest.json</code>. U sw.js záleží na volbě z kroku 5 — buď jím přepiš starý <code>sw.js</code> playeru (sdílený), nebo ho nahraj jako nový samostatný <code>sw.js</code> vedle appky na její vlastní doméně.</li>
-          <li>Ještě doplň obrázky ikon podle seznamu, který se objeví dole u výstupu (favicon, apple-touch-icon, 192×192, 512×512, og-image) — ty jediné se negenerují.</li>
+          <li>Ještě doplň obrázky ikon podle seznamu, který se objeví dole u výstupu (favicon, apple-touch-icon, 192×192, 512×512, og-image) — ty jediné se negenerují. U jazykové mutace (viz krok 1) se 192×192 a 512×512 v manifestu odkazují na sdílenou grafiku bez jazykové přípony, takže je stačí mít nahrané jednou (u výchozí/CZ verze) a pro mutaci už znovu nahrávat nemusíš — zbylé ikony (favicon, apple-touch-icon, og-image) ale per jazyk zvlášť potřeba jsou.</li>
           <li>Appka je hotová k publikaci — stačí na ni hodit odkaz.</li>
         </ol>
       </div>
@@ -3508,8 +3508,22 @@ document.querySelectorAll('.view-btn').forEach(btn => {
     return html;
   }
 
+  // Jazykové mutace appky (název-en.html, název-sk.html, …) sdílí stejnou
+  // 192×192 / 512×512 grafiku jako výchozí (CZ) verze — jen favicon,
+  // apple-touch-icon a og-image bývají zvlášť pro každý jazyk. Pro slug
+  // končící na "-en" (příp. jinou jazykovou příponu) proto v manifestu
+  // odkážeme ikony 192/512 na slug BEZ téhle přípony, ať se v manifestu
+  // neodkazuje na neexistující "-en-icon-*.png" soubory.
+  const WZ_LANG_SUFFIX_RE = /-(en|sk|de|pl)$/i;
+
+  function wzManifestIconSlug(slug){
+    const m = slug.match(WZ_LANG_SUFFIX_RE);
+    return m ? slug.slice(0, -m[0].length) : slug;
+  }
+
   function buildImportedManifest(ctx){
     const shortName = ctx.name.length > 14 ? ctx.name.split(/[\s–-]/)[0] : ctx.name;
+    const iconSlug = wzManifestIconSlug(ctx.slug);
     const manifest = {
       id: `./${ctx.filename}`,
       name: ctx.name,
@@ -3522,8 +3536,8 @@ document.querySelectorAll('.view-btn').forEach(btn => {
       theme_color: ctx.themeColor,
       lang: ctx.lang,
       icons: [
-        { src: `${ctx.slug}-icon-192.png`, sizes: '192x192', type: 'image/png' },
-        { src: `${ctx.slug}-icon-512.png`, sizes: '512x512', type: 'image/png' }
+        { src: `${iconSlug}-icon-192.png`, sizes: '192x192', type: 'image/png' },
+        { src: `${iconSlug}-icon-512.png`, sizes: '512x512', type: 'image/png' }
       ]
     };
     return JSON.stringify(manifest, null, 2);
@@ -3700,11 +3714,16 @@ self.addEventListener('fetch', (event) => {
     document.getElementById('wzSwOutput').value = swResult.sw;
     document.getElementById('wzHtmlOutName').textContent = ctx.filename;
     document.getElementById('wzManifestOutName').textContent = `${ctx.slug}-manifest.json`;
+    const iconSlug = wzManifestIconSlug(ctx.slug);
+    const langNote = iconSlug !== ctx.slug
+      ? `Detekována jazyková mutace ("-${ctx.slug.slice(iconSlug.length + 1)}") — ikony 192×192 a 512×512 v manifestu automaticky ukazují na sdílenou grafiku "${iconSlug}-icon-192.png" / "${iconSlug}-icon-512.png" (stejnou jako výchozí/CZ verze appky), takže je není potřeba nahrávat znovu zvlášť pro tuhle mutaci.<br><br>`
+      : '';
     document.getElementById('wzIconList').innerHTML =
       `<b>${escapeHtml(swResult.note)}</b><br><br>` +
       'SEO doplněno automaticky: canonical, robots, popisky a obrázek pro sdílení (Open Graph + Twitter card), og:locale, strukturovaná data (JSON-LD) a jazyk stránky.<br><br>' +
+      langNote +
       'Ikony, které je potřeba ještě ručně doplnit vedle souboru (tenhle nástroj je nevytváří):<br>' +
-      [`${ctx.slug}-favicon.ico`, `${ctx.slug}-favicon-32.png`, `${ctx.slug}-favicon-16.png`, `${ctx.slug}-apple-touch-icon.png`, `${ctx.slug}-icon-192.png`, `${ctx.slug}-icon-512.png`, `${ctx.slug}-og-image.png (1200×630)`]
+      [`${ctx.slug}-favicon.ico`, `${ctx.slug}-favicon-32.png`, `${ctx.slug}-favicon-16.png`, `${ctx.slug}-apple-touch-icon.png`, `${iconSlug}-icon-192.png`, `${iconSlug}-icon-512.png`, `${ctx.slug}-og-image.png (1200×630)`]
         .map(f => `<code>${f}</code>`).join(', ');
     document.getElementById('wzOutput').classList.add('show');
   }
