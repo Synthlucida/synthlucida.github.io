@@ -346,6 +346,19 @@
   }
   .swatch:hover{transform:scale(1.15);}
   .swatch.active{border-color:#fff;}
+  .style-presets{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .style-preset-btn{
+    display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
+    background:var(--ui-bg-2);border:1px solid var(--ui-line);border-radius:9px;
+    padding:9px 10px;cursor:pointer;font-family:'Inter',sans-serif;
+  }
+  .style-preset-btn:hover{border-color:var(--ui-accent);}
+  .style-preset-btn.active{border-color:var(--ui-accent);box-shadow:0 0 0 1px var(--ui-accent);}
+  .style-preset-swatch{
+    width:100%;height:26px;border-radius:6px;
+  }
+  .style-preset-name{font-size:12px;font-weight:700;color:var(--ui-text);}
+  .style-preset-desc{font-size:10.5px;color:var(--ui-text-dim);line-height:1.3;}
   .color-row{display:flex;align-items:center;gap:10px;margin-top:6px;}
   .color-row input[type=color]{
     width:34px;height:34px;padding:0;border:1px solid var(--ui-line);border-radius:7px;
@@ -683,6 +696,35 @@ const PALETTES = [
   ['#c2410c','#6c2e0c'], ['#eab308','#5b2c06']
 ];
 
+// Complete graphic styles for the site — colors + fonts bundled together, so the
+// site gets a finished, coordinated look in one click instead of picking color and font separately.
+const STYLE_PRESETS = [
+  { id:'neon-violet', name:'Neon Violet', desc:'Bold, modern, tech-forward',
+    accent:'#a855f7', glow:'#581c87', bg1:'#2b1150', bg2:'#0a0612',
+    fontDisplay:"'Space Grotesk', sans-serif", fontBody:"'Inter', sans-serif" },
+  { id:'electric-blue', name:'Electric Blue', desc:'Cool, technical, trustworthy',
+    accent:'#2196f3', glow:'#0d3d7a', bg1:'#0f2a4d', bg2:'#050b14',
+    fontDisplay:"'Orbitron', sans-serif", fontBody:"'Inter', sans-serif" },
+  { id:'sunset', name:'Sunset', desc:'Warm, energetic, friendly',
+    accent:'#ff7700', glow:'#7c2d12', bg1:'#4a1d12', bg2:'#0d0604',
+    fontDisplay:"'Poppins', sans-serif", fontBody:"'Inter', sans-serif" },
+  { id:'emerald', name:'Emerald Forest', desc:'Calm, natural, sustainable',
+    accent:'#34d399', glow:'#065f46', bg1:'#0f3d2e', bg2:'#041210',
+    fontDisplay:"'Poppins', sans-serif", fontBody:"'Inter', sans-serif" },
+  { id:'elegant-gold', name:'Elegant Gold', desc:'Luxurious, premium, classic',
+    accent:'#eab308', glow:'#78350f', bg1:'#2a1f0a', bg2:'#0a0704',
+    fontDisplay:"'Playfair Display', serif", fontBody:"'Inter', sans-serif" },
+  { id:'cyber-teal', name:'Cyber Teal', desc:'Futuristic, cool, bold',
+    accent:'#12c2c2', glow:'#0a5c5c', bg1:'#062626', bg2:'#020a0a',
+    fontDisplay:"'Orbitron', sans-serif", fontBody:"system-ui, sans-serif" },
+  { id:'playful-pink', name:'Playful Pink', desc:'Fun, youthful, creative',
+    accent:'#f43f5e', glow:'#831843', bg1:'#3d0f26', bg2:'#0d0308',
+    fontDisplay:"'Poppins', sans-serif", fontBody:"'Poppins', sans-serif" },
+  { id:'minimal-gray', name:'Minimal Gray', desc:'Sober, corporate, clean',
+    accent:'#64748b', glow:'#1e293b', bg1:'#1e293b', bg2:'#05070a',
+    fontDisplay:"'Space Grotesk', sans-serif", fontBody:"system-ui, sans-serif" }
+];
+
 function getDefaultState(){
   return {
   brand: 'Website Name',
@@ -699,6 +741,8 @@ function getDefaultState(){
   heroImage: '',     // base64 data URL from an uploaded file
   heroImageUrl: '',  // optional external URL (takes priority over the uploaded file)
   heroImageAlt: '',  // image alt text (SEO + accessibility)
+  heroLayout: 'centered', // 'centered' | 'split' — hero section layout
+  cardsLayout: 'grid',    // 'grid' | 'list' — cards/features layout
   fontDisplay: "'Space Grotesk', sans-serif",
   fontBody: "'Inter', sans-serif",
   accent: '#a855f7',
@@ -1395,6 +1439,26 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Site graphic style</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">A ready-made combination of colors and fonts in one click. After picking one, you can still fine-tune colors and fonts manually below.</div>
+      <div class="style-presets" id="stylePresets"></div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Site layout</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">How the hero section and cards are arranged on the page — not about colors, just the layout itself.</div>
+      ${field('Hero section layout', `<select data-bind="heroLayout">
+        <option value="centered" ${state.heroLayout==='centered'?'selected':''}>Centered (text in the middle, image on top)</option>
+        <option value="split" ${state.heroLayout==='split'?'selected':''}>Split into two columns (text left, image right)</option>
+      </select>`)}
+      ${state.heroLayout==='split' && state.heroVisual!=='custom' ? `<div class="note-box" style="margin-top:8px;">Without an image set in the hero section (above, in "Hero section visual"), the split layout behaves as left-aligned text.</div>` : ''}
+      ${field('Cards / features layout', `<select data-bind="cardsLayout">
+        <option value="grid" ${state.cardsLayout==='grid'?'selected':''}>Grid (cards side by side)</option>
+        <option value="list" ${state.cardsLayout==='list'?'selected':''}>List (icon left, text right, stacked)</option>
+      </select>`)}
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Colors</div>
       <div class="swatches" id="swatches"></div>
       <div class="color-row"><input type="color" data-bind="accent" value="${state.accent}"><span>accent — main color</span></div>
@@ -1519,6 +1583,7 @@ function renderForm(){
   `;
 
   renderSwatches();
+  renderStylePresets();
   renderSections();
   renderCards();
   renderFaq();
@@ -1954,6 +2019,29 @@ function selectHtml(bindKey, options, current){
     `</select>`;
 }
 
+function renderStylePresets(){
+  const box = document.getElementById('stylePresets');
+  if (!box) return;
+  box.innerHTML = STYLE_PRESETS.map(p => {
+    const active = state.accent===p.accent && state.glow===p.glow && state.bg1===p.bg1 && state.bg2===p.bg2 && state.fontDisplay===p.fontDisplay && state.fontBody===p.fontBody;
+    return `<button type="button" class="style-preset-btn${active?' active':''}" data-style-preset="${p.id}">
+      <div class="style-preset-swatch" style="background:linear-gradient(135deg, ${p.accent}, ${p.glow} 70%, ${p.bg2})"></div>
+      <div class="style-preset-name">${escapeHtml(p.name)}</div>
+      <div class="style-preset-desc">${escapeHtml(p.desc)}</div>
+    </button>`;
+  }).join('');
+  box.querySelectorAll('[data-style-preset]').forEach(btn => {
+    btn.onclick = () => {
+      const p = STYLE_PRESETS.find(x => x.id === btn.dataset.stylePreset);
+      if (!p) return;
+      state.accent = p.accent; state.glow = p.glow; state.bg1 = p.bg1; state.bg2 = p.bg2;
+      state.fontDisplay = p.fontDisplay; state.fontBody = p.fontBody;
+      renderForm();
+      updatePreview();
+    };
+  });
+}
+
 function renderSwatches(){
   const box = document.getElementById('swatches');
   box.innerHTML = PALETTES.map(([a,g]) =>
@@ -2044,6 +2132,7 @@ function bindSimpleInputs(){
     el.addEventListener(evt, () => {
       state[key] = el.value;
       if(key==='accent' || key==='glow'){ document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active')); }
+      if(key==='heroLayout'){ renderForm(); }
       updatePreview();
     });
   });
@@ -2411,6 +2500,37 @@ function sharedStyleTag(s){
   .card h3{font-size:16px;margin:0 0 8px;}
   .card p{font-size:13.5px;color:#c7c7ce;line-height:1.55;margin:0;}
 
+  /* ---------- layout: hero split into two columns (text left, image right) ---------- */
+  body.layout-split .hero{text-align:left;}
+  body.layout-split .hero .wrap{
+    display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center;
+  }
+  body.layout-split .hero-visual-img{grid-column:2;grid-row:1;margin:0;max-width:100%;max-height:360px;}
+  body.layout-split .hero-text{grid-column:1;grid-row:1;}
+  body.layout-split .eyebrow{margin:0 0 16px;}
+  body.layout-split .hero p{margin:0 0 30px;max-width:480px;}
+  body.layout-split .cta-group{justify-content:flex-start;}
+  body.layout-split.no-hero-visual .hero .wrap{display:block;max-width:640px;}
+  @media (max-width:860px){
+    body.layout-split .hero{text-align:center;}
+    body.layout-split .hero .wrap{grid-template-columns:1fr;}
+    body.layout-split .hero-visual-img{grid-column:1;grid-row:1;margin:0 auto 26px;max-width:220px;max-height:200px;}
+    body.layout-split .hero-text{grid-column:1;grid-row:2;}
+    body.layout-split .eyebrow{margin:0 auto 18px;}
+    body.layout-split .hero p{margin:0 auto 30px;}
+    body.layout-split .cta-group{justify-content:center;}
+  }
+
+  /* ---------- layout: cards as a list (icon left, text right) ---------- */
+  body.cards-list .cards{display:flex;flex-direction:column;gap:12px;}
+  body.cards-list .card, body.cards-list .card-link{
+    display:grid;grid-template-columns:44px 1fr;column-gap:16px;row-gap:2px;
+    align-items:start;text-align:left;padding:16px 18px;
+  }
+  body.cards-list .card-icon{grid-column:1;grid-row:1/3;margin:2px 0 0;font-size:26px;}
+  body.cards-list .card h3{grid-column:2;grid-row:1;margin:0;}
+  body.cards-list .card p{grid-column:2;grid-row:2;margin:0;}
+
   .faq-section{padding:20px 20px 80px;max-width:720px;margin:0 auto;}
   .faq-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 28px;}
   .faq-item{
@@ -2689,7 +2809,7 @@ ${faqJsonLd}
 
 ${sharedStyleTag(s)}
 </head>
-<body>
+<body class="layout-${s.heroLayout === 'split' ? 'split' : 'centered'} cards-${s.cardsLayout === 'list' ? 'list' : 'grid'}${!heroVisualHtml ? ' no-hero-visual' : ''}">
 
 ${sideNavHtml}
 
@@ -2698,11 +2818,13 @@ ${sideNavHtml}
     <section class="hero" id="hero">
       <div class="wrap">
         ${heroVisualHtml}
-        <span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>
-        <h1>${escapeHtml(s.heroTitle)}</h1>
-        <p>${richText(s.heroSubtitle)}</p>
-        <div class="cta-group">
-        ${ctaButtonsHtml}
+        <div class="hero-text">
+          <span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>
+          <h1>${escapeHtml(s.heroTitle)}</h1>
+          <p>${richText(s.heroSubtitle)}</p>
+          <div class="cta-group">
+          ${ctaButtonsHtml}
+          </div>
         </div>
       </div>
     </section>
@@ -2895,7 +3017,7 @@ ${standalone ? `<style>
   .page-content{margin-left:0 !important;}
 </style>` : ''}
 </head>
-<body>
+<body class="cards-${s.cardsLayout === 'list' ? 'list' : 'grid'}">
 
 ${sideNavHtml}
 
