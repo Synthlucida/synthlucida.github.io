@@ -749,6 +749,16 @@
     return n.toLocaleString("en-US", { minimumFractionDigits:decimals, maximumFractionDigits:decimals });
   }
 
+  function saveToStorage(key, value){
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch(err){
+      showToast("Save failed — the browser refused to write (private mode or storage full)");
+      return false;
+    }
+  }
+
   function showToast(msg){
     els.toast.textContent = msg;
     els.toast.classList.add("show");
@@ -939,7 +949,7 @@
       totalCost: lastCalc.totalCost
     });
     if(routes.length > 12) routes = routes.slice(0,12);
-    localStorage.setItem(STORAGE_ROUTES, JSON.stringify(routes));
+    if(!saveToStorage(STORAGE_ROUTES, routes)) return;
     els.routeName.value = "";
     els.saveRow.style.display = "none";
     renderRoutes();
@@ -987,7 +997,7 @@
     if(delBtn){
       var id = delBtn.getAttribute("data-id");
       var routes = loadRoutes().filter(function(r){ return String(r.id) !== String(id); });
-      localStorage.setItem(STORAGE_ROUTES, JSON.stringify(routes));
+      if(!saveToStorage(STORAGE_ROUTES, routes)) return;
       renderRoutes();
       return;
     }
@@ -1153,7 +1163,7 @@
       });
 
       if(existing.length > 12) existing = existing.slice(0,12);
-      localStorage.setItem(STORAGE_ROUTES, JSON.stringify(existing));
+      if(!saveToStorage(STORAGE_ROUTES, existing)) return;
       renderRoutes();
       showToast(added === 1 ? "1 route imported" : added + " routes imported");
     };
