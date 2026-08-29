@@ -962,8 +962,22 @@
   var activeFilter = "all";
   var activeVehicle = "all";
 
+  function hasNum(n){
+    return typeof n === "number" && isFinite(n);
+  }
+
+  function saveToStorage(key, value){
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch(err){
+      showToast("Uložení selhalo — prohlížeč odmítl zápis (soukromý režim nebo plné úložiště)");
+      return false;
+    }
+  }
+
   function fmt(n, decimals){
-    if(!isFinite(n)) n = 0;
+    if(!hasNum(n)) n = 0;
     return n.toLocaleString("cs-CZ", { minimumFractionDigits:decimals, maximumFractionDigits:decimals });
   }
 
@@ -1204,7 +1218,7 @@
       notes: lastCalc.notes
     });
     if(entries.length > 500) entries = entries.slice(0,500);
-    localStorage.setItem(STORAGE_ENTRIES, JSON.stringify(entries));
+    if(!saveToStorage(STORAGE_ENTRIES, entries)) return;
 
     els.odoStart.value = ""; els.odoEnd.value = ""; els.fromPlace.value = ""; els.toPlace.value = "";
     els.mapLink.value = ""; els.notes.value = "";
@@ -1232,7 +1246,7 @@
 
   function saveServiceEntries(entries){
     if(entries.length > 500) entries = entries.slice(0,500);
-    localStorage.setItem(STORAGE_SERVICE, JSON.stringify(entries));
+    return saveToStorage(STORAGE_SERVICE, entries);
   }
 
   els.serviceSaveBtn.addEventListener("click", function(){
@@ -1254,7 +1268,7 @@
       nextDate: nextDate,
       notes: notes
     });
-    saveServiceEntries(entries);
+    if(!saveServiceEntries(entries)) return;
 
     els.sOdo.value = ""; els.sPrice.value = ""; els.sNextDate.value = ""; els.sNotes.value = "";
     renderVehicleOptions();
@@ -1324,7 +1338,7 @@
     els.serviceSummaryScope.textContent = activeServiceVehicle !== "all" ? "· " + activeServiceVehicle : "";
 
     var totalCost = 0;
-    entries.forEach(function(e){ if(isFinite(e.price)) totalCost += e.price; });
+    entries.forEach(function(e){ if(hasNum(e.price)) totalCost += e.price; });
     els.sSumCost.textContent = fmt(totalCost,0) + " Kč";
 
     var upcoming = all.filter(function(e){
@@ -1359,8 +1373,8 @@
     for(var i=0;i<entries.length;i++){
       var e = entries[i];
       var metaParts = [e.date, e.vehicle||""];
-      if(isFinite(e.odo)) metaParts.push(fmt(e.odo,0) + " km");
-      if(isFinite(e.price)) metaParts.push(fmt(e.price,0) + " Kč");
+      if(hasNum(e.odo)) metaParts.push(fmt(e.odo,0) + " km");
+      if(hasNum(e.price)) metaParts.push(fmt(e.price,0) + " Kč");
       var name = SERVICE_TYPE_ICON[e.type] + " " + SERVICE_TYPE_LABELS[e.type] + serviceBadge(e.nextDate);
       html += '<div class="route-chip" data-id="'+e.id+'">'
         + '<div class="rc-purpose '+e.type+'"></div>'
@@ -1378,7 +1392,7 @@
     if(delBtn){
       var id = delBtn.getAttribute("data-id");
       var entries = loadServiceEntries().filter(function(r){ return String(r.id) !== String(id); });
-      saveServiceEntries(entries);
+      if(!saveServiceEntries(entries)) return;
       renderServiceVehicleOptions(); renderServiceSummary(); renderServiceEntries();
       return;
     }
@@ -1390,8 +1404,8 @@
       setServiceType(entry.type);
       els.sDate.value = entry.date;
       els.sVehicle.value = entry.vehicle || "";
-      els.sOdo.value = isFinite(entry.odo) ? entry.odo : "";
-      els.sPrice.value = isFinite(entry.price) ? entry.price : "";
+      els.sOdo.value = hasNum(entry.odo) ? entry.odo : "";
+      els.sPrice.value = hasNum(entry.price) ? entry.price : "";
       els.sNextDate.value = entry.nextDate || "";
       els.sNotes.value = entry.notes || "";
       showToast("Záznam načten do formuláře");
@@ -1421,7 +1435,7 @@
     entries.forEach(function(e){
       rows.push([
         e.date, e.vehicle||"", SERVICE_TYPE_LABELS[e.type]||e.type,
-        isFinite(e.odo) ? fmt(e.odo,0) : "", isFinite(e.price) ? fmt(e.price,0) : "",
+        hasNum(e.odo) ? fmt(e.odo,0) : "", hasNum(e.price) ? fmt(e.price,0) : "",
         e.nextDate||"", e.notes||""
       ]);
     });
@@ -1434,14 +1448,14 @@
     if(!entries.length){ showToast("Žádné záznamy k exportu"); return; }
 
     var totalCost = 0;
-    entries.forEach(function(e){ if(isFinite(e.price)) totalCost += e.price; });
+    entries.forEach(function(e){ if(hasNum(e.price)) totalCost += e.price; });
 
     var rowsHtml = entries.map(function(e){
       return "<tr><td>" + escapeHtml(e.date) + "</td><td>" + escapeHtml(e.vehicle||"") + "</td><td>"
         + escapeHtml(SERVICE_TYPE_LABELS[e.type]||e.type) + "</td><td>"
-        + (isFinite(e.odo) ? fmt(e.odo,0) + " km" : "—") + "</td><td>"
+        + (hasNum(e.odo) ? fmt(e.odo,0) + " km" : "—") + "</td><td>"
         + (e.nextDate || "—") + "</td><td>" + escapeHtml(e.notes||"") + "</td><td style='text-align:right;font-weight:600;'>"
-        + (isFinite(e.price) ? fmt(e.price,0) + " Kč" : "—") + "</td></tr>";
+        + (hasNum(e.price) ? fmt(e.price,0) + " Kč" : "—") + "</td></tr>";
     }).join("");
 
     var dateStr = new Date().toLocaleDateString("cs-CZ");
@@ -1585,7 +1599,7 @@
     if(delBtn){
       var id = delBtn.getAttribute("data-id");
       var entries = loadEntries().filter(function(r){ return String(r.id) !== String(id); });
-      localStorage.setItem(STORAGE_ENTRIES, JSON.stringify(entries));
+      if(!saveToStorage(STORAGE_ENTRIES, entries)) return;
       renderVehicleOptions(); renderSummary(); renderEntries();
       return;
     }
@@ -1753,7 +1767,7 @@
       });
 
       if(existing.length > 500) existing = existing.slice(0,500);
-      localStorage.setItem(STORAGE_ENTRIES, JSON.stringify(existing));
+      if(!saveToStorage(STORAGE_ENTRIES, existing)) return;
       renderVehicleOptions(); renderSummary(); renderEntries();
       showToast(added === 1 ? "Naimportován 1 záznam" : "Naimportováno " + added + " záznamů");
     };
