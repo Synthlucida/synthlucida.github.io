@@ -743,6 +743,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 17.3l-6.16 3.6 1.64-7-5.36-4.64 7.06-.6L12 2l2.82 6.66 7.06.6-5.36 4.64 1.64 7z"/></svg>
         Save entry
       </button>
+      <button class="btn ghost" id="serviceResetBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Clear
+      </button>
     </div>
   </section>
 
@@ -767,6 +771,10 @@
         <button class="btn-sm" id="exportServiceCsvBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
           CSV
+        </button>
+        <button class="btn-sm" id="exportServicePdfBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          PDF
         </button>
       </div>
     </div>
@@ -914,6 +922,8 @@
     sNextDate: document.getElementById("sNextDate"),
     sNotes: document.getElementById("sNotes"),
     serviceSaveBtn: document.getElementById("serviceSaveBtn"),
+    serviceResetBtn: document.getElementById("serviceResetBtn"),
+    exportServicePdfBtn: document.getElementById("exportServicePdfBtn"),
     serviceSummaryCard: document.getElementById("serviceSummaryCard"),
     serviceSummaryScope: document.getElementById("serviceSummaryScope"),
     sSumCost: document.getElementById("sSumCost"),
@@ -1255,6 +1265,11 @@
     showToast("Service entry saved");
   });
 
+  els.serviceResetBtn.addEventListener("click", function(){
+    els.sOdo.value = ""; els.sPrice.value = ""; els.sNextDate.value = ""; els.sNotes.value = "";
+    showToast("Form cleared");
+  });
+
   function daysUntil(dateStr){
     if(!dateStr) return null;
     var target = new Date(dateStr + "T00:00:00");
@@ -1413,6 +1428,52 @@
     });
     downloadBlob("service-log-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
     showToast("CSV exported");
+  });
+
+  els.exportServicePdfBtn.addEventListener("click", function(){
+    var entries = filteredServiceEntries();
+    if(!entries.length){ showToast("No entries to export"); return; }
+
+    var totalCost = 0;
+    entries.forEach(function(e){ if(isFinite(e.price)) totalCost += e.price; });
+
+    var rowsHtml = entries.map(function(e){
+      return "<tr><td>" + escapeHtml(e.date) + "</td><td>" + escapeHtml(e.vehicle||"") + "</td><td>"
+        + escapeHtml(SERVICE_TYPE_LABELS[e.type]||e.type) + "</td><td>"
+        + (isFinite(e.odo) ? fmt(e.odo,0) + " km" : "—") + "</td><td>"
+        + (e.nextDate || "—") + "</td><td>" + escapeHtml(e.notes||"") + "</td><td style='text-align:right;font-weight:600;'>"
+        + (isFinite(e.price) ? fmt(e.price,0) + " Kč" : "—") + "</td></tr>";
+    }).join("");
+
+    var dateStr = new Date().toLocaleDateString("en-GB");
+    var html = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><title>SYNTHLUCIDA VEHICLE LOGBOOK</title><style>"
+      + "body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;max-width:900px;margin:0 auto;}"
+      + "h1{font-size:20px;margin:0 0 4px;letter-spacing:0.5px;}"
+      + ".sub{color:#777;font-size:12px;margin-bottom:18px;}"
+      + ".total-label{color:#999;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}"
+      + ".total{font-size:32px;font-weight:bold;margin:2px 0 18px;color:#0f766e;}"
+      + "table{width:100%;border-collapse:collapse;font-size:12px;}"
+      + "th{text-align:left;color:#999;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:6px;border-bottom:2px solid #ddd;}"
+      + "td{padding:8px 6px;border-bottom:1px solid #eee;}"
+      + "footer{margin-top:26px;font-size:11px;color:#999;}"
+      + "@media print{ body{padding:0;} }"
+      + "</style></head><body>"
+      + "<h1>SYNTHLUCIDA VEHICLE LOGBOOK</h1>"
+      + "<div class=\"sub\">Service log &middot; " + dateStr + "</div>"
+      + "<div class=\"total-label\">Total spent (" + entries.length + " entries)</div>"
+      + "<div class=\"total\">" + fmt(totalCost,0) + " Kč</div>"
+      + "<table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Odometer</th><th>Next due date</th><th>Note</th><th>Price</th></tr></thead><tbody>" + rowsHtml + "</tbody></table>"
+      + "<footer>Generated in SYNTHLUCIDA VEHICLE LOGBOOK &middot; synthlucida.com/denik-vozidla-en.html</footer>"
+      + "</body></html>";
+
+    var w = window.open("", "_blank");
+    if(!w){ showToast("PDF export was blocked by the browser"); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); }, 350);
+    showToast("Open the print dialog and choose “Save as PDF”");
   });
 
   function escapeHtml(s){

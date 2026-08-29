@@ -742,6 +742,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 17.3l-6.16 3.6 1.64-7-5.36-4.64 7.06-.6L12 2l2.82 6.66 7.06.6-5.36 4.64 1.64 7z"/></svg>
         Uložit záznam
       </button>
+      <button class="btn ghost" id="serviceResetBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Vymazat
+      </button>
     </div>
   </section>
 
@@ -766,6 +770,10 @@
         <button class="btn-sm" id="exportServiceCsvBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
           CSV
+        </button>
+        <button class="btn-sm" id="exportServicePdfBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          PDF
         </button>
       </div>
     </div>
@@ -913,6 +921,8 @@
     sNextDate: document.getElementById("sNextDate"),
     sNotes: document.getElementById("sNotes"),
     serviceSaveBtn: document.getElementById("serviceSaveBtn"),
+    serviceResetBtn: document.getElementById("serviceResetBtn"),
+    exportServicePdfBtn: document.getElementById("exportServicePdfBtn"),
     serviceSummaryCard: document.getElementById("serviceSummaryCard"),
     serviceSummaryScope: document.getElementById("serviceSummaryScope"),
     sSumCost: document.getElementById("sSumCost"),
@@ -1254,6 +1264,11 @@
     showToast("Servisní záznam uložen");
   });
 
+  els.serviceResetBtn.addEventListener("click", function(){
+    els.sOdo.value = ""; els.sPrice.value = ""; els.sNextDate.value = ""; els.sNotes.value = "";
+    showToast("Formulář vymazán");
+  });
+
   function daysUntil(dateStr){
     if(!dateStr) return null;
     var target = new Date(dateStr + "T00:00:00");
@@ -1412,6 +1427,52 @@
     });
     downloadBlob("servisni-denik-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
     showToast("CSV exportováno");
+  });
+
+  els.exportServicePdfBtn.addEventListener("click", function(){
+    var entries = filteredServiceEntries();
+    if(!entries.length){ showToast("Žádné záznamy k exportu"); return; }
+
+    var totalCost = 0;
+    entries.forEach(function(e){ if(isFinite(e.price)) totalCost += e.price; });
+
+    var rowsHtml = entries.map(function(e){
+      return "<tr><td>" + escapeHtml(e.date) + "</td><td>" + escapeHtml(e.vehicle||"") + "</td><td>"
+        + escapeHtml(SERVICE_TYPE_LABELS[e.type]||e.type) + "</td><td>"
+        + (isFinite(e.odo) ? fmt(e.odo,0) + " km" : "—") + "</td><td>"
+        + (e.nextDate || "—") + "</td><td>" + escapeHtml(e.notes||"") + "</td><td style='text-align:right;font-weight:600;'>"
+        + (isFinite(e.price) ? fmt(e.price,0) + " Kč" : "—") + "</td></tr>";
+    }).join("");
+
+    var dateStr = new Date().toLocaleDateString("cs-CZ");
+    var html = "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>SYNTHLUCIDA DENÍK VOZIDLA</title><style>"
+      + "body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;max-width:900px;margin:0 auto;}"
+      + "h1{font-size:20px;margin:0 0 4px;letter-spacing:0.5px;}"
+      + ".sub{color:#777;font-size:12px;margin-bottom:18px;}"
+      + ".total-label{color:#999;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}"
+      + ".total{font-size:32px;font-weight:bold;margin:2px 0 18px;color:#0f766e;}"
+      + "table{width:100%;border-collapse:collapse;font-size:12px;}"
+      + "th{text-align:left;color:#999;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:6px;border-bottom:2px solid #ddd;}"
+      + "td{padding:8px 6px;border-bottom:1px solid #eee;}"
+      + "footer{margin-top:26px;font-size:11px;color:#999;}"
+      + "@media print{ body{padding:0;} }"
+      + "</style></head><body>"
+      + "<h1>SYNTHLUCIDA DENÍK VOZIDLA</h1>"
+      + "<div class=\"sub\">Servisní deník &middot; " + dateStr + "</div>"
+      + "<div class=\"total-label\">Celkem utraceno (" + entries.length + " záznamů)</div>"
+      + "<div class=\"total\">" + fmt(totalCost,0) + " Kč</div>"
+      + "<table><thead><tr><th>Datum</th><th>Vozidlo</th><th>Typ</th><th>Tachometr</th><th>Příští termín</th><th>Poznámka</th><th>Cena</th></tr></thead><tbody>" + rowsHtml + "</tbody></table>"
+      + "<footer>Vygenerováno v SYNTHLUCIDA DENÍK VOZIDLA &middot; synthlucida.com/denik-vozidla.html</footer>"
+      + "</body></html>";
+
+    var w = window.open("", "_blank");
+    if(!w){ showToast("Export PDF byl zablokován prohlížečem"); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); }, 350);
+    showToast("Otevři dialog tisku a zvol „Uložit jako PDF“");
   });
 
   function escapeHtml(s){
