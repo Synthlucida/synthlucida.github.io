@@ -445,7 +445,7 @@
           <p>In the Cards / features section you describe individual benefits or services (icon, heading, text). In the FAQ section you add frequently asked questions and answers — structured data for Google is automatically generated from them too. In the Footer you set whether to show "© year brand", an optional custom text (e.g. business ID, address), and links (terms of service, contact, etc.).</p>
 
           <h4>PWA, sitemap, and robots.txt</h4>
-          <p>Further down you'll find advanced options: generating manifest.json and sw.js, which let visitors "install" the site as an app (PWA); plus sitemap.xml and robots.txt for search engines. These files are downloaded separately using their own buttons, and after export you upload them alongside the main HTML file. Don't forget to also add the actual icon images (favicon, apple-touch-icon, 192×192 and 512×512 icons, og-image) — the generator doesn't create those itself.</p>
+          <p>Further down you'll find advanced options: generating manifest.json and sw.js, which let visitors "install" the site as an app (PWA); plus sitemap.xml and robots.txt for search engines. These files are downloaded separately using their own buttons, and after export you upload them alongside the main HTML file. The generated sw.js automatically accounts for the main page under both its actual downloaded file name and "index.html", and likewise for the manifest and icons you set above, so the offline cache works no matter whether you rename the main page on your hosting. Don't forget to also add the actual icon images (favicon, apple-touch-icon, 192×192 and 512×512 icons, og-image) — the generator doesn't create those itself.</p>
 
           <h4>Mobile preview</h4>
           <p>On the right you can switch the preview between Desktop and Mobile, so you can see how the site will look on a phone. If you're editing the site directly from a mobile device, a "Edit content / Site preview" switch appears at the top for more comfortable work on a small screen.</p>
@@ -454,7 +454,7 @@
           <p>The app continuously auto-saves your work in progress to the browser (localStorage), so you won't lose anything if you close the tab. Using "💾 Save project" you can also download a .json file with the whole site in progress and later re-open it via "📂 Load project" — for example on another computer. The "🗑️ New project" button resets everything back to the sample text.</p>
 
           <h4>Exporting the finished site</h4>
-          <p>The "↓ Download HTML" button at the top right downloads just the main page as a single .html file. If you've also created custom pages, use the "↓ Download entire site" button — it downloads the main page and all custom pages at once, each as a separate file (one after another). Upload all the downloaded files together to any hosting (you can rename the main page to index.html if needed). If you're also using PWA or the sitemap/robots.txt, download those files separately and upload them alongside the rest.</p>
+          <p>The "↓ Download HTML" button at the top right downloads just the main page as a single .html file. If you've also created custom pages, use the "↓ Download entire site" button — it downloads the main page and all custom pages at once, each as a separate file (one after another). Upload all the downloaded files together to any hosting — you can keep the main page under its downloaded name, or rename it to index.html if you want the site to load at the bare domain without a file name in the address; the PWA offline cache works automatically either way. If you're also using PWA or the sitemap/robots.txt, download those files separately and upload them alongside the rest.</p>
         </div>
 
         <div class="articles-section-content" id="articlesModalContent" style="display:none;">
@@ -735,7 +735,11 @@ function getDefaultState(){
     icon192: 'icon-192.png',
     icon512: 'icon-512.png',
     cacheVersion: 'v1',    // increase with every new version of the site
-    extraFiles: 'manifest.json\nicon-192.png\nicon-512.png\nfavicon.ico\napple-touch-icon.png'
+    // The main page, manifest.json, favicon, apple-touch-icon and both PWA
+    // icons (192×192/512×512) are added to the offline cache automatically
+    // (see buildServiceWorkerJS) — this field is only for genuinely extra
+    // files, e.g. images used directly in the page content.
+    extraFiles: ''
   },
   sitemap: {
     lastmod: new Date().toISOString().slice(0,10),
@@ -1470,7 +1474,7 @@ function renderForm(){
 
     <div class="fieldset">
       <div class="fieldset-title">PWA — manifest + service worker</div>
-      <div class="note-box" style="margin-top:0;margin-bottom:10px;">This generates <b>manifest.json</b> and <b>sw.js</b> based on the details below. Download them with the buttons further down, save them next to the main HTML file (renamed to e.g. <b>index.html</b>), and also upload the icon images themselves in the correct sizes — the generator doesn't create those itself.</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">This generates <b>manifest.json</b> and <b>sw.js</b> based on the details below. <code>sw.js</code> automatically accounts for the main page under both its actual downloaded file name and "index.html", so the offline cache works whether or not you rename the file on your hosting — renaming to <b>index.html</b> is only needed if you want the site to load at the bare domain without a file name in the address. Download both files with the buttons further down, save them next to the main HTML, and also upload the icon images themselves in the correct sizes — the generator doesn't create those itself.</div>
       ${field('Full app name (manifest "name")', `<input type="text" data-pwa="name" value="${escapeAttr(state.pwa.name)}" placeholder="${escapeAttr(state.brand)}">`)}
       ${field('Short name (manifest "short_name", ideally under 12 characters)', `<input type="text" data-pwa="shortName" value="${escapeAttr(state.pwa.shortName)}" placeholder="${escapeAttr(state.brand)}">`)}
       <div class="row2">
@@ -1484,7 +1488,8 @@ function renderForm(){
       </div>
       ${field('Splash screen background color (background_color)', `<input type="text" data-pwa="bgColor" value="${escapeAttr(state.pwa.bgColor)}" placeholder="${escapeAttr(state.bg2)}">`)}
       ${field('Cache version (increase with EVERY new version of the site — otherwise the SW may serve stale content)', `<input type="text" data-pwa="cacheVersion" value="${escapeAttr(state.pwa.cacheVersion)}">`)}
-      ${field('Additional files for offline cache (one name per line; the main HTML is added automatically)', `<textarea data-pwa="extraFiles" style="min-height:80px;">${escapeHtml(state.pwa.extraFiles)}</textarea>`)}
+      ${field('Additional files for offline cache (optional, one name per line)', `<textarea data-pwa="extraFiles" style="min-height:80px;" placeholder="e.g. team-photo.jpg">${escapeHtml(state.pwa.extraFiles)}</textarea>`)}
+      <p style="margin:-8px 0 0;font-size:11.5px;color:var(--ui-text-dim);line-height:1.5;">The main page, manifest.json, favicon, apple-touch-icon and both icons above (192×192/512×512) are added to the cache automatically — put only genuinely extra files here, e.g. images used in the content.</p>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="add-btn" id="downloadManifest" style="margin-top:0;">↓ manifest.json</button>
         <button class="add-btn" id="downloadSw" style="margin-top:0;">↓ sw.js</button>
@@ -2080,22 +2085,51 @@ function buildServiceWorkerJS(s){
   const slug = slugifyGlobal(s.brand, 'web');
   const version = (s.pwa.cacheVersion || 'v1').trim().replace(/\s+/g,'-');
   const cacheName = `${slug}-app-${version}`;
+
+  // The main page is downloaded under a name derived from the brand (e.g.
+  // "myapp.html"), not "index.html" — and whether you rename it on your
+  // hosting or keep the original name is entirely up to you (see the note
+  // by the buttons). To make caching and the offline fallback work
+  // automatically either way, we add both possible names to the list (plus
+  // plain "./" as a last resort) — whichever one doesn't exist just quietly
+  // fails to cache, without breaking anything.
+  const homeFilename = getHomeFilename(s);
+  const homeCandidates = ['./', './index.html', `./${homeFilename}`];
+
+  // The manifest, favicon, apple-touch-icon and both PWA icons
+  // (192×192/512×512) are added to the cache automatically based on the
+  // fields above — you don't need to copy them into the "Additional files
+  // for offline cache" field yourself or keep them in sync if you rename
+  // the icons.
+  const autoFiles = [
+    'manifest.json',
+    'favicon.ico',
+    'apple-touch-icon.png',
+    (s.pwa.icon192 || 'icon-192.png').trim(),
+    (s.pwa.icon512 || 'icon-512.png').trim()
+  ];
+
   const extra = (s.pwa.extraFiles || '')
     .split('\n').map(l => l.trim()).filter(Boolean);
-  const files = Array.from(new Set(['./', './index.html', ...extra]));
+  const files = Array.from(new Set([...homeCandidates, ...autoFiles, ...extra]));
   const filesJs = files.map(f => `  '${f.replace(/'/g, "\\'")}'`).join(',\n');
 
   return `// ==========================================
 // Service worker — ${s.brand}
-// Vygenerováno Layout generátorem.
-// DŮLEŽITÉ: při KAŽDÉ nové verzi webu zvyš hodnotu pole "Verze cache"
-// v generátoru (a znovu stáhni sw.js) - jinak si prohlížeč může držet
-// starou zacachovanou verzi appky i po nahrání nového obsahu na server.
+// Generated by the Layout generator.
+// IMPORTANT: increase the "Cache version" field in the generator (and
+// re-download sw.js) with EVERY new version of the site — otherwise the
+// browser may keep serving an old cached version of the app even after
+// you upload new content to the server.
 // ==========================================
 
 const CACHE_NAME = '${cacheName}';
 
-// Soubory app shellu cachované při instalaci (a použité jako offline záloha)
+// App-shell files cached on install (and used as an offline fallback).
+// The main page is listed under both possible names ("${homeFilename}" and
+// "index.html"), so it works whether or not you rename it on your hosting —
+// whichever name doesn't exist just quietly fails to cache, without
+// stopping the install.
 const ASSETS_TO_CACHE = [
 ${filesJs}
 ];
@@ -2103,12 +2137,12 @@ ${filesJs}
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Soubory přidáváme jednotlivě - když se jeden nepodaří stáhnout
-      // (404, překlep v názvu...), instalace kvůli tomu neselže jako celek.
+      // Files are added one by one — if one fails to download (404, a typo
+      // in the name…), the whole install doesn't fail because of it.
       return Promise.all(
         ASSETS_TO_CACHE.map((url) =>
           cache.add(url).catch((err) => {
-            console.log('[SW] Nepodařilo se zacachovat:', url, err);
+            console.log('[SW] Failed to cache:', url, err);
           })
         )
       );
@@ -2133,8 +2167,8 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first: vždy se nejdřív zkusí čerstvá verze ze sítě, cache
-// slouží jen jako offline záloha, když uživatel nemá připojení.
+// Network-first: always try a fresh version from the network first — the
+// cache is only used as an offline fallback when the user has no connection.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -2150,10 +2184,16 @@ self.addEventListener('fetch', (event) => {
       } catch (err) {
         const cached = await cache.match(event.request);
         if (cached) return cached;
-        // Poslední záloha pro navigaci (otevření stránky offline)
+        // Last-resort fallback for navigation (opening the app offline) —
+        // tries both possible names for the main page plus "./", so it
+        // works whether the app is hosted under its original name or
+        // renamed on the server.
         if (event.request.mode === 'navigate') {
-          const fallback = (await cache.match('./index.html')) || (await cache.match('./'));
-          if (fallback) return fallback;
+          const homeCandidates = [${homeCandidates.map(c => `'${c}'`).join(', ')}];
+          for (const url of homeCandidates) {
+            const fallback = await cache.match(url);
+            if (fallback) return fallback;
+          }
         }
         throw err;
       }
