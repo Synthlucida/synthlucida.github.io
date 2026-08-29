@@ -342,8 +342,9 @@
   .route-chip .rc-map svg{ width:13px; height:13px; }
   .route-chip .rc-actions{ display:flex; gap:6px; flex-shrink:0; }
 
-  .routes-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .routes-card-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
   .routes-card-head h2{ margin:0; }
+  .routes-card-actions{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .btn-sm{
     display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:30px;
     border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7);
@@ -574,10 +575,21 @@
   <section class="card" id="routesCard" style="display:none;" aria-label="Saved routes">
     <div class="routes-card-head">
       <h2>Saved routes</h2>
-      <button class="btn-sm" id="exportRoutesCsvBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-        CSV
-      </button>
+      <div class="routes-card-actions">
+        <button class="btn-sm" id="importRoutesBtn" title="Import routes from a file (from another device)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Import
+        </button>
+        <button class="btn-sm" id="exportRoutesJsonBtn" title="Export routes to a file (for another device)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          JSON
+        </button>
+        <button class="btn-sm" id="exportRoutesCsvBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          CSV
+        </button>
+        <input type="file" id="importRoutesFile" accept="application/json,.json" class="sr-only" aria-hidden="true" tabindex="-1">
+      </div>
     </div>
     <div class="routes-list" id="routesList"></div>
   </section>
@@ -678,6 +690,9 @@
     exportPdfBtn: document.getElementById("exportPdfBtn"),
     exportCsvBtn: document.getElementById("exportCsvBtn"),
     exportRoutesCsvBtn: document.getElementById("exportRoutesCsvBtn"),
+    exportRoutesJsonBtn: document.getElementById("exportRoutesJsonBtn"),
+    importRoutesBtn: document.getElementById("importRoutesBtn"),
+    importRoutesFile: document.getElementById("importRoutesFile"),
     resetBtn: document.getElementById("resetBtn"),
     saveRow: document.getElementById("saveRow"),
     routeName: document.getElementById("routeName"),
@@ -1058,6 +1073,70 @@
     });
     downloadBlob("tripcost-routes-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
     showToast("Routes exported to CSV");
+  });
+
+  /* ---- routes: export/import JSON (transfer between devices) ---- */
+  els.exportRoutesJsonBtn.addEventListener("click", function(){
+    var routes = loadRoutes();
+    if(!routes.length){ showToast("No saved routes"); return; }
+    var payload = { app: "tripcost", version: 1, exportedAt: new Date().toISOString(), routes: routes };
+    downloadBlob("tripcost-routes-" + Date.now() + ".json", JSON.stringify(payload, null, 2), "application/json;charset=utf-8;");
+    showToast("Routes exported to a file");
+  });
+
+  els.importRoutesBtn.addEventListener("click", function(){
+    els.importRoutesFile.value = "";
+    els.importRoutesFile.click();
+  });
+
+  function isValidRoute(r){
+    return r && typeof r === "object" && r.name && r.fuelType && isFinite(parseFloat(r.distance)) && isFinite(parseFloat(r.consumption)) && isFinite(parseFloat(r.price));
+  }
+
+  els.importRoutesFile.addEventListener("change", function(){
+    var file = this.files && this.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var data;
+      try { data = JSON.parse(reader.result); } catch(e){ showToast("Could not read the file"); return; }
+      var incoming = Array.isArray(data) ? data : (Array.isArray(data.routes) ? data.routes : null);
+      if(!incoming){ showToast("Invalid file format"); return; }
+      incoming = incoming.filter(isValidRoute);
+      if(!incoming.length){ showToast("No valid routes found in the file"); return; }
+
+      var existing = loadRoutes();
+      var existingIds = {};
+      existing.forEach(function(r){ existingIds[String(r.id)] = true; });
+
+      var added = 0;
+      incoming.forEach(function(r){
+        var id = r.id;
+        if(id === undefined || id === null || existingIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + added;
+        existingIds[String(id)] = true;
+        existing.unshift({
+          id: id,
+          name: String(r.name).slice(0,40),
+          fuelType: FUEL_UNITS[r.fuelType] ? r.fuelType : "benzin",
+          distance: parseFloat(r.distance) || 0,
+          roundTrip: !!r.roundTrip,
+          consumption: parseFloat(r.consumption) || 0,
+          price: parseFloat(r.price) || 0,
+          passengers: Math.max(1, parseInt(r.passengers,10) || 1),
+          extra: parseFloat(r.extra) || 0,
+          mapLink: r.mapLink || "",
+          totalCost: parseFloat(r.totalCost) || 0
+        });
+        added++;
+      });
+
+      if(existing.length > 12) existing = existing.slice(0,12);
+      localStorage.setItem(STORAGE_ROUTES, JSON.stringify(existing));
+      renderRoutes();
+      showToast(added === 1 ? "1 route imported" : added + " routes imported");
+    };
+    reader.onerror = function(){ showToast("Could not read the file"); };
+    reader.readAsText(file);
   });
 
   els.exportPdfBtn.addEventListener("click", function(){
