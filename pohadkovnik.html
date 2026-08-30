@@ -262,6 +262,21 @@
     background:linear-gradient(#E8D9B5, transparent, #E8D9B5); opacity:0.6;
   }
   .story-flourish{ text-align:center; color:#b58a2e; opacity:0.55; font-size:16px; letter-spacing:6px; margin-bottom:10px; }
+  .story-header-row{ display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
+  .story-header-row .story-title{ margin:0; flex:1; }
+  .story-toggle-btn{
+    display:flex; align-items:center; gap:5px; flex-shrink:0;
+    background:rgba(59,33,102,0.08); border:1px solid rgba(59,33,102,0.25);
+    color:#3b2166; font-family:'Poppins', sans-serif; font-size:11px; font-weight:500;
+    padding:6px 11px; border-radius:999px; cursor:pointer; transition:0.2s;
+  }
+  .story-toggle-btn:hover{ background:rgba(59,33,102,0.16); }
+  .story-toggle-btn svg{ width:13px; height:13px; transition:transform 0.25s; flex-shrink:0; }
+  #storyCard.collapsed .story-toggle-btn svg{ transform:rotate(-90deg); }
+  #storyCard.collapsed .story-flourish,
+  #storyCard.collapsed .story-text,
+  #storyCard.collapsed .story-actions{ display:none; }
+  #storyCard.collapsed .story-header-row{ margin-bottom:0; }
   .story-title{ font-family:'Orbitron', sans-serif; font-size:17px; font-weight:600; text-align:center; margin:0 0 16px; line-height:1.4; color:#3b2166; }
   .story-text{ font-family:'Literata', serif; font-size:16.5px; line-height:1.75; }
   .story-text p{ margin:0 0 13px; }
@@ -465,7 +480,6 @@
           </span>
           <span class="gen-btn-label">VYKOUZLIT<br>POHÁDKU</span>
         </button>
-        <div class="combo-hint" id="comboHint"></div>
       </div>
 
       <div class="error-box" id="errorBox"></div>
@@ -474,7 +488,13 @@
     <section class="card story-card" id="storyCard">
       <div class="story-inner">
         <div class="story-flourish">❦ ❦ ❦</div>
-        <div class="story-title" id="storyTitle"></div>
+        <div class="story-header-row">
+          <div class="story-title" id="storyTitle"></div>
+          <button class="story-toggle-btn" id="storyToggleBtn" aria-expanded="true" title="Skrýt pohádku">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            <span id="storyToggleLabel">Skrýt</span>
+          </button>
+        </div>
         <div class="story-text" id="storyText"></div>
       </div>
       <div class="story-actions">
@@ -1333,9 +1353,21 @@ var teKlice = Object.keys(THEME_STORIES);
   var storyCard = document.getElementById("storyCard");
   var storyTitle = document.getElementById("storyTitle");
   var storyText = document.getElementById("storyText");
+  var storyToggleBtn = document.getElementById("storyToggleBtn");
+  var storyToggleLabel = document.getElementById("storyToggleLabel");
   var genBtn = document.getElementById("genBtn");
   var genRipple = document.getElementById("genRipple");
   var aktualniPohadka = null;
+
+  function skrytPohadku(skryt){
+    storyCard.classList.toggle("collapsed", skryt);
+    storyToggleBtn.setAttribute("aria-expanded", skryt ? "false" : "true");
+    storyToggleLabel.textContent = skryt ? "Zobrazit" : "Skrýt";
+    storyToggleBtn.title = skryt ? "Zobrazit pohádku" : "Skrýt pohádku";
+  }
+  storyToggleBtn.addEventListener("click", function(){
+    skrytPohadku(!storyCard.classList.contains("collapsed"));
+  });
 
   function spustGenerovani(){
     errorBox.style.display = "none";
@@ -1355,6 +1387,7 @@ var teKlice = Object.keys(THEME_STORIES);
     storyTitle.textContent = aktualniPohadka.nazev;
     storyText.innerHTML = paragraphsToHtml(aktualniPohadka.odstavce);
     storyCard.classList.add("visible");
+    skrytPohadku(false);
     storyCard.scrollIntoView({behavior:"smooth", block:"nearest"});
   }
 
@@ -1399,6 +1432,7 @@ var teKlice = Object.keys(THEME_STORIES);
         storyTitle.textContent = item.nazev;
         storyText.innerHTML = paragraphsToHtml(item.text.split("\n\n"));
         storyCard.classList.add("visible");
+        skrytPohadku(false);
         storyCard.scrollIntoView({behavior:"smooth", block:"nearest"});
       });
       list.appendChild(row);
