@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Apply saved color theme as early as possible so the page doesn't flash
+  // the default violet before switching to the saved theme.
+  (function applySavedThemeEarly(){
+    var THEME_COLORS = {
+      violet:  ['#a78bfa', '#3b2166'],
+      cyan:    ['#22d3ee', '#0e4a52'],
+      rose:    ['#f472b6', '#6b1441'],
+      amber:   ['#fbbf24', '#4a2e05'],
+      emerald: ['#34d399', '#0d3d2a']
+    };
+    try {
+      var id = localStorage.getItem('vapetrack_theme');
+      var pair = THEME_COLORS[id];
+      if(pair){
+        var root = document.documentElement.style;
+        root.setProperty('--accent-color', pair[0]);
+        root.setProperty('--accent-glow', pair[1]);
+      }
+    } catch(e){ /* ignore */ }
+  })();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0a0712">
@@ -198,6 +220,32 @@
   }
   .header-links a:hover{ color:var(--accent-color); }
   .header-links svg{ width:12px; height:12px; }
+
+  /* ---- color theme switcher ---- */
+  .theme-wrap{ position:relative; }
+  .theme-btn{
+    display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border);
+    color:rgba(255,255,255,0.65); font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.4px;
+    padding:6px 13px; border-radius:999px; cursor:pointer; transition:0.25s;
+  }
+  .theme-btn:hover{ border-color:var(--accent-color); color:#fff; }
+  .theme-btn svg{ width:14px; height:14px; color:var(--accent-color); flex-shrink:0; }
+  .theme-panel{
+    position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+    background:#160f28; border:1px solid var(--card-border); border-radius:16px; padding:14px;
+    box-shadow:0 14px 34px rgba(0,0,0,0.45); z-index:15; width:206px;
+  }
+  .theme-panel.hidden{ display:none; }
+  .theme-panel-title{
+    font-family:'Orbitron', sans-serif; font-size:9.5px; letter-spacing:1px; text-transform:uppercase;
+    opacity:0.55; margin-bottom:10px; text-align:center;
+  }
+  .theme-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; justify-items:center; }
+  .theme-swatch{
+    width:28px; height:28px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0;
+    position:relative; transition:0.2s;
+  }
+  .theme-swatch.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.15); }
 
   main{ display:flex; flex-direction:column; gap:16px; }
 
@@ -437,6 +485,16 @@
     </div>
     <div class="brand-slogan">Puff tracking, no sugar-coating</div>
     <div class="brand-datetime" id="brandDateTime"></div>
+    <div class="theme-wrap">
+      <button class="theme-btn" id="themeBtn" aria-label="Color theme" aria-expanded="false" title="Color theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.4"/><circle cx="17.5" cy="10.5" r="1.4"/><circle cx="8.5" cy="7.5" r="1.4"/><circle cx="6.5" cy="12.5" r="1.4"/><path d="M12 2a10 10 0 100 20c1.4 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-.9.7-1.6 1.6-1.6H16a4 4 0 004-4c0-5.5-4.5-9.8-8-9.8z"/></svg>
+        Theme
+      </button>
+      <div class="theme-panel hidden" id="themePanel">
+        <div class="theme-panel-title">Color theme</div>
+        <div class="theme-grid" id="themeGrid"></div>
+      </div>
+    </div>
     <div class="header-links">
       <a href="https://synthlucida.com" aria-label="Synthlucida.com">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
@@ -617,6 +675,7 @@
         <div class="info-section-title">Controls</div>
         <ul>
           <li>Switch between Czech and English (CZ/EN) near the top of the page</li>
+          <li>5 color themes (the "Theme" button in the header) to match your taste</li>
           <li>Export to PDF and CSV, plus backup and restore in JSON format – see the section below</li>
         </ul>
 
@@ -722,6 +781,14 @@
   var DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   var MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var THEMES = [
+    { id:"violet",  name:"Violet",  accent:"#a78bfa", glow:"#3b2166" },
+    { id:"cyan",    name:"Cyan",    accent:"#22d3ee", glow:"#0e4a52" },
+    { id:"rose",    name:"Rose",    accent:"#f472b6", glow:"#6b1441" },
+    { id:"amber",   name:"Amber",   accent:"#fbbf24", glow:"#4a2e05" },
+    { id:"emerald", name:"Emerald", accent:"#34d399", glow:"#0d3d2a" }
+  ];
+  var THEME_KEY = "vapetrack_theme";
 
   var data = loadData();
 
@@ -1381,6 +1448,44 @@
     renderHistory();
   }
 
+  // ---------- color theme ----------
+  function getSelectedTheme(){
+    try { return localStorage.getItem(THEME_KEY) || "violet"; } catch(e){ return "violet"; }
+  }
+
+  function applyTheme(id, save){
+    var t = null;
+    for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id === id){ t = THEMES[i]; break; } }
+    if(!t) t = THEMES[0];
+    document.documentElement.style.setProperty("--accent-color", t.accent);
+    document.documentElement.style.setProperty("--accent-glow", t.glow);
+    if(save){ try { localStorage.setItem(THEME_KEY, t.id); } catch(e){} }
+    var swatches = document.querySelectorAll(".theme-swatch");
+    Array.prototype.forEach.call(swatches, function(s){
+      s.classList.toggle("active", s.getAttribute("data-theme") === t.id);
+    });
+  }
+
+  function renderThemeGrid(){
+    var grid = document.getElementById("themeGrid");
+    if(!grid) return;
+    grid.innerHTML = "";
+    var current = getSelectedTheme();
+    THEMES.forEach(function(t){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "theme-swatch" + (t.id === current ? " active" : "");
+      b.setAttribute("data-theme", t.id);
+      b.setAttribute("aria-label", t.name);
+      b.title = t.name;
+      b.style.background = t.accent;
+      b.addEventListener("click", function(){
+        applyTheme(t.id, true);
+      });
+      grid.appendChild(b);
+    });
+  }
+
   // ---------- header date/time ----------
   function updateBrandDateTime(){
     var el = document.getElementById("brandDateTime");
@@ -1449,9 +1554,28 @@
     }
   });
 
+  var themeBtn = document.getElementById("themeBtn");
+  var themePanel = document.getElementById("themePanel");
+  if(themeBtn && themePanel){
+    themeBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      var willOpen = themePanel.classList.contains("hidden");
+      themePanel.classList.toggle("hidden");
+      themeBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+    document.addEventListener("click", function(e){
+      if(themePanel.classList.contains("hidden")) return;
+      if(themePanel.contains(e.target) || e.target === themeBtn || themeBtn.contains(e.target)) return;
+      themePanel.classList.add("hidden");
+      themeBtn.setAttribute("aria-expanded", "false");
+    });
+  }
+
   // ---------- init ----------
   var footerVersionEl = document.getElementById("footerVersion");
   if(footerVersionEl) footerVersionEl.textContent = "VAPETRACK v" + APP_VERSION;
+  applyTheme(getSelectedTheme(), false);
+  renderThemeGrid();
   updateBrandDateTime();
   setInterval(updateBrandDateTime, 15000);
   setInterval(tickRelative, 30000);
