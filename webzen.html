@@ -1675,11 +1675,16 @@ function renderForm(){
       ${field('Rozvržení hero sekce', `<select data-bind="heroLayout">
         <option value="centered" ${state.heroLayout==='centered'?'selected':''}>Vystředěné (text uprostřed, obrázek nahoře)</option>
         <option value="split" ${state.heroLayout==='split'?'selected':''}>Rozdělené na dva sloupce (text vlevo, obrázek vpravo)</option>
+        <option value="split-reverse" ${state.heroLayout==='split-reverse'?'selected':''}>Rozdělené obráceně (obrázek vlevo, text vpravo)</option>
+        <option value="left" ${state.heroLayout==='left'?'selected':''}>Zarovnané vlevo (minimalistické, jeden sloupec)</option>
+        <option value="imagebg" ${state.heroLayout==='imagebg'?'selected':''}>Obrázek na pozadí (text přes celou fotku)</option>
       </select>`)}
-      ${state.heroLayout==='split' && state.heroVisual!=='custom' ? `<div class="note-box" style="margin-top:8px;">Bez nastaveného obrázku v hero sekci (výš v „Vizuál v hero sekci") se rozdělené rozvržení chová jako text zarovnaný vlevo.</div>` : ''}
+      ${(state.heroLayout==='split' || state.heroLayout==='split-reverse' || state.heroLayout==='imagebg') && state.heroVisual!=='custom' ? `<div class="note-box" style="margin-top:8px;">Bez nastaveného obrázku v hero sekci (výš v „Vizuál v hero sekci") se toto rozvržení chová jako text zarovnaný vlevo.</div>` : ''}
       ${field('Rozvržení karet / funkcí', `<select data-bind="cardsLayout">
         <option value="grid" ${state.cardsLayout==='grid'?'selected':''}>Mřížka (karty vedle sebe)</option>
         <option value="list" ${state.cardsLayout==='list'?'selected':''}>Seznam (ikona vlevo, text vpravo, pod sebou)</option>
+        <option value="numbered" ${state.cardsLayout==='numbered'?'selected':''}>Číslované kroky (01, 02, 03…)</option>
+        <option value="minimal" ${state.cardsLayout==='minimal'?'selected':''}>Minimalistické (bez rámečků, jen dělicí čáry)</option>
       </select>`)}
     </div>
 
@@ -2742,6 +2747,51 @@ function sharedStyleTag(s){
     body.layout-split .cta-group{justify-content:center;}
   }
 
+  /* ---------- rozvržení: hero rozdělené obráceně (obrázek vlevo, text vpravo) ---------- */
+  body.layout-split-reverse .hero{text-align:left;}
+  body.layout-split-reverse .hero .wrap{
+    display:grid;grid-template-columns:.9fr 1.1fr;gap:44px;align-items:center;
+  }
+  body.layout-split-reverse .hero-visual-img{grid-column:1;grid-row:1;margin:0;max-width:100%;max-height:360px;}
+  body.layout-split-reverse .hero-text{grid-column:2;grid-row:1;}
+  body.layout-split-reverse .eyebrow{margin:0 0 16px;}
+  body.layout-split-reverse .hero p{margin:0 0 30px;max-width:480px;}
+  body.layout-split-reverse .cta-group{justify-content:flex-start;}
+  body.layout-split-reverse.no-hero-visual .hero .wrap{display:block;max-width:640px;}
+  @media (max-width:860px){
+    body.layout-split-reverse .hero{text-align:center;}
+    body.layout-split-reverse .hero .wrap{grid-template-columns:1fr;}
+    body.layout-split-reverse .hero-visual-img{grid-column:1;grid-row:1;margin:0 auto 26px;max-width:220px;max-height:200px;}
+    body.layout-split-reverse .hero-text{grid-column:1;grid-row:2;}
+    body.layout-split-reverse .eyebrow{margin:0 auto 18px;}
+    body.layout-split-reverse .hero p{margin:0 auto 30px;}
+    body.layout-split-reverse .cta-group{justify-content:center;}
+  }
+
+  /* ---------- rozvržení: hero zarovnané vlevo (minimalistické, jeden sloupec) ---------- */
+  body.layout-left .hero{text-align:left;}
+  body.layout-left .hero-visual-img{margin:0 0 26px;}
+  body.layout-left .eyebrow{margin:0 0 16px;}
+  body.layout-left .hero p{margin:0 0 30px;max-width:560px;}
+  body.layout-left .cta-group{justify-content:flex-start;}
+
+  /* ---------- rozvržení: obrázek na pozadí hero sekce (text přes celou fotku) ---------- */
+  body.layout-imagebg .hero{
+    position:relative;padding:120px 20px;min-height:420px;
+    display:flex;align-items:center;justify-content:center;
+    background-size:cover;background-position:center;background-repeat:no-repeat;
+  }
+  body.layout-imagebg .hero::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(5,3,10,.55), rgba(5,3,10,.82));
+  }
+  body.layout-imagebg .hero .wrap{position:relative;z-index:1;}
+  body.layout-imagebg .hero-visual-img{display:none;}
+  body.layout-imagebg.no-hero-visual .hero{
+    background-image:none;min-height:0;padding:70px 20px 60px;display:block;
+  }
+  body.layout-imagebg.no-hero-visual .hero::before{display:none;}
+
   /* ---------- rozvržení: karty jako seznam (ikona vlevo, text vpravo) ---------- */
   body.cards-list .cards{display:flex;flex-direction:column;gap:12px;}
   body.cards-list .card, body.cards-list .card-link{
@@ -2751,6 +2801,27 @@ function sharedStyleTag(s){
   body.cards-list .card-icon{grid-column:1;grid-row:1/3;margin:2px 0 0;font-size:26px;}
   body.cards-list .card h3{grid-column:2;grid-row:1;margin:0;}
   body.cards-list .card p{grid-column:2;grid-row:2;margin:0;}
+
+  /* ---------- rozvržení: karty jako číslované kroky ---------- */
+  body.cards-numbered .cards{counter-reset:wzcard;}
+  body.cards-numbered .card, body.cards-numbered .card-link{counter-increment:wzcard;}
+  body.cards-numbered .card-icon{font-size:0;margin-bottom:14px;}
+  body.cards-numbered .card-icon::before{
+    content:counter(wzcard,decimal-leading-zero);
+    display:inline-block;font-size:14px;font-weight:800;letter-spacing:.04em;
+    color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    padding:4px 11px;border-radius:99px;font-family:'Inter',sans-serif;
+  }
+
+  /* ---------- rozvržení: karty minimalisticky (bez rámečků, jen dělicí čáry) ---------- */
+  body.cards-minimal .cards{display:flex;flex-direction:column;gap:0;}
+  body.cards-minimal .card, body.cards-minimal .card-link{
+    display:block;background:none;border:none;border-radius:0;backdrop-filter:none;
+    padding:22px 0;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;
+  }
+  body.cards-minimal .cards .card:last-child, body.cards-minimal .cards .card-link:last-child{border-bottom:none;}
+  body.cards-minimal .card:hover, body.cards-minimal .card-link:hover{transform:none;border-color:rgba(255,255,255,.08);box-shadow:none;}
+  body.cards-minimal .card-icon{font-size:22px;margin-bottom:8px;}
 
   .faq-section{padding:20px 20px 80px;max-width:720px;margin:0 auto;}
   .faq-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 28px;}
@@ -2967,6 +3038,14 @@ function buildSiteHTML(s){
     ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
     : '';
 
+  // Rozvržení webu — ošetření neznámé/staré hodnoty (fallback na výchozí)
+  const heroLayoutClass = ['centered','split','split-reverse','left','imagebg'].includes(s.heroLayout) ? s.heroLayout : 'centered';
+  const cardsLayoutClass = ['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid';
+  // U rozvržení "Obrázek na pozadí" jde obrázek přímo do stylu hero sekce (místo <img> tagu)
+  const heroBgAttr = (heroLayoutClass === 'imagebg' && customImageSrc)
+    ? ` style="background-image:url('${escapeAttr(customImageSrc)}')"`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -3030,13 +3109,13 @@ ${faqJsonLd}
 
 ${sharedStyleTag(s)}
 </head>
-<body class="layout-${s.heroLayout === 'split' ? 'split' : 'centered'} cards-${s.cardsLayout === 'list' ? 'list' : 'grid'}${!heroVisualHtml ? ' no-hero-visual' : ''}">
+<body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!heroVisualHtml ? ' no-hero-visual' : ''}">
 
 ${sideNavHtml}
 
   <div class="page-content" id="pageContent">
 
-    <section class="hero" id="hero">
+    <section class="hero" id="hero"${heroBgAttr}>
       <div class="wrap">
         ${heroVisualHtml}
         <div class="hero-text">
@@ -3238,7 +3317,7 @@ ${standalone ? `<style>
   .page-content{margin-left:0 !important;}
 </style>` : ''}
 </head>
-<body class="cards-${s.cardsLayout === 'list' ? 'list' : 'grid'}">
+<body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
 
 ${sideNavHtml}
 
