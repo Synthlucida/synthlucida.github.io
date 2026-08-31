@@ -814,6 +814,18 @@ function getDefaultState(){
     audioFile: '',            // base64 data URL of an uploaded audio file
     audioTitle: ''             // caption above the audio player
   },
+  contact: {
+    enabled: false,          // show a contact form on the homepage (after FAQ, before the footer)
+    heading: 'Get in touch',
+    subtitle: 'Send us a message and we\'ll get back to you soon.',
+    includePhone: false,     // add an optional "Phone" field
+    provider: 'formspree',   // 'formspree' | 'web3forms' | 'netlify' | 'mailto' — where the form gets submitted
+    formspreeId: '',         // Formspree form ID (the part after the slash in formspree.io/f/XXXX)
+    web3formsKey: '',        // Access Key from web3forms.com
+    netlifyFormName: 'contact', // internal form name for Netlify Forms
+    mailtoAddress: '',       // destination email address for the "open email app" option
+    submitText: 'Send message'
+  },
   fontDisplay: "'Space Grotesk', sans-serif",
   fontBody: "'Inter', sans-serif",
   accent: '#a855f7',
@@ -1651,6 +1663,50 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Contact form</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-contact="enabled" ${state.contact.enabled?'checked':''}> Show a contact form on the homepage (after FAQ)
+      </label>
+      <div id="contactBox" style="margin-top:10px;${state.contact.enabled?'':'display:none;'}">
+        ${field('Section heading', `<input type="text" data-contact="heading" value="${escapeAttr(state.contact.heading)}">`)}
+        ${field('Subtitle (optional)', `<input type="text" data-contact="subtitle" value="${escapeAttr(state.contact.subtitle)}">`)}
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" data-contact="includePhone" ${state.contact.includePhone?'checked':''}> Add an optional "Phone" field
+        </label>
+        ${field('Button text', `<input type="text" data-contact="submitText" value="${escapeAttr(state.contact.submitText)}">`)}
+
+        <label style="margin-top:16px;">Where to send the form</label>
+        <select data-contact="provider">
+          <option value="formspree" ${state.contact.provider==='formspree'?'selected':''}>Formspree</option>
+          <option value="web3forms" ${state.contact.provider==='web3forms'?'selected':''}>Web3Forms</option>
+          <option value="netlify" ${state.contact.provider==='netlify'?'selected':''}>Netlify Forms (only when hosted on Netlify)</option>
+          <option value="mailto" ${state.contact.provider==='mailto'?'selected':''}>Open email (mailto, no third-party service)</option>
+        </select>
+
+        ${state.contact.provider==='formspree' ? `
+          <label>Formspree form ID</label>
+          <input type="text" data-contact="formspreeId" value="${escapeAttr(state.contact.formspreeId)}" placeholder="e.g. xzbqldpr">
+          <div class="note-box" style="margin-top:8px;">Sign up for free at <a href="https://formspree.io" target="_blank" rel="noopener">formspree.io</a> — once you create a form, you'll find the ID in the address as formspree.io/f/<b>ID</b>. Messages then land in your inbox, no server or payment needed.</div>
+        ` : ''}
+        ${state.contact.provider==='web3forms' ? `
+          <label>Web3Forms Access Key</label>
+          <input type="text" data-contact="web3formsKey" value="${escapeAttr(state.contact.web3formsKey)}" placeholder="e.g. a1b2c3d4-5e6f-...">
+          <div class="note-box" style="margin-top:8px;">Generate a free key at <a href="https://web3forms.com" target="_blank" rel="noopener">web3forms.com</a> — just enter an email, no account needed. Messages land directly in your inbox.</div>
+        ` : ''}
+        ${state.contact.provider==='netlify' ? `
+          <label>Internal form name</label>
+          <input type="text" data-contact="netlifyFormName" value="${escapeAttr(state.contact.netlifyFormName)}" placeholder="contact">
+          <div class="note-box" style="margin-top:8px;">This only works automatically when the site is deployed via Netlify (netlify.app or a custom domain connected to Netlify) — elsewhere the form won't go anywhere. Netlify detects the form on deploy, no other account or API key needed. Submitted messages appear in your Netlify dashboard under "Forms".</div>
+        ` : ''}
+        ${state.contact.provider==='mailto' ? `
+          <label>Destination email address</label>
+          <input type="text" data-contact="mailtoAddress" value="${escapeAttr(state.contact.mailtoAddress)}" placeholder="info@your-site.com">
+          <div class="note-box" style="margin-top:8px;">The simplest option with no third-party service — clicking the button opens the visitor's email app with a pre-filled message. Needs no external account, but only works if the visitor has an email client set up on their device.</div>
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Footer</div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
         <input type="checkbox" id="footerShowCopyright" ${state.footer.showCopyright?'checked':''}> Show "© year brand"
@@ -1719,6 +1775,7 @@ function renderForm(){
   bindNavInputs();
   bindHeroVisualInputs();
   bindMediaInputs();
+  bindContactInputs();
   bindPwaInputs();
   bindSitemapInputs();
   bindFooterInputs();
@@ -1948,6 +2005,27 @@ function bindMediaInputs(){
       reader.readAsDataURL(file);
     });
   }
+}
+
+function bindContactInputs(){
+  panel.querySelectorAll('[data-contact]').forEach(el => {
+    const key = el.dataset.contact;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', () => {
+        state.contact[key] = el.checked;
+        // "Show form" changes whether the rest of the settings are shown — needs a re-render.
+        if (key === 'enabled') { renderForm(); }
+        updatePreview();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        state.contact[key] = el.value;
+        // Changing the target service changes which config fields are shown — needs a re-render.
+        if (key === 'provider') { renderForm(); }
+        updatePreview();
+      });
+    }
+  });
 }
 
 function bindNavInputs(){
@@ -2625,6 +2703,107 @@ function toVideoEmbedUrl(url){
   return u;
 }
 
+// Builds the contact form section (or an empty string if disabled/not configured).
+// The form is "static" (no server of its own) — depending on the chosen provider it
+// submits either to Formspree/Web3Forms (fetch to their API), or via Netlify Forms
+// (fetch to the current page, only works when hosted on Netlify), or as a mailto
+// (opens the visitor's email app). Actual submit handling lives in contactFormScript().
+function buildContactSectionHtml(contact, brand){
+  const c = contact || {};
+  if (!c.enabled) return '';
+  let formAction = '', formExtraAttrs = '', hiddenFields = '';
+  if (c.provider === 'formspree'){
+    const id = (c.formspreeId || '').trim();
+    if (!id) return '';
+    formAction = `https://formspree.io/f/${escapeAttr(id)}`;
+    hiddenFields = `<input type="hidden" name="_subject" value="${escapeAttr('New message from your site — ' + (brand || ''))}">`;
+  } else if (c.provider === 'web3forms'){
+    const key = (c.web3formsKey || '').trim();
+    if (!key) return '';
+    formAction = 'https://api.web3forms.com/submit';
+    hiddenFields = `<input type="hidden" name="access_key" value="${escapeAttr(key)}"><input type="hidden" name="subject" value="${escapeAttr('New message from your site — ' + (brand || ''))}">`;
+  } else if (c.provider === 'netlify'){
+    const formName = (c.netlifyFormName || '').trim() || 'contact';
+    formExtraAttrs = ` name="${escapeAttr(formName)}" data-netlify="true"`;
+    hiddenFields = `<input type="hidden" name="form-name" value="${escapeAttr(formName)}">`;
+  } else if (c.provider === 'mailto'){
+    const addr = (c.mailtoAddress || '').trim();
+    if (!addr) return '';
+    formExtraAttrs = ` data-mailto="${escapeAttr(addr)}"`;
+  } else {
+    return '';
+  }
+  const phoneField = c.includePhone ? `
+        <label>Phone<input type="tel" name="phone" autocomplete="tel"></label>` : '';
+  return `
+    <section class="contact-section wrap" id="contact">
+      ${(c.heading||'').trim() ? `<h2>${escapeHtml(c.heading)}</h2>` : ''}
+      ${(c.subtitle||'').trim() ? `<p class="contact-subtitle">${escapeHtml(c.subtitle)}</p>` : ''}
+      <form class="contact-form" method="POST"${formAction ? ` action="${escapeAttr(formAction)}"` : ''}${formExtraAttrs} data-contact-provider="${escapeAttr(c.provider)}">
+        ${hiddenFields}
+        <label>Name<input type="text" name="name" autocomplete="name" required></label>
+        <label>Email<input type="email" name="email" autocomplete="email" required></label>${phoneField}
+        <label>Message<textarea name="message" rows="5" required></textarea></label>
+        <button type="submit">${escapeHtml(c.submitText || 'Send message')}</button>
+        <p class="contact-status" aria-live="polite"></p>
+      </form>
+    </section>`;
+}
+
+// Handles the contact form submission on the exported page — works for all
+// supported services (Formspree, Web3Forms, Netlify Forms, mailto) based on the
+// data-contact-provider / data-mailto attributes on <form class="contact-form">.
+function contactFormScript(){
+  return `<script>(function(){
+  var form = document.querySelector('.contact-form');
+  if (!form) return;
+  var statusEl = form.querySelector('.contact-status');
+  var provider = form.dataset.contactProvider;
+  function setStatus(msg, isError){
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    statusEl.className = 'contact-status' + (isError ? ' error' : ' success');
+  }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (provider === 'mailto'){
+      var fd = new FormData(form);
+      var name = fd.get('name') || '';
+      var phone = fd.get('phone') || '';
+      var message = fd.get('message') || '';
+      var body = 'Name: ' + name + (phone ? '\\nPhone: ' + phone : '') + '\\n\\n' + message;
+      window.location.href = 'mailto:' + encodeURIComponent(form.dataset.mailto || '') +
+        '?subject=' + encodeURIComponent('Message from your site') + '&body=' + encodeURIComponent(body);
+      setStatus('Opening your email app…', false);
+      return;
+    }
+    var submitBtn = form.querySelector('button[type=submit]');
+    if (submitBtn) submitBtn.disabled = true;
+    setStatus('Sending…', false);
+    var fetchUrl, fetchOptions;
+    if (provider === 'netlify'){
+      fetchUrl = window.location.pathname;
+      fetchOptions = { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(new FormData(form)).toString() };
+    } else {
+      fetchUrl = form.action;
+      fetchOptions = { method: 'POST', body: new FormData(form), headers: {'Accept':'application/json'} };
+    }
+    fetch(fetchUrl, fetchOptions).then(function(res){
+      if (res.ok){
+        form.reset();
+        setStatus('Thanks! Your message has been sent.', false);
+      } else {
+        setStatus('Something went wrong sending the message — please try again.', true);
+      }
+    }).catch(function(){
+      setStatus('Could not send the message — check your internet connection.', true);
+    }).finally(function(){
+      if (submitBtn) submitBtn.disabled = false;
+    });
+  });
+})();<\/script>`;
+}
+
 function sharedStyleTag(s){
   return `<style>
   :root{
@@ -2816,6 +2995,32 @@ function sharedStyleTag(s){
   .faq-item summary::after{content:'+';float:right;color:var(--accent);}
   .faq-item[open] summary::after{content:'–';}
   .faq-item p{color:#c7c7ce;font-size:13.5px;line-height:1.6;margin:10px 0 0;}
+
+  /* ---------- contact form ---------- */
+  .contact-section{padding:20px 20px 70px;max-width:560px;margin:0 auto;text-align:center;}
+  .contact-section h2{font-size:clamp(20px,3vw,26px);margin:0 0 10px;}
+  .contact-subtitle{color:#c7c7ce;font-size:14px;margin:0 0 26px;}
+  .contact-form{display:flex;flex-direction:column;gap:14px;text-align:left;}
+  .contact-form label{
+    display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#c7c7ce;
+  }
+  .contact-form input, .contact-form textarea{
+    font-family:inherit;font-size:14px;color:#fff;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:11px 13px;
+    resize:vertical;
+  }
+  .contact-form input:focus, .contact-form textarea:focus{
+    outline:none;border-color:var(--accent);
+  }
+  .contact-form button{
+    margin-top:4px;background:var(--accent);color:#fff;border:none;border-radius:99px;
+    padding:13px 20px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .contact-form button:hover{opacity:.92;}
+  .contact-form button:disabled{opacity:.6;cursor:default;}
+  .contact-status{min-height:1.2em;font-size:13px;margin:0;text-align:center;}
+  .contact-status.success{color:#4ade80;}
+  .contact-status.error{color:#f87171;}
 
   .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
   .custom-section h1{font-size:clamp(22px,3.5vw,32px);margin:0 0 14px;}
@@ -3023,6 +3228,9 @@ function buildSiteHTML(s){
       ${mediaAudioHtml ? `${(media.audioTitle||'').trim() ? `<h2>${escapeHtml(media.audioTitle)}</h2>` : ''}${mediaAudioHtml}` : ''}
     </section>` : '';
 
+  // Contact form — optional section between FAQ and the footer
+  const contactSectionHtml = buildContactSectionHtml(s.contact, s.brand);
+
   // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
   const footerLinksHtml = (s.footer.links || []).length
     ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
@@ -3143,11 +3351,11 @@ ${mediaSectionHtml}
     <section class="faq-section" id="faq">
       <h2>Frequently Asked Questions</h2>${faqHtml}
     </section>
-
+${contactSectionHtml}
     <footer>${footerTextHtml}${footerLinksHtml}${footerCopyrightHtml}${webzenWatermarkHtml()}</footer>
 
   </div>
-
+${contactSectionHtml ? contactFormScript() : ''}
   <script>
     var yEl = document.getElementById('y');
     if (yEl) yEl.textContent = new Date().getFullYear();

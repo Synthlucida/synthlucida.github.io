@@ -1038,6 +1038,18 @@ function getDefaultState(){
     audioFile: '',            // base64 data URL nahraného audio souboru
     audioTitle: ''             // popisek nad audio přehrávačem
   },
+  contact: {
+    enabled: false,          // zobrazit kontaktní formulář na hlavní stránce (za FAQ, před patičkou)
+    heading: 'Kontaktujte nás',
+    subtitle: 'Napište nám a ozveme se co nejdřív.',
+    includePhone: false,     // přidat nepovinné pole "Telefon"
+    provider: 'formspree',   // 'formspree' | 'web3forms' | 'netlify' | 'mailto' — kam se formulář odesílá
+    formspreeId: '',         // ID formuláře z formspree.io (za lomítkem v adrese formspree.io/f/XXXX)
+    web3formsKey: '',        // Access Key z web3forms.com
+    netlifyFormName: 'contact', // interní název formuláře pro Netlify Forms
+    mailtoAddress: '',       // cílová e-mailová adresa pro variantu "otevřít e-mail"
+    submitText: 'Odeslat zprávu'
+  },
   fontDisplay: "'Space Grotesk', sans-serif",
   fontBody: "'Inter', sans-serif",
   accent: '#a855f7',
@@ -1875,6 +1887,50 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Kontaktní formulář</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-contact="enabled" ${state.contact.enabled?'checked':''}> Zobrazit kontaktní formulář na hlavní stránce (za FAQ)
+      </label>
+      <div id="contactBox" style="margin-top:10px;${state.contact.enabled?'':'display:none;'}">
+        ${field('Nadpis sekce', `<input type="text" data-contact="heading" value="${escapeAttr(state.contact.heading)}">`)}
+        ${field('Podnadpis (nepovinné)', `<input type="text" data-contact="subtitle" value="${escapeAttr(state.contact.subtitle)}">`)}
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" data-contact="includePhone" ${state.contact.includePhone?'checked':''}> Přidat nepovinné pole „Telefon"
+        </label>
+        ${field('Text tlačítka', `<input type="text" data-contact="submitText" value="${escapeAttr(state.contact.submitText)}">`)}
+
+        <label style="margin-top:16px;">Kam formulář odesílat</label>
+        <select data-contact="provider">
+          <option value="formspree" ${state.contact.provider==='formspree'?'selected':''}>Formspree</option>
+          <option value="web3forms" ${state.contact.provider==='web3forms'?'selected':''}>Web3Forms</option>
+          <option value="netlify" ${state.contact.provider==='netlify'?'selected':''}>Netlify Forms (jen při hostování na Netlify)</option>
+          <option value="mailto" ${state.contact.provider==='mailto'?'selected':''}>Otevřít e-mail (mailto, bez cizí služby)</option>
+        </select>
+
+        ${state.contact.provider==='formspree' ? `
+          <label>ID formuláře z Formspree</label>
+          <input type="text" data-contact="formspreeId" value="${escapeAttr(state.contact.formspreeId)}" placeholder="např. xzbqldpr">
+          <div class="note-box" style="margin-top:8px;">Zdarma si založíš na <a href="https://formspree.io" target="_blank" rel="noopener">formspree.io</a> — po vytvoření formuláře najdeš ID v adrese jako formspree.io/f/<b>ID</b>. Zprávy pak chodí na tvůj e-mail, žádný vlastní server ani placení není potřeba.</div>
+        ` : ''}
+        ${state.contact.provider==='web3forms' ? `
+          <label>Access Key z Web3Forms</label>
+          <input type="text" data-contact="web3formsKey" value="${escapeAttr(state.contact.web3formsKey)}" placeholder="např. a1b2c3d4-5e6f-...">
+          <div class="note-box" style="margin-top:8px;">Zdarma si vygeneruješ klíč na <a href="https://web3forms.com" target="_blank" rel="noopener">web3forms.com</a> — stačí zadat e-mail, žádný účet není potřeba. Zprávy chodí přímo na tvůj e-mail.</div>
+        ` : ''}
+        ${state.contact.provider==='netlify' ? `
+          <label>Interní název formuláře</label>
+          <input type="text" data-contact="netlifyFormName" value="${escapeAttr(state.contact.netlifyFormName)}" placeholder="contact">
+          <div class="note-box" style="margin-top:8px;">Funguje automaticky <b>jen</b> když web nasadíš přes Netlify (netlify.app nebo vlastní doména napojená na Netlify) — jinde formulář nikam neodešle. Netlify formulář detekuje samo při nasazení, není potřeba žádný účet u jiné služby ani API klíč. Odeslané zprávy najdeš v administraci Netlify pod „Forms".</div>
+        ` : ''}
+        ${state.contact.provider==='mailto' ? `
+          <label>Cílová e-mailová adresa</label>
+          <input type="text" data-contact="mailtoAddress" value="${escapeAttr(state.contact.mailtoAddress)}" placeholder="info@tvuj-web.cz">
+          <div class="note-box" style="margin-top:8px;">Nejjednodušší varianta bez cizí služby — po kliknutí na tlačítko se otevře e-mailová aplikace návštěvníka s předvyplněnou zprávou. Nevyžaduje žádné externí konto, ale funguje jen pokud má návštěvník na zařízení nastavený e-mailový klient.</div>
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Patička</div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
         <input type="checkbox" id="footerShowCopyright" ${state.footer.showCopyright?'checked':''}> Zobrazit "© rok značka"
@@ -1943,6 +1999,7 @@ function renderForm(){
   bindNavInputs();
   bindHeroVisualInputs();
   bindMediaInputs();
+  bindContactInputs();
   bindPwaInputs();
   bindSitemapInputs();
   bindFooterInputs();
@@ -2172,6 +2229,27 @@ function bindMediaInputs(){
       reader.readAsDataURL(file);
     });
   }
+}
+
+function bindContactInputs(){
+  panel.querySelectorAll('[data-contact]').forEach(el => {
+    const key = el.dataset.contact;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', () => {
+        state.contact[key] = el.checked;
+        // "Zobrazit formulář" mění, jestli se vůbec zobrazí zbytek nastavení — potřeba re-render.
+        if (key === 'enabled') { renderForm(); }
+        updatePreview();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        state.contact[key] = el.value;
+        // Změna cílové služby mění, která konfigurační pole se zobrazí — potřeba re-render.
+        if (key === 'provider') { renderForm(); }
+        updatePreview();
+      });
+    }
+  });
 }
 
 function bindNavInputs(){
@@ -2845,6 +2923,107 @@ function toVideoEmbedUrl(url){
   return u;
 }
 
+// Vygeneruje sekci s kontaktním formulářem (nebo prázdný řetězec, pokud je vypnutá).
+// Formulář je "statický" (žádný vlastní server) — podle zvolené služby (provider) se
+// odesílá buď na Formspree/Web3Forms (fetch na jejich API), nebo přes Netlify Forms
+// (fetch na aktuální stránku, funguje jen při hostování na Netlify), nebo jako mailto
+// (otevře e-mailového klienta návštěvníka). Skutečné odesílání řeší contactFormScript().
+function buildContactSectionHtml(contact, brand){
+  const c = contact || {};
+  if (!c.enabled) return '';
+  let formAction = '', formExtraAttrs = '', hiddenFields = '';
+  if (c.provider === 'formspree'){
+    const id = (c.formspreeId || '').trim();
+    if (!id) return '';
+    formAction = `https://formspree.io/f/${escapeAttr(id)}`;
+    hiddenFields = `<input type="hidden" name="_subject" value="${escapeAttr('Nová zpráva z webu — ' + (brand || ''))}">`;
+  } else if (c.provider === 'web3forms'){
+    const key = (c.web3formsKey || '').trim();
+    if (!key) return '';
+    formAction = 'https://api.web3forms.com/submit';
+    hiddenFields = `<input type="hidden" name="access_key" value="${escapeAttr(key)}"><input type="hidden" name="subject" value="${escapeAttr('Nová zpráva z webu — ' + (brand || ''))}">`;
+  } else if (c.provider === 'netlify'){
+    const formName = (c.netlifyFormName || '').trim() || 'contact';
+    formExtraAttrs = ` name="${escapeAttr(formName)}" data-netlify="true"`;
+    hiddenFields = `<input type="hidden" name="form-name" value="${escapeAttr(formName)}">`;
+  } else if (c.provider === 'mailto'){
+    const addr = (c.mailtoAddress || '').trim();
+    if (!addr) return '';
+    formExtraAttrs = ` data-mailto="${escapeAttr(addr)}"`;
+  } else {
+    return '';
+  }
+  const phoneField = c.includePhone ? `
+        <label>Telefon<input type="tel" name="phone" autocomplete="tel"></label>` : '';
+  return `
+    <section class="contact-section wrap" id="contact">
+      ${(c.heading||'').trim() ? `<h2>${escapeHtml(c.heading)}</h2>` : ''}
+      ${(c.subtitle||'').trim() ? `<p class="contact-subtitle">${escapeHtml(c.subtitle)}</p>` : ''}
+      <form class="contact-form" method="POST"${formAction ? ` action="${escapeAttr(formAction)}"` : ''}${formExtraAttrs} data-contact-provider="${escapeAttr(c.provider)}">
+        ${hiddenFields}
+        <label>Jméno<input type="text" name="name" autocomplete="name" required></label>
+        <label>E-mail<input type="email" name="email" autocomplete="email" required></label>${phoneField}
+        <label>Zpráva<textarea name="message" rows="5" required></textarea></label>
+        <button type="submit">${escapeHtml(c.submitText || 'Odeslat zprávu')}</button>
+        <p class="contact-status" aria-live="polite"></p>
+      </form>
+    </section>`;
+}
+
+// Obsluha odeslání kontaktního formuláře na exportované stránce — funguje pro
+// všechny podporované služby (Formspree, Web3Forms, Netlify Forms, mailto) podle
+// atributů data-contact-provider / data-mailto na <form class="contact-form">.
+function contactFormScript(){
+  return `<script>(function(){
+  var form = document.querySelector('.contact-form');
+  if (!form) return;
+  var statusEl = form.querySelector('.contact-status');
+  var provider = form.dataset.contactProvider;
+  function setStatus(msg, isError){
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    statusEl.className = 'contact-status' + (isError ? ' error' : ' success');
+  }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (provider === 'mailto'){
+      var fd = new FormData(form);
+      var name = fd.get('name') || '';
+      var phone = fd.get('phone') || '';
+      var message = fd.get('message') || '';
+      var body = 'Jméno: ' + name + (phone ? '\\nTelefon: ' + phone : '') + '\\n\\n' + message;
+      window.location.href = 'mailto:' + encodeURIComponent(form.dataset.mailto || '') +
+        '?subject=' + encodeURIComponent('Zpráva z webu') + '&body=' + encodeURIComponent(body);
+      setStatus('Otevírá se tvoje e-mailová aplikace…', false);
+      return;
+    }
+    var submitBtn = form.querySelector('button[type=submit]');
+    if (submitBtn) submitBtn.disabled = true;
+    setStatus('Odesílám…', false);
+    var fetchUrl, fetchOptions;
+    if (provider === 'netlify'){
+      fetchUrl = window.location.pathname;
+      fetchOptions = { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(new FormData(form)).toString() };
+    } else {
+      fetchUrl = form.action;
+      fetchOptions = { method: 'POST', body: new FormData(form), headers: {'Accept':'application/json'} };
+    }
+    fetch(fetchUrl, fetchOptions).then(function(res){
+      if (res.ok){
+        form.reset();
+        setStatus('Díky! Zpráva byla odeslána.', false);
+      } else {
+        setStatus('Zprávu se nepodařilo odeslat, zkus to prosím znovu.', true);
+      }
+    }).catch(function(){
+      setStatus('Zprávu se nepodařilo odeslat — zkontroluj připojení k internetu.', true);
+    }).finally(function(){
+      if (submitBtn) submitBtn.disabled = false;
+    });
+  });
+})();<\/script>`;
+}
+
 function sharedStyleTag(s){
   return `<style>
   :root{
@@ -3036,6 +3215,32 @@ function sharedStyleTag(s){
   .faq-item summary::after{content:'+';float:right;color:var(--accent);}
   .faq-item[open] summary::after{content:'–';}
   .faq-item p{color:#c7c7ce;font-size:13.5px;line-height:1.6;margin:10px 0 0;}
+
+  /* ---------- kontaktní formulář ---------- */
+  .contact-section{padding:20px 20px 70px;max-width:560px;margin:0 auto;text-align:center;}
+  .contact-section h2{font-size:clamp(20px,3vw,26px);margin:0 0 10px;}
+  .contact-subtitle{color:#c7c7ce;font-size:14px;margin:0 0 26px;}
+  .contact-form{display:flex;flex-direction:column;gap:14px;text-align:left;}
+  .contact-form label{
+    display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#c7c7ce;
+  }
+  .contact-form input, .contact-form textarea{
+    font-family:inherit;font-size:14px;color:#fff;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:11px 13px;
+    resize:vertical;
+  }
+  .contact-form input:focus, .contact-form textarea:focus{
+    outline:none;border-color:var(--accent);
+  }
+  .contact-form button{
+    margin-top:4px;background:var(--accent);color:#fff;border:none;border-radius:99px;
+    padding:13px 20px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .contact-form button:hover{opacity:.92;}
+  .contact-form button:disabled{opacity:.6;cursor:default;}
+  .contact-status{min-height:1.2em;font-size:13px;margin:0;text-align:center;}
+  .contact-status.success{color:#4ade80;}
+  .contact-status.error{color:#f87171;}
 
   .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
   .custom-section h1{font-size:clamp(22px,3.5vw,32px);margin:0 0 14px;}
@@ -3243,6 +3448,9 @@ function buildSiteHTML(s){
       ${mediaAudioHtml ? `${(media.audioTitle||'').trim() ? `<h2>${escapeHtml(media.audioTitle)}</h2>` : ''}${mediaAudioHtml}` : ''}
     </section>` : '';
 
+  // Kontaktní formulář — nepovinná sekce mezi FAQ a patičkou
+  const contactSectionHtml = buildContactSectionHtml(s.contact, s.brand);
+
   // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
   const footerLinksHtml = (s.footer.links || []).length
     ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
@@ -3363,11 +3571,11 @@ ${mediaSectionHtml}
     <section class="faq-section" id="faq">
       <h2>Časté otázky</h2>${faqHtml}
     </section>
-
+${contactSectionHtml}
     <footer>${footerTextHtml}${footerLinksHtml}${footerCopyrightHtml}${webzenWatermarkHtml()}</footer>
 
   </div>
-
+${contactSectionHtml ? contactFormScript() : ''}
   <script>
     var yEl = document.getElementById('y');
     if (yEl) yEl.textContent = new Date().getFullYear();
