@@ -517,6 +517,10 @@
   }
   .note-box b{color:var(--ui-text);}
   .note-box ul{margin:6px 0 0;padding-left:18px;}
+  .warn-box{
+    font-size:12px;line-height:1.5;color:#fca5a5;background:rgba(248,113,113,.08);
+    border:1px solid rgba(248,113,113,.4);border-radius:8px;padding:12px;margin-top:8px;
+  }
 </style>
 <script data-goatcounter="https://webzen.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -1927,6 +1931,7 @@ function renderForm(){
           <input type="text" data-contact="mailtoAddress" value="${escapeAttr(state.contact.mailtoAddress)}" placeholder="info@tvuj-web.cz">
           <div class="note-box" style="margin-top:8px;">Nejjednodušší varianta bez cizí služby — po kliknutí na tlačítko se otevře e-mailová aplikace návštěvníka s předvyplněnou zprávou. Nevyžaduje žádné externí konto, ale funguje jen pokud má návštěvník na zařízení nastavený e-mailový klient.</div>
         ` : ''}
+        <div id="contactMissingWarn" class="warn-box" style="${contactMissingField(state.contact)?'':'display:none;'}">⚠ Bez vyplnění povinného údaje výše se kontaktní formulář v náhledu ani na exportovaném webu vůbec nezobrazí — sekce se prostě vynechá.</div>
       </div>
     </div>
 
@@ -2231,6 +2236,13 @@ function bindMediaInputs(){
   }
 }
 
+// Přepne viditelnost varování "chybí povinný údaj" bez nutnosti re-renderovat
+// celý panel (jinak by uživateli při psaní do pole skákal kurzor na začátek).
+function updateContactMissingWarn(){
+  const warnEl = document.getElementById('contactMissingWarn');
+  if (warnEl) warnEl.style.display = contactMissingField(state.contact) ? '' : 'none';
+}
+
 function bindContactInputs(){
   panel.querySelectorAll('[data-contact]').forEach(el => {
     const key = el.dataset.contact;
@@ -2239,6 +2251,7 @@ function bindContactInputs(){
         state.contact[key] = el.checked;
         // "Zobrazit formulář" mění, jestli se vůbec zobrazí zbytek nastavení — potřeba re-render.
         if (key === 'enabled') { renderForm(); }
+        updateContactMissingWarn();
         updatePreview();
       });
     } else {
@@ -2246,6 +2259,7 @@ function bindContactInputs(){
         state.contact[key] = el.value;
         // Změna cílové služby mění, která konfigurační pole se zobrazí — potřeba re-render.
         if (key === 'provider') { renderForm(); }
+        updateContactMissingWarn();
         updatePreview();
       });
     }
@@ -2921,6 +2935,19 @@ function toVideoEmbedUrl(url){
   m = u.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/i);
   if (m) return `https://player.vimeo.com/video/${m[1]}${m[2] ? '?h='+m[2] : ''}`;
   return u;
+}
+
+// Zjistí, jestli u aktuálně zvolené služby chybí povinný údaj, bez kterého
+// buildContactSectionHtml() sekci vůbec nevygeneruje (viz níže). Používá se
+// v panelu k zobrazení varování, ať uživatel neřeší, proč se mu formulář
+// "neukazuje", i když je zaškrtnutý.
+function contactMissingField(contact){
+  const c = contact || {};
+  if (!c.enabled) return false;
+  if (c.provider === 'formspree') return !(c.formspreeId || '').trim();
+  if (c.provider === 'web3forms') return !(c.web3formsKey || '').trim();
+  if (c.provider === 'mailto') return !(c.mailtoAddress || '').trim();
+  return false;
 }
 
 // Vygeneruje sekci s kontaktním formulářem (nebo prázdný řetězec, pokud je vypnutá).
@@ -3630,6 +3657,16 @@ ${contactSectionHtml ? contactFormScript() : ''}
       });
 
       if (localLinks.length) setActive(localLinks[0]);
+
+      // Odkazy s nevyplněnou adresou (např. výchozí "#" u odkazů v patičce,
+      // dokud jim uživatel nenastaví skutečnou URL) by jinak spustily
+      // výchozí chování prohlížeče — okamžitý (neplynulý) skok na úplný
+      // začátek stránky, což vypadá, jako by se stránka znovu načetla /
+      // "resetla" zpátky na hero. Proto takový klik jednoduše ignorujeme.
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href="#"]');
+        if (a) e.preventDefault();
+      });
 
       var homeSections = localLinks
         .map(function (a) { return document.querySelector(a.getAttribute('href')); })

@@ -426,6 +426,10 @@
   }
   .note-box b{color:var(--ui-text);}
   .note-box ul{margin:6px 0 0;padding-left:18px;}
+  .warn-box{
+    font-size:12px;line-height:1.5;color:#fca5a5;background:rgba(248,113,113,.08);
+    border:1px solid rgba(248,113,113,.4);border-radius:8px;padding:12px;margin-top:8px;
+  }
 </style>
 <script data-goatcounter="https://webzen.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -1703,6 +1707,7 @@ function renderForm(){
           <input type="text" data-contact="mailtoAddress" value="${escapeAttr(state.contact.mailtoAddress)}" placeholder="info@your-site.com">
           <div class="note-box" style="margin-top:8px;">The simplest option with no third-party service — clicking the button opens the visitor's email app with a pre-filled message. Needs no external account, but only works if the visitor has an email client set up on their device.</div>
         ` : ''}
+        <div id="contactMissingWarn" class="warn-box" style="${contactMissingField(state.contact)?'':'display:none;'}">⚠ Without filling in the required field above, the contact form won't appear in the preview or on the exported site at all — the section is simply skipped.</div>
       </div>
     </div>
 
@@ -2007,6 +2012,13 @@ function bindMediaInputs(){
   }
 }
 
+// Toggles the "missing required field" warning without re-rendering the whole
+// panel (a full re-render would reset the cursor position while typing).
+function updateContactMissingWarn(){
+  const warnEl = document.getElementById('contactMissingWarn');
+  if (warnEl) warnEl.style.display = contactMissingField(state.contact) ? '' : 'none';
+}
+
 function bindContactInputs(){
   panel.querySelectorAll('[data-contact]').forEach(el => {
     const key = el.dataset.contact;
@@ -2015,6 +2027,7 @@ function bindContactInputs(){
         state.contact[key] = el.checked;
         // "Show form" changes whether the rest of the settings are shown — needs a re-render.
         if (key === 'enabled') { renderForm(); }
+        updateContactMissingWarn();
         updatePreview();
       });
     } else {
@@ -2022,6 +2035,7 @@ function bindContactInputs(){
         state.contact[key] = el.value;
         // Changing the target service changes which config fields are shown — needs a re-render.
         if (key === 'provider') { renderForm(); }
+        updateContactMissingWarn();
         updatePreview();
       });
     }
@@ -2701,6 +2715,19 @@ function toVideoEmbedUrl(url){
   m = u.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/i);
   if (m) return `https://player.vimeo.com/video/${m[1]}${m[2] ? '?h='+m[2] : ''}`;
   return u;
+}
+
+// Checks whether the currently selected provider is missing a required field,
+// without which buildContactSectionHtml() won't generate the section at all
+// (see below). Used in the panel to show a warning, so the user doesn't have
+// to guess why the enabled form "isn't showing up".
+function contactMissingField(contact){
+  const c = contact || {};
+  if (!c.enabled) return false;
+  if (c.provider === 'formspree') return !(c.formspreeId || '').trim();
+  if (c.provider === 'web3forms') return !(c.web3formsKey || '').trim();
+  if (c.provider === 'mailto') return !(c.mailtoAddress || '').trim();
+  return false;
 }
 
 // Builds the contact form section (or an empty string if disabled/not configured).
@@ -3410,6 +3437,16 @@ ${contactSectionHtml ? contactFormScript() : ''}
       });
 
       if (localLinks.length) setActive(localLinks[0]);
+
+      // Links with no address filled in yet (e.g. the default "#" on footer
+      // links until the user sets a real URL) would otherwise trigger the
+      // browser's default behavior — an instant (non-smooth) jump straight
+      // to the very top of the page, which looks like the page reloaded /
+      // "reset" back to the hero. So we simply ignore such clicks.
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href="#"]');
+        if (a) e.preventDefault();
+      });
 
       var homeSections = localLinks
         .map(function (a) { return document.querySelector(a.getAttribute('href')); })
