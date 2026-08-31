@@ -258,6 +258,42 @@
     opacity:0.65; font-weight:600;
   }
 
+  /* ---- XP / gamification ---- */
+  .xp-card{ position:relative; overflow:hidden; }
+  .xp-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .xp-badge{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .xp-badge-icon{
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #f4f0ff, var(--accent-color) 60%, var(--accent-glow) 100%);
+    box-shadow:0 0 14px rgba(167,139,250,0.55);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .xp-badge-icon svg{ width:19px; height:19px; color:#160a2e; }
+  .xp-badge-text{ min-width:0; }
+  .xp-level{ font-family:'Orbitron', sans-serif; font-size:13.5px; font-weight:700; letter-spacing:0.4px; white-space:nowrap; }
+  .xp-title{ font-size:11px; opacity:0.6; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .xp-right{ text-align:right; flex-shrink:0; }
+  .xp-amount{ font-family:'Orbitron', sans-serif; font-size:17px; font-weight:600; color:var(--accent-color); text-shadow:0 0 10px rgba(167,139,250,0.4); white-space:nowrap; }
+  .xp-amount span{ font-size:9.5px; opacity:0.6; font-weight:400; }
+  .xp-streak{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--warn); margin-top:3px; white-space:nowrap; }
+  .xp-streak[hidden]{ display:none; }
+  .xp-progress-bar{ width:100%; height:9px; border-radius:999px; background:rgba(255,255,255,0.08); overflow:hidden; margin-top:14px; }
+  .xp-progress-fill{
+    height:100%; border-radius:999px; width:0%;
+    background:linear-gradient(90deg, var(--accent-glow), var(--accent-color) 65%, #e9d5ff);
+    box-shadow:0 0 10px rgba(167,139,250,0.55);
+    transition:width 0.5s ease;
+  }
+  .xp-progress-label{ font-size:10.5px; opacity:0.55; margin-top:6px; font-family:'JetBrains Mono', monospace; }
+  .xp-slogan{ margin-top:13px; font-size:12.5px; font-style:italic; color:var(--accent-color); opacity:0.9; text-align:center; line-height:1.45; }
+  .xp-info{ margin-top:8px; font-size:10px; opacity:0.4; text-align:center; line-height:1.4; }
+  .xp-card.level-up{ animation:xpLevelUpGlow 1.3s ease; }
+  @keyframes xpLevelUpGlow{
+    0%{ box-shadow:0 0 0 rgba(167,139,250,0); }
+    35%{ box-shadow:0 0 46px rgba(167,139,250,0.85); }
+    100%{ box-shadow:0 0 0 rgba(167,139,250,0); }
+  }
+
   /* ---- hero / counter ---- */
   .hero-card{ display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center; }
 
@@ -593,6 +629,28 @@
       <button id="undoBtn" class="undo-btn" disabled>↺ undo last entry</button>
     </section>
 
+    <section class="card xp-card" id="xpCard">
+      <div class="xp-head">
+        <div class="xp-badge">
+          <div class="xp-badge-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.8 6.6L22 9.3l-5.3 4.6L18.2 21 12 17.3 5.8 21l1.5-7.1L2 9.3l7.2-.7L12 2z"/></svg>
+          </div>
+          <div class="xp-badge-text">
+            <div class="xp-level" id="xpLevel">Level 1</div>
+            <div class="xp-title" id="xpTitle">Rookie</div>
+          </div>
+        </div>
+        <div class="xp-right">
+          <div class="xp-amount" id="xpAmount">0 <span>XP</span></div>
+          <div class="xp-streak" id="xpStreak" hidden>🔥 0 days</div>
+        </div>
+      </div>
+      <div class="xp-progress-bar"><div class="xp-progress-fill" id="xpProgressFill"></div></div>
+      <div class="xp-progress-label" id="xpProgressLabel">0 / 50 XP to Level 2</div>
+      <div class="xp-slogan" id="xpSlogan"></div>
+      <div class="xp-info">XP grows when your daily count is lower than your recent average (or zero). It's always calculated retroactively, for days that have already ended.</div>
+    </section>
+
     <section class="chips-row">
       <div class="chip">
         <div class="chip-value" id="allTimeTotal">0</div>
@@ -697,6 +755,20 @@
         <ul>
           <li>An optional daily puff limit with a colored progress bar</li>
           <li>The app only shows the numbers, it never judges or advises – it’s purely informational</li>
+        </ul>
+
+        <div class="info-section-title">XP and levels</div>
+        <p>VAPETRACK includes a simple game layer that rewards long-term reduction of consumption – not individual "good" days, but a real trend.</p>
+        <ul>
+          <li>XP isn't stored as a separate number anywhere – it's always recalculated from your full entry history, so it's always accurate and works correctly even after restoring from a backup</li>
+          <li>The system needs at least 8 days of history before any XP shows up – only then does it have enough data to work out your "usual" daily baseline</li>
+          <li>For every elapsed day (today doesn't count yet, since it hasn't ended), your puff count is compared to the average of the previous 7 days</li>
+          <li>If a day is below that average, you earn XP proportional to how much lower it was – the bigger the drop, the more points</li>
+          <li>A full day with zero puffs earns a large bonus</li>
+          <li>A day at or above your average earns no XP, but also no penalty – a worse day never sets you back</li>
+          <li>XP accumulates across your entire history (up to 365 days back), so your level only keeps rising over time if your consumption actually trends down</li>
+          <li>The streak shows how many days in a row you've stayed below your average – it appears from 2 days in a row onward</li>
+          <li>Each level has its own title (Rookie, Observer, Determined… up to Legend), and the app notifies you whenever you level up</li>
         </ul>
 
         <div class="info-section-title">Controls</div>
@@ -829,6 +901,7 @@
     if(!d || typeof d !== "object") d = {};
     if(!Array.isArray(d.entries)) d.entries = [];
     if(typeof d.goal !== "number") d.goal = null;
+    if(typeof d.xpLastSeenLevel !== "number") d.xpLastSeenLevel = 0;
     return d;
   }
 
@@ -897,6 +970,190 @@
     }
     return buckets;
   }
+  // ---------- gamification / XP ----------
+  // XP is computed deterministically from all entries (no separately stored
+  // counter), just like the rest of the app's stats – so it always stays
+  // consistent with the history and also works correctly after a backup import.
+  var XP_LEVEL_TITLES = [
+    "Rookie","Observer","You Tried","On the Right Track","Determined",
+    "Strong Will","Habit Fighter","Master of Self-Control","Role Model",
+    "Master of Calm","Legend"
+  ];
+  function levelTitle(level){
+    var idx = Math.min(level, XP_LEVEL_TITLES.length) - 1;
+    var base = XP_LEVEL_TITLES[idx];
+    if(level > XP_LEVEL_TITLES.length) base += " ★" + (level - XP_LEVEL_TITLES.length);
+    return base;
+  }
+  function xpThreshold(level){ return 25 * level * (level + 1); }
+  function computeLevelInfo(xp){
+    var lvl = 1;
+    while(xpThreshold(lvl) <= xp) lvl++;
+    var prevT = lvl === 1 ? 0 : xpThreshold(lvl - 1);
+    var nextT = xpThreshold(lvl);
+    return { level: lvl, prevThreshold: prevT, nextThreshold: nextT, progress: (xp - prevT) / (nextT - prevT) };
+  }
+  // For every ELAPSED day (today doesn't count yet, since it hasn't ended),
+  // compares the puff count against the average of the previous 7 days
+  // (the "usual" daily baseline):
+  //  - a zero day when the baseline was non-zero -> large bonus
+  //  - a day below baseline -> XP proportional to the percentage reduction
+  //  - a zero day when the baseline is also zero -> small maintenance bonus
+  //  - a day at/above baseline -> 0 XP (no penalty for a worse day)
+  // Summed across the whole history (max. 365 days back), so XP only grows
+  // over the long run when consumption actually trends down over time.
+  function computeXPState(){
+    if(!totalsMap) rebuildTotalsMap();
+    var state = { xp: 0, streakDays: 0 };
+    if(!data.entries.length) return state;
+
+    var today0 = startOfDay(new Date());
+    var minTs = data.entries[0].ts;
+    for(var i=1;i<data.entries.length;i++){ if(data.entries[i].ts < minTs) minTs = data.entries[i].ts; }
+    var earliestDay = startOfDay(new Date(minTs));
+    var totalDays = Math.round((today0 - earliestDay) / 86400000);
+    totalDays = Math.min(totalDays, 365);
+    if(totalDays < 8) return state; // not enough history yet for a reliable baseline
+
+    var BASELINE_WINDOW = 7;
+    var dayXPs = [];
+    for(var k=BASELINE_WINDOW; k<totalDays; k++){
+      var dayDate = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+k);
+      var baseSum = 0;
+      for(var b=k-BASELINE_WINDOW;b<k;b++){
+        var bd = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+b);
+        baseSum += dayTotal(bd);
+      }
+      var baseline = baseSum / BASELINE_WINDOW;
+      var val = dayTotal(dayDate);
+      var xpDay = 0;
+      if(baseline === 0){
+        if(val === 0) xpDay = 3;
+      } else if(val === 0){
+        xpDay = 25;
+      } else if(val < baseline){
+        var reduction = (baseline - val) / baseline;
+        xpDay = Math.max(1, Math.round(reduction*20));
+      }
+      dayXPs.push(xpDay);
+    }
+
+    var xp = 0;
+    for(var s=0;s<dayXPs.length;s++) xp += dayXPs[s];
+    var streak = 0;
+    for(var e2=dayXPs.length-1; e2>=0; e2--){
+      if(dayXPs[e2] > 0) streak++; else break;
+    }
+
+    state.xp = xp;
+    state.streakDays = streak;
+    return state;
+  }
+
+  function xpDayOfYearSeed(){
+    var now = new Date();
+    var start = new Date(now.getFullYear(),0,0);
+    return Math.floor((now - start) / 86400000);
+  }
+  var XP_SLOGANS = {
+    empty: [
+      "Tap the button and start earning your first XP.",
+      "Every logged puff is a step toward seeing the real picture."
+    ],
+    building: [
+      "Log a few more days – then your first XP will show up.",
+      "The XP baseline is calculated from 7 days of history. Hang in there."
+    ],
+    legendary: [
+      "This isn't luck anymore. This is the new normal.",
+      "Your body is getting used to calm – and it shows.",
+      "This streak speaks for itself.",
+      "You're not experimenting anymore. You're just living differently."
+    ],
+    onFire: [
+      "A full week in a row. That counts.",
+      "The habit is losing ground.",
+      "You're keeping pace – don't stop now.",
+      "Seven days of proof that it works."
+    ],
+    momentum: [
+      "A few days in a row – and it shows.",
+      "Small steps, but in the right direction.",
+      "This is the start of a pattern that fits you."
+    ],
+    progress: [
+      "This week is lighter than the last one. See it?",
+      "The curve is trending down. That's the direction that matters.",
+      "Slow, but it's working."
+    ],
+    gentle: [
+      "Days vary. What matters is coming back to it.",
+      "No single day defines you – just the direction across weeks.",
+      "Even a small step tomorrow counts more than a perfect yesterday.",
+      "It's not about zero. It's about less than yesterday."
+    ],
+    neutral: [
+      "The data tells you more than a feeling does – watch your trend.",
+      "Learn from your days and adjust course.",
+      "Logging it is the first step toward change."
+    ]
+  };
+  function pickFromPool(arr){ return arr[xpDayOfYearSeed() % arr.length]; }
+  function pickSlogan(state){
+    if(!data.entries.length) return pickFromPool(XP_SLOGANS.empty);
+    if(state.xp === 0 && state.streakDays === 0){
+      var today0 = startOfDay(new Date());
+      var minTs = data.entries[0].ts;
+      for(var i=1;i<data.entries.length;i++){ if(data.entries[i].ts < minTs) minTs = data.entries[i].ts; }
+      var daysTracked = Math.round((today0 - startOfDay(new Date(minTs))) / 86400000);
+      if(daysTracked < 8) return pickFromPool(XP_SLOGANS.building);
+    }
+    if(state.streakDays >= 14) return pickFromPool(XP_SLOGANS.legendary);
+    if(state.streakDays >= 7) return pickFromPool(XP_SLOGANS.onFire);
+    if(state.streakDays >= 3) return pickFromPool(XP_SLOGANS.momentum);
+    var hasOlder = data.entries.some(function(e){ return e.ts < Date.now() - 7*86400000; });
+    var thisW = rangeAvg(6,0), prevW = rangeAvg(13,7);
+    if(hasOlder && prevW > 0 && thisW < prevW*0.95) return pickFromPool(XP_SLOGANS.progress);
+    if(hasOlder && prevW > 0 && thisW > prevW*1.05) return pickFromPool(XP_SLOGANS.gentle);
+    return pickFromPool(XP_SLOGANS.neutral);
+  }
+
+  function renderXP(){
+    var state = computeXPState();
+    var info = computeLevelInfo(state.xp);
+
+    document.getElementById("xpLevel").textContent = "Level " + info.level;
+    document.getElementById("xpTitle").textContent = levelTitle(info.level);
+    document.getElementById("xpAmount").innerHTML = state.xp + ' <span>XP</span>';
+
+    var pct = Math.max(0, Math.min(100, info.progress*100));
+    document.getElementById("xpProgressFill").style.width = pct + "%";
+    document.getElementById("xpProgressLabel").textContent =
+      (state.xp - info.prevThreshold) + " / " + (info.nextThreshold - info.prevThreshold) + " XP to Level " + (info.level+1);
+
+    var streakEl = document.getElementById("xpStreak");
+    if(state.streakDays >= 2){
+      streakEl.hidden = false;
+      streakEl.textContent = "🔥 " + state.streakDays + " " + plural(state.streakDays,"day","days") + " in a row";
+    } else {
+      streakEl.hidden = true;
+    }
+
+    document.getElementById("xpSlogan").textContent = pickSlogan(state);
+
+    if(info.level > data.xpLastSeenLevel){
+      data.xpLastSeenLevel = info.level;
+      saveData();
+      var card = document.getElementById("xpCard");
+      if(card){
+        card.classList.remove("level-up");
+        void card.offsetWidth;
+        card.classList.add("level-up");
+      }
+      showToast("🎉 Level " + info.level + " – " + levelTitle(info.level) + "!", 3200);
+    }
+  }
+
   function formatRelative(ts){
     var diffMs = Date.now() - ts;
     var mins = Math.floor(diffMs/60000);
@@ -933,6 +1190,7 @@
   }
   function resetAll(){
     data.entries = [];
+    data.xpLastSeenLevel = 0;
     saveData();
     renderAll();
   }
@@ -1524,6 +1782,7 @@
 
   function renderAll(){
     rebuildTotalsMap();
+    renderXP();
     renderHero();
     renderChips();
     renderTrend();
