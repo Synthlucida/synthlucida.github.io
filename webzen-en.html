@@ -346,10 +346,30 @@
   }
   .swatch:hover{transform:scale(1.15);}
   .swatch.active{border-color:#fff;}
-  .style-presets{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .style-preset-picker{
+    background:var(--ui-bg-2);border:1px solid var(--ui-line);border-radius:9px;overflow:hidden;
+  }
+  .style-preset-summary{
+    cursor:pointer;list-style:none;user-select:none;
+    display:flex;align-items:center;gap:10px;padding:9px 11px;
+  }
+  .style-preset-summary::-webkit-details-marker{display:none;}
+  .style-preset-summary::after{content:'▾';margin-left:auto;flex:0 0 auto;color:var(--ui-text-dim);font-size:11px;transition:transform .15s;}
+  .style-preset-picker[open] .style-preset-summary::after{transform:rotate(180deg);}
+  .style-preset-summary:hover{background:rgba(255,255,255,.03);}
+  .style-preset-summary-swatch{
+    width:28px;height:28px;border-radius:7px;flex:0 0 auto;border:1px solid var(--ui-line);
+  }
+  .style-preset-summary-text{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .style-preset-summary-text b{font-size:12px;font-weight:700;color:var(--ui-text);}
+  .style-preset-summary-text small{font-size:10.5px;color:var(--ui-text-dim);}
+  .style-presets{
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    padding:2px 11px 11px;max-height:340px;overflow-y:auto;border-top:1px solid var(--ui-line);
+  }
   .style-preset-btn{
     display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
-    background:var(--ui-bg-2);border:1px solid var(--ui-line);border-radius:9px;
+    background:var(--ui-bg-1);border:1px solid var(--ui-line);border-radius:9px;
     padding:9px 10px;cursor:pointer;font-family:'Inter',sans-serif;
   }
   .style-preset-btn:hover{border-color:var(--ui-accent);}
@@ -437,7 +457,7 @@
       </div>
       <div class="info-modal-body">
         <div class="about-content" id="guideModalContent">
-          <p>WEBZEN is a simple one-page website generator. You fill in a form on the left, and see a live preview on the right straight away. There's no coding involved — at the end you download a ready-made, working HTML file that you just upload to any hosting. It's great for a personal website, a product showcase, a service page, or a landing page.</p>
+          <p>WEBZEN is a simple website generator — anything from a one-page site to a site with multiple subpages. You fill in a form on the left, and see a live preview on the right straight away. There's no coding involved — at the end you download a ready-made, working HTML file (or several files, if you also have custom subpages) that you just upload to any hosting. It's great for a personal website, a product showcase, a service page, or a landing page.</p>
 
           <h4>Getting started</h4>
           <p>At the top, fill in the Website name, the Domain (used in links for search engines and social media), and the page Title + Description for SEO. Then set up the Hero section — the main heading and subheading that visitors see first.</p>
@@ -478,11 +498,12 @@
             <p>Setting up your own website today doesn't require knowing HTML, CSS, or any programming language. Tools like WEBZEN work on the principle of a simple form: you fill in text, colors, and content on the left, see a live preview on the right, and at the end download a ready, working file that you just upload to any hosting.</p>
             <h3>What you'll need to build a website</h3>
             <p>All you need is a browser and a basic idea of what you want to say on the site — a name, a short description of your offer or service, a few photos, and contact details. The generator takes care of the graphics, layout, and technical details (SEO tags, PWA, sitemap) for you.</p>
-            <h3>Postup krok za krokem</h3>
+            <h3>Step by step</h3>
             <ul>
               <li>Fill in the basic info — website name, title, and meta description for search engines.</li>
               <li>Set up the hero section with your main message and add buttons with links.</li>
               <li>Describe your services or products using cards and add frequently asked questions (FAQ).</li>
+              <li>Optionally add a video or audio, if it fits the site's content.</li>
               <li>Choose colors and fonts that fit your brand.</li>
               <li>Download the finished site and upload it to your hosting or domain.</li>
             </ul>
@@ -611,6 +632,21 @@
           </div>
         </details>
 
+        <details class="article">
+          <summary>How to add video or audio to your site</summary>
+          <div class="article-content">
+            <p>In the "Video / Audio" section on the left, you can optionally add a playable video and/or audio to the homepage — it appears right after the Features section, before the FAQ. Both fields are optional and can be used independently of each other.</p>
+            <h3>Video — a link, or your own file</h3>
+            <p>The easiest option is a YouTube or Vimeo link — a regular video address (e.g. from your browser's address bar) is enough, the generator converts it into an embedded video automatically. If you want your own video file, you can either upload it directly from your device or provide a URL — if you fill in both, the URL takes priority.</p>
+            <h3>Audio</h3>
+            <p>Audio works the same way — an uploaded file, or a URL (again, the URL takes priority if filled in). It shows up as a player with standard controls.</p>
+            <h3>When to upload a file and when to use a URL</h3>
+            <p>An uploaded file is embedded directly in the exported HTML — it works without hosting it anywhere else, but for video this significantly increases the resulting file size. For a longer video or audio, it's therefore more practical to host it elsewhere (e.g. on YouTube, or your own storage) and just paste the link here.</p>
+            <h3>Captions above the player</h3>
+            <p>You can optionally add a short caption (heading) above the video or audio player — useful when it needs a bit of context for why it's there.</p>
+          </div>
+        </details>
+
         </div>
       </div>
     </div>
@@ -724,7 +760,31 @@ const STYLE_PRESETS = [
     fontDisplay:"'Poppins', sans-serif", fontBody:"'Poppins', sans-serif" },
   { id:'minimal-gray', name:'Minimal Gray', desc:'Sober, corporate, clean',
     accent:'#64748b', glow:'#1e293b', bg1:'#1e293b', bg2:'#05070a',
-    fontDisplay:"'Space Grotesk', sans-serif", fontBody:"system-ui, sans-serif" }
+    fontDisplay:"'Space Grotesk', sans-serif", fontBody:"system-ui, sans-serif" },
+  { id:'midnight-indigo', name:'Midnight Indigo', desc:'Mysterious, deep, professional',
+    accent:'#6366f1', glow:'#312e81', bg1:'#1e1b4b', bg2:'#050514',
+    fontDisplay:"'Space Grotesk', sans-serif", fontBody:"'Inter', sans-serif" },
+  { id:'coral-paradise', name:'Coral Paradise', desc:'Tropical, summery, pleasant',
+    accent:'#fb7185', glow:'#9f1239', bg1:'#4a1020', bg2:'#0d0308',
+    fontDisplay:"'Poppins', sans-serif", fontBody:"'Poppins', sans-serif" },
+  { id:'lime-energy', name:'Lime Energy', desc:'Fresh, active, youthful',
+    accent:'#a3e635', glow:'#3f6212', bg1:'#1a2e05', bg2:'#060a02',
+    fontDisplay:"'Poppins', sans-serif", fontBody:"'Inter', sans-serif" },
+  { id:'ruby-passion', name:'Ruby Passion', desc:'Bold, dramatic, confident',
+    accent:'#dc2626', glow:'#7f1d1d', bg1:'#3d0a0a', bg2:'#0a0303',
+    fontDisplay:"'Playfair Display', serif", fontBody:"'Inter', sans-serif" },
+  { id:'arctic-ice', name:'Arctic Ice', desc:'Cool, clean, crisp',
+    accent:'#7dd3fc', glow:'#075985', bg1:'#0c2d3d', bg2:'#030a0d',
+    fontDisplay:"'Space Grotesk', sans-serif", fontBody:"system-ui, sans-serif" },
+  { id:'lavender-dreams', name:'Lavender Dreams', desc:'Soft, dreamy, romantic',
+    accent:'#c084fc', glow:'#6b21a8', bg1:'#2e1065', bg2:'#0a0512',
+    fontDisplay:"'Playfair Display', serif", fontBody:"'Poppins', sans-serif" },
+  { id:'bronze-elegance', name:'Bronze Elegance', desc:'Warm, refined, timeless',
+    accent:'#d97706', glow:'#78350f', bg1:'#2e1a05', bg2:'#0a0603',
+    fontDisplay:"'Playfair Display', serif", fontBody:"'Inter', sans-serif" },
+  { id:'monochrome-black', name:'Monochrome Black', desc:'Stark, minimal, high-contrast',
+    accent:'#e5e5e5', glow:'#262626', bg1:'#171717', bg2:'#030303',
+    fontDisplay:"'Orbitron', sans-serif", fontBody:"system-ui, sans-serif" }
 ];
 
 function getDefaultState(){
@@ -745,6 +805,15 @@ function getDefaultState(){
   heroImageAlt: '',  // image alt text (SEO + accessibility)
   heroLayout: 'centered', // 'centered' | 'split' — hero section layout
   cardsLayout: 'grid',    // 'grid' | 'list' — cards/features layout
+  media: {
+    videoType: 'none',   // 'none' | 'embed' (YouTube/Vimeo) | 'file' (custom file/URL)
+    videoUrl: '',        // YouTube/Vimeo link, or URL of a custom video file
+    videoFile: '',        // base64 data URL of an uploaded video file
+    videoTitle: '',        // caption above the video / accessible iframe title
+    audioUrl: '',            // audio file URL
+    audioFile: '',            // base64 data URL of an uploaded audio file
+    audioTitle: ''             // caption above the audio player
+  },
   fontDisplay: "'Space Grotesk', sans-serif",
   fontBody: "'Inter', sans-serif",
   accent: '#a855f7',
@@ -1290,6 +1359,14 @@ function appendFmtButtons(container, targetGetter){
 function enhanceTextareas(){
   document.querySelectorAll('#panel textarea:not([data-expand-bound])').forEach(ta => {
     ta.setAttribute('data-expand-bound','1');
+    // We need to remember the field's label BEFORE moving it into the wrapper —
+    // once a field has a formatting toolbar (.fmt-toolbar), that gets inserted
+    // BETWEEN the <label> and the textarea, so "the previous sibling before the
+    // field" would then point at the toolbar, not the label (see openTextareaModal below).
+    const originalLabel = ta.previousElementSibling;
+    if (originalLabel && originalLabel.tagName === 'LABEL') {
+      ta.dataset.fieldLabel = originalLabel.textContent;
+    }
     const wrap = document.createElement('div');
     wrap.className = 'textarea-wrap';
     ta.parentNode.insertBefore(wrap, ta);
@@ -1337,8 +1414,7 @@ function openTextareaModal(ta){
   const modalCE = document.getElementById('expandModalCE');
   const titleEl = document.getElementById('expandModalTitle');
   const toolbarEl = document.getElementById('expandModalToolbar');
-  const label = ta.parentElement.previousElementSibling;
-  titleEl.textContent = (label && label.tagName === 'LABEL') ? label.textContent : 'Edit text';
+  titleEl.textContent = ta.dataset.fieldLabel || 'Edit text';
   const isRichtext = ta.dataset.richtext === '1';
   toolbarEl.style.display = isRichtext ? 'flex' : 'none';
   modalTa.style.display = isRichtext ? 'none' : '';
@@ -1441,9 +1517,51 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Video / Audio</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Optional — adds a playable video and/or audio to the homepage (right after the Features section).</div>
+      <label style="margin-top:0;">Video</label>
+      <select data-media="videoType">
+        <option value="none" ${state.media.videoType==='none'?'selected':''}>No video</option>
+        <option value="embed" ${state.media.videoType==='embed'?'selected':''}>YouTube / Vimeo link</option>
+        <option value="file" ${state.media.videoType==='file'?'selected':''}>Custom video (file or URL)</option>
+      </select>
+      <div id="mediaVideoBox" style="margin-top:8px;${state.media.videoType==='none'?'display:none;':''}">
+        ${state.media.videoType==='embed' ? `
+          <label>Video link</label>
+          <input type="text" data-media="videoUrl" value="${escapeAttr(state.media.videoUrl)}" placeholder="https://www.youtube.com/watch?v=… or https://vimeo.com/…">
+          <div class="note-box" style="margin-top:8px;">YouTube and Vimeo links are supported — they're converted to an embedded video automatically. Other links are used as-is (must already be a direct embed URL).</div>
+        ` : ''}
+        ${state.media.videoType==='file' ? `
+          <label>Upload a video from your device</label>
+          <input type="file" id="mediaVideoFile" accept="video/*">
+          <span id="mediaVideoFileName" style="display:block;margin-top:4px;font-size:11.5px;color:var(--ui-text-dim);">${state.media.videoFile ? 'Video uploaded ✓' : ''}</span>
+          <label>Or a video file URL (takes priority, .mp4/.webm)</label>
+          <input type="text" data-media="videoUrl" value="${escapeAttr(state.media.videoUrl)}" placeholder="https://…/video.mp4">
+          <div class="note-box" style="margin-top:8px;">An uploaded file is embedded directly in the exported HTML (base64) — for video this quickly increases the file size, so for longer videos a URL is better (a URL, if filled in, always takes priority).</div>
+        ` : ''}
+        ${state.media.videoType!=='none' ? `
+          <label>Caption above the video (optional)</label>
+          <input type="text" data-media="videoTitle" value="${escapeAttr(state.media.videoTitle)}" placeholder="e.g. A short intro">
+        ` : ''}
+      </div>
+      <label style="margin-top:16px;">Audio</label>
+      <input type="file" id="mediaAudioFile" accept="audio/*">
+      <span id="mediaAudioFileName" style="display:block;margin-top:4px;font-size:11.5px;color:var(--ui-text-dim);">${state.media.audioFile ? 'Audio uploaded ✓' : ''}</span>
+      <label>Or an audio file URL (takes priority, .mp3/.wav)</label>
+      <input type="text" data-media="audioUrl" value="${escapeAttr(state.media.audioUrl)}" placeholder="https://…/recording.mp3">
+      ${(state.media.audioUrl || state.media.audioFile) ? `
+        <label>Caption above the audio (optional)</label>
+        <input type="text" data-media="audioTitle" value="${escapeAttr(state.media.audioTitle)}" placeholder="e.g. Listen to a preview">
+      ` : ''}
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Site graphic style</div>
       <div class="note-box" style="margin-top:0;margin-bottom:10px;">A ready-made combination of colors and fonts in one click. After picking one, you can still fine-tune colors and fonts manually below.</div>
-      <div class="style-presets" id="stylePresets"></div>
+      <details class="style-preset-picker" id="stylePresetPicker">
+        <summary class="style-preset-summary" id="stylePresetSummary"></summary>
+        <div class="style-presets" id="stylePresets"></div>
+      </details>
     </div>
 
     <div class="fieldset">
@@ -1600,6 +1718,7 @@ function renderForm(){
   bindSimpleInputs();
   bindNavInputs();
   bindHeroVisualInputs();
+  bindMediaInputs();
   bindPwaInputs();
   bindSitemapInputs();
   bindFooterInputs();
@@ -1783,6 +1902,46 @@ function bindHeroVisualInputs(){
       const reader = new FileReader();
       reader.onload = () => {
         state.heroImage = reader.result;
+        renderForm();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+function bindMediaInputs(){
+  panel.querySelectorAll('[data-media]').forEach(el => {
+    const key = el.dataset.media;
+    el.addEventListener('input', () => {
+      state.media[key] = el.value;
+      // Video type changes which sub-fields are shown — needs a full form re-render.
+      if (key === 'videoType') { renderForm(); }
+      updatePreview();
+    });
+  });
+  const videoFileInput = document.getElementById('mediaVideoFile');
+  if (videoFileInput){
+    videoFileInput.addEventListener('change', () => {
+      const file = videoFileInput.files && videoFileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.media.videoFile = reader.result;
+        renderForm();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  const audioFileInput = document.getElementById('mediaAudioFile');
+  if (audioFileInput){
+    audioFileInput.addEventListener('change', () => {
+      const file = audioFileInput.files && audioFileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.media.audioFile = reader.result;
         renderForm();
         updatePreview();
       };
@@ -2027,11 +2186,23 @@ function selectHtml(bindKey, options, current){
 }
 
 function renderStylePresets(){
+  const summary = document.getElementById('stylePresetSummary');
   const box = document.getElementById('stylePresets');
-  if (!box) return;
+  if (!box || !summary) return;
+  const active = STYLE_PRESETS.find(p => state.accent===p.accent && state.glow===p.glow && state.bg1===p.bg1 && state.bg2===p.bg2 && state.fontDisplay===p.fontDisplay && state.fontBody===p.fontBody);
+  const summarySwatchBg = active
+    ? `linear-gradient(135deg, ${active.accent}, ${active.glow} 70%, ${active.bg2})`
+    : `linear-gradient(135deg, ${state.accent}, ${state.glow} 70%, ${state.bg2})`;
+  summary.innerHTML = `
+    <div class="style-preset-summary-swatch" style="background:${summarySwatchBg}"></div>
+    <div class="style-preset-summary-text">
+      <b>${active ? escapeHtml(active.name) : 'Custom combination'}</b>
+      <small>Click to choose from ${STYLE_PRESETS.length} styles</small>
+    </div>
+  `;
   box.innerHTML = STYLE_PRESETS.map(p => {
-    const active = state.accent===p.accent && state.glow===p.glow && state.bg1===p.bg1 && state.bg2===p.bg2 && state.fontDisplay===p.fontDisplay && state.fontBody===p.fontBody;
-    return `<button type="button" class="style-preset-btn${active?' active':''}" data-style-preset="${p.id}">
+    const isActive = !!active && active.id === p.id;
+    return `<button type="button" class="style-preset-btn${isActive?' active':''}" data-style-preset="${p.id}">
       <div class="style-preset-swatch" style="background:linear-gradient(135deg, ${p.accent}, ${p.glow} 70%, ${p.bg2})"></div>
       <div class="style-preset-name">${escapeHtml(p.name)}</div>
       <div class="style-preset-desc">${escapeHtml(p.desc)}</div>
@@ -2140,6 +2311,9 @@ function bindSimpleInputs(){
       state[key] = el.value;
       if(key==='accent' || key==='glow'){ document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active')); }
       if(key==='heroLayout'){ renderForm(); }
+      // A manual color/font change can drift from the selected graphic style —
+      // recompute so the dropdown summary label (active style / "Custom combination") doesn't go stale.
+      if(['accent','glow','bg1','bg2','fontDisplay','fontBody'].includes(key)){ renderStylePresets(); }
       updatePreview();
     });
   });
@@ -2438,6 +2612,19 @@ function webzenWatermarkHtml(){
 })();<\/script>`;
 }
 
+// Converts a regular YouTube/Vimeo link into its embeddable form, so the video
+// can be shown directly on the page in an <iframe>. Other links (which are
+// already a direct embed URL, or an unrecognized format) are used as-is.
+function toVideoEmbedUrl(url){
+  const u = (url || '').trim();
+  if (!u) return '';
+  let m = u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{6,})/i);
+  if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}`;
+  m = u.match(/vimeo\.com\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?/i);
+  if (m) return `https://player.vimeo.com/video/${m[1]}${m[2] ? '?h='+m[2] : ''}`;
+  return u;
+}
+
 function sharedStyleTag(s){
   return `<style>
   :root{
@@ -2603,6 +2790,20 @@ function sharedStyleTag(s){
   body.cards-minimal .cards .card:last-child, body.cards-minimal .cards .card-link:last-child{border-bottom:none;}
   body.cards-minimal .card:hover, body.cards-minimal .card-link:hover{transform:none;border-color:rgba(255,255,255,.08);box-shadow:none;}
   body.cards-minimal .card-icon{font-size:22px;margin-bottom:8px;}
+
+  /* ---------- video / audio section ---------- */
+  .media-section{padding:10px 20px 60px;max-width:860px;margin:0 auto;text-align:center;}
+  .media-section h2{font-size:clamp(20px,3vw,26px);margin:0 0 18px;}
+  .media-section h2 ~ h2{margin-top:34px;}
+  .media-video-wrap{
+    position:relative;width:100%;padding-top:56.25%;border-radius:14px;overflow:hidden;
+    background:#000;border:1px solid rgba(255,255,255,.08);
+  }
+  .media-video-wrap iframe, .media-video-wrap video{
+    position:absolute;inset:0;width:100%;height:100%;border:0;display:block;
+  }
+  .media-audio-wrap{margin:0 auto;max-width:560px;}
+  .media-audio-wrap audio{width:100%;display:block;border-radius:99px;}
 
   .faq-section{padding:20px 20px 80px;max-width:720px;margin:0 auto;}
   .faq-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 28px;}
@@ -2802,6 +3003,26 @@ function buildSiteHTML(s){
     return `\n        <a class="card card-link"${attrs}>${inner}\n        </a>`;
   }).join('');
 
+  // Video / audio — optional section between Features and FAQ
+  const media = s.media || {};
+  let mediaVideoHtml = '';
+  if (media.videoType === 'embed' && (media.videoUrl || '').trim()){
+    const embedUrl = toVideoEmbedUrl(media.videoUrl);
+    mediaVideoHtml = `<div class="media-video-wrap"><iframe src="${escapeAttr(embedUrl)}" title="${escapeAttr(media.videoTitle || s.heroTitle || 'Video')}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+  } else if (media.videoType === 'file'){
+    const videoSrc = (media.videoUrl || '').trim() || media.videoFile || '';
+    if (videoSrc) mediaVideoHtml = `<div class="media-video-wrap"><video controls preload="metadata" src="${escapeAttr(videoSrc)}"></video></div>`;
+  }
+  const mediaAudioSrc = (media.audioUrl || '').trim() || media.audioFile || '';
+  const mediaAudioHtml = mediaAudioSrc
+    ? `<div class="media-audio-wrap"><audio controls preload="metadata" src="${escapeAttr(mediaAudioSrc)}"></audio></div>`
+    : '';
+  const mediaSectionHtml = (mediaVideoHtml || mediaAudioHtml) ? `
+    <section class="media-section wrap" id="media">
+      ${mediaVideoHtml ? `${(media.videoTitle||'').trim() ? `<h2>${escapeHtml(media.videoTitle)}</h2>` : ''}${mediaVideoHtml}` : ''}
+      ${mediaAudioHtml ? `${(media.audioTitle||'').trim() ? `<h2>${escapeHtml(media.audioTitle)}</h2>` : ''}${mediaAudioHtml}` : ''}
+    </section>` : '';
+
   // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
   const footerLinksHtml = (s.footer.links || []).length
     ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
@@ -2815,16 +3036,19 @@ function buildSiteHTML(s){
 
   // Vizuál v hero sekci: nic / vlastní obrázek
   const customImageSrc = (s.heroImageUrl || '').trim() || s.heroImage || '';
-  const heroVisualHtml = s.heroVisual === 'custom' && customImageSrc
-    ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
-    : '';
+  const hasHeroImage = s.heroVisual === 'custom' && !!customImageSrc;
 
   // Site layout — fallback to default for unknown/old values
   const heroLayoutClass = ['centered','split','split-reverse','left','imagebg'].includes(s.heroLayout) ? s.heroLayout : 'centered';
   const cardsLayoutClass = ['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid';
-  // For the "Background image" hero layout, the image goes into the hero section's style (instead of an <img> tag)
-  const heroBgAttr = (heroLayoutClass === 'imagebg' && customImageSrc)
+
+  // For the "Background image" hero layout, the image goes directly into the hero section's
+  // style (instead of an <img> tag), so it isn't downloaded twice.
+  const heroBgAttr = (heroLayoutClass === 'imagebg' && hasHeroImage)
     ? ` style="background-image:url('${escapeAttr(customImageSrc)}')"`
+    : '';
+  const heroVisualHtml = (heroLayoutClass !== 'imagebg' && hasHeroImage)
+    ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
     : '';
 
   return `<!DOCTYPE html>
@@ -2890,7 +3114,7 @@ ${faqJsonLd}
 
 ${sharedStyleTag(s)}
 </head>
-<body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!heroVisualHtml ? ' no-hero-visual' : ''}">
+<body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!hasHeroImage ? ' no-hero-visual' : ''}">
 
 ${sideNavHtml}
 
@@ -2915,7 +3139,7 @@ ${sideNavHtml}
       <div class="cards">${cardsHtml}
       </div>
     </section>
-
+${mediaSectionHtml}
     <section class="faq-section" id="faq">
       <h2>Frequently Asked Questions</h2>${faqHtml}
     </section>
