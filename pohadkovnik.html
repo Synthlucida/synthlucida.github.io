@@ -679,6 +679,8 @@
   ];
   var THEME_KEY = "pohadkovnik_theme";
   var HIST_KEY = "pohadkovnik_historie";
+  var KOMBINACE_KEY = "pohadkovnik_posledni_kombinace";
+  var POCET_PAMATOVANYCH = 5;
 
   var ZAKAZANA = ['kurva','píča','čurák','hovno','sráč','debil','kokot','zmrd','mrdat','píčus','sviňa','blb','idiot','hajzl'];
   function jeNevhodne(t){ var l=(t||'').toLowerCase(); return ZAKAZANA.some(function(w){ return l.indexOf(w)>-1; }); }
@@ -1500,7 +1502,14 @@ var teKlice = Object.keys(THEME_STORIES);
     temaSel.innerHTML = optHtml + teKlice.map(function(k){ return '<option value="'+k+'">'+THEME_LABELS[k]+'</option>'; }).join('');
   }
 
-  function vytvorPohadku(){
+  function nactiKombinaceHistorii(){
+    try{ return JSON.parse(localStorage.getItem(KOMBINACE_KEY)) || []; }catch(e){ return []; }
+  }
+  function ulozKombinaceHistorii(arr){
+    try{ localStorage.setItem(KOMBINACE_KEY, JSON.stringify(arr)); }catch(e){}
+  }
+
+  function vygenerujKandidata(){
     var heroInput = document.getElementById("hero").value.trim();
     var heroRodSel = document.getElementById("heroRod").value;
     var mistoSel = document.getElementById("mista").value;
@@ -1518,9 +1527,34 @@ var teKlice = Object.keys(THEME_STORIES);
     var theme = THEME_STORIES[temaNazev];
     var uvod = pick(UVODY);
     var tonKlic = tonSel === "random" ? pick(TONE_KEYS) : tonSel;
+    var dejIdx = Math.floor(Math.random() * theme.problem.length);
+    var maZapletku = Math.random() < 0.5;
+
+    var podpis = temaNazev+"|"+mistoKlic+"|"+dejIdx+"|"+obyvatelPick.jmeno+"|"+(heroInput || hero.jmeno)+"|"+vek;
+
+    return {
+      hero:hero, mistoKlic:mistoKlic, mistoNazev:mistoNazev, place:place,
+      temaNazev:temaNazev, theme:theme, uvod:uvod, tonKlic:tonKlic,
+      dejIdx:dejIdx, maZapletku:maZapletku, vek:vek, podpis:podpis
+    };
+  }
+
+  function vytvorPohadku(){
+    var historie = nactiKombinaceHistorii();
+    var k, pokusy = 0;
+    do {
+      k = vygenerujKandidata();
+      pokusy++;
+    } while(historie.indexOf(k.podpis) !== -1 && pokusy < 10);
+
+    historie.unshift(k.podpis);
+    if(historie.length > POCET_PAMATOVANYCH) historie = historie.slice(0, POCET_PAMATOVANYCH);
+    ulozKombinaceHistorii(historie);
+
+    var hero = k.hero, place = k.place, mistoNazev = k.mistoNazev, theme = k.theme;
+    var uvod = k.uvod, tonKlic = k.tonKlic, dejIdx = k.dejIdx, vek = k.vek;
 
     var odstavce = [];
-    var dejIdx = Math.floor(Math.random() * theme.problem.length);
     if(vek === "mladsi"){
       odstavce.push(pick(INTRA_MLADSI_VARIANTY)(hero, mistoNazev));
       odstavce.push(pick(theme.mladsiCore)(hero, place, mistoNazev));
@@ -1529,7 +1563,7 @@ var teKlice = Object.keys(THEME_STORIES);
       odstavce.push(pick(INTRA_VARIANTY)(hero, place, mistoNazev, uvod));
       odstavce.push(theme.problem[dejIdx](hero, place, mistoNazev));
       odstavce.push(theme.cesta[dejIdx](hero, place, mistoNazev));
-      if(Math.random() < 0.5){
+      if(k.maZapletku){
         odstavce.push(theme.peripetie[dejIdx % theme.peripetie.length](hero, place, mistoNazev));
       }
       odstavce.push(theme.reseni[dejIdx](hero, place, mistoNazev));
