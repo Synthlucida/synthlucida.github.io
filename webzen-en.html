@@ -68,6 +68,10 @@
   }
   .promo-bar a{color:var(--ui-accent);text-decoration:none;font-weight:600;}
   .promo-bar a:hover{text-decoration:underline;}
+  /* Fullscreen / focus mode — hides the promo banner (promo-bar) and the
+     "buy a coffee" support banner (donate-bar), freeing up more space to work in. */
+  body.focus-mode .promo-bar, body.focus-mode .donate-bar{display:none;}
+  #fullscreenBtn.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.15);}
 
   /* Guide and Articles are now shown in a modal window (see .info-modal-*),
      so they don't take up permanent space above the workspace. */
@@ -442,6 +446,7 @@
     <div class="topbar-sub">made in SYNTHLUCIDA</div>
     <div class="topbar-spacer"></div>
     <a class="save-btn" href="./webzen.html" title="Přepnout na českou verzi">🌐 <span class="btn-label">CZ</span></a>
+    <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top bars)">⛶ <span class="btn-label">Fullscreen</span></button>
     <button class="save-btn" id="showGuideBtn" title="User guide">ℹ️ <span class="btn-label">Guide</span></button>
     <button class="save-btn" id="showArticlesBtn" title="Articles about building websites">📚 <span class="btn-label">Articles</span></button>
     <span class="autosave-status" id="autosaveStatus"></span>
@@ -1483,6 +1488,41 @@ document.getElementById('infoModalClose').addEventListener('click', closeInfoMod
 document.getElementById('infoModalOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'infoModalOverlay') closeInfoModal();
 });
+
+/* ---------- fullscreen / focus mode ---------- */
+// One button does two things at once: tries to switch the browser into real
+// fullscreen (Fullscreen API) and hides the promo banner (promo-bar) and the
+// "buy a coffee" support banner (donate-bar), freeing up more room for the
+// editor and preview. If the Fullscreen API fails or isn't supported (e.g.
+// disallowed inside an iframe), the bars still hide — just without actually
+// switching the browser into fullscreen.
+function updateFullscreenBtnUi(active){
+  document.body.classList.toggle('focus-mode', active);
+  const btn = document.getElementById('fullscreenBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', active);
+  btn.innerHTML = active
+    ? '⛶ <span class="btn-label">Exit fullscreen</span>'
+    : '⛶ <span class="btn-label">Fullscreen</span>';
+  btn.title = active ? 'Exit fullscreen mode' : 'Switch to fullscreen (hides the top bars)';
+}
+function toggleAppFullscreen(){
+  const turningOn = !document.body.classList.contains('focus-mode');
+  if (turningOn) {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (req) { try { req.call(el).catch(() => {}); } catch (err) {} }
+  } else if (document.fullscreenElement || document.webkitFullscreenElement) {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    if (exit) { try { exit.call(document).catch(() => {}); } catch (err) {} }
+  }
+  updateFullscreenBtnUi(turningOn);
+}
+document.getElementById('fullscreenBtn').addEventListener('click', toggleAppFullscreen);
+// The browser can exit fullscreen outside of our button too (Esc key) — this
+// keeps the button state and hidden bars in sync in that case as well.
+document.addEventListener('fullscreenchange', () => updateFullscreenBtnUi(!!document.fullscreenElement));
+document.addEventListener('webkitfullscreenchange', () => updateFullscreenBtnUi(!!document.webkitFullscreenElement));
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeTextareaModal(); closeInfoModal(); }
