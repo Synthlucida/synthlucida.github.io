@@ -249,7 +249,32 @@
   .field-row .field{ flex:1; }
   .field-hint{ font-size:10.5px; opacity:0.4; margin-top:5px; }
 
-  .gen-btn-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:6px; }
+  .gen-btn-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:6px; position:relative; }
+  .vykouzleno-hint{
+    font-family:'Poppins', sans-serif; font-size:12.5px; font-weight:500; color:var(--accent-color);
+    opacity:0; transform:translateY(-6px); transition:opacity 0.35s ease, transform 0.35s ease;
+    text-align:center; pointer-events:none;
+  }
+  .vykouzleno-hint.show{ opacity:1; transform:translateY(0); }
+  .smoke-layer{ position:absolute; inset:0; pointer-events:none; overflow:visible; z-index:6; }
+  .smoke-particle{
+    position:absolute; left:50%; top:50%; border-radius:50%;
+    opacity:0; pointer-events:none; will-change:transform, opacity;
+  }
+  .smoke-particle.puff{
+    background:radial-gradient(circle, rgba(255,255,255,0.9), var(--accent-color) 45%, transparent 75%);
+    filter:blur(1px);
+  }
+  .smoke-particle.spark{
+    background:none; filter:none; font-size:14px; line-height:1; color:var(--gold, #E8B54A);
+    text-shadow:0 0 6px var(--gold, #E8B54A);
+  }
+  .smoke-particle.active{ animation-name:smokeRise; animation-timing-function:ease-out; animation-fill-mode:forwards; }
+  @keyframes smokeRise{
+    0%{ opacity:0; transform:translate(-50%,-50%) scale(0.3) rotate(0deg); }
+    18%{ opacity:0.9; }
+    100%{ opacity:0; transform:translate(var(--tx), var(--ty)) scale(var(--sc)) rotate(var(--rot)); }
+  }
   .gen-btn{
     width:150px; height:150px; border-radius:50%; border:none; cursor:pointer;
     position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
@@ -374,7 +399,7 @@
   #confirmCancel{ background:rgba(255,255,255,0.08); color:#fff; }
   #confirmOk{ background:var(--bad); color:#2a0808; font-weight:500; }
 
-  @media (prefers-reduced-motion: reduce){ .blob, .brand-icon, .gen-ripple, .star, .brand, .brand-sparkle{ animation:none !important; } }
+  @media (prefers-reduced-motion: reduce){ .blob, .brand-icon, .gen-ripple, .star, .brand, .brand-sparkle, .smoke-particle{ animation:none !important; opacity:0 !important; } }
 
   /* ---- responzivita pro telefony ---- */
   @media (max-width:480px){
@@ -484,8 +509,7 @@
           <label for="age">Věk dítěte</label>
           <select id="age">
             <option value="mladsi">3–5 let</option>
-            <option value="stredni" selected>6–8 let</option>
-            <option value="starsi">9–11 let</option>
+            <option value="stredni" selected>6–10 let</option>
           </select>
         </div>
         <div class="field">
@@ -503,6 +527,7 @@
       <div class="gen-btn-wrap">
         <button id="genBtn" class="gen-btn" aria-label="Vykouzlit pohádku">
           <span class="gen-ripple" id="genRipple"></span>
+          <span class="smoke-layer" id="smokeLayer"></span>
           <span class="gen-btn-icon">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M5 19l6-14 2 5 5 2-6 2z" fill="#160a2e" opacity="0.9"/>
@@ -512,6 +537,7 @@
           </span>
           <span class="gen-btn-label">VYKOUZLIT<br>POHÁDKU</span>
         </button>
+        <div class="vykouzleno-hint" id="vykouzlenoHint">✨ Vykouzleno! Přečti si to níže ↓</div>
       </div>
 
       <div class="error-box" id="errorBox"></div>
@@ -572,7 +598,7 @@
         <ul>
           <li><strong>Jméno hrdiny</strong> — nepovinné. Necháš-li pole prázdné, appka vybere hrdinu sama (drak, princezna, myšák a další). Zadané jméno se automaticky kontroluje, aby neobsahovalo nevhodné slovo.</li>
           <li><strong>Místo a Dobrodružství</strong> — vyber si konkrétní kouzelný svět a typ příběhu (odvaha, přátelství, poklad, pomoc, návrat domů, tajemství, proměna), nebo nech "kouzlo vybrat" za tebe pro překvapení.</li>
-          <li><strong>Věk dítěte</strong> — upraví délku a jazyk pohádky: pro nejmenší (3–5 let) je kratší a jednodušší, pro starší děti (9–11 let) delší s propracovanějším dějem.</li>
+          <li><strong>Věk dítěte</strong> — upraví délku a jazyk pohádky: pro nejmenší (3–5 let) je kratší a jednodušší, pro starší děti (6–10 let) delší, občas i s propracovanějším dějem.</li>
           <li><strong>Nálada</strong> — dolaďuje tón vyprávění: veselá a hravá, napínavé dobrodružství, nebo klidná varianta ideální těsně před spaním.</li>
           <li>Klikni na <strong>Vykouzlit pohádku</strong> — příběh se během okamžiku objeví jako stránka z knihy. Tlačítkem <strong>Jiná varianta</strong> vygeneruješ nový příběh se stejným nastavením.</li>
           <li>Pohádka se ti líbí? Klikni na <strong>Uložit do knihovny</strong> — zůstane uložená v tomto prohlížeči a kdykoliv se k ní vrátíš v sekci "Knihovna pohádek" níže. Tlačítkem <strong>Stáhnout .txt</strong> si ji uložíš jako textový soubor i pro čtení offline nebo tisk.</li>
@@ -820,16 +846,16 @@ var THEME_STORIES = {
     ],
     cesta: [
       function(hero, place, mistoNazev){
-        return "Jednoho dne se přece jen odhodlal"+S(hero)+" a vykročil"+S(hero)+" do míst zvaných "+mistoNazev+" — "+place.popis+". Cesta byla klikatá a "+H_(hero,"jeho","její")+" srdce bušilo s každým krokem o něco rychleji, ale "+hero.jmeno+" si v duchu opakoval"+S(hero)+", že tentokrát nezůstane doma.";
+        return "Jednoho dne se přece jen odhodlal"+S(hero)+" a vykročil"+S(hero)+" na cestu. Cesta byla klikatá a "+H_(hero,"jeho","její")+" srdce bušilo s každým krokem o něco rychleji, ale "+hero.jmeno+" si v duchu opakoval"+S(hero)+", že tentokrát nezůstane doma.";
       },
       function(hero, place, mistoNazev){
-        return "Přesto jednoho rána sebral"+S(hero)+" všechnu odvahu, kterou "+H_(hero,"měl","měla")+", a zamířil"+S(hero)+" rovnou do kraje "+mistoNazev+" — "+place.popis+". Nohy se "+H_(hero,"mu","jí")+" mírně chvěly, ale rozhodnutí bylo jasné: dnes se otočit nesmí.";
+        return "Přesto jednoho rána sebral"+S(hero)+" všechnu odvahu, kterou "+H_(hero,"měl","měla")+", a zamířil"+S(hero)+" rovnou tam. Nohy se "+H_(hero,"mu","jí")+" mírně chvěly, ale rozhodnutí bylo jasné: dnes se otočit nesmí.";
       },
       function(hero, place, mistoNazev){
-        return "Jednoho rána se "+hero.jmeno+" přece jen "+H_(hero,"rozhodl","rozhodla")+" jinak. Sebral"+S(hero)+" všechnu odvahu, kterou v sobě "+H_(hero,"našel","našla")+", a vyrazil"+S(hero)+" ke kraji "+mistoNazev+" — "+place.popis+".";
+        return "Jednoho rána se "+hero.jmeno+" přece jen "+H_(hero,"rozhodl","rozhodla")+" jinak. Sebral"+S(hero)+" všechnu odvahu, kterou v sobě "+H_(hero,"našel","našla")+", a vyrazil"+S(hero)+" na cestu.";
       },
       function(hero, place, mistoNazev){
-        return "Jednou "+H_(hero,"ho","ji")+" pozvali, aby "+H_(hero,"vystoupil","vystoupila")+" před ostatními v kraji "+mistoNazev+" — "+place.popis+". Odmítnout "+H_(hero,"nechtěl","nechtěla")+", i když se "+H_(hero,"mu","jí")+" klepala kolena už při pomyšlení na to.";
+        return "Jednou "+H_(hero,"ho","ji")+" pozvali, aby "+H_(hero,"vystoupil","vystoupila")+" před ostatními. Odmítnout "+H_(hero,"nechtěl","nechtěla")+", i když se "+H_(hero,"mu","jí")+" klepala kolena už při pomyšlení na to.";
       }
     ],
     peripetie: [
@@ -911,16 +937,16 @@ var THEME_STORIES = {
     ],
     cesta: [
       function(hero, place, mistoNazev){
-        return "Rozhodl"+S(hero)+" se tedy vydat do míst zvaných "+mistoNazev+" — "+place.popis+" — v naději, že tam někoho potká. Kráčel"+S(hero)+" pomalu dál a rozhlížel"+S(hero)+" se kolem sebe, ale zpočátku to vypadalo, že je tam úplně "+H_(hero,"sám","sama")+".";
+        return "Rozhodl"+S(hero)+" se tedy vydat tam v naději, že někoho potká. Kráčel"+S(hero)+" pomalu dál a rozhlížel"+S(hero)+" se kolem sebe, ale zpočátku to vypadalo, že je tam úplně "+H_(hero,"sám","sama")+".";
       },
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" se tedy jednoho rána "+H_(hero,"rozhodl","rozhodla")+" a vydal"+S(hero)+" se do kraje "+mistoNazev+" — "+place.popis+" — s tichou nadějí, že tam na "+H_(hero,"něj","ni")+" někdo čeká. Cesta ale byla dlouhá a zatím "+H_(hero,"nikoho nepotkával","nikoho nepotkávala")+".";
+        return cap(hero.jmeno)+" se tedy jednoho rána "+H_(hero,"rozhodl","rozhodla")+" a vydal"+S(hero)+" se tam s tichou nadějí, že tam na "+H_(hero,"něj","ni")+" někdo čeká. Cesta ale byla dlouhá a zatím "+H_(hero,"nikoho nepotkával","nikoho nepotkávala")+".";
       },
       function(hero, place, mistoNazev){
-        return "A tak se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" hledat společnost do kraje "+mistoNazev+" — "+place.popis+". Kráčel"+S(hero)+" pomalu, s očima na stopkách, a doufal"+S(hero)+", že dnes už "+H_(hero,"nebude sám","nebude sama")+".";
+        return "A tak se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" hledat společnost jinam. Kráčel"+S(hero)+" pomalu, s očima na stopkách, a doufal"+S(hero)+", že dnes už "+H_(hero,"nebude sám","nebude sama")+".";
       },
       function(hero, place, mistoNazev){
-        return "Jednoho dne se "+hero.jmeno+" "+H_(hero,"odhodlal","odhodlala")+" zajít až do kraje "+mistoNazev+" — "+place.popis+" — s myšlenkou, že třeba právě tam někoho potká. "+cap(hero.jmeno)+" "+H_(hero,"nesl","nesla")+" s sebou i trochu obav, jestli to nebude zase zbytečná cesta.";
+        return "Jednoho dne se "+hero.jmeno+" "+H_(hero,"odhodlal","odhodlala")+" zajít o kus dál s myšlenkou, že třeba právě tam někoho potká. "+cap(hero.jmeno)+" "+H_(hero,"nesl","nesla")+" s sebou i trochu obav, jestli to nebude zase zbytečná cesta.";
       }
     ],
     peripetie: [
@@ -967,10 +993,10 @@ var THEME_STORIES = {
     ],
     mladsiCore: [
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" byl"+S(hero)+" smutn"+H_(hero,"ý","á")+", protože neměl"+S(hero)+" kamaráda. V kraji "+mistoNazev+" na "+H_(hero,"něj","ni")+" čekal"+SO(place)+" "+place.obyvatel+" a "+hero.jmeno+" se s "+O_(place,"ním","ní")+" podělil"+S(hero)+" o svačinu. Od té chvíle byl"+COMPL(hero,place)+" kamarádi.";
+        return cap(hero.jmeno)+" byl"+S(hero)+" smutn"+H_(hero,"ý","á")+", protože neměl"+S(hero)+" kamaráda. Jednoho dne na "+H_(hero,"něj","ni")+" čekal"+SO(place)+" "+place.obyvatel+" a "+hero.jmeno+" se s "+O_(place,"ním","ní")+" podělil"+S(hero)+" o svačinu. Od té chvíle byl"+COMPL(hero,place)+" kamarádi.";
       },
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" si v kraji "+mistoNazev+" dlouho hrál"+S(hero)+" "+H_(hero,"sám","sama")+". Pak se objevil"+SO(place)+" "+place.obyvatel+" a "+hero.jmeno+" "+O_(place,"mu","jí")+" nabídl"+S(hero)+" polovinu své svačiny. Od té chvíle si hrál"+COMPL(hero,place)+" spolu.";
+        return cap(hero.jmeno)+" si dlouho hrál"+S(hero)+" "+H_(hero,"sám","sama")+". Pak se objevil"+SO(place)+" "+place.obyvatel+" a "+hero.jmeno+" "+O_(place,"mu","jí")+" nabídl"+S(hero)+" polovinu své svačiny. Od té chvíle si hrál"+COMPL(hero,place)+" spolu.";
       }
     ],
     mladsiZaver: [
@@ -1002,16 +1028,16 @@ var THEME_STORIES = {
     ],
     cesta: [
       function(hero, place, mistoNazev){
-        return "Hned ráno se vydal"+S(hero)+" hledat poklad do míst zvaných "+mistoNazev+" — "+place.popis+". Podle staré, napůl setřené mapy "+H_(hero,"kráčel","kráčela")+" rovně a rovně, dokud se cesta nerozdvojila na dvě stejně tajemné pěšiny.";
+        return "Hned ráno se vydal"+S(hero)+" hledat poklad. Podle staré, napůl setřené mapy "+H_(hero,"kráčel","kráčela")+" rovně a rovně, dokud se cesta nerozdvojila na dvě stejně tajemné pěšiny.";
       },
       function(hero, place, mistoNazev){
-        return "Ještě za tmy se s malým rancem "+H_(hero,"vydal","vydala")+" do kraje "+mistoNazev+" — "+place.popis+". Mapa v "+H_(hero,"jeho","její")+" ruce byla stará a potrhaná, ale směr byl jasný: rovnou k srdci kraje.";
+        return "Ještě za tmy se s malým rancem "+H_(hero,"vydal","vydala")+" na cestu. Mapa v "+H_(hero,"jeho","její")+" ruce byla stará a potrhaná, ale směr byl jasný: rovnou k srdci kraje.";
       },
       function(hero, place, mistoNazev){
-        return "Sbalil"+S(hero)+" si tedy ranec a hned po snídani "+H_(hero,"zamířil","zamířila")+" do kraje "+mistoNazev+" — "+place.popis+" — s mapou, kterou si "+H_(hero,"sám","sama")+" "+H_(hero,"nakreslil","nakreslila")+" ještě večer předtím.";
+        return "Sbalil"+S(hero)+" si tedy ranec a hned po snídani "+H_(hero,"zamířil","zamířila")+" na cestu s mapou, kterou si "+H_(hero,"sám","sama")+" "+H_(hero,"nakreslil","nakreslila")+" ještě večer předtím.";
       },
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" "+H_(hero,"pověsil","pověsila")+" klíček na krk a hned druhý den "+H_(hero,"vyrazil","vyrazila")+" do kraje "+mistoNazev+" — "+place.popis+" — s nadějí, že tam najde zámek, který "+H_(hero,"mu","jí")+" pasuje.";
+        return cap(hero.jmeno)+" "+H_(hero,"pověsil","pověsila")+" klíček na krk a hned druhý den "+H_(hero,"vyrazil","vyrazila")+" s nadějí, že tam najde zámek, který "+H_(hero,"mu","jí")+" pasuje.";
       }
     ],
     peripetie: [
@@ -1058,10 +1084,10 @@ var THEME_STORIES = {
     ],
     mladsiCore: [
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" hledal"+S(hero)+" v kraji "+mistoNazev+" ukrytý poklad. Cestou na "+H_(hero,"něj","ni")+" čekal"+SO(place)+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" "+H_(hero,"mu","jí")+" dal"+SO(place)+" malou hádanku. Když ji "+H_(hero,"vyřešil","vyřešila")+", "+H_(hero,"našel","našla")+" krásný svítící kamínek.";
+        return cap(hero.jmeno)+" hledal"+S(hero)+" ukrytý poklad. Cestou na "+H_(hero,"něj","ni")+" čekal"+SO(place)+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" "+H_(hero,"mu","jí")+" dal"+SO(place)+" malou hádanku. Když ji "+H_(hero,"vyřešil","vyřešila")+", "+H_(hero,"našel","našla")+" krásný svítící kamínek.";
       },
       function(hero, place, mistoNazev){
-        return "V kraji "+mistoNazev+" prý byl ukrytý poklad a "+hero.jmeno+" se ho hned "+H_(hero,"vydal","vydala")+" hledat. "+cap(place.obyvatel)+" "+H_(hero,"mu","jí")+" cestou "+O_(place,"pomohl","pomohla")+" a spolu "+H_(hero,"našel","našla")+" krásný třpytivý kamínek.";
+        return "Prý byl kdesi ukrytý poklad a "+hero.jmeno+" se ho hned "+H_(hero,"vydal","vydala")+" hledat. "+cap(place.obyvatel)+" "+H_(hero,"mu","jí")+" cestou "+O_(place,"pomohl","pomohla")+" a spolu "+H_(hero,"našel","našla")+" krásný třpytivý kamínek.";
       }
     ],
     mladsiZaver: [
@@ -1079,10 +1105,10 @@ var THEME_STORIES = {
   pomoc: {
     problem: [
       function(hero, place, mistoNazev){
-        return "Jednoho dne se do kraje "+mistoNazev+" donesla zpráva, že "+place.obyvatel+" je v nesnázích a potřebuje pomoc. "+cap(hero.jmeno)+" neváhal"+S(hero)+" ani chvíli.";
+        return "Jednoho dne se donesla zpráva, že "+place.obyvatel+" je v nesnázích a potřebuje pomoc. "+cap(hero.jmeno)+" neváhal"+S(hero)+" ani chvíli.";
       },
       function(hero, place, mistoNazev){
-        return "Zpráva "+H_(hero,"ho","ji")+" zastihla uprostřed odpoledne: v kraji "+mistoNazev+" je "+place.obyvatel+" v nesnázích. "+cap(hero.jmeno)+" nechal"+S(hero)+" všeho a vyrazil"+S(hero)+" na pomoc, ještě než domyslel"+S(hero)+", jak přesně pomůže.";
+        return "Zpráva "+H_(hero,"ho","ji")+" zastihla uprostřed odpoledne: "+place.obyvatel+" je v nesnázích. "+cap(hero.jmeno)+" nechal"+S(hero)+" všeho a vyrazil"+S(hero)+" na pomoc, ještě než domyslel"+S(hero)+", jak přesně pomůže.";
       },
       function(hero){
         return cap(hero.jmeno)+" zrovna "+H_(hero,"odpočíval","odpočívala")+", když k "+H_(hero,"němu","ní")+" dolehl vzdálený hlas volající o pomoc. "+cap(hero.jmeno)+" "+H_(hero,"vyskočil","vyskočila")+" na nohy dřív, než "+H_(hero,"stihl","stihla")+" domyslet, co přesně se děje.";
@@ -1093,16 +1119,16 @@ var THEME_STORIES = {
     ],
     cesta: [
       function(hero, place){
-        return "Cesta tam — "+place.popis+" — nebyla snadná: místy "+H_(hero,"musel","musela")+" přelézat kořeny, jindy zase přebrodit studený potok. Ale "+hero.jmeno+" "+H_(hero,"myslel","myslela")+" jen na to, že někdo čeká na pomoc.";
+        return "Cesta tam nebyla snadná: místy "+H_(hero,"musel","musela")+" přelézat kořeny, jindy zase přebrodit studený potok. Ale "+hero.jmeno+" "+H_(hero,"myslel","myslela")+" jen na to, že někdo čeká na pomoc.";
       },
       function(hero, place){
-        return "Přes "+place.popis+" "+H_(hero,"utíkal","utíkala")+", co "+H_(hero,"mu","jí")+" síly stačily, bez ohledu na trny a kameny pod nohama. Jediné, na co "+H_(hero,"myslel","myslela")+", bylo, že každá ztracená minuta může být důležitá.";
+        return cap(hero.jmeno)+" utíkal"+S(hero)+", co "+H_(hero,"mu","jí")+" síly stačily, bez ohledu na trny a kameny pod nohama. Jediné, na co "+H_(hero,"myslel","myslela")+", bylo, že každá ztracená minuta může být důležitá.";
       },
       function(hero, place, mistoNazev){
-        return "Hlas "+H_(hero,"ho","ji")+" vedl přímo do kraje "+mistoNazev+" — "+place.popis+". "+cap(hero.jmeno)+" "+H_(hero,"běžel","běžela")+", jak "+H_(hero,"nejrychleji uměl","nejrychleji uměla")+", bez ohledu na to, co "+H_(hero,"mu","jí")+" stálo v cestě.";
+        return "Hlas "+H_(hero,"ho","ji")+" vedl přímo tam. "+cap(hero.jmeno)+" "+H_(hero,"běžel","běžela")+", jak "+H_(hero,"nejrychleji uměl","nejrychleji uměla")+", bez ohledu na to, co "+H_(hero,"mu","jí")+" stálo v cestě.";
       },
       function(hero, place, mistoNazev){
-        return cap(place.obyvatel)+" "+O_(place,"vysvětlil","vysvětlila")+", že "+O_(place,"ztratil","ztratila")+" něco vzácného někde v kraji "+mistoNazev+" — "+place.popis+". "+cap(hero.jmeno)+" neváhal"+S(hero)+" a hned se "+H_(hero,"pustil","pustila")+" do hledání spolu s "+O_(place,"ním","ní")+".";
+        return cap(place.obyvatel)+" "+O_(place,"vysvětlil","vysvětlila")+", že "+O_(place,"ztratil","ztratila")+" něco vzácného. "+cap(hero.jmeno)+" neváhal"+S(hero)+" a hned se "+H_(hero,"pustil","pustila")+" do hledání spolu s "+O_(place,"ním","ní")+".";
       }
     ],
     peripetie: [
@@ -1130,7 +1156,7 @@ var THEME_STORIES = {
         return "Na místě na "+H_(hero,"něj","ni")+" čekal"+SO(place)+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" "+O_(place,"uvízl","uvízla")+" a nevěděl"+SO(place)+" si rady. Stačilo pár šikovných rukou a trocha odvahy — a za chvíli bylo po problému.";
       },
       function(hero, place){
-        return "Stopa "+hero.jmeno+" dovedla přímo pod kořen starého stromu, kde "+H_(hero,"objevil","objevila")+" ztracenou věc. "+cap(place.obyvatel)+" "+O_(place,"byl","byla")+" tak "+O_(place,"šťastný","šťastná")+", že "+H_(hero,"ho","ji")+" pevně "+O_(place,"objal","objala")+".";
+        return "Stopa "+H_(hero,"ho","ji")+" dovedla přímo pod kořen starého stromu, kde "+H_(hero,"objevil","objevila")+" ztracenou věc. "+cap(place.obyvatel)+" "+O_(place,"byl","byla")+" tak "+O_(place,"šťastný","šťastná")+", že "+H_(hero,"ho","ji")+" pevně "+O_(place,"objal","objala")+".";
       }
     ],
     zaver: [
@@ -1184,16 +1210,16 @@ var THEME_STORIES = {
     ],
     cesta: [
       function(hero, place, mistoNazev){
-        return "Ocitl"+S(hero)+" se v místech zvaných "+mistoNazev+" — "+place.popis+" — a i když to tam bylo krásné, "+hero.jmeno+" "+H_(hero,"cítil","cítila")+" jen jedno: touhu být zase doma.";
+        return "I když bylo všude kolem krásně, "+hero.jmeno+" "+H_(hero,"cítil","cítila")+" jen jedno: touhu být zase doma.";
       },
       function(hero, place, mistoNazev){
-        return "Kolem "+H_(hero,"něj","ní")+" se rozprostíral "+mistoNazev+" — "+place.popis+" —, ale žádná z těch krás "+H_(hero,"mu","jí")+" nebyla útěchou. Chtěl"+S(hero)+" jen jedno: najít cestu domů.";
+        return "Všude kolem "+H_(hero,"něj","ní")+" bylo plno krásných věcí, ale žádná z nich "+H_(hero,"mu","jí")+" nebyla útěchou. Chtěl"+S(hero)+" jen jedno: najít cestu domů.";
       },
       function(hero, place, mistoNazev){
-        return "Ocitl"+S(hero)+" se u "+mistoNazev+" — "+place.popis+" — a poprvé v životě nevěděl"+S(hero)+", kterým směrem se vydat dál. Ticho kolem "+H_(hero,"mu","jí")+" najednou připadalo hodně hlasité.";
+        return "Ocitl"+S(hero)+" se na neznámém místě a poprvé v životě nevěděl"+S(hero)+", kterým směrem se vydat dál. Ticho kolem "+H_(hero,"mu","jí")+" najednou připadalo hodně hlasité.";
       },
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" "+H_(hero,"bloudil","bloudila")+" mezi neznámými tvářemi v kraji "+mistoNazev+" — "+place.popis+" — a čím víc "+H_(hero,"hledal","hledala")+", tím míň "+H_(hero,"poznával","poznávala")+" okolí.";
+        return cap(hero.jmeno)+" "+H_(hero,"bloudil","bloudila")+" mezi neznámými tvářemi a čím víc "+H_(hero,"hledal","hledala")+", tím míň "+H_(hero,"poznával","poznávala")+" okolí.";
       }
     ],
     peripetie: [
@@ -1240,10 +1266,10 @@ var THEME_STORIES = {
     ],
     mladsiCore: [
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" se "+H_(hero,"ztratil","ztratila")+" v kraji "+mistoNazev+" a nevěděl"+S(hero)+", kudy domů. "+cap(place.obyvatel)+" "+H_(hero,"mu","jí")+" ukázal"+SO(place)+" cestu a "+hero.jmeno+" "+H_(hero,"došel","došla")+" domů v pořádku.";
+        return cap(hero.jmeno)+" se "+H_(hero,"ztratil","ztratila")+" a nevěděl"+S(hero)+", kudy domů. "+cap(place.obyvatel)+" "+H_(hero,"mu","jí")+" ukázal"+SO(place)+" cestu a "+hero.jmeno+" "+H_(hero,"došel","došla")+" domů v pořádku.";
       },
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" "+H_(hero,"zabloudil","zabloudila")+" v kraji "+mistoNazev+". Naštěstí "+H_(hero,"ho","ji")+" "+O_(place,"zahlédl","zahlédla")+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" "+H_(hero,"ho","ji")+" bezpečně "+O_(place,"dovedl","dovedla")+" až ke dveřím.";
+        return cap(hero.jmeno)+" "+H_(hero,"zabloudil","zabloudila")+" daleko od domova. Naštěstí "+H_(hero,"ho","ji")+" "+O_(place,"zahlédl","zahlédla")+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" "+H_(hero,"ho","ji")+" bezpečně "+O_(place,"dovedl","dovedla")+" až ke dveřím.";
       }
     ],
     mladsiZaver: [
@@ -1261,30 +1287,30 @@ var THEME_STORIES = {
   tajemstvi: {
     problem: [
       function(hero, place, mistoNazev){
-        return "Jednoho rána "+H_(hero,"našel","našla")+" "+hero.jmeno+" na parapetu podivný lístek popsaný třpytivým inkoustem, který sliboval odhalit staré tajemství kraje "+mistoNazev+". Zvědavost byla silnější než jakékoli pochybnosti.";
+        return "Jednoho rána "+H_(hero,"našel","našla")+" "+hero.jmeno+" na parapetu podivný lístek popsaný třpytivým inkoustem, který sliboval odhalit staré tajemství. Zvědavost byla silnější než jakékoli pochybnosti.";
       },
       function(hero, place, mistoNazev){
-        return "Na parapetu "+hero.jmeno+" jednoho rána "+H_(hero,"objevil","objevila")+" lístek popsaný třpytivým inkoustem — slib, že kraj "+mistoNazev+" skrývá staré tajemství. Než "+H_(hero,"si","si")+" to "+H_(hero,"stihl","stihla")+" rozmyslet, už "+H_(hero,"byl","byla")+" na cestě.";
+        return "Na parapetu "+hero.jmeno+" jednoho rána "+H_(hero,"objevil","objevila")+" lístek popsaný třpytivým inkoustem — slib, že tenhle kraj skrývá staré tajemství. Než "+H_(hero,"si","si")+" to "+H_(hero,"stihl","stihla")+" rozmyslet, už "+H_(hero,"byl","byla")+" na cestě.";
       },
       function(hero, place, mistoNazev){
-        return "V "+H_(hero,"jeho","její")+" oblíbené knize se jednoho dne objevila stránka, která tam předtím nebyla — a na ní vzkaz o tajemství kraje "+mistoNazev+". "+cap(hero.jmeno)+" tomu nemohl"+S(hero)+" odolat.";
+        return "V "+H_(hero,"jeho","její")+" oblíbené knize se jednoho dne objevila stránka, která tam předtím nebyla — a na ní vzkaz o starém tajemství. "+cap(hero.jmeno)+" tomu nemohl"+S(hero)+" odolat.";
       },
       function(hero, place, mistoNazev){
-        return "Několik nocí po sobě "+hero.jmeno+" "+H_(hero,"slýchal","slýchala")+" tichou melodii, která jako by přicházela odněkud z kraje "+mistoNazev+". Nakonec se "+H_(hero,"rozhodl","rozhodla")+", že tomu zvuku musí přijít na kloub.";
+        return "Několik nocí po sobě "+hero.jmeno+" "+H_(hero,"slýchal","slýchala")+" tichou melodii, která jako by přicházela odněkud zblízka. Nakonec se "+H_(hero,"rozhodl","rozhodla")+", že tomu zvuku musí přijít na kloub.";
       }
     ],
     cesta: [
       function(hero, place){
-        return "Stopa "+H_(hero,"ho","ji")+" vedla přes "+place.popis+". Musel"+S(hero)+" se řídit jen matnými značkami a vlastní intuicí.";
+        return "Stopa "+H_(hero,"ho","ji")+" vedla dál. Musel"+S(hero)+" se řídit jen matnými značkami a vlastní intuicí.";
       },
       function(hero, place){
-        return "Lístek "+H_(hero,"ho","ji")+" nasměroval přes "+place.popis+", kde stopy rychle mizely. "+cap(hero.jmeno)+" se musel"+S(hero)+" spolehnout hlavně na vlastní instinkt.";
+        return "Lístek "+H_(hero,"ho","ji")+" nasměroval dál, ale stopy rychle mizely. "+cap(hero.jmeno)+" se musel"+S(hero)+" spolehnout hlavně na vlastní instinkt.";
       },
       function(hero, place){
-        return "S knihou pod paží se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" přímo do terénu — "+place.popis+". Každý krok "+H_(hero,"ho","ji")+" přibližoval k odpovědi, kterou "+H_(hero,"tolik chtěl","tolik chtěla")+" znát.";
+        return "S knihou pod paží se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" přímo do terénu. Každý krok "+H_(hero,"ho","ji")+" přibližoval k odpovědi, kterou "+H_(hero,"tolik chtěl","tolik chtěla")+" znát.";
       },
       function(hero, place){
-        return cap(hero.jmeno)+" se vydal"+S(hero)+" za melodií přes "+place.popis+", a čím blíž "+H_(hero,"byl","byla")+", tím jasněji "+H_(hero,"melodii slyšel","melodii slyšela")+".";
+        return cap(hero.jmeno)+" se vydal"+S(hero)+" za melodií, a čím blíž "+H_(hero,"byl","byla")+", tím jasněji "+H_(hero,"melodii slyšel","melodii slyšela")+".";
       }
     ],
     peripetie: [
@@ -1331,10 +1357,10 @@ var THEME_STORIES = {
     ],
     mladsiCore: [
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" "+H_(hero,"našel","našla")+" tajemnou zprávu a "+H_(hero,"vydal","vydala")+" se ji rozluštit do kraje "+mistoNazev+". "+cap(place.obyvatel)+" "+H_(hero,"mu","jí")+" pomohl"+SO(place)+" a spolu objevil"+COMPL(hero,place)+" krásné překvapení.";
+        return cap(hero.jmeno)+" "+H_(hero,"našel","našla")+" tajemnou zprávu a "+H_(hero,"vydal","vydala")+" se ji rozluštit. "+cap(place.obyvatel)+" "+H_(hero,"mu","jí")+" pomohl"+SO(place)+" a spolu objevil"+COMPL(hero,place)+" krásné překvapení.";
       },
       function(hero, place, mistoNazev){
-        return cap(hero.jmeno)+" "+H_(hero,"objevil","objevila")+" tajemnou zprávu z kraje "+mistoNazev+". Na cestě "+H_(hero,"mu","jí")+" pomohl"+SO(place)+" "+place.obyvatel+" a nakonec "+H_(hero,"našel","našla")+" krásný dárek.";
+        return cap(hero.jmeno)+" "+H_(hero,"objevil","objevila")+" tajemnou zprávu. Na cestě "+H_(hero,"mu","jí")+" pomohl"+SO(place)+" "+place.obyvatel+" a nakonec "+H_(hero,"našel","našla")+" krásný dárek.";
       }
     ],
     mladsiZaver: [
@@ -1366,16 +1392,16 @@ var THEME_STORIES = {
     ],
     cesta: [
       function(hero, place, mistoNazev){
-        return "Rozhodl"+S(hero)+" se to zkusit ještě jednou, tentokrát v místech zvaných "+mistoNazev+" — "+place.popis+". Právě tam žil"+SO(place)+" "+place.obyvatel+", o "+O_(place,"kterém","které")+" se říkalo, že je "+O_(place,"trpělivý učitel","trpělivá učitelka")+".";
+        return "Rozhodl"+S(hero)+" se to zkusit ještě jednou, jinde. Právě tam žil"+SO(place)+" "+place.obyvatel+", o "+O_(place,"kterém","které")+" se říkalo, že je "+O_(place,"trpělivý učitel","trpělivá učitelka")+".";
       },
       function(hero, place, mistoNazev){
-        return "Nakonec se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" do kraje "+mistoNazev+" — "+place.popis+". Prý tam žil"+SO(place)+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" učil"+SO(place)+" trpělivěji než kdokoliv jiný.";
+        return "Nakonec se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" jinam. Prý tam žil"+SO(place)+" "+place.obyvatel+", kter"+O_(place,"ý","á")+" učil"+SO(place)+" trpělivěji než kdokoliv jiný.";
       },
       function(hero, place, mistoNazev){
-        return "Nakonec "+H_(hero,"si","si")+" "+hero.jmeno+" "+H_(hero,"řekl","řekla")+", že to zkusí jinde — v kraji "+mistoNazev+", "+place.popis+". Možná tam bude mít víc štěstí, nebo aspoň víc klidu na zkoušení.";
+        return "Nakonec "+H_(hero,"si","si")+" "+hero.jmeno+" "+H_(hero,"řekl","řekla")+", že to zkusí jinde. Možná tam bude mít víc štěstí, nebo aspoň víc klidu na zkoušení.";
       },
       function(hero, place, mistoNazev){
-        return "Místo toho se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" pro radu do kraje "+mistoNazev+" — "+place.popis+". Prý tam "+O_(place,"uměl","uměla")+" spravit skoro cokoliv "+place.obyvatel+".";
+        return "Místo toho se "+hero.jmeno+" "+H_(hero,"vydal","vydala")+" pro radu jinam. Prý tam "+O_(place,"uměl","uměla")+" spravit skoro cokoliv "+place.obyvatel+".";
       }
     ],
     peripetie: [
@@ -1503,7 +1529,7 @@ var teKlice = Object.keys(THEME_STORIES);
       odstavce.push(pick(INTRA_VARIANTY)(hero, place, mistoNazev, uvod));
       odstavce.push(theme.problem[dejIdx](hero, place, mistoNazev));
       odstavce.push(theme.cesta[dejIdx](hero, place, mistoNazev));
-      if(vek === "starsi"){
+      if(Math.random() < 0.5){
         odstavce.push(theme.peripetie[dejIdx % theme.peripetie.length](hero, place, mistoNazev));
       }
       odstavce.push(theme.reseni[dejIdx](hero, place, mistoNazev));
@@ -1513,6 +1539,10 @@ var teKlice = Object.keys(THEME_STORIES);
     var nazev = theme.titul[dejIdx % theme.titul.length](hero, place, mistoNazev);
     return { nazev: nazev, odstavce: odstavce, plnyText: odstavce.join("\n\n") };
   }
+
+  
+
+  
 
   
 
@@ -1536,6 +1566,56 @@ var teKlice = Object.keys(THEME_STORIES);
     skrytPohadku(!storyCard.classList.contains("collapsed"));
   });
 
+  function spawnSmoke(){
+    var layer = document.getElementById("smokeLayer");
+    if(!layer) return;
+    var pocetKour = 9;
+    var pocetJisker = 5;
+    var i;
+    for(i=0; i<pocetKour; i++){
+      var p = document.createElement("span");
+      p.className = "smoke-particle puff";
+      var uhel = Math.random()*Math.PI*2;
+      var dist = 55 + Math.random()*70;
+      var tx = Math.cos(uhel)*dist;
+      var ty = Math.sin(uhel)*dist - 20 - Math.random()*30;
+      var size = 8 + Math.random()*16;
+      var dur = 700 + Math.random()*600;
+      p.style.width = size+"px";
+      p.style.height = size+"px";
+      p.style.setProperty("--tx", tx.toFixed(1)+"px");
+      p.style.setProperty("--ty", ty.toFixed(1)+"px");
+      p.style.setProperty("--sc", (1.6 + Math.random()*1.2).toFixed(2));
+      p.style.setProperty("--rot", (Math.random()*160-80).toFixed(0)+"deg");
+      p.style.animationDuration = dur+"ms";
+      layer.appendChild(p);
+      void p.offsetWidth;
+      p.classList.add("active");
+      (function(el, life){ setTimeout(function(){ el.remove(); }, life+80); })(p, dur);
+    }
+    var jiskryZnaky = ["✦","✧","⋆"];
+    for(i=0; i<pocetJisker; i++){
+      var s = document.createElement("span");
+      s.className = "smoke-particle spark";
+      s.textContent = jiskryZnaky[Math.floor(Math.random()*jiskryZnaky.length)];
+      var uhel2 = Math.random()*Math.PI*2;
+      var dist2 = 70 + Math.random()*90;
+      var tx2 = Math.cos(uhel2)*dist2;
+      var ty2 = Math.sin(uhel2)*dist2 - 15;
+      var dur2 = 800 + Math.random()*700;
+      s.style.setProperty("--tx", tx2.toFixed(1)+"px");
+      s.style.setProperty("--ty", ty2.toFixed(1)+"px");
+      s.style.setProperty("--sc", (0.8 + Math.random()*1.4).toFixed(2));
+      s.style.setProperty("--rot", (Math.random()*360).toFixed(0)+"deg");
+      s.style.animationDuration = dur2+"ms";
+      s.style.animationDelay = (Math.random()*120)+"ms";
+      layer.appendChild(s);
+      void s.offsetWidth;
+      s.classList.add("active");
+      (function(el, life){ setTimeout(function(){ el.remove(); }, life+200); })(s, dur2);
+    }
+  }
+
   function spustGenerovani(){
     errorBox.style.display = "none";
     var heroInput = document.getElementById("hero").value.trim();
@@ -1549,13 +1629,25 @@ var teKlice = Object.keys(THEME_STORIES);
     genRipple.classList.remove("active");
     void genRipple.offsetWidth;
     genRipple.classList.add("active");
+    spawnSmoke();
 
     aktualniPohadka = vytvorPohadku();
     storyTitle.textContent = aktualniPohadka.nazev;
     storyText.innerHTML = paragraphsToHtml(aktualniPohadka.odstavce);
     storyCard.classList.add("visible");
     skrytPohadku(false);
-    storyCard.scrollIntoView({behavior:"smooth", block:"nearest"});
+    ukazVykouzleno();
+  }
+
+  var vykouzlenoTimeout = null;
+  function ukazVykouzleno(){
+    var el = document.getElementById("vykouzlenoHint");
+    if(!el) return;
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+    if(vykouzlenoTimeout) clearTimeout(vykouzlenoTimeout);
+    vykouzlenoTimeout = setTimeout(function(){ el.classList.remove("show"); }, 2200);
   }
 
   genBtn.addEventListener("click", spustGenerovani);
