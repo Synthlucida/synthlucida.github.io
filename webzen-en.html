@@ -455,7 +455,7 @@
     <button class="save-btn" id="loadProjectBtn" title="Loads a previously saved .json file">📂 <span class="btn-label">Load project</span></button>
     <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
     <button class="export-btn" id="exportBtn" title="Downloads only the main page">↓ <span class="btn-label-full">Download HTML</span><span class="btn-label-short">HTML</span></button>
-    <button class="export-btn" id="exportAllBtn" title="Downloads the main page and all custom pages as separate files">↓ <span class="btn-label-full">Download entire site</span><span class="btn-label-short">Site</span></button>
+    <button class="export-btn" id="exportAllBtn" title="Downloads the main page, all custom pages, and 404.html as separate files">↓ <span class="btn-label-full">Download entire site</span><span class="btn-label-short">Site</span></button>
   </div>
 
   <div class="expand-modal-overlay" id="infoModalOverlay">
@@ -890,6 +890,11 @@ function getDefaultState(){
       {label:'Privacy Policy', url:'#'},
       {label:'Contact', url:'#'}
     ]
+  },
+  notFound: {
+    heading: 'Page not found',
+    text: 'The page you\'re looking for isn\'t here — it may have been moved or no longer exists.',
+    buttonText: 'Back to homepage'
   }
   };
 }
@@ -1799,6 +1804,16 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">404 page</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">This generates a separate <b>404.html</b> file — the page most hosts (Netlify, GitHub Pages, Vercel…) automatically show instead of the browser's error message when a visitor hits a URL that doesn't exist. Just upload it next to your main HTML file in the site's root folder after downloading. It's deliberately kept out of search engines (meta robots "noindex") and isn't added to the sitemap.</div>
+      <button type="button" class="preview-page-btn" id="previewNotFoundBtn">👁️ ${previewSectionIndex==='notfound'?'Currently previewing':'Preview 404 page'}</button>
+      ${field('Heading', `<input type="text" data-notfound="heading" value="${escapeAttr(state.notFound.heading)}" placeholder="Page not found">`)}
+      ${field('Text', `<textarea data-notfound="text" data-richtext="1" style="min-height:60px;">${escapeHtml(state.notFound.text)}</textarea>`)}
+      ${field('Back button text', `<input type="text" data-notfound="buttonText" value="${escapeAttr(state.notFound.buttonText)}" placeholder="Back to homepage">`)}
+      <button class="add-btn" id="downloadNotFound" style="margin-top:10px;">↓ Download 404.html</button>
+    </div>
+
+    <div class="fieldset">
       <div class="note-box">
         <b>After exporting, still add manually:</b>
         <ul>
@@ -1824,12 +1839,18 @@ function renderForm(){
   bindContactInputs();
   bindPwaInputs();
   bindSitemapInputs();
+  bindNotFoundInputs();
   bindFooterInputs();
 
   document.getElementById('downloadManifest').onclick = () => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json');
   document.getElementById('downloadSw').onclick = () => downloadTextFile('sw.js', buildServiceWorkerJS(state), 'text/javascript');
   document.getElementById('downloadSitemap').onclick = () => downloadTextFile('sitemap.xml', buildSitemapXML(state), 'application/xml');
   document.getElementById('downloadRobots').onclick = () => downloadTextFile('robots.txt', buildRobotsTXT(state), 'text/plain');
+  document.getElementById('downloadNotFound').onclick = () => {
+    const customSectionsData = computeCustomSectionsData(state);
+    downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, getHomeFilename(state)), 'text/html');
+  };
+  document.getElementById('previewNotFoundBtn').onclick = () => setPreviewTarget('notfound');
 
   document.getElementById('addSection').onclick = () => {
     state.sections.push({type:'simple', label:'New page', title:'New page', text:'Page text.', image:'', imageUrl:'', imageAlt:'', standalone:false});
@@ -2111,6 +2132,15 @@ function bindSitemapInputs(){
   panel.querySelectorAll('[data-sitemap]').forEach(el => {
     el.addEventListener('input', () => {
       state.sitemap[el.dataset.sitemap] = el.value;
+    });
+  });
+}
+
+function bindNotFoundInputs(){
+  panel.querySelectorAll('[data-notfound]').forEach(el => {
+    el.addEventListener('input', () => {
+      state.notFound[el.dataset.notfound] = el.value;
+      if (previewSectionIndex === 'notfound') updatePreview();
     });
   });
 }
@@ -3636,6 +3666,88 @@ ${mainHtml}
 </html>`;
 }
 
+// Standalone 404 page — most sites are missing one entirely, so WEBZEN
+// generates it as its own 404.html (kept out of the sitemap, with meta
+// robots "noindex", since error pages shouldn't be indexed by search
+// engines). It uses the same side menu as other custom pages so visitors
+// can easily get back on track, plus a button back to the homepage.
+function buildNotFoundPageHTML(s, customSectionsData, homeFilename){
+  const nf = s.notFound || {};
+  const heading = (nf.heading || 'Page not found').trim() || 'Page not found';
+  const text = nf.text || '';
+  const buttonText = (nf.buttonText || 'Back to homepage').trim() || 'Back to homepage';
+
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: '' });
+
+  const mainHtml = `
+    <section class="custom-section wrap not-found-section">
+      <p class="not-found-code" aria-hidden="true">404</p>
+      <h1>${escapeHtml(heading)}</h1>
+      <p>${richText(text)}</p>
+      <div class="cta-group">
+        <a class="cta" href="${escapeAttr(homeFilename)}">${escapeHtml(buttonText)}</a>
+      </div>
+    </section>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>${escapeHtml(heading)} — ${escapeHtml(s.brand)}</title>
+<meta name="robots" content="noindex, follow">
+<meta name="generator" content="WEBZEN — https://synthlucida.com">
+
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+${sharedStyleTag(s)}
+<style>
+  .not-found-section{text-align:center;padding-top:64px;}
+  .not-found-code{
+    font-family:${s.fontDisplay};font-size:clamp(64px,14vw,140px);font-weight:700;
+    line-height:1;margin:0 0 4px;color:var(--accent);opacity:.85;
+  }
+  .not-found-section .cta-group{justify-content:center;margin-top:26px;}
+</style>
+</head>
+<body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+${mainHtml}
+
+    <footer>${s.footer.showCopyright ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>` : ''}${webzenWatermarkHtml()}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+    ${menuToggleScript()}
+    ${previewNavInterceptScript()}
+  <\/script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  <\/script>
+</body>
+</html>`;
+}
+
 /* ============================================================
    NÁHLED + EXPORT
    ============================================================ */
@@ -3655,10 +3767,11 @@ function setPreviewTarget(i){
 function updatePreviewIndicator(){
   const el = document.getElementById('previewPageIndicator');
   if (!el) return;
-  const sec = previewSectionIndex != null ? state.sections[previewSectionIndex] : null;
-  if (sec) {
+  const isNotFound = previewSectionIndex === 'notfound';
+  const sec = (!isNotFound && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
+  if (sec || isNotFound) {
     el.classList.add('show');
-    el.innerHTML = `📄 Preview: <b>${escapeHtml(sec.label || sec.title || 'Page')}</b>`;
+    el.innerHTML = `📄 Preview: <b>${isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Page not found') : escapeHtml(sec.label || sec.title || 'Page')}</b>`;
     const backBtn = document.createElement('button');
     backBtn.type = 'button';
     backBtn.textContent = '← Main page';
@@ -3668,13 +3781,21 @@ function updatePreviewIndicator(){
     el.classList.remove('show');
     el.innerHTML = '';
   }
+  // Button in the panel ("404 page" fieldset) — text changes depending on
+  // whether the 404 page is currently being previewed, otherwise it would
+  // stay stuck on "Currently previewing" after switching away.
+  const nfBtn = document.getElementById('previewNotFoundBtn');
+  if (nfBtn) nfBtn.textContent = isNotFound ? '👁️ Currently previewing' : '👁️ Preview 404 page';
 }
 
 function buildCurrentPreviewHTML(){
+  const homeFilename = getHomeFilename(state);
+  const customSectionsData = computeCustomSectionsData(state);
+  if (previewSectionIndex === 'notfound') {
+    return buildNotFoundPageHTML(state, customSectionsData, homeFilename);
+  }
   const sec = previewSectionIndex != null ? state.sections[previewSectionIndex] : null;
   if (sec) {
-    const customSectionsData = computeCustomSectionsData(state);
-    const homeFilename = getHomeFilename(state);
     return buildSectionPageHTML(state, customSectionsData[previewSectionIndex], customSectionsData, homeFilename);
   }
   return buildSiteHTML(state);
@@ -3713,6 +3834,13 @@ window.addEventListener('message', (e) => {
     previewSectionIndex = null;
     updatePreviewIndicator();
     frame.srcdoc = buildSiteHTML(state);
+    return;
+  }
+  if (filename === '404.html') {
+    pendingPreviewHash = hash;
+    previewSectionIndex = 'notfound';
+    updatePreviewIndicator();
+    frame.srcdoc = buildNotFoundPageHTML(state, computeCustomSectionsData(state), homeFilename);
     return;
   }
   const customSectionsData = computeCustomSectionsData(state);
@@ -3838,6 +3966,9 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
       downloadTextFile(sec.filename, buildSectionPageHTML(state, sec, customSectionsData, homeFilename), 'text/html');
     }, (i + 1) * 300);
   });
+  setTimeout(() => {
+    downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html');
+  }, (customSectionsData.length + 1) * 300);
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {
