@@ -3028,6 +3028,32 @@ function webzenWatermarkHtml(){
 })();<\/script>`;
 }
 
+// Jednoduchý cookie/GDPR banner dole na stránce — zobrazí se jen dokud
+// návštěvník neklikne na "Rozumím" (pak se uloží do localStorage a banner
+// se už znovu nezobrazí). Žádné nastavování kategorií cookies, jen základní
+// upozornění + odkaz na zásady ochrany osobních údajů z patičky (pokud je vyplněný).
+function cookieBannerHtml(footer){
+  const privacyLink = (footer && footer.links || []).find(l => /ochran|osobn|gdpr|privacy/i.test(l.label || ''));
+  const linkHtml = (privacyLink && (privacyLink.url || '').trim() && privacyLink.url.trim() !== '#')
+    ? ` <a href="${escapeAttr(privacyLink.url)}">${escapeHtml(privacyLink.label)}</a>.`
+    : '';
+  return `<div class="cookie-banner" id="wzCookieBanner" role="dialog" aria-live="polite">
+    <p>Tento web používá cookies pro základní fungování a měření návštěvnosti.${linkHtml}</p>
+    <button type="button" id="wzCookieAccept">Rozumím</button>
+  </div>
+<script>(function(){
+  try { if (localStorage.getItem('wzCookieConsent') === '1') return; } catch(e){}
+  var banner = document.getElementById('wzCookieBanner');
+  if (!banner) return;
+  banner.classList.add('show');
+  var btn = document.getElementById('wzCookieAccept');
+  if (btn) btn.addEventListener('click', function(){
+    try { localStorage.setItem('wzCookieConsent', '1'); } catch(e){}
+    banner.classList.remove('show');
+  });
+})();<\/script>`;
+}
+
 // Převede běžný odkaz na YouTube/Vimeo video na jeho vloženou (embed) podobu,
 // aby šlo video zobrazit přímo na stránce v <iframe>. Jiné odkazy (které už jsou
 // přímo embed adresou, nebo neznámý formát) se použijí tak, jak jsou.
@@ -3416,6 +3442,21 @@ function sharedStyleTag(s){
   footer .webzen-watermark a{color:inherit;text-decoration:underline;}
   footer .webzen-watermark a:hover{color:var(--accent);}
 
+  /* ---------- cookie / GDPR banner ---------- */
+  .cookie-banner{
+    display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;
+    align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;
+    padding:14px 20px;background:#111214;border-top:1px solid rgba(255,255,255,.12);
+    color:#e8e9ee;font-size:13px;
+  }
+  .cookie-banner.show{display:flex;}
+  .cookie-banner p{margin:0;max-width:640px;}
+  .cookie-banner a{color:var(--accent);}
+  .cookie-banner button{
+    background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;
+    font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+
   /* ---------- levé menu ---------- */
   .menu-toggle{
     position:fixed;top:16px;left:16px;z-index:1001;width:42px;height:42px;
@@ -3699,6 +3740,7 @@ ${faqJsonLd}
 ${sharedStyleTag(s)}
 </head>
 <body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!hasHeroImage ? ' no-hero-visual' : ''}">
+${cookieBannerHtml(s.footer)}
 
 ${sideNavHtml}
 
