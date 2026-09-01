@@ -848,7 +848,15 @@ function getDefaultState(){
     web3formsKey: '',        // Access Key from web3forms.com
     netlifyFormName: 'contact', // internal form name for Netlify Forms
     mailtoAddress: '',       // destination email address for the "open email app" option
-    submitText: 'Send message'
+    submitText: 'Send message',
+    gdprConsent: true,       // show a required "I agree to data processing" checkbox on the form
+    gdprConsentText: 'I agree to the processing of the personal data above in order to handle my inquiry.'
+  },
+  privacyPage: {
+    enabled: false,           // generate a "Privacy Policy" page (privacy.html)
+    controllerName: '',       // site operator/data controller — empty = uses Website name / brand
+    contactEmail: '',         // contact email for privacy-related inquiries
+    extraText: ''              // optional extra text (site-specific details)
   },
   fontDisplay: "'Space Grotesk', sans-serif",
   fontBody: "'Inter', sans-serif",
@@ -1789,6 +1797,11 @@ function renderForm(){
           <div class="note-box" style="margin-top:8px;">The simplest option with no third-party service — clicking the button opens the visitor's email app with a pre-filled message. Needs no external account, but only works if the visitor has an email client set up on their device.</div>
         ` : ''}
         <div id="contactMissingWarn" class="warn-box" style="${contactMissingField(state.contact)?'':'display:none;'}">⚠ Without filling in the required field above, the contact form won't appear in the preview or on the exported site at all — the section is simply skipped.</div>
+
+        <label style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+          <input type="checkbox" data-contact="gdprConsent" ${state.contact.gdprConsent!==false?'checked':''}> Require a data-processing consent checkbox
+        </label>
+        ${state.contact.gdprConsent!==false ? field('Consent text', `<textarea data-contact="gdprConsentText" style="min-height:50px;">${escapeHtml(state.contact.gdprConsentText)}</textarea>`) : ''}
       </div>
     </div>
 
@@ -1862,6 +1875,22 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">GDPR / Privacy Policy</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-privacypage="enabled" ${state.privacyPage.enabled?'checked':''}> Generate a "Privacy Policy" page (privacy.html)
+      </label>
+      <div id="privacyPageBox" style="margin-top:10px;${state.privacyPage.enabled?'':'display:none;'}">
+        <div class="note-box" style="margin-top:0;margin-bottom:10px;">The text automatically adapts based on whether the contact form is enabled and which service it uses (Formspree/Web3Forms/Netlify/mailto), so it actually matches what the site does. A link to this page is also added automatically to the contact form's consent checkbox and to the placeholder "Privacy Policy" link in the Footer, if you have one.</div>
+        <button type="button" class="preview-page-btn" id="previewPrivacyBtn">👁️ ${previewSectionIndex==='privacy'?'Currently previewing':'Preview page'}</button>
+        ${field('Site operator', `<input type="text" data-privacypage="controllerName" value="${escapeAttr(state.privacyPage.controllerName)}" placeholder="blank = uses Website name / brand">`)}
+        ${field('Contact email for privacy-related requests', `<input type="text" data-privacypage="contactEmail" value="${escapeAttr(state.privacyPage.contactEmail)}" placeholder="privacy@your-site.com">`)}
+        ${field('Extra text (optional)', `<textarea data-privacypage="extraText" data-richtext="1" style="min-height:60px;" placeholder="anything specific to your site — e.g. newsletter, online store…">${escapeHtml(state.privacyPage.extraText)}</textarea>`)}
+        <button class="add-btn" id="downloadPrivacyPage" style="margin-top:10px;">↓ Download privacy.html</button>
+        <div class="warn-box" style="margin-top:10px;">⚠️ This is a generic template, not legal advice. Depending on the nature of your site (online store, tracking tools, newsletters…) you may need to expand the text or have it reviewed by a lawyer.</div>
+      </div>
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Custom code (advanced)</div>
       <div class="warn-box" style="margin-top:0;margin-bottom:10px;">⚠️ Advanced users only — anything you write here gets inserted into the site exactly as-is (no validation). A mistake in the code can break the page. If you're not sure, it's safest to leave this section empty. Changes show up right away in the preview on the right.</div>
       ${field('Custom CSS', `<textarea class="code-input" data-customcode="css" placeholder="/* custom styles, take priority over the generated ones */">${escapeHtml(state.customCode.css)}</textarea>`)}
@@ -1898,6 +1927,7 @@ function renderForm(){
   bindPwaInputs();
   bindSitemapInputs();
   bindNotFoundInputs();
+  bindPrivacyPageInputs();
   bindCookieBannerInputs();
   bindCustomCodeInputs();
   bindFooterInputs();
@@ -1911,6 +1941,11 @@ function renderForm(){
     downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, getHomeFilename(state)), 'text/html');
   };
   document.getElementById('previewNotFoundBtn').onclick = () => setPreviewTarget('notfound');
+  document.getElementById('downloadPrivacyPage').onclick = () => {
+    const customSectionsData = computeCustomSectionsData(state);
+    downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, getHomeFilename(state)), 'text/html');
+  };
+  document.getElementById('previewPrivacyBtn').onclick = () => setPreviewTarget('privacy');
 
   document.getElementById('addSection').onclick = () => {
     state.sections.push({type:'simple', label:'New page', title:'New page', text:'Page text.', image:'', imageUrl:'', imageAlt:'', standalone:false});
@@ -2164,8 +2199,9 @@ function bindContactInputs(){
     if (el.type === 'checkbox'){
       el.addEventListener('change', () => {
         state.contact[key] = el.checked;
-        // "Show form" changes whether the rest of the settings are shown — needs a re-render.
-        if (key === 'enabled') { renderForm(); }
+        // "Show form" / "Require consent" changes whether the rest of the
+        // settings are shown — needs a re-render.
+        if (key === 'enabled' || key === 'gdprConsent') { renderForm(); }
         updateContactMissingWarn();
         updatePreview();
       });
@@ -2219,6 +2255,25 @@ function bindNotFoundInputs(){
       state.notFound[el.dataset.notfound] = el.value;
       if (previewSectionIndex === 'notfound') updatePreview();
     });
+  });
+}
+
+function bindPrivacyPageInputs(){
+  panel.querySelectorAll('[data-privacypage]').forEach(el => {
+    const key = el.dataset.privacypage;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', () => {
+        state.privacyPage[key] = el.checked;
+        // "Generate page" changes whether the rest of the settings are shown — needs a re-render.
+        renderForm();
+        updatePreview();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        state.privacyPage[key] = el.value;
+        if (previewSectionIndex === 'privacy') updatePreview();
+      });
+    }
   });
 }
 
@@ -2750,7 +2805,9 @@ function buildSitemapXML(s){
     .map(l => /^https?:\/\//i.test(l) ? l : domain + l.replace(/^\//,''));
   // Vlastní stránky (samostatné .html soubory) se do sitemapy přidají automaticky.
   const pageUrls = computeCustomSectionsData(s).map(sec => domain + sec.filename);
-  const urls = Array.from(new Set([domain, ...pageUrls, ...extra]));
+  // The GDPR/privacy page (unlike 404) makes sense to keep indexable.
+  const privacyUrl = (s.privacyPage && s.privacyPage.enabled) ? [domain + 'privacy.html'] : [];
+  const urls = Array.from(new Set([domain, ...pageUrls, ...privacyUrl, ...extra]));
   const urlEntries = urls.map(u => `  <url>
     <loc>${escapeHtml(u)}</loc>
     <lastmod>${escapeHtml(lastmod)}</lastmod>
@@ -2920,6 +2977,21 @@ function cookieBannerHtml(cookieBanner, footer){
 // (and leaves a TODO note so the user knows to upload it themselves).
 // Used by the homepage, custom subpages, and the 404 page, so the favicon
 // doesn't change/disappear when navigating between them.
+// If the GDPR/privacy page is enabled (privacy.html) and there's a link in the
+// Footer whose label reads like a privacy-policy link, but the URL is still
+// just the placeholder "#", automatically points it at the generated page —
+// so it "just works" without having to look up and paste a URL by hand. A
+// link the user has deliberately set to something else is left untouched.
+function resolvePrivacyFooterLinks(s){
+  const links = (s.footer && s.footer.links) || [];
+  if (!s.privacyPage || !s.privacyPage.enabled) return links;
+  return links.map(l => {
+    const isGdprLabel = /ochran|osobn|gdpr|privacy|policy/i.test(l.label || '');
+    const isPlaceholder = !((l.url || '').trim()) || l.url.trim() === '#';
+    return (isGdprLabel && isPlaceholder) ? Object.assign({}, l, { url: 'privacy.html' }) : l;
+  });
+}
+
 function faviconLinkHtml(s){
   const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
   return faviconSrc
@@ -2968,7 +3040,7 @@ function contactMissingField(contact){
 // submits either to Formspree/Web3Forms (fetch to their API), or via Netlify Forms
 // (fetch to the current page, only works when hosted on Netlify), or as a mailto
 // (opens the visitor's email app). Actual submit handling lives in contactFormScript().
-function buildContactSectionHtml(contact, brand){
+function buildContactSectionHtml(contact, brand, privacyPage){
   const c = contact || {};
   if (!c.enabled) return '';
   let formAction = '', formExtraAttrs = '', hiddenFields = '';
@@ -3001,6 +3073,16 @@ function buildContactSectionHtml(contact, brand){
   // If it comes back filled, contactFormScript() silently drops the submit.
   const honeypotField = `
         <div class="hp-field" aria-hidden="true"><label>Leave blank<input type="text" name="_hpwebsite" tabindex="-1" autocomplete="off"></label></div>`;
+  // Data-processing consent — optional (default on), text editable. If the
+  // GDPR/privacy page is enabled (see below), a link to it is added automatically
+  // so the visitor knows exactly what they're agreeing to.
+  let consentField = '';
+  if (c.gdprConsent !== false){
+    const consentText = (c.gdprConsentText || '').trim() || 'I agree to the processing of the personal data above in order to handle my inquiry.';
+    const privacyLinkHtml = (privacyPage && privacyPage.enabled) ? ` <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.` : '';
+    consentField = `
+        <label class="contact-consent"><input type="checkbox" name="gdprConsent" required> ${escapeHtml(consentText)}${privacyLinkHtml}</label>`;
+  }
   return `
     <section class="contact-section wrap" id="contact">
       ${(c.heading||'').trim() ? `<h2>${escapeHtml(c.heading)}</h2>` : ''}
@@ -3010,6 +3092,7 @@ function buildContactSectionHtml(contact, brand){
         <label>Name<input type="text" name="name" autocomplete="name" required></label>
         <label>Email<input type="email" name="email" autocomplete="email" required></label>${phoneField}
         <label>Message<textarea name="message" rows="5" required></textarea></label>
+        ${consentField}
         ${honeypotField}
         <button type="submit">${escapeHtml(c.submitText || 'Send message')}</button>
         <p class="contact-status" aria-live="polite"></p>
@@ -3520,11 +3603,12 @@ function buildSiteHTML(s){
     </section>` : '';
 
   // Contact form — optional section between FAQ and the footer
-  const contactSectionHtml = buildContactSectionHtml(s.contact, s.brand);
+  const contactSectionHtml = buildContactSectionHtml(s.contact, s.brand, s.privacyPage);
 
   // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
-  const footerLinksHtml = (s.footer.links || []).length
-    ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
+  const resolvedFooterLinks = resolvePrivacyFooterLinks(s);
+  const footerLinksHtml = resolvedFooterLinks.length
+    ? `<ul class="footer-links">${resolvedFooterLinks.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
     : '';
   const footerTextHtml = (s.footer.text || '').trim()
     ? `<p class="footer-text">${richText(s.footer.text)}</p>`
@@ -3614,7 +3698,7 @@ ${sharedStyleTag(s)}
 ${customHeadHtml(s)}
 </head>
 <body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!hasHeroImage ? ' no-hero-visual' : ''}">
-${cookieBannerHtml(s.cookieBanner, s.footer)}
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
 
 ${sideNavHtml}
 
@@ -3835,7 +3919,7 @@ ${standalone ? `<style>
 ${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
-${standalone ? '' : cookieBannerHtml(s.cookieBanner, s.footer)}
+${standalone ? '' : cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
 
 ${sideNavHtml}
 
@@ -3920,7 +4004,158 @@ ${sharedStyleTag(s)}
 ${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
-${cookieBannerHtml(s.cookieBanner, s.footer)}
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+${mainHtml}
+
+    <footer>${s.footer.showCopyright ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>` : ''}${webzenWatermarkHtml()}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+    ${menuToggleScript()}
+    ${previewNavInterceptScript()}
+  <\/script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  <\/script>
+${customBodyEndHtml(s)}
+</body>
+</html>`;
+}
+
+// Builds the "Privacy Policy" page (privacy.html) — the text automatically
+// adapts based on whether the contact form is enabled and which service it
+// uses, so it actually matches what the site does. This is a generic
+// template, not legal advice — see the disclaimer in the UI and at the
+// bottom of the page.
+function buildPrivacyPageHTML(s, customSectionsData, homeFilename){
+  const pp = s.privacyPage || {};
+  const contact = s.contact || {};
+  const controllerName = (pp.controllerName || '').trim() || s.brand || 'the site operator';
+  const contactEmail = (pp.contactEmail || '').trim();
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const contactFormActive = contact.enabled && (
+    (contact.provider === 'formspree' && (contact.formspreeId || '').trim()) ||
+    (contact.provider === 'web3forms' && (contact.web3formsKey || '').trim()) ||
+    contact.provider === 'netlify' ||
+    (contact.provider === 'mailto' && (contact.mailtoAddress || '').trim())
+  );
+
+  let dataCollectedHtml, processorHtml;
+  if (contactFormActive){
+    const fields = ['name', 'email', ...(contact.includePhone ? ['phone'] : []), 'message content'];
+    dataCollectedHtml = `<p>Through the contact form on this site, we may collect: ${escapeHtml(fields.join(', '))}. We use this data solely to respond to your inquiry.</p>`;
+    const providerInfo = {
+      formspree: 'Submitting messages is technically handled by the third party <b>Formspree, Inc.</b> (USA) — see their <a href="https://formspree.io/legal/privacy-policy/" target="_blank" rel="noopener">privacy policy</a> for more.',
+      web3forms: 'Submitting messages is technically handled by the third party <b>Web3Forms</b> — see their <a href="https://web3forms.com/privacy" target="_blank" rel="noopener">privacy policy</a> for more.',
+      netlify: 'This site is deployed on <b>Netlify, Inc.</b> (USA), which technically handles delivery of messages from the form — see their <a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">privacy policy</a> for more.',
+      mailto: 'Your message is sent directly as an email from your own device — it does not pass through any third party or through this site\'s server.'
+    };
+    processorHtml = `<p>${providerInfo[contact.provider] || ''}</p>`;
+  } else {
+    dataCollectedHtml = `<p>This site does not currently actively collect any personal data through forms.</p>`;
+    processorHtml = '';
+  }
+
+  const cookiesText = (s.cookieBanner && s.cookieBanner.enabled !== false && (s.cookieBanner.text || '').trim())
+    || 'This site only stores technically necessary data in your browser to operate — no tracking cookies.';
+
+  const extraHtml = (pp.extraText || '').trim()
+    ? `<h2>Additional information</h2>\n      <p>${richText(pp.extraText)}</p>`
+    : '';
+
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: '' });
+
+  const mainHtml = `
+    <section class="custom-section wrap privacy-section">
+      <h1>Privacy Policy</h1>
+      <p class="privacy-updated">Last updated: ${escapeHtml(today)}</p>
+
+      <h2>1. Data controller</h2>
+      <p>This site is operated by <b>${escapeHtml(controllerName)}</b>.${contactEmail ? ` For questions about your personal data, you can reach us at <a href="mailto:${escapeAttr(contactEmail)}">${escapeHtml(contactEmail)}</a>.` : ''}</p>
+
+      <h2>2. What personal data we process</h2>
+      ${dataCollectedHtml}
+
+      ${processorHtml ? `<h2>3. Who we share data with</h2>\n      ${processorHtml}` : ''}
+
+      <h2>${processorHtml ? '4' : '3'}. Cookies</h2>
+      <p>${escapeHtml(cookiesText)}</p>
+
+      <h2>${processorHtml ? '5' : '4'}. Data retention</h2>
+      <p>Personal data submitted through the contact form is kept only for as long as necessary to handle your inquiry, unless the law requires otherwise.</p>
+
+      <h2>${processorHtml ? '6' : '5'}. Your rights</h2>
+      <p>In connection with the processing of your personal data, you have the right to:</p>
+      <ul>
+        <li>access your personal data,</li>
+        <li>have inaccurate data corrected,</li>
+        <li>have your data erased ("the right to be forgotten"),</li>
+        <li>restrict processing,</li>
+        <li>object to processing,</li>
+        <li>lodge a complaint with your local data protection authority.</li>
+      </ul>
+
+      <h2>${processorHtml ? '7' : '6'}. Contact</h2>
+      <p>${contactEmail ? `For requests regarding your personal data, contact us at <a href="mailto:${escapeAttr(contactEmail)}">${escapeHtml(contactEmail)}</a>.` : 'A contact email for privacy-related requests hasn\'t been set yet.'}</p>
+
+      ${extraHtml}
+
+      <p class="privacy-disclaimer">This text is a generic template and does not replace legal advice — depending on the nature of your site (e.g. an online store, tracking tools, newsletters) you may need to expand it or have it reviewed by a lawyer.</p>
+
+      <div class="cta-group">
+        <a class="cta" href="${escapeAttr(homeFilename)}">← Back to homepage</a>
+      </div>
+    </section>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>Privacy Policy — ${escapeHtml(s.brand)}</title>
+<meta name="robots" content="index, follow">
+<meta name="generator" content="WEBZEN — https://synthlucida.com">
+
+${faviconLinkHtml(s)}
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+${sharedStyleTag(s)}
+<style>
+  .privacy-section h2{font-size:clamp(17px,2.4vw,20px);margin:30px 0 10px;}
+  .privacy-section h2:first-of-type{margin-top:26px;}
+  .privacy-section p, .privacy-section li{color:#c7c7ce;font-size:14.5px;line-height:1.7;}
+  .privacy-section ul{margin:8px 0;padding-left:22px;}
+  .privacy-section li{margin:4px 0;}
+  .privacy-section a{color:var(--accent);}
+  .privacy-updated{font-size:12.5px;opacity:.7;margin:-6px 0 20px;}
+  .privacy-disclaimer{font-size:12px;opacity:.6;margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);}
+  .privacy-section .cta-group{justify-content:flex-start;margin-top:30px;}
+</style>
+${customHeadHtml(s)}
+</head>
+<body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
 
 ${sideNavHtml}
 
@@ -3969,10 +4204,14 @@ function updatePreviewIndicator(){
   const el = document.getElementById('previewPageIndicator');
   if (!el) return;
   const isNotFound = previewSectionIndex === 'notfound';
-  const sec = (!isNotFound && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
-  if (sec || isNotFound) {
+  const isPrivacy = previewSectionIndex === 'privacy';
+  const sec = (!isNotFound && !isPrivacy && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
+  if (sec || isNotFound || isPrivacy) {
     el.classList.add('show');
-    el.innerHTML = `📄 Preview: <b>${isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Page not found') : escapeHtml(sec.label || sec.title || 'Page')}</b>`;
+    const label = isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Page not found')
+      : isPrivacy ? 'Privacy Policy'
+      : escapeHtml(sec.label || sec.title || 'Page');
+    el.innerHTML = `📄 Preview: <b>${label}</b>`;
     const backBtn = document.createElement('button');
     backBtn.type = 'button';
     backBtn.textContent = '← Main page';
@@ -3982,11 +4221,13 @@ function updatePreviewIndicator(){
     el.classList.remove('show');
     el.innerHTML = '';
   }
-  // Button in the panel ("404 page" fieldset) — text changes depending on
-  // whether the 404 page is currently being previewed, otherwise it would
-  // stay stuck on "Currently previewing" after switching away.
+  // Buttons in the panel — text changes depending on whether that page is
+  // currently being previewed, otherwise it would stay stuck on "Currently
+  // previewing" after switching away.
   const nfBtn = document.getElementById('previewNotFoundBtn');
   if (nfBtn) nfBtn.textContent = isNotFound ? '👁️ Currently previewing' : '👁️ Preview 404 page';
+  const ppBtn = document.getElementById('previewPrivacyBtn');
+  if (ppBtn) ppBtn.textContent = isPrivacy ? '👁️ Currently previewing' : '👁️ Preview page';
 }
 
 function buildCurrentPreviewHTML(){
@@ -3994,6 +4235,9 @@ function buildCurrentPreviewHTML(){
   const customSectionsData = computeCustomSectionsData(state);
   if (previewSectionIndex === 'notfound') {
     return buildNotFoundPageHTML(state, customSectionsData, homeFilename);
+  }
+  if (previewSectionIndex === 'privacy') {
+    return buildPrivacyPageHTML(state, customSectionsData, homeFilename);
   }
   const sec = previewSectionIndex != null ? state.sections[previewSectionIndex] : null;
   if (sec) {
@@ -4152,6 +4396,13 @@ window.addEventListener('message', (e) => {
     frame.srcdoc = buildNotFoundPageHTML(state, computeCustomSectionsData(state), homeFilename);
     return;
   }
+  if (filename === 'privacy.html') {
+    pendingPreviewHash = hash;
+    previewSectionIndex = 'privacy';
+    updatePreviewIndicator();
+    frame.srcdoc = buildPrivacyPageHTML(state, computeCustomSectionsData(state), homeFilename);
+    return;
+  }
   const customSectionsData = computeCustomSectionsData(state);
   const idx = customSectionsData.findIndex(cs => cs.filename === filename);
   if (idx !== -1) {
@@ -4280,6 +4531,11 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   setTimeout(() => {
     downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html');
   }, (customSectionsData.length + 1) * 300);
+  if (state.privacyPage && state.privacyPage.enabled) {
+    setTimeout(() => {
+      downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
+    }, (customSectionsData.length + 2) * 300);
+  }
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {

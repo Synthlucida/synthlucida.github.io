@@ -1075,7 +1075,15 @@ function getDefaultState(){
     web3formsKey: '',        // Access Key z web3forms.com
     netlifyFormName: 'contact', // interní název formuláře pro Netlify Forms
     mailtoAddress: '',       // cílová e-mailová adresa pro variantu "otevřít e-mail"
-    submitText: 'Odeslat zprávu'
+    submitText: 'Odeslat zprávu',
+    gdprConsent: true,       // zobrazit ve formuláři povinnou fajfku se souhlasem se zpracováním údajů
+    gdprConsentText: 'Souhlasím se zpracováním výše uvedených osobních údajů za účelem vyřízení mého dotazu.'
+  },
+  privacyPage: {
+    enabled: false,           // vygenerovat stránku "Zásady ochrany osobních údajů" (privacy.html)
+    controllerName: '',       // provozovatel webu — prázdné = použije se Název webu / značka
+    contactEmail: '',         // kontaktní e-mail pro dotazy k osobním údajům
+    extraText: ''              // volitelný doplňkový text (vlastní specifika zpracování)
   },
   fontDisplay: "'Space Grotesk', sans-serif",
   fontBody: "'Inter', sans-serif",
@@ -2016,6 +2024,11 @@ function renderForm(){
           <div class="note-box" style="margin-top:8px;">Nejjednodušší varianta bez cizí služby — po kliknutí na tlačítko se otevře e-mailová aplikace návštěvníka s předvyplněnou zprávou. Nevyžaduje žádné externí konto, ale funguje jen pokud má návštěvník na zařízení nastavený e-mailový klient.</div>
         ` : ''}
         <div id="contactMissingWarn" class="warn-box" style="${contactMissingField(state.contact)?'':'display:none;'}">⚠ Bez vyplnění povinného údaje výše se kontaktní formulář v náhledu ani na exportovaném webu vůbec nezobrazí — sekce se prostě vynechá.</div>
+
+        <label style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+          <input type="checkbox" data-contact="gdprConsent" ${state.contact.gdprConsent!==false?'checked':''}> Vyžadovat povinný souhlas se zpracováním osobních údajů
+        </label>
+        ${state.contact.gdprConsent!==false ? field('Text souhlasu', `<textarea data-contact="gdprConsentText" style="min-height:50px;">${escapeHtml(state.contact.gdprConsentText)}</textarea>`) : ''}
       </div>
     </div>
 
@@ -2089,6 +2102,22 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">GDPR / Zásady ochrany osobních údajů</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-privacypage="enabled" ${state.privacyPage.enabled?'checked':''}> Vygenerovat stránku „Zásady ochrany osobních údajů" (privacy.html)
+      </label>
+      <div id="privacyPageBox" style="margin-top:10px;${state.privacyPage.enabled?'':'display:none;'}">
+        <div class="note-box" style="margin-top:0;margin-bottom:10px;">Text se automaticky přizpůsobí tomu, jestli máš zapnutý kontaktní formulář a jakou službu používá (Formspree/Web3Forms/Netlify/mailto), ať skutečně odpovídá tomu, co web dělá. Odkaz na tuhle stránku se navíc automaticky přidá k souhlasu v kontaktním formuláři a do placeholder odkazu „Ochrana osobních údajů" v Patičce, pokud tam takový máš.</div>
+        <button type="button" class="preview-page-btn" id="previewPrivacyBtn">👁️ ${previewSectionIndex==='privacy'?'Právě v náhledu':'Náhled stránky'}</button>
+        ${field('Provozovatel webu', `<input type="text" data-privacypage="controllerName" value="${escapeAttr(state.privacyPage.controllerName)}" placeholder="prázdné = použije se Název webu / značka">`)}
+        ${field('Kontaktní e-mail pro dotazy k osobním údajům', `<input type="text" data-privacypage="contactEmail" value="${escapeAttr(state.privacyPage.contactEmail)}" placeholder="gdpr@tvuj-web.cz">`)}
+        ${field('Doplňkový text (nepovinné)', `<textarea data-privacypage="extraText" data-richtext="1" style="min-height:60px;" placeholder="cokoli specifického pro tvůj web navíc — např. newsletter, e-shop…">${escapeHtml(state.privacyPage.extraText)}</textarea>`)}
+        <button class="add-btn" id="downloadPrivacyPage" style="margin-top:10px;">↓ Stáhnout privacy.html</button>
+        <div class="warn-box" style="margin-top:10px;">⚠️ Jde o obecnou šablonu, ne o právní poradenství. Podle povahy tvého webu (e-shop, sledovací nástroje, newslettery…) může být potřeba text doplnit nebo nechat zkontrolovat právníkem.</div>
+      </div>
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Vlastní kód (pokročilé)</div>
       <div class="warn-box" style="margin-top:0;margin-bottom:10px;">⚠️ Jen pro pokročilé — cokoli sem napíšeš, se do webu vloží přesně tak, jak je (bez kontroly). Chyba v kódu může stránku rozbít. Pokud si nejsi jistý/á, tuhle sekci radši nech prázdnou. Změny hned uvidíš v náhledu vpravo.</div>
       ${field('Vlastní CSS', `<textarea class="code-input" data-customcode="css" placeholder="/* vlastní styly, mají přednost před vygenerovanými */">${escapeHtml(state.customCode.css)}</textarea>`)}
@@ -2125,6 +2154,7 @@ function renderForm(){
   bindPwaInputs();
   bindSitemapInputs();
   bindNotFoundInputs();
+  bindPrivacyPageInputs();
   bindCookieBannerInputs();
   bindCustomCodeInputs();
   bindFooterInputs();
@@ -2138,6 +2168,11 @@ function renderForm(){
     downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, getHomeFilename(state)), 'text/html');
   };
   document.getElementById('previewNotFoundBtn').onclick = () => setPreviewTarget('notfound');
+  document.getElementById('downloadPrivacyPage').onclick = () => {
+    const customSectionsData = computeCustomSectionsData(state);
+    downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, getHomeFilename(state)), 'text/html');
+  };
+  document.getElementById('previewPrivacyBtn').onclick = () => setPreviewTarget('privacy');
 
   document.getElementById('addSection').onclick = () => {
     state.sections.push({type:'simple', label:'Nová stránka', title:'Nová stránka', text:'Text stránky.', image:'', imageUrl:'', imageAlt:'', standalone:false});
@@ -2391,8 +2426,9 @@ function bindContactInputs(){
     if (el.type === 'checkbox'){
       el.addEventListener('change', () => {
         state.contact[key] = el.checked;
-        // "Zobrazit formulář" mění, jestli se vůbec zobrazí zbytek nastavení — potřeba re-render.
-        if (key === 'enabled') { renderForm(); }
+        // "Zobrazit formulář" / "Vyžadovat souhlas" mění, jestli se zobrazí
+        // zbytek nastavení — potřeba re-render.
+        if (key === 'enabled' || key === 'gdprConsent') { renderForm(); }
         updateContactMissingWarn();
         updatePreview();
       });
@@ -2446,6 +2482,25 @@ function bindNotFoundInputs(){
       state.notFound[el.dataset.notfound] = el.value;
       if (previewSectionIndex === 'notfound') updatePreview();
     });
+  });
+}
+
+function bindPrivacyPageInputs(){
+  panel.querySelectorAll('[data-privacypage]').forEach(el => {
+    const key = el.dataset.privacypage;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', () => {
+        state.privacyPage[key] = el.checked;
+        // "Vygenerovat stránku" mění, jestli se zobrazí zbytek nastavení — potřeba re-render.
+        renderForm();
+        updatePreview();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        state.privacyPage[key] = el.value;
+        if (previewSectionIndex === 'privacy') updatePreview();
+      });
+    }
   });
 }
 
@@ -2973,7 +3028,9 @@ function buildSitemapXML(s){
     .map(l => /^https?:\/\//i.test(l) ? l : domain + l.replace(/^\//,''));
   // Vlastní stránky (samostatné .html soubory) se do sitemapy přidají automaticky.
   const pageUrls = computeCustomSectionsData(s).map(sec => domain + sec.filename);
-  const urls = Array.from(new Set([domain, ...pageUrls, ...extra]));
+  // Stránka GDPR (na rozdíl od 404) má smysl nechat indexovat.
+  const privacyUrl = (s.privacyPage && s.privacyPage.enabled) ? [domain + 'privacy.html'] : [];
+  const urls = Array.from(new Set([domain, ...pageUrls, ...privacyUrl, ...extra]));
   const urlEntries = urls.map(u => `  <url>
     <loc>${escapeHtml(u)}</loc>
     <lastmod>${escapeHtml(lastmod)}</lastmod>
@@ -3147,6 +3204,21 @@ function cookieBannerHtml(cookieBanner, footer){
 // (a nechá TODO poznámku, ať uživatel ví, že si ho musí sám nahrát na hosting).
 // Používá hlavní stránka, vlastní podstránky i stránka 404 — ať se favicon
 // nemění/nemizí při přechodu mezi nimi.
+// Pokud je zapnutá stránka GDPR (privacy.html) a v Patičce je odkaz, jehož
+// popisek zní na ochranu osobních údajů, ale adresa je pořád jen placeholder
+// "#", automaticky ho propojí na vygenerovanou stránku — ať to "prostě funguje"
+// bez nutnosti URL dohledávat a ručně vyplňovat. Odkaz, který si uživatel sám
+// nastavil na něco jiného, se nepřepisuje.
+function resolvePrivacyFooterLinks(s){
+  const links = (s.footer && s.footer.links) || [];
+  if (!s.privacyPage || !s.privacyPage.enabled) return links;
+  return links.map(l => {
+    const isGdprLabel = /ochran|osobn|gdpr|privacy/i.test(l.label || '');
+    const isPlaceholder = !((l.url || '').trim()) || l.url.trim() === '#';
+    return (isGdprLabel && isPlaceholder) ? Object.assign({}, l, { url: 'privacy.html' }) : l;
+  });
+}
+
 function faviconLinkHtml(s){
   const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
   return faviconSrc
@@ -3195,7 +3267,7 @@ function contactMissingField(contact){
 // odesílá buď na Formspree/Web3Forms (fetch na jejich API), nebo přes Netlify Forms
 // (fetch na aktuální stránku, funguje jen při hostování na Netlify), nebo jako mailto
 // (otevře e-mailového klienta návštěvníka). Skutečné odesílání řeší contactFormScript().
-function buildContactSectionHtml(contact, brand){
+function buildContactSectionHtml(contact, brand, privacyPage){
   const c = contact || {};
   if (!c.enabled) return '';
   let formAction = '', formExtraAttrs = '', hiddenFields = '';
@@ -3228,6 +3300,16 @@ function buildContactSectionHtml(contact, brand){
   // Pokud přijde vyplněné, contactFormScript() odeslání potichu zahodí.
   const honeypotField = `
         <div class="hp-field" aria-hidden="true"><label>Nechte prázdné<input type="text" name="_hpwebsite" tabindex="-1" autocomplete="off"></label></div>`;
+  // Souhlas se zpracováním osobních údajů — nepovinně zapnutý (výchozí ano),
+  // text upravitelný. Pokud je zapnutá stránka GDPR (viz níž), automaticky
+  // se na ni přidá odkaz, ať návštěvník ví, s čím přesně souhlasí.
+  let consentField = '';
+  if (c.gdprConsent !== false){
+    const consentText = (c.gdprConsentText || '').trim() || 'Souhlasím se zpracováním výše uvedených osobních údajů za účelem vyřízení mého dotazu.';
+    const privacyLinkHtml = (privacyPage && privacyPage.enabled) ? ` <a href="privacy.html" target="_blank" rel="noopener">Zásady ochrany osobních údajů</a>.` : '';
+    consentField = `
+        <label class="contact-consent"><input type="checkbox" name="gdprConsent" required> ${escapeHtml(consentText)}${privacyLinkHtml}</label>`;
+  }
   return `
     <section class="contact-section wrap" id="contact">
       ${(c.heading||'').trim() ? `<h2>${escapeHtml(c.heading)}</h2>` : ''}
@@ -3237,7 +3319,7 @@ function buildContactSectionHtml(contact, brand){
         <label>Jméno<input type="text" name="name" autocomplete="name" required></label>
         <label>E-mail<input type="email" name="email" autocomplete="email" required></label>${phoneField}
         <label>Zpráva<textarea name="message" rows="5" required></textarea></label>
-        <label class="contact-consent"><input type="checkbox" name="gdprConsent" required> Souhlasím se zpracováním výše uvedených osobních údajů za účelem vyřízení mého dotazu.</label>
+        ${consentField}
         ${honeypotField}
         <button type="submit">${escapeHtml(c.submitText || 'Odeslat zprávu')}</button>
         <p class="contact-status" aria-live="polite"></p>
@@ -3753,11 +3835,12 @@ function buildSiteHTML(s){
     </section>` : '';
 
   // Kontaktní formulář — nepovinná sekce mezi FAQ a patičkou
-  const contactSectionHtml = buildContactSectionHtml(s.contact, s.brand);
+  const contactSectionHtml = buildContactSectionHtml(s.contact, s.brand, s.privacyPage);
 
   // Patička: nepovinný text + nepovinné odkazy + volitelné copyright
-  const footerLinksHtml = (s.footer.links || []).length
-    ? `<ul class="footer-links">${s.footer.links.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
+  const resolvedFooterLinks = resolvePrivacyFooterLinks(s);
+  const footerLinksHtml = resolvedFooterLinks.length
+    ? `<ul class="footer-links">${resolvedFooterLinks.map(l => `<li><a href="${escapeAttr(l.url)}">${escapeHtml(l.label)}</a></li>`).join('')}</ul>`
     : '';
   const footerTextHtml = (s.footer.text || '').trim()
     ? `<p class="footer-text">${richText(s.footer.text)}</p>`
@@ -3847,7 +3930,7 @@ ${sharedStyleTag(s)}
 ${customHeadHtml(s)}
 </head>
 <body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!hasHeroImage ? ' no-hero-visual' : ''}">
-${cookieBannerHtml(s.cookieBanner, s.footer)}
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
 
 ${sideNavHtml}
 
@@ -4068,7 +4151,7 @@ ${standalone ? `<style>
 ${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
-${standalone ? '' : cookieBannerHtml(s.cookieBanner, s.footer)}
+${standalone ? '' : cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
 
 ${sideNavHtml}
 
@@ -4153,7 +4236,7 @@ ${sharedStyleTag(s)}
 ${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
-${cookieBannerHtml(s.cookieBanner, s.footer)}
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
 
 ${sideNavHtml}
 
@@ -4182,9 +4265,157 @@ ${customBodyEndHtml(s)}
 </html>`;
 }
 
-/* ============================================================
-   NÁHLED + EXPORT
-   ============================================================ */
+// Vygeneruje stránku "Zásady ochrany osobních údajů" (privacy.html) — text se
+// automaticky přizpůsobuje podle toho, jestli je zapnutý kontaktní formulář a
+// jakou službu používá, ať skutečně odpovídá tomu, co web dělá. Jde o obecnou
+// šablonu, ne o právní poradenství — viz upozornění v UI i na konci stránky.
+function buildPrivacyPageHTML(s, customSectionsData, homeFilename){
+  const pp = s.privacyPage || {};
+  const contact = s.contact || {};
+  const controllerName = (pp.controllerName || '').trim() || s.brand || 'provozovatel webu';
+  const contactEmail = (pp.contactEmail || '').trim();
+  const today = new Date().toLocaleDateString('cs-CZ', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const contactFormActive = contact.enabled && (
+    (contact.provider === 'formspree' && (contact.formspreeId || '').trim()) ||
+    (contact.provider === 'web3forms' && (contact.web3formsKey || '').trim()) ||
+    contact.provider === 'netlify' ||
+    (contact.provider === 'mailto' && (contact.mailtoAddress || '').trim())
+  );
+
+  let dataCollectedHtml, processorHtml;
+  if (contactFormActive){
+    const fields = ['jméno', 'e-mail', ...(contact.includePhone ? ['telefon'] : []), 'obsah zprávy'];
+    dataCollectedHtml = `<p>Přes kontaktní formulář na tomto webu od tebe můžeme získat: ${escapeHtml(fields.join(', '))}. Tyto údaje používáme výhradně k tomu, abychom mohli odpovědět na tvůj dotaz.</p>`;
+    const providerInfo = {
+      formspree: 'Odeslání zpráv technicky zajišťuje třetí strana <b>Formspree, Inc.</b> (USA) — více v jejich <a href="https://formspree.io/legal/privacy-policy/" target="_blank" rel="noopener">zásadách ochrany osobních údajů</a>.',
+      web3forms: 'Odeslání zpráv technicky zajišťuje třetí strana <b>Web3Forms</b> — více v jejich <a href="https://web3forms.com/privacy" target="_blank" rel="noopener">zásadách ochrany osobních údajů</a>.',
+      netlify: 'Web je nasazený na platformě <b>Netlify, Inc.</b> (USA), která technicky zajišťuje doručení zpráv z formuláře — více v jejich <a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener">zásadách ochrany osobních údajů</a>.',
+      mailto: 'Zpráva se odesílá přímo jako e-mail z tvého zařízení — neprochází přes žádnou třetí stranu ani přes server tohoto webu.'
+    };
+    processorHtml = `<p>${providerInfo[contact.provider] || ''}</p>`;
+  } else {
+    dataCollectedHtml = `<p>Tento web v tuto chvíli aktivně nesbírá žádné osobní údaje prostřednictvím formulářů.</p>`;
+    processorHtml = '';
+  }
+
+  const cookiesText = (s.cookieBanner && s.cookieBanner.enabled !== false && (s.cookieBanner.text || '').trim())
+    || 'Tento web pro svůj provoz ukládá jen technicky nutná data v prohlížeči, žádné sledovací cookies.';
+
+  const extraHtml = (pp.extraText || '').trim()
+    ? `<h2>Další informace</h2>\n      <p>${richText(pp.extraText)}</p>`
+    : '';
+
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: '' });
+
+  const mainHtml = `
+    <section class="custom-section wrap privacy-section">
+      <h1>Zásady ochrany osobních údajů</h1>
+      <p class="privacy-updated">Naposledy aktualizováno: ${escapeHtml(today)}</p>
+
+      <h2>1. Provozovatel</h2>
+      <p>Provozovatelem tohoto webu je <b>${escapeHtml(controllerName)}</b>.${contactEmail ? ` V otázkách týkajících se osobních údajů nás můžeš kontaktovat na <a href="mailto:${escapeAttr(contactEmail)}">${escapeHtml(contactEmail)}</a>.` : ''}</p>
+
+      <h2>2. Jaké osobní údaje zpracováváme</h2>
+      ${dataCollectedHtml}
+
+      ${processorHtml ? `<h2>3. Komu údaje předáváme</h2>\n      ${processorHtml}` : ''}
+
+      <h2>${processorHtml ? '4' : '3'}. Cookies</h2>
+      <p>${escapeHtml(cookiesText)}</p>
+
+      <h2>${processorHtml ? '5' : '4'}. Doba uchování údajů</h2>
+      <p>Osobní údaje zaslané přes kontaktní formulář uchováváme jen po dobu nezbytnou k vyřízení tvého dotazu, pokud zákon nestanoví jinak.</p>
+
+      <h2>${processorHtml ? '6' : '5'}. Tvoje práva</h2>
+      <p>V souvislosti se zpracováním osobních údajů máš právo:</p>
+      <ul>
+        <li>na přístup ke svým osobním údajům,</li>
+        <li>na opravu nepřesných údajů,</li>
+        <li>na výmaz údajů ("právo být zapomenut"),</li>
+        <li>na omezení zpracování,</li>
+        <li>vznést proti zpracování námitku,</li>
+        <li>podat stížnost u <a href="https://www.uoou.cz" target="_blank" rel="noopener">Úřadu pro ochranu osobních údajů</a>.</li>
+      </ul>
+
+      <h2>${processorHtml ? '7' : '6'}. Kontakt</h2>
+      <p>${contactEmail ? `S žádostmi týkajícími se svých osobních údajů nás kontaktuj na <a href="mailto:${escapeAttr(contactEmail)}">${escapeHtml(contactEmail)}</a>.` : 'Kontaktní e-mail pro dotazy k osobním údajům zatím není vyplněný.'}</p>
+
+      ${extraHtml}
+
+      <p class="privacy-disclaimer">Tento text je obecná šablona a nenahrazuje právní poradenství — v závislosti na povaze webu (např. e-shop, sledovací nástroje, newslettery) může být potřeba ho doplnit nebo nechat zkontrolovat právníkem.</p>
+
+      <div class="cta-group">
+        <a class="cta" href="${escapeAttr(homeFilename)}">← Zpět na hlavní stránku</a>
+      </div>
+    </section>`;
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>Zásady ochrany osobních údajů — ${escapeHtml(s.brand)}</title>
+<meta name="robots" content="index, follow">
+<meta name="generator" content="WEBZEN — https://synthlucida.com">
+
+${faviconLinkHtml(s)}
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+${sharedStyleTag(s)}
+<style>
+  .privacy-section h2{font-size:clamp(17px,2.4vw,20px);margin:30px 0 10px;}
+  .privacy-section h2:first-of-type{margin-top:26px;}
+  .privacy-section p, .privacy-section li{color:#c7c7ce;font-size:14.5px;line-height:1.7;}
+  .privacy-section ul{margin:8px 0;padding-left:22px;}
+  .privacy-section li{margin:4px 0;}
+  .privacy-section a{color:var(--accent);}
+  .privacy-updated{font-size:12.5px;opacity:.7;margin:-6px 0 20px;}
+  .privacy-disclaimer{font-size:12px;opacity:.6;margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);}
+  .privacy-section .cta-group{justify-content:flex-start;margin-top:30px;}
+</style>
+${customHeadHtml(s)}
+</head>
+<body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+${mainHtml}
+
+    <footer>${s.footer.showCopyright ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>` : ''}${webzenWatermarkHtml()}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+    ${menuToggleScript()}
+    ${previewNavInterceptScript()}
+  <\/script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  <\/script>
+${customBodyEndHtml(s)}
+</body>
+</html>`;
+}
+
+
 const frame = document.getElementById('previewFrame');
 let previewTimer = null;
 // Když uživatel edituje konkrétní vlastní stránku, náhled se přepne na tuto
@@ -4202,10 +4433,14 @@ function updatePreviewIndicator(){
   const el = document.getElementById('previewPageIndicator');
   if (!el) return;
   const isNotFound = previewSectionIndex === 'notfound';
-  const sec = (!isNotFound && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
-  if (sec || isNotFound) {
+  const isPrivacy = previewSectionIndex === 'privacy';
+  const sec = (!isNotFound && !isPrivacy && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
+  if (sec || isNotFound || isPrivacy) {
     el.classList.add('show');
-    el.innerHTML = `📄 Náhled: <b>${isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Stránka nenalezena') : escapeHtml(sec.label || sec.title || 'Stránka')}</b>`;
+    const label = isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Stránka nenalezena')
+      : isPrivacy ? 'Zásady ochrany osobních údajů'
+      : escapeHtml(sec.label || sec.title || 'Stránka');
+    el.innerHTML = `📄 Náhled: <b>${label}</b>`;
     const backBtn = document.createElement('button');
     backBtn.type = 'button';
     backBtn.textContent = '← Hlavní stránka';
@@ -4215,10 +4450,12 @@ function updatePreviewIndicator(){
     el.classList.remove('show');
     el.innerHTML = '';
   }
-  // Tlačítko v panelu (fieldset "Stránka 404") — text se mění podle toho,
-  // jestli je 404 zrovna v náhledu, jinak by po přepnutí pryč zůstalo "Právě v náhledu".
+  // Tlačítka v panelu — text se mění podle toho, jestli je daná stránka zrovna
+  // v náhledu, jinak by po přepnutí pryč zůstal nesmyslný "Právě v náhledu".
   const nfBtn = document.getElementById('previewNotFoundBtn');
   if (nfBtn) nfBtn.textContent = isNotFound ? '👁️ Právě v náhledu' : '👁️ Náhled stránky 404';
+  const ppBtn = document.getElementById('previewPrivacyBtn');
+  if (ppBtn) ppBtn.textContent = isPrivacy ? '👁️ Právě v náhledu' : '👁️ Náhled stránky';
 }
 
 function buildCurrentPreviewHTML(){
@@ -4226,6 +4463,9 @@ function buildCurrentPreviewHTML(){
   const customSectionsData = computeCustomSectionsData(state);
   if (previewSectionIndex === 'notfound') {
     return buildNotFoundPageHTML(state, customSectionsData, homeFilename);
+  }
+  if (previewSectionIndex === 'privacy') {
+    return buildPrivacyPageHTML(state, customSectionsData, homeFilename);
   }
   const sec = previewSectionIndex != null ? state.sections[previewSectionIndex] : null;
   if (sec) {
@@ -4384,6 +4624,13 @@ window.addEventListener('message', (e) => {
     frame.srcdoc = buildNotFoundPageHTML(state, computeCustomSectionsData(state), homeFilename);
     return;
   }
+  if (filename === 'privacy.html') {
+    pendingPreviewHash = hash;
+    previewSectionIndex = 'privacy';
+    updatePreviewIndicator();
+    frame.srcdoc = buildPrivacyPageHTML(state, computeCustomSectionsData(state), homeFilename);
+    return;
+  }
   const customSectionsData = computeCustomSectionsData(state);
   const idx = customSectionsData.findIndex(cs => cs.filename === filename);
   if (idx !== -1) {
@@ -4512,6 +4759,11 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   setTimeout(() => {
     downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html');
   }, (customSectionsData.length + 1) * 300);
+  if (state.privacyPage && state.privacyPage.enabled) {
+    setTimeout(() => {
+      downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
+    }, (customSectionsData.length + 2) * 300);
+  }
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {
