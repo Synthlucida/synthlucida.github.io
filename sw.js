@@ -10,7 +10,7 @@
 // "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v850';
+const APP_CACHE_NAME = 'synthlucida-app-v851';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -86,7 +86,7 @@ self.addEventListener('fetch', (event) => {
   // zachytával a plnil jimi synthlucida-app cache, i když s playerem
   // vůbec nesouvisí. Kdyby jednou dostaly vlastní offline podporu,
   // dostanou vlastní sw.js se scope jen na sebe.
-  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik)/i.test(url.pathname)) {
+  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas)/i.test(url.pathname)) {
     return;
   }
 

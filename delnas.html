@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<script>
+  (function applySavedThemeEarly(){
+    var THEME_COLORS = {
+      emerald: ['#34d399', '#0d3d2a'],
+      violet:  ['#a78bfa', '#3b2166'],
+      cyan:    ['#22d3ee', '#0e4a52'],
+      rose:    ['#f472b6', '#6b1441'],
+      amber:   ['#fbbf24', '#4a2e05']
+    };
+    try {
+      var id = localStorage.getItem('delnas_theme');
+      var pair = THEME_COLORS[id];
+      if(pair){
+        var root = document.documentElement.style;
+        root.setProperty('--accent-color', pair[0]);
+        root.setProperty('--accent-glow', pair[1]);
+      }
+    } catch(e){}
+  })();
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#06120c">
+<title>DĚLŇAS – pracovní deník výkonu</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%AA%3C/text%3E%3C/svg%3E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dělňas">
+
+<style>
+  @property --accent-color { syntax: '<color>'; inherits: true; initial-value: #34d399; }
+  @property --accent-glow  { syntax: '<color>'; inherits: true; initial-value: #0d3d2a; }
+
+  :root{
+    --bg-1:#132218;
+    --bg-2:#050a06;
+    --accent-color:#34d399;
+    --accent-glow:#0d3d2a;
+    --good:#34d399;
+    --bad:#f87171;
+    --warn:#fbbf24;
+    --card-bg:rgba(255,255,255,0.045);
+    --card-border:rgba(255,255,255,0.09);
+    --heat-cell:11px;
+    --font-head:'Segoe UI', system-ui, Roboto, Arial, sans-serif;
+    --font-body:'Segoe UI', system-ui, Roboto, Arial, sans-serif;
+    --font-mono:'Consolas', 'SFMono-Regular', Menlo, monospace;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html{ scroll-behavior:smooth; }
+  html,body{ overscroll-behavior-y:none; }
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+  body{
+    margin:0; min-height:100vh; color:#fff;
+    font-family:var(--font-body); font-weight:400;
+    background:radial-gradient(circle at 50% 10%, var(--bg-1), var(--bg-2) 62%, #000);
+    overflow-x:hidden;
+  }
+
+  h1,h2,h3,.brand,.add-btn-label{ font-family:var(--font-head); }
+
+  .ambient-blobs{ position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+  .blob{ position:absolute; border-radius:50%; filter:blur(60px); opacity:0.18; animation:floatBlobs 55s infinite linear alternate; }
+  .blob.b1{ width:340px; height:340px; top:-8%; left:-14%; background:var(--accent-color); }
+  .blob.b2{ width:420px; height:420px; bottom:-10%; right:-16%; background:var(--accent-glow); animation-duration:65s; animation-delay:-14s; }
+  @keyframes floatBlobs{ 0%{transform:translate(0,0);} 100%{transform:translate(50px,40px);} }
+
+  .wrap{
+    position:relative; z-index:1; width:100%; max-width:480px; margin:0 auto;
+    padding:calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  }
+
+  header{ display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:20px; }
+  .brand-row{ display:flex; align-items:center; justify-content:center; gap:9px; }
+  .brand-icon{ width:26px; height:26px; color:var(--accent-color); filter:drop-shadow(0 0 10px var(--accent-color)); animation:brandIconFloat 4s ease-in-out infinite; }
+  .brand-icon svg{ width:100%; height:100%; }
+  @keyframes brandIconFloat{ 0%,100%{ transform:translateY(0) rotate(0deg); } 50%{ transform:translateY(-3px) rotate(-4deg); } }
+  .brand{ font-size:clamp(18px, 6vw, 24px); font-weight:800; letter-spacing:2px; text-transform:uppercase;
+    background:linear-gradient(90deg, #fff 0%, var(--accent-color) 55%, #a7f3d0 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 14px rgba(52,211,153,0.35)); }
+  .brand .dot{ color:var(--accent-color); -webkit-text-fill-color:var(--accent-color); text-shadow:0 0 12px var(--accent-color); }
+  .brand-slogan{ font-size:12px; font-style:italic; color:var(--accent-color); opacity:0.85; text-align:center; letter-spacing:0.3px; }
+  .brand-datetime{ font-family:var(--font-mono); font-size:11px; opacity:0.45; letter-spacing:0.3px; }
+
+  .theme-wrap{ position:relative; }
+  .header-actions{ display:flex; align-items:center; justify-content:center; gap:10px; }
+  .theme-btn{ display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border);
+    color:rgba(255,255,255,0.65); font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.4px;
+    padding:6px 13px; border-radius:999px; cursor:pointer; transition:0.25s; }
+  .theme-btn:hover{ border-color:var(--accent-color); color:#fff; }
+  .theme-btn svg{ width:14px; height:14px; color:var(--accent-color); flex-shrink:0; }
+  .theme-panel{ position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+    background:#0d1a11; border:1px solid var(--card-border); border-radius:16px; padding:14px;
+    box-shadow:0 14px 34px rgba(0,0,0,0.45); z-index:15; width:206px; }
+  .theme-panel.hidden{ display:none; }
+  .theme-panel-title{ font-family:var(--font-head); font-size:9.5px; letter-spacing:1px; text-transform:uppercase; opacity:0.55; margin-bottom:10px; text-align:center; }
+  .theme-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; justify-items:center; }
+  .theme-swatch{ width:28px; height:28px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0; position:relative; transition:0.2s; }
+  .theme-swatch.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.15); }
+
+  main{ display:flex; flex-direction:column; gap:16px; }
+
+  .card{ background:var(--card-bg); border:1px solid var(--card-border); border-radius:20px; padding:18px 16px; backdrop-filter:blur(10px); }
+  .card h2{ margin:0 0 12px; font-size:12px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.65; font-weight:700; }
+  .card h2 small{ display:block; font-size:10px; letter-spacing:0.3px; text-transform:none; opacity:0.7; margin-top:3px; font-weight:400; }
+
+  /* ---- form ---- */
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:11px; opacity:0.6; margin-bottom:5px; letter-spacing:0.3px; }
+  .field input[type=date], .field input[type=text], .field input[type=number], .field select, .field textarea,
+  .entry-row-grid select, .entry-row-grid2 input{
+    width:100%; min-width:0; box-sizing:border-box; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); border-radius:10px;
+    color:#fff; font-family:var(--font-body); font-size:14px; padding:10px 12px; -webkit-appearance:none;
+  }
+  .field select option, .entry-row-grid select option{ color:#0f1b13; background:#ffffff; }
+  .field textarea{ resize:vertical; min-height:44px; font-family:var(--font-body); }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; font-size:13px; opacity:0.85; margin-bottom:14px; }
+  .checkbox-row input{ width:17px; height:17px; accent-color:var(--accent-color); }
+
+  .entry-row{ background:rgba(255,255,255,0.035); border:1px solid var(--card-border); border-radius:14px; padding:12px; margin-bottom:10px; position:relative; }
+  .entry-row-grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
+  .entry-row-grid2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-top:8px; }
+  .entry-row-grid > div, .entry-row-grid2 > div{ min-width:0; }
+  .entry-row .row-remove{ position:absolute; top:8px; right:8px; z-index:2; background:none; border:none; color:rgba(255,255,255,0.35);
+    font-size:15px; cursor:pointer; width:24px; height:24px; border-radius:50%; line-height:1; }
+  .entry-row .row-remove:active{ background:rgba(255,255,255,0.1); }
+  .row-unit-hint{ font-size:10px; opacity:0.45; margin-top:3px; }
+
+  .btn{ font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:0.6px; border:none; border-radius:12px;
+    padding:12px 16px; cursor:pointer; text-transform:uppercase; }
+  .btn-primary{ width:100%; background:linear-gradient(90deg, var(--accent-color), #a7f3d0); color:#052014; box-shadow:0 8px 24px -8px rgba(52,211,153,0.65); }
+  .btn-primary:active{ transform:scale(0.98); }
+  .btn-ghost{ background:rgba(255,255,255,0.06); color:#fff; border:1px solid var(--card-border); width:100%; }
+  .btn-add-row{ background:rgba(52,211,153,0.12); color:var(--accent-color); border:1px dashed rgba(52,211,153,0.5); width:100%; margin-bottom:6px; }
+  .form-actions{ display:flex; gap:8px; margin-top:4px; }
+  .form-actions .btn{ flex:1; }
+  .edit-banner{ background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.4); color:var(--warn); font-size:11.5px;
+    padding:8px 12px; border-radius:10px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .edit-banner[hidden]{ display:none; }
+  .edit-banner button{ background:none; border:none; color:var(--warn); text-decoration:underline; font-size:11px; cursor:pointer; }
+
+  /* ---- XP ---- */
+  .xp-card{ position:relative; overflow:hidden; }
+  .xp-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .xp-badge{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .xp-badge-icon{ width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #d1fae5, var(--accent-color) 60%, var(--accent-glow) 100%);
+    box-shadow:0 0 14px rgba(52,211,153,0.55); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .xp-badge-text{ min-width:0; }
+  .xp-level{ font-family:var(--font-head); font-size:13.5px; font-weight:700; letter-spacing:0.4px; white-space:nowrap; }
+  .xp-title{ font-size:11px; opacity:0.6; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .xp-right{ text-align:right; flex-shrink:0; }
+  .xp-amount{ font-family:var(--font-head); font-size:17px; font-weight:700; color:var(--accent-color); text-shadow:0 0 10px rgba(52,211,153,0.4); white-space:nowrap; }
+  .xp-amount span{ font-size:9.5px; opacity:0.6; font-weight:400; }
+  .xp-streak{ font-family:var(--font-mono); font-size:10.5px; color:var(--warn); margin-top:3px; white-space:nowrap; }
+  .xp-streak[hidden]{ display:none; }
+  .xp-progress-bar{ width:100%; height:9px; border-radius:999px; background:rgba(255,255,255,0.08); overflow:hidden; margin-top:14px; }
+  .xp-progress-fill{ height:100%; border-radius:999px; width:0%; background:linear-gradient(90deg, var(--accent-glow), var(--accent-color) 65%, #d1fae5);
+    box-shadow:0 0 10px rgba(52,211,153,0.55); transition:width 0.5s ease; }
+  .xp-progress-label{ font-size:10.5px; opacity:0.55; margin-top:6px; font-family:var(--font-mono); }
+  .xp-card.level-up{ animation:xpLevelUpGlow 1.3s ease; }
+  @keyframes xpLevelUpGlow{ 0%{ box-shadow:0 0 0 rgba(52,211,153,0); } 35%{ box-shadow:0 0 46px rgba(52,211,153,0.85); } 100%{ box-shadow:0 0 0 rgba(52,211,153,0); } }
+
+  /* ---- advice ---- */
+  .advice-card{ text-align:center; }
+  .advice-emoji{ font-size:30px; margin-bottom:6px; }
+  .advice-text{ font-size:13.5px; line-height:1.55; opacity:0.92; }
+  .advice-pay{ margin-top:10px; font-size:12.5px; color:var(--accent-color); font-weight:600; }
+  .advice-quote{ margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); font-size:11.5px; font-style:italic; opacity:0.6; line-height:1.5; }
+
+  /* ---- chips ---- */
+  .chips-row{ display:flex; gap:10px; }
+  .chip{ flex:1; background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:12px 6px; text-align:center; }
+  .chip-value{ font-family:var(--font-head); font-size:17px; font-weight:700; }
+  .chip-label{ font-size:9.5px; opacity:0.55; text-transform:uppercase; letter-spacing:0.4px; margin-top:3px; }
+
+  /* ---- trends ---- */
+  .trend-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .trend-row:last-child{ border-bottom:none; }
+  .trend-arrow{ width:26px; height:26px; flex-shrink:0; }
+  .trend-arrow svg{ width:100%; height:100%; }
+  .trend-label{ font-size:11px; opacity:0.55; text-transform:uppercase; letter-spacing:0.5px; }
+  .trend-main{ font-size:14px; font-weight:600; margin-top:2px; }
+  .trend-numbers{ flex:1; min-width:0; }
+  .trend-delta{ font-size:11.5px; opacity:0.65; white-space:nowrap; text-align:right; flex-shrink:0; }
+
+  /* ---- summary table ---- */
+  .sum-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .sum-table th{ text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:0.4px; opacity:0.5; padding:0 6px 8px; font-weight:600; }
+  .sum-table td{ padding:8px 6px; border-top:1px solid rgba(255,255,255,0.06); }
+  .sum-table td.num{ text-align:right; font-family:var(--font-mono); }
+  .pct-pill{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; font-family:var(--font-mono); white-space:nowrap; }
+  .pct-great{ background:rgba(52,211,153,0.22); color:#6ee7b7; }
+  .pct-good{ background:rgba(52,211,153,0.14); color:#a7f3d0; }
+  .pct-ok{ background:rgba(251,191,36,0.18); color:#fcd34d; }
+  .pct-low{ background:rgba(248,113,113,0.18); color:#fca5a5; }
+  .sum-empty{ font-size:12px; opacity:0.45; text-align:center; padding:14px 0; }
+
+  /* ---- charts ---- */
+  .chart-svg-wrap{ width:100%; }
+  .bar-chart{ display:flex; flex-direction:column; height:120px; }
+  .bar-vals-row{ display:flex; align-items:flex-end; gap:4px; height:11px; flex-shrink:0; }
+  .bar-track-row{ display:flex; align-items:stretch; gap:4px; flex:1 1 auto; min-height:0; position:relative; }
+  .bar-labels-row{ display:flex; gap:4px; margin-top:5px; flex-shrink:0; }
+  .bar-col-val{ flex:1; min-width:0; text-align:center; font-size:8.5px; opacity:0.55; white-space:nowrap; overflow:hidden; }
+  .bar-col-track{ flex:1; min-width:0; height:100%; display:flex; align-items:flex-end; justify-content:center; }
+  .bar{ width:100%; max-width:22px; border-radius:4px 4px 2px 2px; background:rgba(255,255,255,0.14); transition:height 0.4s ease; min-height:2px; }
+  .bar.tier-great{ background:linear-gradient(180deg, #a7f3d0, var(--good)); box-shadow:0 0 10px rgba(52,211,153,0.5); }
+  .bar.tier-good{ background:linear-gradient(180deg, #bbf7d0, var(--accent-color)); box-shadow:0 0 8px rgba(52,211,153,0.35); }
+  .bar.tier-ok{ background:linear-gradient(180deg, #fde68a, var(--warn)); }
+  .bar.tier-low{ background:linear-gradient(180deg, #fca5a5, var(--bad)); }
+  .bar-col-label{ flex:1; min-width:0; text-align:center; font-size:8px; opacity:0.4; white-space:nowrap; overflow:hidden; }
+  .norm-line{ position:absolute; left:0; right:0; border-top:1px dashed rgba(255,255,255,0.35); pointer-events:none; }
+  .norm-line-label{ position:absolute; right:0; top:-11px; font-size:8px; opacity:0.5; background:var(--bg-2); padding:0 2px; }
+  .chart-empty{ font-size:12px; opacity:0.45; text-align:center; padding:20px 0; }
+
+  .heatmap-scroll{ width:100%; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; }
+  .heatmap-inner{ display:inline-block; }
+  .heatmap-months{ display:grid; grid-auto-rows:var(--heat-cell); gap:2px; margin-bottom:4px; }
+  .heatmap-months span{ font-size:8px; opacity:0.45; white-space:nowrap; align-self:start; }
+  .heatmap-grid{ display:grid; grid-auto-flow:column; grid-template-rows:repeat(7, var(--heat-cell)); gap:2px; }
+  .heat-cell{ width:var(--heat-cell); height:var(--heat-cell); border-radius:2px; background:rgba(255,255,255,0.06); }
+  .heat-cell.empty{ background:transparent; }
+  .heat-cell.heat-low{ background:rgba(248,113,113,0.55); }
+  .heat-cell.heat-ok{ background:rgba(251,191,36,0.55); }
+  .heat-cell.heat-good{ background:rgba(52,211,153,0.5); }
+  .heat-cell.heat-great{ background:var(--good); box-shadow:0 0 6px rgba(52,211,153,0.6); }
+  .heat-cell.heat-off{ background:rgba(255,255,255,0.14); }
+  .heatmap-legend{ display:flex; align-items:center; gap:4px; margin-top:10px; font-size:9.5px; opacity:0.5; flex-wrap:wrap; }
+  .heatmap-legend .heat-cell{ width:9px; height:9px; }
+
+  /* ---- history ---- */
+  .history-list{ display:flex; flex-direction:column; gap:6px; max-height:420px; overflow-y:auto; }
+  .history-row{ background:rgba(255,255,255,0.045); border-radius:10px; padding:9px 10px; font-size:12px; }
+  .history-row-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .history-entry{ padding:3px 0; border-top:1px dashed rgba(255,255,255,0.07); }
+  .history-entry:first-of-type{ border-top:none; }
+  .history-entry .h-detail{ opacity:0.55; font-size:10.5px; }
+  .history-row .h-note{ opacity:0.55; font-size:11px; margin-top:4px; font-style:italic; }
+  .history-row .h-pay{ margin-top:6px; font-size:11.5px; color:var(--accent-color); font-weight:600; }
+  .history-actions{ display:flex; gap:10px; margin-top:6px; }
+  .history-actions button{ background:none; border:none; color:var(--accent-color); font-size:11px; cursor:pointer; padding:0; text-decoration:underline; }
+  .history-actions button.del{ color:var(--bad); }
+  .history-empty{ font-size:12px; opacity:0.4; text-align:center; padding:14px 0; }
+
+  /* ---- settings ---- */
+  .task-block{ background:rgba(255,255,255,0.03); border-radius:14px; padding:12px; margin-bottom:10px; }
+  .task-block-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .task-block-head input[type=text]{ flex:1; min-width:100px; background:rgba(255,255,255,0.06); border:1px solid var(--card-border);
+    border-radius:8px; color:#fff; font-family:var(--font-body); font-size:12.5px; padding:7px 8px; font-weight:600; }
+  .task-basis-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:11px; opacity:0.7; }
+  .task-basis-row select{ flex-shrink:0; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); border-radius:8px; color:#fff; font-size:11.5px; padding:5px 8px; }
+  .task-basis-row select option{ color:#0f1b13; background:#ffffff; }
+  .size-block{ background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:12px; padding:10px; margin-bottom:8px; }
+  .size-block-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .size-block-head input[type=text]{ flex:1; background:rgba(255,255,255,0.06); border:1px solid var(--card-border);
+    border-radius:8px; color:#fff; font-size:12.5px; padding:7px 8px; font-weight:600; }
+  .tier-row{ display:flex; flex-wrap:wrap; gap:5px; align-items:flex-end; margin-bottom:6px; background:rgba(255,255,255,0.02); border-radius:8px; padding:6px; }
+  .tier-field{ flex:1 1 60px; min-width:56px; }
+  .tier-field label{ display:block; font-size:8.5px; opacity:0.5; margin-bottom:2px; white-space:nowrap; }
+  .tier-field input{ width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--card-border);
+    border-radius:6px; color:#fff; font-size:11.5px; padding:5px 5px; }
+  .tier-row button{ background:none; border:none; color:rgba(255,255,255,0.35); font-size:14px; cursor:pointer; flex-shrink:0; padding:4px; }
+  .mini-btn{ background:rgba(52,211,153,0.12); color:var(--accent-color); border:1px dashed rgba(52,211,153,0.5); border-radius:8px;
+    font-size:11px; padding:6px 10px; cursor:pointer; margin-top:2px; }
+  .mini-btn-sm{ font-size:10px; padding:5px 8px; }
+  .task-unit-select{ width:auto !important; flex-shrink:0; background:rgba(255,255,255,0.06); border:1px solid var(--card-border);
+    border-radius:8px; color:#fff; font-size:11.5px; padding:7px 8px; }
+  .task-unit-select option{ color:#0f1b13; background:#ffffff; }
+  .settings-hint{ font-size:11px; opacity:0.5; line-height:1.5; margin-bottom:12px; }
+  .del-task-btn{ background:none; border:none; color:var(--bad); font-size:15px; cursor:pointer; flex-shrink:0; }
+  .del-size-btn{ background:none; border:none; color:var(--bad); font-size:13px; cursor:pointer; flex-shrink:0; }
+
+  /* ---- info/export details ---- */
+  .info-card{ padding:18px 18px 16px; cursor:default; }
+  .info-card summary{ display:flex; align-items:center; gap:10px; cursor:pointer; list-style:none;
+    font-family:var(--font-head); font-size:11.5px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--accent-color); text-shadow:0 0 10px var(--accent-color); user-select:none; }
+  .info-card summary::-webkit-details-marker{ display:none; }
+  .info-card summary .info-icon{ width:22px; height:22px; flex-shrink:0; border-radius:50%; border:1px solid var(--accent-color);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(52,211,153,0.25); font-size:12px; }
+  .info-card summary .chevron{ margin-left:auto; width:14px; height:14px; color:var(--accent-color); transition:transform 0.25s; }
+  .info-card[open] summary .chevron{ transform:rotate(180deg); }
+  .info-card .info-content{ margin-top:16px; font-size:12.8px; line-height:1.65; opacity:0.85; }
+  .info-content p{ margin:0 0 12px; }
+  .info-content ul, .info-content ol{ margin:0 0 14px; padding-left:18px; }
+  .info-content li{ margin-bottom:6px; }
+  .info-content strong{ color:#fff; font-weight:600; }
+  .info-content h3{ font-family:var(--font-head); font-size:12.5px; letter-spacing:0.4px; color:var(--accent-color);
+    text-transform:uppercase; margin:20px 0 8px; opacity:0.95; }
+  .info-content h3:first-of-type{ margin-top:4px; }
+  .info-content .manual-divider{ border:none; border-top:1px solid var(--card-border); margin:16px 0; }
+
+  .export-actions{ display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+  .export-btn{ display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+    padding:13px 16px; border-radius:14px; border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.04); color:#fff; cursor:pointer; transition:0.25s; font-family:var(--font-body); }
+  .export-btn:hover{ border-color:var(--accent-color); background:rgba(52,211,153,0.08); }
+  .export-btn svg{ width:19px; height:19px; color:var(--accent-color); flex-shrink:0; }
+  .export-btn-label{ display:flex; flex-direction:column; gap:3px; font-size:13.5px; font-weight:500; }
+  .export-btn-sub{ font-size:10.8px; font-weight:400; opacity:0.5; line-height:1.4; }
+  .export-hint{ font-size:11px; opacity:0.4; margin-top:12px; line-height:1.5; }
+
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 20px);
+    background:#0d1a11; border:1px solid var(--card-border); color:#fff; font-family:var(--font-body); font-size:12.5px;
+    padding:11px 18px; border-radius:999px; box-shadow:0 10px 30px rgba(0,0,0,0.4); opacity:0; pointer-events:none;
+    transition:0.3s ease; z-index:40; max-width:90vw; text-align:center; }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  .footer-actions{ display:flex; justify-content:center; margin-top:2px; }
+  .reset-btn{ background:none; border:1px solid rgba(248,113,113,0.35); color:rgba(248,113,113,0.75);
+    font-family:var(--font-body); font-size:11.5px; padding:9px 16px; border-radius:999px; cursor:pointer; }
+  footer{ text-align:center; margin-top:18px; }
+  .footer-note{ font-size:10px; opacity:0.4; line-height:1.6; }
+  .footer-links{ font-family:var(--font-mono); font-size:11px; color:rgba(255,255,255,0.3); line-height:1.9; margin-bottom:8px; }
+  .footer-links a{ color:rgba(255,255,255,0.45); text-decoration:none; }
+  .footer-links a:hover{ color:var(--accent-color); }
+
+  .header-links{ font-family:var(--font-mono); font-size:10px; color:rgba(255,255,255,0.3);
+    text-align:center; white-space:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    padding-bottom:10px; margin-bottom:14px; border-bottom:1px solid var(--card-border); scrollbar-width:none;
+    cursor:grab; user-select:none; }
+  .header-links.dragging{ cursor:grabbing; }
+  .header-links::-webkit-scrollbar{ display:none; }
+  .header-links a{ color:rgba(255,255,255,0.45); text-decoration:none; }
+  .header-links a:hover{ color:var(--accent-color); }
+  .header-links .sep{ opacity:0.5; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(3,8,5,0.72); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center; z-index:50; padding:24px; }
+  .overlay.hidden{ display:none; }
+  .overlay-box{ background:#0d1a11; border:1px solid var(--card-border); border-radius:18px; padding:22px 20px; max-width:340px; text-align:center; }
+  .overlay-box p{ font-size:13.5px; opacity:0.85; margin:0 0 18px; line-height:1.5; }
+  .overlay-actions{ display:flex; gap:10px; justify-content:center; }
+  .overlay-actions button{ font-family:var(--font-body); font-size:12.5px; padding:9px 16px; border-radius:999px; cursor:pointer; border:none; }
+  .btn-cancel{ background:rgba(255,255,255,0.08); color:#fff; }
+  .btn-danger{ background:var(--bad); color:#2a0808; font-weight:600; }
+  .btn-confirm{ background:var(--accent-color); color:#052014; font-weight:600; }
+
+  #printReport{ display:none; }
+
+  @page{ margin:14mm; }
+  @media print{
+    html, body{ background:#fff !important; height:auto !important; }
+    .ambient-blobs, .wrap, .toast, .overlay{ display:none !important; }
+    #printReport{ display:block !important; position:static; width:100%; color:#000; background:#fff; padding:0; box-sizing:border-box; }
+    #printReport h1{ font-size:20px; margin:0 0 4px; }
+    #printReport h2{ font-size:14px; margin:18px 0 8px; border-bottom:1px solid #ccc; padding-bottom:4px; }
+    #printReport table{ width:100%; border-collapse:collapse; font-size:10.5px; table-layout:fixed; }
+    #printReport th, #printReport td{ border:1px solid #ccc; padding:5px 5px; text-align:left; word-break:break-word; }
+    #printReport .pr-sub{ font-size:11px; color:#555; margin-bottom:14px; }
+    #printReport .pr-stats{ display:flex; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+    #printReport .pr-stat{ border:1px solid #ccc; border-radius:6px; padding:8px 12px; }
+    #printReport .pr-stat b{ display:block; font-size:16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){ .blob, .brand-icon{ animation:none !important; } }
+  @media (max-width:360px){ :root{ --heat-cell:9px; } .chip-value{ font-size:15px; } }
+</style>
+<link rel="canonical" href="https://synthlucida.com/delnas.html">
+<meta name="robots" content="index, follow">
+<meta name="description" content="Pracovní deník">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DĚLŇAS">
+<meta property="og:title" content="DĚLŇAS">
+<meta property="og:description" content="Pracovní deník">
+<meta property="og:url" content="https://synthlucida.com/delnas.html">
+<meta property="og:image" content="https://synthlucida.com/delnas-og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="DĚLŇAS">
+<meta property="og:locale" content="cs_CZ">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "DĚLŇAS",
+  "url": "https://synthlucida.com/delnas.html",
+  "description": "Pracovní deník",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "inLanguage": "cs",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CZK"
+  }
+}
+</script>
+<link rel="icon" type="image/png" sizes="32x32" href="delnas-favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="delnas-favicon-16.png">
+<link rel="icon" href="delnas-favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="delnas-apple-touch-icon.png">
+<link rel="manifest" href="delnas-manifest.json">
+</head>
+<body>
+
+<div class="ambient-blobs"><div class="blob b1"></div><div class="blob b2"></div></div>
+
+<div class="wrap">
+  <header>
+    <div class="brand-row">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 16.5a8 8 0 1 1 16 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M12 16.5 16 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="16.5" r="1.5" fill="currentColor"/>
+          <path d="M4 16.5h1.4M18.6 16.5H20M6.3 9.3l1 1M17.7 9.3l-1 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand" id="brandTitle">DĚLŇAS</div>
+    </div>
+    <div class="brand-slogan" id="brandSlogan">Pracovní deník výkonu a mzdy (a pár hlášek na povzbuzení)</div>
+    <div class="brand-datetime" id="brandDateTime"></div>
+    <div class="header-actions">
+      <div class="theme-wrap">
+        <button class="theme-btn" id="themeBtn" aria-expanded="false" title="Barevný motiv">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.4"/><circle cx="17.5" cy="10.5" r="1.4"/><circle cx="8.5" cy="7.5" r="1.4"/><circle cx="6.5" cy="12.5" r="1.4"/><path d="M12 2a10 10 0 100 20c1.4 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-.9.7-1.6 1.6-1.6H16a4 4 0 004-4c0-5.5-4.5-9.8-8-9.8z"/></svg>
+          Motiv
+        </button>
+        <div class="theme-panel hidden" id="themePanel">
+          <div class="theme-panel-title">Barevný motiv</div>
+          <div class="theme-grid" id="themeGrid"></div>
+        </div>
+      </div>
+      <button class="theme-btn" id="shareBtn" aria-label="Sdílet appku" title="Sdílet appku">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.4M8.3 13.3l7.4 4.4"/></svg>
+        Sdílet
+      </button>
+    </div>
+  </header>
+
+  <nav class="header-links" aria-label="Odkazy na sesterské appky">
+    DĚLŇAS
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/pohadkovnik.html">POHÁDKOVNÍK</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/vapetrack.html">VAPETRACK</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/tripcost.html">TRIP COST</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/weather.html">WEATHER</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/webzen.html">WEBZEN</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/vyplata.html">VÝPLATA</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/michani-liquidu.html">MÍCHÁRNA</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/denik-vozidla.html">DENÍK VOZIDLA</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/vodovaha.html">VODOVÁHA</a>
+    <span class="sep">·</span>
+    <a href="https://uklidnito.eu">UKLIDNITO</a>
+    <span class="sep">·</span>
+    <a href="https://relaxplayer.eu">RELAXPLAYER</a>
+  </nav>
+
+  <main>
+    <section class="card" id="entryCard">
+      <h2 id="entryTitle">Nová směna <small>Co jsem dnes dělal/a</small></h2>
+      <div class="edit-banner" id="editBanner" hidden>
+        Upravuješ existující směnu.
+        <button id="editCancelBtn" type="button">Zrušit úpravu</button>
+      </div>
+      <div class="field">
+        <label for="shiftDate">Datum směny</label>
+        <input type="date" id="shiftDate">
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="dayOffCheck">
+        <label for="dayOffCheck" style="margin:0;">Dnes jsem nepracoval/a (volno / nemoc / dovolená)</label>
+      </div>
+      <div id="entryRowsContainer"></div>
+      <button type="button" class="btn mini-btn btn-add-row" id="addRowBtn" style="width:100%;">+ Přidat úkon</button>
+      <div class="field" style="margin-top:12px;">
+        <label for="shiftNote">Poznámka (nepovinné)</label>
+        <textarea id="shiftNote" placeholder="např. horko na hale, nová parta na lince..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" id="saveShiftBtn">Uložit směnu</button>
+      </div>
+    </section>
+
+    <section class="card xp-card" id="xpCard">
+      <div class="xp-head">
+        <div class="xp-badge">
+          <div class="xp-badge-icon">💪</div>
+          <div class="xp-badge-text">
+            <div class="xp-level" id="xpLevel">Level 1</div>
+            <div class="xp-title" id="xpTitle">Nová tvář</div>
+          </div>
+        </div>
+        <div class="xp-right">
+          <div class="xp-amount" id="xpAmount">0 <span>XP</span></div>
+          <div class="xp-streak" id="xpStreak" hidden>🔥 0 směn v řadě</div>
+        </div>
+      </div>
+      <div class="xp-progress-bar"><div class="xp-progress-fill" id="xpProgressFill"></div></div>
+      <div class="xp-progress-label" id="xpProgressLabel">0 / 80 XP do dalšího levelu</div>
+    </section>
+
+    <section class="card advice-card" id="adviceCard">
+      <div class="advice-emoji" id="adviceEmoji">💪</div>
+      <div class="advice-text" id="adviceText">Zadej první směnu a hned uvidíš, jak sis vedla.</div>
+      <div class="advice-pay" id="advicePay"></div>
+      <div class="advice-quote" id="adviceQuote"></div>
+    </section>
+
+    <section class="chips-row">
+      <div class="chip"><div class="chip-value" id="chipShifts">0</div><div class="chip-label">směn celkem</div></div>
+      <div class="chip"><div class="chip-value" id="chipAvg7" style="color:var(--accent-color);">–</div><div class="chip-label">Ø Kč/hod (7d)</div></div>
+      <div class="chip"><div class="chip-value" id="chipVsPrev">–</div><div class="chip-label">vs. minulý týden</div></div>
+    </section>
+
+    <section class="card">
+      <h2>Vývoj – zlepšení, nebo zhoršení?</h2>
+      <div id="trendsWrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>Souhrn podle úkonu <small>posledních 30 dní</small></h2>
+      <div id="summaryTableWrap"></div>
+    </section>
+
+    <section class="card chart-card">
+      <h2>Posledních 14 směn <small>Ø Kč/hod za směnu</small></h2>
+      <div class="chart-svg-wrap"><div class="bar-chart" id="dailyChart"></div></div>
+    </section>
+
+    <section class="card chart-card">
+      <h2>Posledních 12 týdnů</h2>
+      <div class="chart-svg-wrap"><div class="bar-chart" id="weeklyChart"></div></div>
+    </section>
+
+    <section class="card chart-card">
+      <h2>Posledních 12 měsíců</h2>
+      <div class="chart-svg-wrap"><div class="bar-chart" id="monthlyChart"></div></div>
+    </section>
+
+    <section class="card chart-card">
+      <h2>Poslední rok <small>čím zelenější, tím vyšší stupeň žebříčku</small></h2>
+      <div class="heatmap-scroll" id="heatmapScroll">
+        <div class="heatmap-inner">
+          <div class="heatmap-months" id="heatmapMonths"></div>
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+        </div>
+      </div>
+      <div class="heatmap-legend">
+        <span>nízký stupeň</span><span class="heat-cell heat-low"></span>
+        <span>střední</span><span class="heat-cell heat-ok"></span>
+        <span>dobrý</span><span class="heat-cell heat-good"></span>
+        <span>top stupeň</span><span class="heat-cell heat-great"></span>
+        <span style="margin-left:6px;">volno</span><span class="heat-cell heat-off"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Historie směn</h2>
+      <div class="history-list" id="historyList"></div>
+    </section>
+
+    <details class="card info-card" id="settingsSection">
+      <summary>
+        <span class="info-icon">⚙️</span>
+        Nastavení a mzdové stupně
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="info-content">
+        <div class="settings-hint">Tlačítkem „+ Přidat nový úkon“ níže si zadej vlastní mzdový žebříček podle svého provozu. U každé velikosti/gradace je řada stupňů: jakmile tempo dosáhne prahu daného stupně, platí jeho hodinová mzda + rozpětí bonusu za kvalitu. „Vztaženo na“ určuje, jestli se práh počítá za hodinu, nebo přepočtený na celou směnu. Cokoliv jde kdykoliv upravit podle skutečných čísel z práce.</div>
+        <div class="field">
+          <label for="appNameInput">Název appky</label>
+          <input type="text" id="appNameInput">
+        </div>
+        <div class="field">
+          <label for="shiftHoursInput">Délka směny (hodin, Po–Pá)</label>
+          <input type="number" id="shiftHoursInput" min="1" max="16" step="0.5">
+        </div>
+        <div id="tasksSettingsWrap"></div>
+        <button type="button" class="btn mini-btn" id="addTaskBtn" style="width:100%;">+ Přidat nový úkon</button>
+      </div>
+    </details>
+
+    <details class="card info-card" id="infoSection">
+      <summary>
+        <span class="info-icon">💪</span>
+        O aplikaci
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="info-content">
+        <p><strong id="infoAppName">DĚLŇAS</strong> je osobní pracovní deník na měření výkonu a mzdy za směnu – funguje pro jakoukoliv dělnickou profesi s úkolovou/normovanou mzdou (kusová i vážená norma, na hodinu i na celou směnu). Appka nezná žádné normy předem – úplně první krok je zadat si v sekci „Nastavení a mzdové stupně“ vlastní úkony a mzdový žebříček podle svého provozu (viz „Rychlý start“ níže). Po každé směně pak zapíšeš, co jsi dělal/a, kolik kusů/kilo a za kolik hodin – appka podle tvého žebříčku spočítá, na jaký stupeň (a Kč/hod) jsi dosáhl/a, a ukáže, jestli výkon jde nahoru, nebo dolů.</p>
+        <ul>
+          <li>Mzdový žebříček = čím vyšší tempo, tím vyšší stupeň → vyšší Kč/hod + rozpětí bonusu za kvalitu.</li>
+          <li>Univerzální – úkony, jednotky (kg/ks) i stupně si nastavíš úplně od nuly podle svojí profese.</li>
+          <li>Grafy a trendy: denní, týdenní, měsíční i roční přehled Ø Kč/hod.</li>
+          <li>Levely a XP jako drobná hra sama pro sebe.</li>
+          <li>Vtipné hlášky a doporučení – beze zlé vůle, jen pro pobavení.</li>
+          <li>Vše se ukládá jen v tomto telefonu/prohlížeči (offline, žádný server, žádný účet).</li>
+          <li>Stupně a mzdy si kdykoliv uprav v sekci Nastavení, pokud se ve firmě změní; celou mzdovou tabulku jde i vyexportovat/nahrát zvlášť (viz „Export a záloha“).</li>
+        </ul>
+
+        <hr class="manual-divider">
+
+        <h3>Rychlý start – první nastavení (udělej jako první!)</h3>
+        <p>Appka po instalaci neobsahuje žádný úkon ani normu – bez tohohle kroku nejde zapsat žádná směna. Klikni dole na „Nastavení a mzdové stupně“ a postupuj podle konkrétního příkladu:</p>
+        <ol>
+          <li>Klikni na tlačítko <strong>„+ Přidat nový úkon“</strong> úplně dole v sekci Nastavení. Objeví se nový blok úkonu.</li>
+          <li>Do textového pole nahoře v bloku (kde je „Nový úkon“) napiš, co budeš dělat, např. <strong>„Balení krabic“</strong>.</li>
+          <li>Vedle názvu vyber v rozbalovací nabídce <strong>jednotku</strong>: <strong>ks</strong>, pokud se výkon počítá na kusy, nebo <strong>kg</strong>, pokud se váží.</li>
+          <li>Řádek <strong>„Vztaženo na“</strong> nastav podle toho, jak norma ve firmě funguje: <strong>„hodinu“</strong>, pokud se výkon poměřuje tempem za hodinu (např. „musíš udělat 150 ks/hod“), nebo <strong>„celou směnu“</strong>, pokud je norma daná na celou směnu (např. „za směnu musíš udělat 1 100 ks“) – appka pak sama přepočítá i kratší/delší odpracovanou dobu na plnou směnu.</li>
+          <li>Níže je blok velikosti/gradace se jménem „Standard“ – pokud máš pro různé velikosti/druhy zboží různé normy, přejmenuj ho (např. „Malé krabice“) a tlačítkem <strong>„+ Přidat velikost/gradaci“</strong> přidej další. Pokud normy nerozlišuješ, nech „Standard“ jak je.</li>
+          <li>Uvnitř velikosti je aspoň jeden <strong>stupeň</strong> se 4 poli – <strong>práh</strong>, <strong>Kč/hod</strong>, <strong>bonus min %</strong> a <strong>bonus max %</strong>. Vyplň je podle skutečné mzdové tabulky z práce, např.:
+            <br>Stupeň 1: práh <strong>150</strong>, Kč/hod <strong>120</strong>, bonus min <strong>-10</strong>, bonus max <strong>10</strong>
+            <br>Stupeň 2 (tlačítkem „+ Přidat stupeň“): práh <strong>200</strong>, Kč/hod <strong>135</strong>, bonus min <strong>-10</strong>, bonus max <strong>15</strong>
+            <br>a tak dál, kolik stupňů firma má.</li>
+          <li>Nic se neukládá tlačítkem – appka ukládá každé pole hned, jak ho opustíš (klikneš/ťukneš jinam). Klidně si přidej i další úkony stejným postupem.</li>
+        </ol>
+        <p><strong>Jak appka podle tohohle počítá:</strong> tempo = množství ÷ odpracované hodiny (u „hodinu“), nebo množství přepočtené na celou nastavenou směnu (u „celou směnu“). Appka pak najde nejvyšší práh, kterého tempo dosáhlo, a použije jeho Kč/hod. Konkrétně: uděláš-li 320 krabic za 2 hodiny, tempo je 320 ÷ 2 = 160 ks/hod – to dosahuje na práh stupně 1 (150), ale ne na práh stupně 2 (200), takže platí stupeň 1 → 120 Kč/hod. Odhad výdělku za tuhle položku je 120 × 2 = 240 Kč, s bonusem v rozsahu 216 Kč (−10 %) až 264 Kč (+10 %). Číslo „odhad Kč“ v appce je vždycky tenhle rozsah (základ ± bonus), protože appka sama neví, jaká přesně kvalita/bonus se ti ve výplatě nakonec započítá.</p>
+
+        <h3>Jak zapsat směnu</h3>
+        <ol>
+          <li>Nahoře v kartě „Nová směna“ vyber datum (přednastaví se dnešek).</li>
+          <li>Pokud jsi měl/a volno, zaškrtni „Volno / nepracoval/a jsem“ – formulář na úkony se schová a směna se uloží jako volno.</li>
+          <li>Jinak vyplň řádek úkonu: úkon (podle toho, co máš nastavené v Nastavení), velikost/gradace, množství a odpracované hodiny.</li>
+          <li>Tlačítkem „+ Přidat další úkon“ přidáš do stejné směny další řádek, pokud jsi ten den dělal/a víc věcí – klidně jich může být víc.</li>
+          <li>Řádek úkonu smažeš křížkem (×) v jeho pravém horním rohu.</li>
+          <li>Volitelně přidej poznámku (např. co se dělo, proč byl výkon jiný) a ulož tlačítkem „Uložit směnu“.</li>
+        </ol>
+
+        <h3>Úprava a mazání směn</h3>
+        <ol>
+          <li>V sekci „Historie směn“ najdi požadovaný den.</li>
+          <li>„Upravit“ nahraje směnu zpět do formuláře nahoře – uprav, co potřebuješ, a ulož. Nahoře se objeví žlutý pruh, že jsi v režimu úpravy (lze zrušit).</li>
+          <li>„Smazat“ smaže danou směnu natrvalo – appka se ještě zeptá na potvrzení.</li>
+        </ol>
+
+        <h3>XP, level a grafy</h3>
+        <p>Karta XP nahoře ukazuje herní level podle zapsaných směn a výkonu – je to jen pro zábavu, na mzdu to nemá vliv. Níže appka hlídá, jestli se tvůj Ø Kč/hod zlepšuje nebo zhoršuje, ukazuje souhrn podle úkonu za posledních 30 dní a grafy za posledních 14 směn, 12 týdnů, 12 měsíců a poslední rok (čím zelenější políčko v roční mapě, tím vyšší stupeň žebříčku ten den).</p>
+
+        <h3>Nastavení a mzdové stupně (normy) – co znamená každé pole</h3>
+        <p>V sekci „Nastavení a mzdové stupně“ nastavuješ mzdový žebříček do detailu:</p>
+        <ul>
+          <li><strong>Úkon</strong> (textové pole nahoře v bloku) – název činnosti, např. „montáž“, „balení“, „výroba dílu“. Vedle je <strong>jednotka</strong> (kg/ks). Křížkem (✕) u úkonu ho smažeš – appka nedovolí smazat úplně poslední úkon.</li>
+          <li><strong>Vztaženo na</strong> – „hodinu“ = práh se porovnává přímo s tempem množství/hodiny; „celou směnu“ = appka množství přepočítá, jako bys pracoval/a celou nastavenou délku směny (pole „Délka směny“ výše), a s prahem porovná tenhle přepočet. Hodí se, když firma zadává normu jako „tolik a tolik za směnu“, ne za hodinu.</li>
+          <li><strong>Velikost/gradace</strong> – když se normy liší podle velikosti/druhu zboží, založ pro každou vlastní blok tlačítkem „+ Přidat velikost/gradaci“ (musí zůstat aspoň jedna). Křížkem (✕) ji smažeš.</li>
+          <li><strong>Stupeň</strong> – jeden řádek žebříčku: <strong>práh</strong> (od jakého tempa stupeň platí), <strong>Kč/hod</strong> (hodinová mzda na tomhle stupni), <strong>bonus min %</strong> a <strong>bonus max %</strong> (rozpětí, o kolik procent se mzda ještě může nahoru/dolů posunout podle kvality – appka tím počítá odhadovaný rozsah výdělku, ne přesné číslo). „+ Přidat stupeň“ přidá další úroveň, křížek (✕) u stupně ho smaže (musí zůstat aspoň jeden). Appka si stupně sama seřadí podle prahu, pořadí zadávání není důležité.</li>
+        </ul>
+        <p>Po úpravě čísla v nastavení appka rovnou přepočítá směny, grafy i historii. Pokud přepneš jednotku úkonu (kg ↔ ks), appka automaticky přepne i „Vztaženo na“ a vynuluje prahy stupňů (protože číslo pro kusy a kila nejde jen tak přepočítat) – po přepnutí je proto potřeba prahy zadat znovu.</p>
+
+        <h3>Motivy vzhledu</h3>
+        <p>Tlačítkem s barevným kolečkem nahoře přepneš barevný motiv appky (smaragdová, fialová, tyrkysová, růžová, jantarová) – uloží se v telefonu a zůstane i příště.</p>
+
+        <h3>Export a záloha</h3>
+        <ul>
+          <li><strong>Export PDF</strong> – přehled výkonu a mzdy, otevře tiskovou nabídku (zvol „Uložit jako PDF“).</li>
+          <li><strong>Export CSV</strong> – tabulka pro Excel / Google Sheets.</li>
+          <li><strong>Zálohovat data (JSON)</strong> – kompletní záloha všech směn i nastavení. Je to jediný formát, ze kterého lze data zpět <strong>obnovit</strong> – vyplať se dělat občas, hlavně před výměnou telefonu.</li>
+          <li><strong>Obnovit ze zálohy (JSON)</strong> – nahraje soubor ze zálohy a nahradí jím aktuální data (appka se zeptá na potvrzení).</li>
+          <li><strong>Uložit mzdové tabulky (JSON)</strong> – uloží jen úkony, velikosti a stupně (bez historie směn). Hodí se, když si chceš normu jen zazálohovat zvlášť, nebo ji poslat/přenést k jinému nastavení appky.</li>
+          <li><strong>Nahrát mzdové tabulky (JSON)</strong> – nahraje soubor s mzdovými tabulkami a nahradí jím úkony/velikosti/stupně – historie směn zůstane beze změny (appka se ptá na potvrzení).</li>
+        </ul>
+
+        <h3>Smazání všech dat</h3>
+        <p>Dole úplně pod appkou je tlačítko „Vymazat všechna data“ – smaže všechny zapsané směny (nastavení a žebříček zůstanou). Appka se předtím zeptá na potvrzení a akci nejde vrátit zpět – pokud si chceš data nechat pro sebe, nejdřív si stáhni zálohu (JSON) výše.</p>
+
+        <h3>Kde appka žije</h3>
+        <p>Všechno se ukládá jen v tomto telefonu/prohlížeči (localStorage) – appka nepotřebuje internet ani účet a nikam nic neposílá. To ale znamená, že vymazání dat prohlížeče nebo přechod na jiný telefon bez zálohy = ztráta dat, proto se hodí čas od času zálohovat.</p>
+      </div>
+    </details>
+
+    <details class="card info-card" id="exportSection">
+      <summary>
+        <span class="info-icon">💾</span>
+        Export a záloha
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <div class="info-content">
+        <div class="export-actions">
+          <button type="button" class="export-btn" id="exportPdfBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M14 3v5h5"/></svg>
+            <span class="export-btn-label">Export PDF<span class="export-btn-sub">Přehled výkonu a mzdy – otevře se tisková nabídka, zvol „Uložit jako PDF“</span></span>
+          </button>
+          <button type="button" class="export-btn" id="exportCsvBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M14 3v5h5"/></svg>
+            <span class="export-btn-label">Export CSV<span class="export-btn-sub">Tabulka pro Excel / Google Sheets</span></span>
+          </button>
+          <button type="button" class="export-btn" id="backupExportBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
+            <span class="export-btn-label">Zálohovat data (JSON)<span class="export-btn-sub">Kompletní záloha všech směn a nastavení</span></span>
+          </button>
+          <button type="button" class="export-btn" id="backupImportBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 19h16"/></svg>
+            <span class="export-btn-label">Obnovit ze zálohy (JSON)<span class="export-btn-sub">Nahradí aktuální data souborem ze zálohy</span></span>
+          </button>
+          <input type="file" id="backupFileInput" accept="application/json,.json" class="sr-only">
+          <button type="button" class="export-btn" id="tablesExportBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            <span class="export-btn-label">Uložit mzdové tabulky (JSON)<span class="export-btn-sub">Jen úkony, velikosti a stupně – bez historie směn</span></span>
+          </button>
+          <button type="button" class="export-btn" id="tablesImportBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            <span class="export-btn-label">Nahrát mzdové tabulky (JSON)<span class="export-btn-sub">Nahradí jen úkony/velikosti/stupně, směny zůstanou</span></span>
+          </button>
+          <input type="file" id="tablesFileInput" accept="application/json,.json" class="sr-only">
+        </div>
+        <div class="export-hint">Vše funguje offline, přímo v telefonu. Záloha (JSON) je jediný formát, ze kterého lze data zpět obnovit – dělej si ji čas od času, ať o nic nepřijdeš při výměně telefonu. Mzdové tabulky si můžeš uložit/nahrát zvlášť – hodí se, když si chceš přenést nebo zazálohovat jen nastavené normy, beze změny historie směn.</div>
+      </div>
+    </details>
+
+    <section class="footer-actions">
+      <button type="button" class="reset-btn" id="resetBtn">Vymazat všechna data</button>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-links">
+      DĚLŇAS
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/pohadkovnik.html">POHÁDKOVNÍK</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/vapetrack.html">VAPETRACK</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/tripcost.html">TRIP COST</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/weather.html">WEATHER</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/webzen.html">WEBZEN</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/vyplata.html">VÝPLATA</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/michani-liquidu.html">MÍCHÁRNA</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/denik-vozidla.html">DENÍK VOZIDLA</a>
+      <span class="sep">·</span>
+      <a href="https://synthlucida.com/vodovaha.html">VODOVÁHA</a>
+      <span class="sep">·</span>
+      <a href="https://uklidnito.eu">UKLIDNITO</a>
+      <span class="sep">·</span>
+      <a href="https://relaxplayer.eu">RELAXPLAYER</a>
+    </div>
+    <div class="footer-note">Data zůstávají jen v tomto zařízení (localStorage). Internet není potřeba.</div>
+    <div class="footer-note" style="margin-top:6px; opacity:0.6;"><a href="https://synthlucida.com/delnas-privacy.html" style="color:var(--accent-color);">Zásady ochrany osobních údajů</a></div>
+    <div class="footer-note" style="margin-top:8px; opacity:0.8;">Pokud si aplikaci užíváte a chcete projekt podpořit, budeme moc rádi. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener" style="color:var(--accent-color);">Kupte nám kávu</a>. Díky!</div>
+    <div class="footer-note" style="margin-top:10px; letter-spacing:0.5px;">Made in <a href="https://synthlucida.com" style="color:var(--accent-color); text-decoration:none;">SYNTHLUCIDA</a></div>
+  </footer>
+</div>
+
+<div id="confirmOverlay" class="overlay hidden">
+  <div class="overlay-box">
+    <p id="confirmText">Opravdu smazat všechna data? Tuto akci nelze vrátit zpět.</p>
+    <div class="overlay-actions">
+      <button class="btn-cancel" id="confirmCancel">Zrušit</button>
+      <button class="btn-danger" id="confirmOk">Smazat</button>
+    </div>
+  </div>
+</div>
+
+<div id="deleteShiftOverlay" class="overlay hidden">
+  <div class="overlay-box">
+    <p>Smazat tuto směnu?</p>
+    <div class="overlay-actions">
+      <button class="btn-cancel" id="deleteShiftCancel">Zrušit</button>
+      <button class="btn-danger" id="deleteShiftOk">Smazat</button>
+    </div>
+  </div>
+</div>
+
+<div id="importOverlay" class="overlay hidden">
+  <div class="overlay-box">
+    <p>Opravdu nahradit aktuální data touto zálohou? Tuto akci nelze vrátit zpět.</p>
+    <div class="overlay-actions">
+      <button class="btn-cancel" id="importCancel">Zrušit</button>
+      <button class="btn-confirm" id="importOk">Obnovit</button>
+    </div>
+  </div>
+</div>
+
+<div id="importTablesOverlay" class="overlay hidden">
+  <div class="overlay-box">
+    <p>Opravdu nahradit aktuální mzdové tabulky (úkony, velikosti, stupně) souborem ze zálohy? Historie směn zůstane beze změny. Tuto akci nelze vrátit zpět.</p>
+    <div class="overlay-actions">
+      <button class="btn-cancel" id="importTablesCancel">Zrušit</button>
+      <button class="btn-confirm" id="importTablesOk">Obnovit</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="printReport">
+  <h1 id="prTitle">DĚLŇAS – přehled výkonu</h1>
+  <div class="pr-sub" id="prSub"></div>
+  <div class="pr-stats" id="prStats"></div>
+  <h2>Historie směn</h2>
+  <table id="prTable"><thead><tr><th>Datum</th><th>Úkony</th><th>Hodiny</th><th>Ø Kč/hod</th><th>Odhad Kč</th><th>Poznámka</th></tr></thead><tbody id="prTableBody"></tbody></table>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "delnas_v1";
+  var THEME_KEY = "delnas_theme";
+  var DAY_NAMES = ["neděle","pondělí","úterý","středa","čtvrtek","pátek","sobota"];
+  var MONTH_ABBR = ["Led","Úno","Bře","Dub","Kvě","Čvn","Čvc","Srp","Zář","Říj","Lis","Pro"];
+  var THEMES = [
+    { id:"emerald", name:"Smaragdová",  accent:"#34d399", glow:"#0d3d2a" },
+    { id:"violet",  name:"Fialová",     accent:"#a78bfa", glow:"#3b2166" },
+    { id:"cyan",    name:"Tyrkysová",   accent:"#22d3ee", glow:"#0e4a52" },
+    { id:"rose",    name:"Růžová",      accent:"#f472b6", glow:"#6b1441" },
+    { id:"amber",   name:"Jantarová",   accent:"#fbbf24", glow:"#4a2e05" }
+  ];
+
+  var LEVELS = [
+    { title:"Nová tvář",          min:0 },
+    { title:"Rozjetá směna",      min:80 },
+    { title:"Ostřílená ruka",     min:220 },
+    { title:"Šikovné ruce",       min:450 },
+    { title:"Mistrovská směna",   min:800 },
+    { title:"Špička výkonu",      min:1300 },
+    { title:"Legenda linky",      min:2000 }
+  ];
+
+  var ADVICE = {
+    great: [
+      "Dnešní tempo tě vyneslo na samý vrchol mzdového žebříčku! 🚀💪 Nikdo v hale by na tebe dneska neměl.",
+      "Top stupeň pokořen! Tahle směna se bude připomínat ještě dlouho (a s respektem).",
+      "Tohle tempo by žasl i mistr linky. Naprostá hvězda dneška!",
+      "Nejvyšší stupeň, nejvyšší mzda, nejvyšší respekt. Klobouk dolů!"
+    ],
+    good: [
+      "Pěkná směna! Tvoje tempo vyšplhalo slušně vysoko na žebříček, kolegové koukají s uznáním. 💪👍",
+      "Solidní tempo – jen kousek pod top stupněm. Ještě špetka a jsi úplně nahoře.",
+      "Přesně tohle tempo dělá z obyčejné směny legendu. Super práce!",
+      "Dobrý stupeň, dobrá mzda. Zítra klidně přidej ještě kapku a jsi na vrcholu."
+    ],
+    ok: [
+      "Dnes to bylo tak akorát tempo – jsi někde uprostřed žebříčku. Klidně přidej a zítra poskočíš výš! 💪",
+      "Tvoje tempo bylo rychlejší než včera, ale ke svému nejlepšímu tempu máš ještě kousek. Zítra to doženeš!",
+      "Střední stupeň dneška. I na nejlepší směně bývají pomalejší dny. Zítra nová šance vylézt výš!",
+      "Kousek to chybělo na vyšší stupeň! Dej si dobrou večeři a zítra do toho zase naplno."
+    ],
+    low: [
+      "Dnešní tempo zůstalo na spodních příčkách žebříčku – ale nic se neděje, zítra je nový den! 💪💛",
+      "Náročná směna, co? I ti nejlepší mívají slabší dny. Odpočiň si a zítra na to znovu vlítni.",
+      "Nejnižší stupeň dneška, ale zápas ještě nekončí. Dej si čaj a zítra šplhej výš.",
+      "Pomalý start ještě neznamená prohraný den. Hlavně žes tam dnes byl/a a makal/a. Zítra to rozjedeš!"
+    ],
+    empty: [
+      "Zadej první směnu a hned uvidíš, na jaký stupeň se dostaneš. 💪"
+    ]
+  };
+
+  var TREND_UP = " A navíc – jde to nahoru! 📈 Tak takhle dál!";
+  var TREND_DOWN = " Trend je bohužel spíš dolů 📉, ale s tímhle přístupem to zase otočíš.";
+
+  var DAILY_QUOTES = [
+    "Někdo dnes bude makat jako šampion. Klidně to může být rovnou tahle směna. 💪",
+    "Tempo se nerodí samo – vzniká tím, že se do toho prostě jde. Ukaž dneska, co v tobě je!",
+    "Nejlepší den na to porazit včerejší výkon je dnes.",
+    "I nejdelší směna má konec. Drž tempo a bude to znát na výplatě.",
+    "Když je horko na hale, dej si pauzu a napij se vody. 💧 Tělo ti to vrátí.",
+    "Řekni si dnes nahlas: „Dneska to dám.“ (Skoro vždycky to je svatá pravda.)",
+    "Malé zlepšení každý den se za měsíc sečte na pěknou částku.",
+    "Nezapomeň se dnes usmát – i na hale to jde.",
+    "Moudro dne: bez plánu se daleko nedojde. A ty plán máš.",
+    "Dnešní motto: klidná hlava, rychlé ruce."
+  ];
+
+  // ---------- default wage-ladder data ----------
+  // Dělňas is a generic app for any manual-labor/piecework profession, so a
+  // fresh install starts with NO pre-filled tasks or norms — the settings
+  // form shows an empty state and each user builds their own wage ladder
+  // from scratch via "+ Přidat nový úkon", specific to their own job.
+  function defaultSettings(){
+    return {
+      appName: "DĚLŇAS",
+      slogan: "Pracovní deník výkonu a mzdy (a pár hlášek na povzbuzení)",
+      shiftHours: 7,
+      tasks: []
+    };
+  }
+
+  var data = loadData();
+  var editingShiftId = null;
+  var rowSeq = 0;
+  var pendingConfirmAction = null;
+
+  function migrateTasks(tasks){
+    // best-effort migration from an older "single norm number" shape, if ever imported
+    tasks.forEach(function(task){
+      if(!task.rateBasis) task.rateBasis = task.unit==="kg" ? "shift" : "hour";
+      (task.sizes||[]).forEach(function(sz){
+        if(!Array.isArray(sz.tiers) || !sz.tiers.length){
+          var n = Number(sz.norm)||0;
+          sz.tiers = n>0 ? [{ threshold:n, wage:0, bonusMin:0, bonusMax:0 }] : [{ threshold:0, wage:0, bonusMin:0, bonusMax:0 }];
+        }
+        // Every tier needs a stable id so the settings UI can always find
+        // the *same* tier again after editing a threshold reorders them
+        // (rows are displayed sorted by threshold, but must stay matched
+        // to their underlying tier object regardless of on-screen order).
+        // Backfills ids for tiers saved before this existed (defaults and
+        // any older/imported data).
+        sz.tiers.forEach(function(tr){ if(!tr.id) tr.id = "tier_"+genId(); });
+      });
+    });
+    return tasks;
+  }
+
+  function loadData(){
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e){}
+    if(!d || typeof d !== "object") d = {};
+    if(!d.settings || typeof d.settings !== "object") d.settings = defaultSettings();
+    if(!Array.isArray(d.settings.tasks) || !d.settings.tasks.length) d.settings.tasks = defaultSettings().tasks;
+    else migrateTasks(d.settings.tasks);
+    if(typeof d.settings.appName !== "string") d.settings.appName = "DĚLŇAS";
+    if(typeof d.settings.shiftHours !== "number") d.settings.shiftHours = 7;
+    if(!Array.isArray(d.shifts)) d.shifts = [];
+    return d;
+  }
+
+  function saveData(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e){}
+  }
+
+  function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  // ---------- date helpers ----------
+  function pad2(n){ return (n<10?"0":"")+n; }
+  function fmtISO(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+  function parseISO(s){ var p=s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function todayISO(){ return fmtISO(new Date()); }
+  function fmtShort(d){ return pad2(d.getDate())+"."+pad2(d.getMonth()+1)+"."; }
+  function fmtHuman(d){ return pad2(d.getDate())+". "+pad2(d.getMonth()+1)+". "+d.getFullYear(); }
+  function mondayOf(d){ var day=(d.getDay()+6)%7; var m=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day); return m; }
+  function addDays(d,n){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n); }
+  function dayHash(str){ var h=0; for(var i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))|0; } return Math.abs(h); }
+  function round1(n){ return Math.round(n*10)/10; }
+  function fmtKc(n){ return Math.round(n).toLocaleString("cs-CZ")+" Kč"; }
+
+  // ---------- data model helpers ----------
+  function taskById(id){ var ts=data.settings.tasks; for(var i=0;i<ts.length;i++) if(ts[i].id===id) return ts[i]; return null; }
+  function sizeById(task,id){ if(!task) return null; for(var i=0;i<task.sizes.length;i++) if(task.sizes[i].id===id) return task.sizes[i]; return null; }
+  function sortedTiers(size){ return (size.tiers||[]).slice().sort(function(a,b){ return a.threshold-b.threshold; }); }
+  // Look up a tier by its stable id rather than its position in the sorted
+  // list — the sorted position shifts as soon as a threshold is edited,
+  // but the settings form doesn't always redraw immediately (see the
+  // "change" handler below), so id-based lookup is the only way to keep
+  // editing the tier the user actually sees on screen.
+  function tierById(size, id){ var ts=size.tiers||[]; for(var i=0;i<ts.length;i++) if(ts[i].id===id) return ts[i]; return null; }
+
+  // Counts saved shift entries that would be orphaned by deleting this
+  // task / size (i.e. would silently stop being counted anywhere, since
+  // taskById/sizeById would no longer find them).
+  function countEntriesUsingTask(taskId){
+    var n = 0;
+    data.shifts.forEach(function(s){ (s.entries||[]).forEach(function(e){ if(e.taskId===taskId) n++; }); });
+    return n;
+  }
+  function countEntriesUsingSize(taskId, sizeId){
+    var n = 0;
+    data.shifts.forEach(function(s){ (s.entries||[]).forEach(function(e){ if(e.taskId===taskId && e.sizeId===sizeId) n++; }); });
+    return n;
+  }
+
+  // ---------- wage-tier computation ----------
+  function computeEntryResult(entry){
+    var task = taskById(entry.taskId); if(!task) return null;
+    var size = sizeById(task, entry.sizeId); if(!size) return null;
+    var tiers = sortedTiers(size); if(!tiers.length) return null;
+    var hours = Number(entry.hours)||0; if(hours<=0) return null;
+    var qty = Number(entry.qty)||0;
+    var shiftRef = data.settings.shiftHours || hours;
+    var rate = task.rateBasis==="shift" ? qty*(shiftRef/hours) : qty/hours;
+    var reachedIdx = -1;
+    for(var i=0;i<tiers.length;i++){ if(rate >= tiers[i].threshold) reachedIdx = i; }
+    var tierObj = reachedIdx>=0 ? tiers[reachedIdx] : null;
+    var progress = tiers.length ? ((reachedIdx+1)/tiers.length)*100 : 0;
+    var payLow=null, payHigh=null;
+    if(tierObj){
+      payLow = tierObj.wage*hours*(1+(tierObj.bonusMin||0)/100);
+      payHigh = tierObj.wage*hours*(1+(tierObj.bonusMax||0)/100);
+    }
+    return {
+      task:task, size:size, hours:hours, rate:rate,
+      tierIndex:reachedIdx, tierCount:tiers.length, tier:tierObj, progress:progress,
+      wage: tierObj ? tierObj.wage : null,
+      payLow:payLow, payHigh:payHigh
+    };
+  }
+
+  function shiftStats(shift){
+    if(!shift || shift.dayOff || !shift.entries || !shift.entries.length){
+      return { hours:0, validHours:0, avgProgress:null, avgWage:null, payLow:0, payHigh:0 };
+    }
+    var totalHours=0, validHours=0, wProgress=0, wWage=0, payLow=0, payHigh=0;
+    shift.entries.forEach(function(e){
+      var h = Number(e.hours)||0;
+      totalHours += h;
+      var r = computeEntryResult(e);
+      if(r && r.tier){
+        wProgress += r.progress*r.hours;
+        wWage += r.wage*r.hours;
+        validHours += r.hours;
+        payLow += r.payLow;
+        payHigh += r.payHigh;
+      }
+    });
+    return {
+      hours: totalHours, validHours: validHours,
+      avgProgress: validHours>0 ? wProgress/validHours : null,
+      avgWage: validHours>0 ? wWage/validHours : null,
+      payLow: payLow, payHigh: payHigh
+    };
+  }
+
+  function tierBucket(progress){
+    if(progress==null) return null;
+    if(progress>=85) return "great";
+    if(progress>=60) return "good";
+    if(progress>=35) return "ok";
+    return "low";
+  }
+  function tierPillClass(t){ return "pct-"+(t||"ok"); }
+
+  function sortedShiftsAsc(){
+    var arr = data.shifts.slice().sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    return arr.map(function(s){ return { shift:s, stats:shiftStats(s) }; });
+  }
+  function validShiftsAsc(){
+    return sortedShiftsAsc().filter(function(x){ return !x.shift.dayOff && x.stats.avgWage!=null; });
+  }
+
+  function windowAggregate(startISO, endISO){ // [start, end)
+    var items = validShiftsAsc().filter(function(x){ return x.shift.date>=startISO && x.shift.date<endISO; });
+    if(!items.length) return { avgWage:null, avgProgress:null };
+    var wWage=0, wProg=0, hsum=0;
+    items.forEach(function(x){ wWage += x.stats.avgWage*x.stats.validHours; wProg += x.stats.avgProgress*x.stats.validHours; hsum += x.stats.validHours; });
+    return hsum>0 ? { avgWage:wWage/hsum, avgProgress:wProg/hsum } : { avgWage:null, avgProgress:null };
+  }
+
+  // ---------- render: header/theme ----------
+  function updateBrand(){
+    var simple = data.settings.appName || "DĚLŇAS";
+    document.getElementById("brandTitle").innerHTML = escapeHtml(simple);
+    document.title = simple + " – pracovní deník výkonu";
+    document.getElementById("brandSlogan").textContent = data.settings.slogan || "Pracovní deník výkonu a mzdy";
+    document.getElementById("infoAppName").textContent = simple;
+    document.getElementById("prTitle").textContent = simple + " – přehled výkonu";
+  }
+
+  function tickDateTime(){
+    var d = new Date();
+    document.getElementById("brandDateTime").textContent = DAY_NAMES[d.getDay()]+", "+fmtHuman(d)+" · "+pad2(d.getHours())+":"+pad2(d.getMinutes());
+  }
+
+  function initTheme(){
+    var grid = document.getElementById("themeGrid");
+    grid.innerHTML = "";
+    var current = localStorage.getItem(THEME_KEY) || "emerald";
+    THEMES.forEach(function(t){
+      var btn = document.createElement("button");
+      btn.className = "theme-swatch"+(t.id===current?" active":"");
+      btn.style.background = t.accent;
+      btn.title = t.name;
+      btn.type = "button";
+      btn.addEventListener("click", function(){
+        localStorage.setItem(THEME_KEY, t.id);
+        document.documentElement.style.setProperty("--accent-color", t.accent);
+        document.documentElement.style.setProperty("--accent-glow", t.glow);
+        Array.prototype.forEach.call(grid.children, function(c){ c.classList.remove("active"); });
+        btn.classList.add("active");
+      });
+      grid.appendChild(btn);
+    });
+    var themeBtn = document.getElementById("themeBtn");
+    var panel = document.getElementById("themePanel");
+    themeBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      panel.classList.toggle("hidden");
+    });
+    document.addEventListener("click", function(e){
+      if(!panel.contains(e.target) && e.target!==themeBtn) panel.classList.add("hidden");
+    });
+  }
+
+  function shareApp(){
+    var shareData = {
+      title: "Dělňas",
+      text: "Mrkni na Dělňas — pracovní deník výkonu a mzdy zdarma!",
+      url: "https://synthlucida.com/delnas.html"
+    };
+    if(navigator.share){
+      navigator.share(shareData).catch(function(){});
+      return;
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(shareData.url).then(function(){
+        showToast("Odkaz zkopírován do schránky 🔗");
+      }).catch(function(){
+        window.prompt("Zkopíruj odkaz:", shareData.url);
+      });
+    } else {
+      window.prompt("Zkopíruj odkaz:", shareData.url);
+    }
+  }
+  document.getElementById("shareBtn").addEventListener("click", shareApp);
+
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
+
+  // ---------- entry form ----------
+  function taskOptionsHtml(selectedTaskId){
+    return data.settings.tasks.map(function(t){
+      return '<option value="'+t.id+'"'+(t.id===selectedTaskId?" selected":"")+'>'+escapeHtml(t.name)+'</option>';
+    }).join("");
+  }
+  function sizeOptionsHtml(task, selectedSizeId){
+    if(!task) return "";
+    return task.sizes.map(function(s){
+      return '<option value="'+s.id+'"'+(s.id===selectedSizeId?" selected":"")+'>'+escapeHtml(s.name)+'</option>';
+    }).join("");
+  }
+
+  function addEntryRow(prefill){
+    rowSeq++;
+    var rid = "row_"+rowSeq;
+    var firstTask = data.settings.tasks[0];
+    var taskId = (prefill && prefill.taskId) || (firstTask && firstTask.id) || "";
+    var task = taskById(taskId);
+    var sizeId = (prefill && prefill.sizeId) || (task && task.sizes[0] && task.sizes[0].id) || "";
+    var qty = prefill ? prefill.qty : "";
+    var hours = prefill ? prefill.hours : "";
+
+    var wrap = document.createElement("div");
+    wrap.className = "entry-row";
+    wrap.setAttribute("data-rid", rid);
+    wrap.innerHTML =
+      '<button type="button" class="row-remove" data-act="remove">×</button>' +
+      '<div class="entry-row-grid">' +
+        '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Úkon</label>' +
+        '<select data-act="task">'+taskOptionsHtml(taskId)+'</select></div>' +
+        '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Velikost/gradace</label>' +
+        '<select data-act="size">'+sizeOptionsHtml(task, sizeId)+'</select></div>' +
+      '</div>' +
+      '<div class="entry-row-grid2">' +
+        '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Množství (<span data-act="unitLabel">'+(task?task.unit:"")+'</span>)</label>' +
+        '<input type="number" min="0" step="any" inputmode="decimal" data-act="qty" value="'+(qty!=null?qty:"")+'"></div>' +
+        '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Hodiny</label>' +
+        '<input type="number" min="0" max="16" step="0.25" inputmode="decimal" data-act="hours" value="'+(hours!=null?hours:"")+'"></div>' +
+      '</div>';
+    document.getElementById("entryRowsContainer").appendChild(wrap);
+  }
+
+  function clearEntryRows(){ document.getElementById("entryRowsContainer").innerHTML = ""; }
+
+  // An entry row's "Úkon"/"Velikost" <select> options are baked in once,
+  // when the row is created — they don't update on their own when the task
+  // list changes afterwards (task added/renamed/deleted, size added/renamed/
+  // deleted, unit changed). That's fine as long as the row's own task still
+  // exists, but it means a row created before ANY task existed (e.g. the
+  // one auto-added on a fresh install, before the user has set up their
+  // first task in Nastavení) is stuck showing an empty dropdown forever —
+  // looks exactly like "can't type/select the task" even though the field
+  // itself works fine. Call this after any settings change that can affect
+  // the task/size list, so every currently-visible row's dropdowns catch up
+  // (keeping the row's current selection if it's still valid).
+  function refreshEntryRowTaskOptions(){
+    document.querySelectorAll("#entryRowsContainer .entry-row").forEach(function(row){
+      var taskSel = row.querySelector('[data-act="task"]');
+      var sizeSel = row.querySelector('[data-act="size"]');
+      if(!taskSel || !sizeSel) return;
+      var task = taskById(taskSel.value) || data.settings.tasks[0] || null;
+      taskSel.innerHTML = taskOptionsHtml(task ? task.id : "");
+      var size = (task && sizeById(task, sizeSel.value)) || (task && task.sizes[0]) || null;
+      sizeSel.innerHTML = sizeOptionsHtml(task, size ? size.id : "");
+      var unitLabel = row.querySelector('[data-act="unitLabel"]');
+      if(unitLabel) unitLabel.textContent = task ? task.unit : "";
+    });
+  }
+
+  document.getElementById("addRowBtn").addEventListener("click", function(){ addEntryRow(); });
+
+  document.getElementById("entryRowsContainer").addEventListener("click", function(e){
+    if(e.target.getAttribute("data-act")==="remove"){
+      e.target.closest(".entry-row").remove();
+    }
+  });
+  document.getElementById("entryRowsContainer").addEventListener("change", function(e){
+    if(e.target.getAttribute("data-act")==="task"){
+      var row = e.target.closest(".entry-row");
+      var task = taskById(e.target.value);
+      var sizeSel = row.querySelector('[data-act="size"]');
+      sizeSel.innerHTML = sizeOptionsHtml(task, task && task.sizes[0] && task.sizes[0].id);
+      row.querySelector('[data-act="unitLabel"]').textContent = task ? task.unit : "";
+    }
+  });
+
+  document.getElementById("dayOffCheck").addEventListener("change", function(){
+    var off = this.checked;
+    document.getElementById("entryRowsContainer").style.display = off ? "none" : "";
+    document.getElementById("addRowBtn").style.display = off ? "none" : "";
+  });
+
+  function resetEntryForm(){
+    editingShiftId = null;
+    document.getElementById("editBanner").hidden = true;
+    document.getElementById("entryTitle").innerHTML = 'Nová směna <small>Co jsem dnes dělal/a</small>';
+    document.getElementById("shiftDate").value = todayISO();
+    document.getElementById("dayOffCheck").checked = false;
+    document.getElementById("entryRowsContainer").style.display = "";
+    document.getElementById("addRowBtn").style.display = "";
+    document.getElementById("shiftNote").value = "";
+    clearEntryRows();
+    addEntryRow();
+  }
+
+  document.getElementById("editCancelBtn").addEventListener("click", resetEntryForm);
+
+  function loadShiftIntoForm(shift){
+    editingShiftId = shift.id;
+    document.getElementById("editBanner").hidden = false;
+    document.getElementById("entryTitle").innerHTML = 'Úprava směny <small>'+fmtHuman(parseISO(shift.date))+'</small>';
+    document.getElementById("shiftDate").value = shift.date;
+    document.getElementById("dayOffCheck").checked = !!shift.dayOff;
+    document.getElementById("entryRowsContainer").style.display = shift.dayOff ? "none" : "";
+    document.getElementById("addRowBtn").style.display = shift.dayOff ? "none" : "";
+    document.getElementById("shiftNote").value = shift.note || "";
+    clearEntryRows();
+    if(shift.entries && shift.entries.length){
+      shift.entries.forEach(function(e){ addEntryRow(e); });
+    } else {
+      addEntryRow();
+    }
+    document.getElementById("entryCard").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  document.getElementById("saveShiftBtn").addEventListener("click", function(){
+    var date = document.getElementById("shiftDate").value;
+    if(!date){ showToast("Vyber datum směny 💪"); return; }
+    var dayOff = document.getElementById("dayOffCheck").checked;
+    var note = document.getElementById("shiftNote").value.trim();
+    var entries = [];
+    if(!dayOff){
+      var rows = document.querySelectorAll("#entryRowsContainer .entry-row");
+      rows.forEach(function(row){
+        var taskId = row.querySelector('[data-act="task"]').value;
+        var sizeId = row.querySelector('[data-act="size"]').value;
+        var qty = parseFloat(row.querySelector('[data-act="qty"]').value);
+        var hours = parseFloat(row.querySelector('[data-act="hours"]').value);
+        if(!isNaN(qty) && !isNaN(hours) && qty>0 && hours>0){
+          entries.push({ taskId:taskId, sizeId:sizeId, qty:qty, hours:hours });
+        }
+      });
+      if(!entries.length){ showToast("Přidej aspoň jeden úkon s množstvím a hodinami 💪"); return; }
+    }
+    var shift;
+    var prevLevel = levelForXP(computeXP().xp).level;
+    if(editingShiftId){
+      shift = data.shifts.find(function(s){ return s.id===editingShiftId; });
+      if(shift){ shift.date=date; shift.dayOff=dayOff; shift.note=note; shift.entries=entries; }
+    } else {
+      shift = { id:genId(), date:date, dayOff:dayOff, note:note, entries:entries };
+      data.shifts.push(shift);
+    }
+    saveData();
+    var newLevel = levelForXP(computeXP().xp).level;
+    var isNewLevelUp = newLevel>prevLevel;
+    resetEntryForm();
+    renderAll();
+    if(isNewLevelUp){
+      var xc = document.getElementById("xpCard");
+      xc.classList.add("level-up");
+      setTimeout(function(){ xc.classList.remove("level-up"); }, 1300);
+      showToast("Level up! 🎉💪 Postoupil/a jsi na "+newLevel+". level!");
+    } else {
+      showToast(dayOff ? "Volno uloženo 💪" : "Směna uložena 💪");
+    }
+  });
+
+  // polyfill closest for older webviews
+  if(!Element.prototype.closest){
+    Element.prototype.closest = function(sel){
+      var el = this;
+      while(el){ if(el.matches && el.matches(sel)) return el; el = el.parentElement; }
+      return null;
+    };
+  }
+
+  // ---------- XP & levels ----------
+  function computeXP(){
+    var xp=0, streak=0, maxStreak=0;
+    validShiftsAsc().forEach(function(x){
+      var p = x.stats.avgProgress;
+      var gain = Math.max(0, Math.min(65, Math.round(p-35)));
+      xp += gain;
+      if(p>=70){ streak++; if(streak>maxStreak) maxStreak=streak; } else { streak=0; }
+    });
+    return { xp:xp, streak:streak };
+  }
+  function levelForXP(xp){
+    var idx=0;
+    for(var i=0;i<LEVELS.length;i++){ if(xp>=LEVELS[i].min) idx=i; }
+    var cur = LEVELS[idx], next = LEVELS[idx+1];
+    return { level:idx+1, title:cur.title, min:cur.min, next:next };
+  }
+
+  function renderXP(){
+    var res = computeXP();
+    var lvl = levelForXP(res.xp);
+    document.getElementById("xpLevel").textContent = "Level "+lvl.level;
+    document.getElementById("xpTitle").textContent = lvl.title;
+    document.getElementById("xpAmount").innerHTML = res.xp+' <span>XP</span>';
+    var streakEl = document.getElementById("xpStreak");
+    if(res.streak>=2){ streakEl.hidden=false; streakEl.textContent="🔥 "+res.streak+" směn v řadě na dobrém stupni"; }
+    else { streakEl.hidden = true; }
+    var fill = document.getElementById("xpProgressFill");
+    var label = document.getElementById("xpProgressLabel");
+    if(lvl.next){
+      var span = lvl.next.min - lvl.min;
+      var prog = Math.max(0, Math.min(1, (res.xp-lvl.min)/span));
+      fill.style.width = (prog*100)+"%";
+      label.textContent = (res.xp-lvl.min)+" / "+span+" XP do levelu "+(lvl.level+1)+" („"+lvl.next.title+"“)";
+    } else {
+      fill.style.width = "100%";
+      label.textContent = "Nejvyšší level! Ty jsi prostě šnečí legenda. 🏆";
+    }
+  }
+
+  // ---------- advice ----------
+  function renderAdvice(){
+    var items = validShiftsAsc();
+    var emoji = document.getElementById("adviceEmoji");
+    var text = document.getElementById("adviceText");
+    var payEl = document.getElementById("advicePay");
+    var quote = document.getElementById("adviceQuote");
+    var today = todayISO();
+    quote.textContent = "💪 " + DAILY_QUOTES[dayHash(today) % DAILY_QUOTES.length];
+    if(!items.length){
+      emoji.textContent = "💪";
+      text.textContent = ADVICE.empty[0];
+      payEl.textContent = "";
+      return;
+    }
+    var last = items[items.length-1];
+    var t = tierBucket(last.stats.avgProgress);
+    var pool = ADVICE[t] || ADVICE.ok;
+    var msg = pool[dayHash(last.shift.date+t) % pool.length];
+    var trendNote = "";
+    if(items.length>=2){
+      var prev = items[items.length-2];
+      var delta = last.stats.avgWage - prev.stats.avgWage;
+      if(delta>2) trendNote = TREND_UP;
+      else if(delta<-2) trendNote = TREND_DOWN;
+    }
+    var emojiMap = { great:"🚀", good:"💪", ok:"🙂", low:"💛" };
+    emoji.textContent = emojiMap[t] || "💪";
+    text.textContent = msg + trendNote;
+    if(last.stats.avgWage!=null){
+      payEl.textContent = "≈ "+Math.round(last.stats.avgWage)+" Kč/hod · odhad za směnu "+fmtKc(last.stats.payLow)+"–"+fmtKc(last.stats.payHigh);
+    } else { payEl.textContent = ""; }
+  }
+
+  // ---------- chips + trends ----------
+  function renderChips(){
+    document.getElementById("chipShifts").textContent = data.shifts.filter(function(s){return !s.dayOff;}).length;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var last7start = fmtISO(addDays(today,-6));
+    var agg7 = windowAggregate(last7start, fmtISO(addDays(today,1)));
+    document.getElementById("chipAvg7").textContent = agg7.avgWage!=null ? Math.round(agg7.avgWage)+" Kč" : "–";
+
+    var thisWeekStart = fmtISO(mondayOf(today));
+    var lastWeekStart = fmtISO(addDays(mondayOf(today),-7));
+    var thisWeek = windowAggregate(thisWeekStart, fmtISO(addDays(today,1)));
+    var lastWeek = windowAggregate(lastWeekStart, thisWeekStart);
+    var vsEl = document.getElementById("chipVsPrev");
+    if(thisWeek.avgWage!=null && lastWeek.avgWage!=null){
+      var d = thisWeek.avgWage - lastWeek.avgWage;
+      vsEl.textContent = (d>=0?"+":"")+Math.round(d)+" Kč";
+      vsEl.style.color = d>=0 ? "var(--good)" : "var(--bad)";
+    } else { vsEl.textContent = "–"; vsEl.style.color = "#fff"; }
+  }
+
+  function trendArrowSvg(dir){
+    if(dir==="up") return '<svg viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6"/><path d="M9 6h9v9"/></svg>';
+    if(dir==="down") return '<svg viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M18 9V6h-3"/><path d="M6 6l12 12"/></svg>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>';
+  }
+
+  function renderTrendRow(label, curr, prev){
+    var dir = "flat";
+    if(curr!=null && prev!=null){
+      if(curr-prev>2) dir="up"; else if(curr-prev<-2) dir="down";
+    }
+    var mainTxt = curr!=null ? Math.round(curr)+" Kč/hod" : "zatím bez dat";
+    var deltaTxt = "";
+    if(curr!=null && prev!=null){
+      var d = curr-prev;
+      deltaTxt = (d>=0?"+":"")+Math.round(d)+" Kč vs. předchozí";
+    } else if(curr!=null){
+      deltaTxt = "chybí srovnání";
+    }
+    return '<div class="trend-row"><div class="trend-arrow">'+trendArrowSvg(dir)+'</div>' +
+      '<div class="trend-numbers"><div class="trend-label">'+label+'</div><div class="trend-main">'+mainTxt+'</div></div>' +
+      '<div class="trend-delta">'+deltaTxt+'</div></div>';
+  }
+
+  function renderTrends(){
+    var today = new Date(); today.setHours(0,0,0,0);
+
+    var items = validShiftsAsc();
+    var dayCurr=null, dayPrev=null;
+    if(items.length>=1) dayCurr = items[items.length-1].stats.avgWage;
+    if(items.length>=2) dayPrev = items[items.length-2].stats.avgWage;
+
+    var weekCurr = windowAggregate(fmtISO(mondayOf(today)), fmtISO(addDays(today,1))).avgWage;
+    var weekPrev = windowAggregate(fmtISO(addDays(mondayOf(today),-7)), fmtISO(mondayOf(today))).avgWage;
+
+    var monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    var prevMonthStart = new Date(today.getFullYear(), today.getMonth()-1, 1);
+    var monthCurr = windowAggregate(fmtISO(monthStart), fmtISO(addDays(today,1))).avgWage;
+    var monthPrev = windowAggregate(fmtISO(prevMonthStart), fmtISO(monthStart)).avgWage;
+
+    var yearCurr = windowAggregate(fmtISO(addDays(today,-364)), fmtISO(addDays(today,1))).avgWage;
+    var yearPrev = windowAggregate(fmtISO(addDays(today,-729)), fmtISO(addDays(today,-364))).avgWage;
+
+    var html = "";
+    html += renderTrendRow("Den (poslední směna)", dayCurr, dayPrev);
+    html += renderTrendRow("Týden", weekCurr, weekPrev);
+    html += renderTrendRow("Měsíc", monthCurr, monthPrev);
+    html += renderTrendRow("Rok (posl. 365 dní)", yearCurr, yearPrev);
+    document.getElementById("trendsWrap").innerHTML = html;
+  }
+
+  // ---------- summary table ----------
+  function renderSummaryTable(){
+    var today = new Date(); today.setHours(0,0,0,0);
+    var startISO = fmtISO(addDays(today,-29));
+    var endISO = fmtISO(addDays(today,1));
+    var groups = {};
+    data.shifts.forEach(function(s){
+      if(s.dayOff || s.date<startISO || s.date>=endISO) return;
+      (s.entries||[]).forEach(function(e){
+        var task = taskById(e.taskId); if(!task) return;
+        var size = sizeById(task, e.sizeId);
+        var key = e.taskId+"|"+e.sizeId;
+        if(!groups[key]) groups[key] = { taskName:task.name, sizeName:size?size.name:"?", unit:task.unit, qty:0, hours:0, wWage:0, validHours:0, payLow:0, payHigh:0 };
+        var g = groups[key];
+        g.qty += Number(e.qty)||0;
+        g.hours += Number(e.hours)||0;
+        var r = computeEntryResult(e);
+        if(r && r.tier){
+          g.wWage += r.wage*r.hours;
+          g.validHours += r.hours;
+          g.payLow += r.payLow;
+          g.payHigh += r.payHigh;
+        }
+      });
+    });
+    var keys = Object.keys(groups);
+    var wrap = document.getElementById("summaryTableWrap");
+    if(!keys.length){ wrap.innerHTML = '<div class="sum-empty">Zatím žádná data za posledních 30 dní.</div>'; return; }
+    var rows = keys.map(function(k){
+      var g = groups[k];
+      var avgWage = g.validHours>0 ? g.wWage/g.validHours : null;
+      return '<tr><td>'+escapeHtml(g.taskName)+'<br><span style="opacity:.55;font-size:10.5px;">'+escapeHtml(g.sizeName)+'</span></td>' +
+        '<td class="num">'+round1(g.qty)+' '+g.unit+'</td>' +
+        '<td class="num">'+round1(g.hours)+' h</td>' +
+        '<td class="num">'+(avgWage!=null?Math.round(avgWage)+' Kč':'–')+'</td>' +
+        '<td class="num">'+(g.payHigh>0?fmtKc(g.payLow)+'–'+fmtKc(g.payHigh):'–')+'</td></tr>';
+    }).join("");
+    wrap.innerHTML = '<div style="overflow-x:auto;"><table class="sum-table"><thead><tr><th>Úkon</th><th style="text-align:right;">Množství</th><th style="text-align:right;">Hodiny</th><th style="text-align:right;">Ø Kč/hod</th><th style="text-align:right;">Odhad Kč</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  // ---------- bar charts ----------
+  function renderBarChart(containerId, items){
+    var el = document.getElementById(containerId);
+    if(!items.length){ el.innerHTML = '<div class="chart-empty">Zatím žádná data</div>'; return; }
+    var maxVal = 0;
+    items.forEach(function(i){ if(i.value!=null && i.value>maxVal) maxVal = i.value; });
+    var refMax = Math.max(50, Math.ceil(maxVal/10)*10 + 10);
+    var overallAgg = windowAggregate("0000-01-01", "9999-12-31");
+    var avgLinePct = overallAgg.avgWage!=null ? Math.min(100, overallAgg.avgWage/refMax*100) : null;
+    var valsHtml = items.map(function(i){ return '<div class="bar-col-val">'+(i.value!=null?Math.round(i.value):"")+'</div>'; }).join("");
+    var barsHtml = items.map(function(i){
+      var h = i.value!=null ? Math.max(2, Math.min(100, i.value/refMax*100)) : 2;
+      var t = tierBucket(i.progress);
+      var cls = i.value!=null ? "bar tier-"+t : "bar";
+      return '<div class="bar-col-track"><div class="'+cls+'" style="height:'+h+'%;"></div></div>';
+    }).join("");
+    var labelsHtml = items.map(function(i){ return '<div class="bar-col-label">'+escapeHtml(i.label)+'</div>'; }).join("");
+    el.innerHTML =
+      '<div class="bar-vals-row">'+valsHtml+'</div>' +
+      '<div class="bar-track-row">'+barsHtml+
+        (avgLinePct!=null ? '<div class="norm-line" style="bottom:'+avgLinePct+'%;"><span class="norm-line-label">Ø</span></div>' : '') +
+      '</div>' +
+      '<div class="bar-labels-row">'+labelsHtml+'</div>';
+  }
+
+  function renderDailyChart(){
+    var items = validShiftsAsc().slice(-14).map(function(x){
+      return { label: fmtShort(parseISO(x.shift.date)), value: x.stats.avgWage, progress: x.stats.avgProgress };
+    });
+    renderBarChart("dailyChart", items);
+  }
+
+  function renderWeeklyChart(){
+    var groups = {};
+    validShiftsAsc().forEach(function(x){
+      var wk = fmtISO(mondayOf(parseISO(x.shift.date)));
+      if(!groups[wk]) groups[wk] = { wWage:0, wProg:0, hsum:0 };
+      groups[wk].wWage += x.stats.avgWage*x.stats.validHours;
+      groups[wk].wProg += x.stats.avgProgress*x.stats.validHours;
+      groups[wk].hsum += x.stats.validHours;
+    });
+    var keys = Object.keys(groups).sort();
+    var last = keys.slice(-12);
+    var items = last.map(function(k){
+      var g = groups[k];
+      return { label: fmtShort(parseISO(k)), value: g.hsum>0 ? g.wWage/g.hsum : null, progress: g.hsum>0 ? g.wProg/g.hsum : null };
+    });
+    renderBarChart("weeklyChart", items);
+  }
+
+  function renderMonthlyChart(){
+    var groups = {};
+    validShiftsAsc().forEach(function(x){
+      var d = parseISO(x.shift.date);
+      var mk = d.getFullYear()+"-"+pad2(d.getMonth()+1);
+      if(!groups[mk]) groups[mk] = { wWage:0, wProg:0, hsum:0 };
+      groups[mk].wWage += x.stats.avgWage*x.stats.validHours;
+      groups[mk].wProg += x.stats.avgProgress*x.stats.validHours;
+      groups[mk].hsum += x.stats.validHours;
+    });
+    var keys = Object.keys(groups).sort();
+    var last = keys.slice(-12);
+    var items = last.map(function(k){
+      var g = groups[k];
+      var parts = k.split("-");
+      var lbl = MONTH_ABBR[+parts[1]-1]+" "+parts[0].slice(2);
+      return { label: lbl, value: g.hsum>0 ? g.wWage/g.hsum : null, progress: g.hsum>0 ? g.wProg/g.hsum : null };
+    });
+    renderBarChart("monthlyChart", items);
+  }
+
+  // ---------- heatmap ----------
+  function renderHeatmap(){
+    var byDate = {};
+    data.shifts.forEach(function(s){ byDate[s.date] = s; });
+    var today = new Date(); today.setHours(0,0,0,0);
+    var start = mondayOf(addDays(today,-364));
+    var weeks = [];
+    var cursor = new Date(start);
+    while(cursor<=today || cursor.getDay()!==1){
+      var col = [];
+      for(var i=0;i<7;i++){ col.push(addDays(cursor,i)); }
+      weeks.push(col);
+      cursor = addDays(cursor,7);
+      if(weeks.length>60) break;
+    }
+    var monthsHtml = "";
+    var lastMonth = -1;
+    weeks.forEach(function(col){
+      var d = col[0];
+      var m = d.getMonth();
+      if(m!==lastMonth && d<=today){ monthsHtml += '<span style="grid-column:span 1;">'+MONTH_ABBR[m]+'</span>'; lastMonth=m; }
+      else { monthsHtml += '<span></span>'; }
+    });
+    document.getElementById("heatmapMonths").style.gridTemplateColumns = "repeat("+weeks.length+", var(--heat-cell))";
+    document.getElementById("heatmapMonths").innerHTML = monthsHtml;
+
+    var cellsHtml = "";
+    weeks.forEach(function(col){
+      col.forEach(function(d){
+        if(d>today){ cellsHtml += '<div class="heat-cell empty"></div>'; return; }
+        var iso = fmtISO(d);
+        var shift = byDate[iso];
+        var cls = "heat-cell";
+        if(shift && shift.dayOff){ cls += " heat-off"; }
+        else if(shift){
+          var st = shiftStats(shift);
+          var t = tierBucket(st.avgProgress);
+          if(t) cls += " heat-"+t;
+        }
+        cellsHtml += '<div class="'+cls+'" title="'+iso+'"></div>';
+      });
+    });
+    document.getElementById("heatmapGrid").innerHTML = cellsHtml;
+  }
+
+  // ---------- history ----------
+  function renderHistory(){
+    var wrap = document.getElementById("historyList");
+    var shifts = data.shifts.slice().sort(function(a,b){ return a.date<b.date?1:a.date>b.date?-1:0; });
+    if(!shifts.length){ wrap.innerHTML = '<div class="history-empty">Zatím žádné směny. Zadej první nahoře. 💪</div>'; return; }
+    wrap.innerHTML = shifts.map(function(s){
+      var st = shiftStats(s);
+      var t = tierBucket(st.avgProgress);
+      var pctHtml = s.dayOff ? '<span style="opacity:.6;">volno</span>' : (st.avgWage!=null ? '<span class="pct-pill '+tierPillClass(t)+'">'+Math.round(st.avgWage)+' Kč/hod</span>' : '<span style="opacity:.5;">bez dat</span>');
+      var entriesHtml = (s.entries||[]).map(function(e){
+        var task = taskById(e.taskId); var size = sizeById(task, e.sizeId);
+        var r = computeEntryResult(e);
+        var detail = "";
+        if(r && r.tier){
+          detail = ' <span class="h-detail">— stupeň '+(r.tierIndex+1)+'/'+r.tierCount+', '+r.wage+' Kč/hod, bonus '+r.tier.bonusMin+'–'+r.tier.bonusMax+'%, odhad '+fmtKc(r.payLow)+'–'+fmtKc(r.payHigh)+'</span>';
+        } else if(r){
+          detail = ' <span class="h-detail">— pod nejnižším stupněm žebříčku</span>';
+        }
+        return '<div class="history-entry">'+(task?escapeHtml(task.name):"?")+' – '+(size?escapeHtml(size.name):"?")+': '+e.qty+' '+(task?task.unit:'')+' za '+e.hours+' h'+detail+'</div>';
+      }).join("");
+      var payHtml = (!s.dayOff && st.payHigh>0) ? '<div class="h-pay">Odhad za směnu: '+fmtKc(st.payLow)+'–'+fmtKc(st.payHigh)+'</div>' : '';
+      return '<div class="history-row">' +
+        '<div class="history-row-top"><strong>'+fmtHuman(parseISO(s.date))+'</strong>'+pctHtml+'</div>' +
+        (s.dayOff ? '<div style="opacity:.6;">Volno / nepracoval/a</div>' : entriesHtml) +
+        payHtml +
+        (s.note ? '<div class="h-note">"'+escapeHtml(s.note)+'"</div>' : '') +
+        '<div class="history-actions"><button data-act="edit" data-id="'+s.id+'">upravit</button><button class="del" data-act="del" data-id="'+s.id+'">smazat</button></div>' +
+        '</div>';
+    }).join("");
+  }
+
+  var pendingDeleteShiftId = null;
+  document.getElementById("historyList").addEventListener("click", function(e){
+    var id = e.target.getAttribute("data-id");
+    if(!id) return;
+    if(e.target.getAttribute("data-act")==="edit"){
+      var s = data.shifts.find(function(x){ return x.id===id; });
+      if(s) loadShiftIntoForm(s);
+    } else if(e.target.getAttribute("data-act")==="del"){
+      pendingDeleteShiftId = id;
+      document.getElementById("deleteShiftOverlay").classList.remove("hidden");
+    }
+  });
+  document.getElementById("deleteShiftCancel").addEventListener("click", function(){
+    pendingDeleteShiftId = null;
+    document.getElementById("deleteShiftOverlay").classList.add("hidden");
+  });
+  document.getElementById("deleteShiftOk").addEventListener("click", function(){
+    if(pendingDeleteShiftId){
+      data.shifts = data.shifts.filter(function(s){ return s.id!==pendingDeleteShiftId; });
+      saveData();
+      if(editingShiftId===pendingDeleteShiftId) resetEntryForm();
+      renderAll();
+      showToast("Směna smazána");
+    }
+    pendingDeleteShiftId = null;
+    document.getElementById("deleteShiftOverlay").classList.add("hidden");
+  });
+
+  // ---------- settings ----------
+  function renderSettings(){
+    document.getElementById("appNameInput").value = data.settings.appName;
+    document.getElementById("shiftHoursInput").value = data.settings.shiftHours;
+    var wrap = document.getElementById("tasksSettingsWrap");
+    wrap.innerHTML = "";
+    data.settings.tasks.forEach(function(task){
+      var block = document.createElement("div");
+      block.className = "task-block";
+      block.setAttribute("data-task-id", task.id);
+
+      var sizesHtml = task.sizes.map(function(sz){
+        var tiersHtml = sortedTiers(sz).map(function(tr, tIdx){
+          return '<div class="tier-row" data-tier-idx="'+tIdx+'" data-tier-id="'+tr.id+'">' +
+            '<div class="tier-field"><label>#'+(tIdx+1)+' práh ('+(task.unit)+(task.rateBasis==="hour"?"/hod":"/směnu")+')</label><input type="number" data-act="tThreshold" value="'+tr.threshold+'"></div>' +
+            '<div class="tier-field"><label>Kč/hod</label><input type="number" data-act="tWage" value="'+tr.wage+'"></div>' +
+            '<div class="tier-field"><label>bonus min %</label><input type="number" data-act="tBonusMin" value="'+tr.bonusMin+'"></div>' +
+            '<div class="tier-field"><label>bonus max %</label><input type="number" data-act="tBonusMax" value="'+tr.bonusMax+'"></div>' +
+            '<button type="button" data-act="delTier" title="Smazat stupeň">✕</button>' +
+          '</div>';
+        }).join("");
+        return '<div class="size-block" data-size-id="'+sz.id+'">' +
+          '<div class="size-block-head">' +
+            '<input type="text" data-act="sizeName" value="'+escapeHtml(sz.name)+'" placeholder="Název velikosti/gradace">' +
+            '<button type="button" class="del-size-btn" data-act="delSize" title="Smazat velikost">✕</button>' +
+          '</div>' +
+          tiersHtml +
+          '<button type="button" class="mini-btn mini-btn-sm" data-act="addTier">+ Přidat stupeň</button>' +
+        '</div>';
+      }).join("");
+
+      block.innerHTML =
+        '<div class="task-block-head">' +
+          '<input type="text" data-act="taskName" value="'+escapeHtml(task.name)+'">' +
+          '<select data-act="taskUnit" class="task-unit-select">' +
+            '<option value="kg"'+(task.unit==="kg"?" selected":"")+'>kg</option>' +
+            '<option value="ks"'+(task.unit==="ks"?" selected":"")+'>ks</option>' +
+          '</select>' +
+          '<button type="button" class="del-task-btn" data-act="delTask">✕</button>' +
+        '</div>' +
+        '<div class="task-basis-row">Vztaženo na: <select data-act="rateBasis">' +
+          '<option value="hour"'+(task.rateBasis==="hour"?" selected":"")+'>hodinu (ks/hod, kg/hod)</option>' +
+          '<option value="shift"'+(task.rateBasis==="shift"?" selected":"")+'>celou směnu (přepočte se podle odprac. hodin)</option>' +
+        '</select></div>' +
+        '<div class="sizes-wrap">'+sizesHtml+'</div>' +
+        '<button type="button" class="mini-btn" data-act="addSize">+ Přidat velikost/gradaci</button>';
+      wrap.appendChild(block);
+    });
+  }
+
+  document.getElementById("appNameInput").addEventListener("input", function(){
+    data.settings.appName = this.value || "DĚLŇAS";
+    saveData(); updateBrand();
+  });
+  document.getElementById("shiftHoursInput").addEventListener("input", function(){
+    var v = parseFloat(this.value);
+    if(!isNaN(v) && v>0){ data.settings.shiftHours = v; saveData(); renderAllExceptSettings(); }
+  });
+  document.getElementById("addTaskBtn").addEventListener("click", function(){
+    data.settings.tasks.push({
+      id:"task_"+genId(), name:"Nový úkon", unit:"kg", rateBasis:"shift",
+      sizes:[{ id:"sz_"+genId(), name:"Standard", tiers:[{id:"tier_"+genId(), threshold:1,wage:125,bonusMin:0,bonusMax:0}] }]
+    });
+    saveData(); renderSettings(); refreshEntryRowTaskOptions();
+  });
+
+  document.getElementById("tasksSettingsWrap").addEventListener("click", function(e){
+    var act = e.target.getAttribute("data-act");
+    if(!act) return;
+    var block = e.target.closest(".task-block");
+    var taskId = block.getAttribute("data-task-id");
+    var task = taskById(taskId);
+    if(act==="delTask"){
+      if(data.settings.tasks.length<=1){ showToast("Musí zůstat aspoň jeden úkon"); return; }
+      var doDelTask = function(){
+        data.settings.tasks = data.settings.tasks.filter(function(t){ return t.id!==taskId; });
+        saveData(); renderSettings(); renderAll();
+        showToast("Úkon smazán");
+      };
+      var usedTask = countEntriesUsingTask(taskId);
+      if(usedTask>0){
+        openConfirm(
+          "Tento úkon (\""+task.name+"\") je použitý celkem "+usedTask+"× v uložených směnách. Po smazání se tyto záznamy přestanou počítat do statistik a výdělku (zůstanou uložené, ale appka je nedohledá). Opravdu smazat?",
+          doDelTask
+        );
+      } else {
+        doDelTask();
+      }
+    } else if(act==="addSize"){
+      task.sizes.push({ id:"sz_"+genId(), name:"Nová velikost", tiers:[{id:"tier_"+genId(), threshold:1,wage:task.sizes[0].tiers[0].wage||125,bonusMin:0,bonusMax:0}] });
+      saveData(); renderSettings();
+    } else if(act==="delSize"){
+      var sizeBlock = e.target.closest(".size-block");
+      var sizeId = sizeBlock.getAttribute("data-size-id");
+      if(task.sizes.length<=1){ showToast("Úkon musí mít aspoň jednu velikost"); return; }
+      var doDelSize = function(){
+        task.sizes = task.sizes.filter(function(s){ return s.id!==sizeId; });
+        saveData(); renderSettings(); renderAll();
+        showToast("Velikost smazána");
+      };
+      var usedSize = countEntriesUsingSize(taskId, sizeId);
+      if(usedSize>0){
+        var sizeObj = sizeById(task, sizeId);
+        openConfirm(
+          "Tato velikost/gradace (\""+(sizeObj?sizeObj.name:"?")+"\") je použitá celkem "+usedSize+"× v uložených směnách. Po smazání se tyto záznamy přestanou počítat do statistik a výdělku (zůstanou uložené, ale appka je nedohledá). Opravdu smazat?",
+          doDelSize
+        );
+      } else {
+        doDelSize();
+      }
+    } else if(act==="addTier"){
+      var sizeBlock2 = e.target.closest(".size-block");
+      var sizeId2 = sizeBlock2.getAttribute("data-size-id");
+      var size = sizeById(task, sizeId2);
+      var lastTier = sortedTiers(size).slice(-1)[0];
+      size.tiers.push({ id:"tier_"+genId(), threshold:(lastTier?lastTier.threshold+50:1), wage:(lastTier?lastTier.wage+10:125), bonusMin:0, bonusMax:0 });
+      saveData(); renderSettings(); renderAll();
+    } else if(act==="delTier"){
+      var sizeBlock3 = e.target.closest(".size-block");
+      var sizeId3 = sizeBlock3.getAttribute("data-size-id");
+      var size3 = sizeById(task, sizeId3);
+      var tierId3 = e.target.closest(".tier-row").getAttribute("data-tier-id");
+      if(size3.tiers.length<=1){ showToast("Velikost musí mít aspoň jeden stupeň"); return; }
+      size3.tiers = size3.tiers.filter(function(t){ return t.id!==tierId3; });
+      saveData(); renderSettings(); renderAll();
+    }
+  });
+  document.getElementById("tasksSettingsWrap").addEventListener("change", function(e){
+    var act = e.target.getAttribute("data-act");
+    if(!act) return;
+    var block = e.target.closest(".task-block");
+    var taskId = block.getAttribute("data-task-id");
+    var task = taskById(taskId);
+    // NOTE: these are simple value edits, not structural changes (that's
+    // addTask/addSize/addTier/delTask/delSize/delTier above, in the click
+    // handler). They must NOT call renderSettings()/renderAll() — doing so
+    // rebuilds this whole form's innerHTML, which detaches any other input
+    // the user is about to Tab into and silently drops whatever they type
+    // there next. So we only update the data model, save, and refresh the
+    // rest of the app (charts/history/etc.) via renderAllExceptSettings().
+    // NOTE ON THE RENDER DELAY BELOW:
+    // These handlers fire on "change" (i.e. on blur — when the user taps/clicks
+    // away from a field, including tapping a ✕ delete button that sits right
+    // below it). renderAllExceptSettings() can change the height of the
+    // sections above (charts, heatmap, history), which shifts everything
+    // below — including whichever ✕/delete button the user is in the middle
+    // of tapping — a few pixels down, *before* the tap has actually landed.
+    // On touch devices this made delete buttons feel like they only worked
+    // when tapped slightly below where they're drawn. Deferring the
+    // re-render by one tick (setTimeout 0) lets the click/tap that triggered
+    // the blur get processed against the still-in-place layout first; the
+    // (harmless, idempotent) re-render then happens right after.
+    if(act==="taskName"){ task.name = e.target.value || task.name; saveData(); setTimeout(renderAllExceptSettings, 0); }
+    else if(act==="taskUnit"){
+      task.unit = e.target.value;
+      // kg and ks norms behave differently in practice (every real ladder we've
+      // been given has kg tied to "celou směnu" and ks tied to "hodinu") — so
+      // when the unit is switched, keep "Vztaženo na" in sync with it rather
+      // than leaving e.g. a kg task labeled "kg/hod", which doesn't happen for
+      // any real norm.
+      task.rateBasis = task.unit==="kg" ? "shift" : "hour";
+      var rateBasisSelect = block.querySelector('[data-act="rateBasis"]');
+      if(rateBasisSelect) rateBasisSelect.value = task.rateBasis;
+      // The threshold numbers are calibrated to the OLD unit (ks vs kg tempo
+      // is not something the app can convert between), so leaving them in
+      // place would silently keep a stale, wrong-looking number under the
+      // new unit. Clear every threshold in this task back to 0 so it's
+      // obvious a fresh table needs typing in — wage/bonus % are left alone
+      // since those don't depend on the unit.
+      task.sizes.forEach(function(sz){
+        sz.tiers.forEach(function(tr){ tr.threshold = 0; });
+      });
+      block.querySelectorAll('.tier-row [data-act="tThreshold"]').forEach(function(input){
+        input.value = 0;
+      });
+      saveData(); updateThresholdLabels(taskId); setTimeout(renderAllExceptSettings, 0);
+      showToast("Jednotka změněna — zadej nové prahy pro "+task.unit+" 💪");
+    }
+    else if(act==="rateBasis"){ task.rateBasis = e.target.value; saveData(); updateThresholdLabels(taskId); setTimeout(renderAllExceptSettings, 0); }
+    else if(act==="sizeName"){
+      var sizeBlock = e.target.closest(".size-block");
+      var size = sizeById(task, sizeBlock.getAttribute("data-size-id"));
+      size.name = e.target.value || size.name;
+      saveData(); setTimeout(renderAllExceptSettings, 0);
+    } else if(act==="tThreshold" || act==="tWage" || act==="tBonusMin" || act==="tBonusMax"){
+      var sizeBlock2 = e.target.closest(".size-block");
+      var size2 = sizeById(task, sizeBlock2.getAttribute("data-size-id"));
+      var tierId = e.target.closest(".tier-row").getAttribute("data-tier-id");
+      var tier = tierById(size2, tierId);
+      if(!tier) return;
+      var v = parseFloat(e.target.value); if(isNaN(v)) v=0;
+      if(act==="tThreshold") tier.threshold=v;
+      else if(act==="tWage") tier.wage=v;
+      else if(act==="tBonusMin") tier.bonusMin=v;
+      else if(act==="tBonusMax") tier.bonusMax=v;
+      saveData(); setTimeout(renderAllExceptSettings, 0);
+    }
+  });
+
+  // ---------- export/import ----------
+  function downloadBlob(content, filename, mime){
+    var blob = new Blob([content], { type:mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  document.getElementById("backupExportBtn").addEventListener("click", function(){
+    var content = JSON.stringify(data, null, 2);
+    var d = new Date();
+    downloadBlob(content, "delnas-zaloha-"+fmtISO(d)+".json", "application/json");
+    showToast("Záloha stažena 💾");
+  });
+
+  document.getElementById("backupImportBtn").addEventListener("click", function(){
+    document.getElementById("backupFileInput").click();
+  });
+  var pendingImportData = null;
+  document.getElementById("backupFileInput").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try {
+        var parsed = JSON.parse(ev.target.result);
+        if(!parsed || typeof parsed!=="object" || !Array.isArray(parsed.shifts)){
+          showToast("Tenhle soubor nevypadá jako platná záloha 💪"); return;
+        }
+        pendingImportData = parsed;
+        document.getElementById("importOverlay").classList.remove("hidden");
+      } catch(err){ showToast("Soubor se nepodařilo přečíst"); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+  document.getElementById("importCancel").addEventListener("click", function(){
+    pendingImportData = null;
+    document.getElementById("importOverlay").classList.add("hidden");
+  });
+  document.getElementById("importOk").addEventListener("click", function(){
+    if(pendingImportData){
+      data = loadDataFromObject(pendingImportData);
+      saveData();
+      resetEntryForm();
+      renderAll();
+      showToast("Záloha obnovena ✅");
+    }
+    pendingImportData = null;
+    document.getElementById("importOverlay").classList.add("hidden");
+  });
+  function loadDataFromObject(d){
+    if(!d.settings) d.settings = defaultSettings();
+    if(!Array.isArray(d.settings.tasks) || !d.settings.tasks.length) d.settings.tasks = defaultSettings().tasks;
+    else migrateTasks(d.settings.tasks);
+    if(typeof d.settings.appName !== "string") d.settings.appName = "DĚLŇAS";
+    if(typeof d.settings.shiftHours !== "number") d.settings.shiftHours = 7;
+    if(!Array.isArray(d.shifts)) d.shifts = [];
+    return d;
+  }
+
+  // ---------- export/import: wage tables only (tasks/sizes/tiers, no shifts) ----------
+  document.getElementById("tablesExportBtn").addEventListener("click", function(){
+    var content = JSON.stringify({
+      type: "delnas-tabulky",
+      shiftHours: data.settings.shiftHours,
+      tasks: data.settings.tasks
+    }, null, 2);
+    var d = new Date();
+    downloadBlob(content, "delnas-tabulky-"+fmtISO(d)+".json", "application/json");
+    showToast("Tabulky staženy 💾");
+  });
+
+  document.getElementById("tablesImportBtn").addEventListener("click", function(){
+    document.getElementById("tablesFileInput").click();
+  });
+  var pendingTablesImport = null;
+  document.getElementById("tablesFileInput").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try {
+        var parsed = JSON.parse(ev.target.result);
+        // Accept either a dedicated tables export ({tasks:[...]}) or a full
+        // backup file (which also has a top-level tasks array under settings)
+        // — pull whichever tasks array is present so a full backup can be
+        // used as the source too, without touching this device's shifts.
+        var tasks = Array.isArray(parsed && parsed.tasks) ? parsed.tasks
+          : (parsed && parsed.settings && Array.isArray(parsed.settings.tasks) ? parsed.settings.tasks : null);
+        if(!parsed || typeof parsed!=="object" || !tasks){
+          showToast("Tenhle soubor nevypadá jako platné mzdové tabulky 💪"); return;
+        }
+        var shiftHours = typeof parsed.shiftHours==="number" ? parsed.shiftHours
+          : (parsed.settings && typeof parsed.settings.shiftHours==="number" ? parsed.settings.shiftHours : null);
+        pendingTablesImport = { tasks:tasks, shiftHours:shiftHours };
+        document.getElementById("importTablesOverlay").classList.remove("hidden");
+      } catch(err){ showToast("Soubor se nepodařilo přečíst"); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+  document.getElementById("importTablesCancel").addEventListener("click", function(){
+    pendingTablesImport = null;
+    document.getElementById("importTablesOverlay").classList.add("hidden");
+  });
+  document.getElementById("importTablesOk").addEventListener("click", function(){
+    if(pendingTablesImport){
+      data.settings.tasks = migrateTasks(pendingTablesImport.tasks);
+      if(typeof pendingTablesImport.shiftHours==="number" && pendingTablesImport.shiftHours>0){
+        data.settings.shiftHours = pendingTablesImport.shiftHours;
+      }
+      saveData();
+      renderSettings();
+      renderAll();
+      showToast("Mzdové tabulky nahrány ✅");
+    }
+    pendingTablesImport = null;
+    document.getElementById("importTablesOverlay").classList.add("hidden");
+  });
+
+  document.getElementById("exportCsvBtn").addEventListener("click", function(){
+    var rows = [["datum","volno","ukol","velikost","mnozstvi","jednotka","hodiny","tempo","stupen","pocet_stupnu","kc_za_hod","bonus_min_pct","bonus_max_pct","odhad_kc_min","odhad_kc_max","poznamka"]];
+    data.shifts.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(s){
+      if(s.dayOff || !s.entries || !s.entries.length){
+        rows.push([s.date, s.dayOff?"ano":"ne","","","","","","","","","","","","","",s.note||""]);
+      } else {
+        s.entries.forEach(function(e){
+          var task = taskById(e.taskId); var size = sizeById(task, e.sizeId);
+          var r = computeEntryResult(e);
+          rows.push([
+            s.date,"ne", task?task.name:"", size?size.name:"", e.qty, task?task.unit:"", e.hours,
+            r?round1(r.rate):"", r&&r.tier?(r.tierIndex+1):"", r?r.tierCount:"",
+            r&&r.tier?r.wage:"", r&&r.tier?r.tier.bonusMin:"", r&&r.tier?r.tier.bonusMax:"",
+            r&&r.tier?Math.round(r.payLow):"", r&&r.tier?Math.round(r.payHigh):"",
+            s.note||""
+          ]);
+        });
+      }
+    });
+    var csv = rows.map(function(r){
+      return r.map(function(v){ var s=String(v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(";");
+    }).join("\n");
+    downloadBlob("﻿"+csv, "delnas-export-"+fmtISO(new Date())+".csv", "text/csv;charset=utf-8");
+    showToast("CSV stažen 📄");
+  });
+
+  document.getElementById("exportPdfBtn").addEventListener("click", function(){
+    buildPrintReport();
+    window.print();
+  });
+  function buildPrintReport(){
+    var d = new Date();
+    document.getElementById("prSub").textContent = "Vygenerováno "+fmtHuman(d)+" · "+data.shifts.length+" směn celkem";
+    var today = new Date(); today.setHours(0,0,0,0);
+    var agg7 = windowAggregate(fmtISO(addDays(today,-6)), fmtISO(addDays(today,1)));
+    var agg30 = windowAggregate(fmtISO(addDays(today,-29)), fmtISO(addDays(today,1)));
+    var xpRes = computeXP(); var lvl = levelForXP(xpRes.xp);
+    document.getElementById("prStats").innerHTML =
+      '<div class="pr-stat">Ø Kč/hod (7 dní)<b>'+(agg7.avgWage!=null?Math.round(agg7.avgWage)+" Kč":"–")+'</b></div>' +
+      '<div class="pr-stat">Ø Kč/hod (30 dní)<b>'+(agg30.avgWage!=null?Math.round(agg30.avgWage)+" Kč":"–")+'</b></div>' +
+      '<div class="pr-stat">Level / titul<b>'+lvl.level+" · "+lvl.title+'</b></div>' +
+      '<div class="pr-stat">XP celkem<b>'+xpRes.xp+'</b></div>';
+    var body = data.shifts.slice().sort(function(a,b){return a.date<b.date?1:-1;}).map(function(s){
+      var st = shiftStats(s);
+      var taskSummary = s.dayOff ? "volno" : (s.entries||[]).map(function(e){
+        var task=taskById(e.taskId); var size=sizeById(task,e.sizeId);
+        return (task?task.name:"?")+" "+(size?size.name:"")+" "+e.qty+(task?task.unit:"");
+      }).join(", ");
+      return '<tr><td>'+fmtHuman(parseISO(s.date))+'</td><td>'+escapeHtml(taskSummary)+'</td>' +
+        '<td>'+round1(st.hours)+'</td><td>'+(st.avgWage!=null?Math.round(st.avgWage)+" Kč":"–")+'</td>' +
+        '<td>'+(st.payHigh>0?fmtKc(st.payLow)+'–'+fmtKc(st.payHigh):'–')+'</td>' +
+        '<td>'+escapeHtml(s.note||"")+'</td></tr>';
+    }).join("");
+    document.getElementById("prTableBody").innerHTML = body;
+  }
+
+  // ---------- generic confirm dialog ----------
+  // Shows #confirmOverlay with custom text; runs `onConfirm` only if the
+  // user actually taps "Smazat". Used for anything destructive, not just
+  // the full data reset below.
+  function openConfirm(text, onConfirm){
+    pendingConfirmAction = onConfirm;
+    document.getElementById("confirmText").textContent = text;
+    document.getElementById("confirmOverlay").classList.remove("hidden");
+  }
+  document.getElementById("confirmCancel").addEventListener("click", function(){
+    pendingConfirmAction = null;
+    document.getElementById("confirmOverlay").classList.add("hidden");
+  });
+  document.getElementById("confirmOk").addEventListener("click", function(){
+    var action = pendingConfirmAction;
+    pendingConfirmAction = null;
+    document.getElementById("confirmOverlay").classList.add("hidden");
+    if(action) action();
+  });
+
+  // ---------- reset ----------
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    openConfirm("Opravdu smazat všechna data o směnách? Tuto akci nelze vrátit zpět.", function(){
+      data = { settings: defaultSettings(), shifts: [] };
+      saveData();
+      resetEntryForm();
+      renderAll();
+      showToast("Všechna data smazána");
+    });
+  });
+
+  // ---------- toast ----------
+  var toastTimer = null;
+  function showToast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  }
+
+  // ---------- render all ----------
+  function renderAll(){
+    updateBrand();
+    renderXP();
+    renderAdvice();
+    renderChips();
+    renderTrends();
+    renderSummaryTable();
+    renderDailyChart();
+    renderWeeklyChart();
+    renderMonthlyChart();
+    renderHeatmap();
+    renderHistory();
+    renderSettings();
+    refreshEntryRowTaskOptions();
+  }
+
+  // Same as renderAll(), but deliberately skips renderSettings().
+  // Used after simple field edits inside the settings form (task name,
+  // unit, rate basis, size name, tier threshold/wage/bonus) so the rest
+  // of the app (charts, history, XP...) stays in sync with the data,
+  // without tearing down and rebuilding the settings inputs the user
+  // may still be tabbing through. Rebuilding that DOM mid-edit is what
+  // caused values typed into later fields (e.g. Tab-ing through several
+  // "práh/kg" fields) to silently get lost.
+  function renderAllExceptSettings(){
+    updateBrand();
+    renderXP();
+    renderAdvice();
+    renderChips();
+    renderTrends();
+    renderSummaryTable();
+    renderDailyChart();
+    renderWeeklyChart();
+    renderMonthlyChart();
+    renderHeatmap();
+    renderHistory();
+    refreshEntryRowTaskOptions();
+  }
+
+  // Patches just the tier threshold labels for one task block in place
+  // (they show the unit / "za hodinu vs. za směnu" text), instead of
+  // rebuilding the whole settings form when unit or rateBasis changes.
+  function updateThresholdLabels(taskId){
+    var block = document.querySelector('.task-block[data-task-id="'+taskId+'"]');
+    if(!block) return;
+    var task = taskById(taskId);
+    if(!task) return;
+    block.querySelectorAll(".tier-row").forEach(function(row){
+      var tIdx = +row.getAttribute("data-tier-idx");
+      var label = row.querySelector(".tier-field label");
+      if(label) label.textContent = "#"+(tIdx+1)+" práh ("+task.unit+(task.rateBasis==="hour"?"/hod":"/směnu")+")";
+    });
+  }
+
+  // ---------- header links: mouse drag + wheel scroll (desktop has no
+  // touch scrolling and we hide the scrollbar, so without this the row
+  // is only scrollable via touch/trackpad) ----------
+  function initHeaderLinksScroll(){
+    var el = document.querySelector(".header-links");
+    if(!el) return;
+    var isDown = false, startX = 0, startScroll = 0, moved = false;
+    el.addEventListener("mousedown", function(e){
+      isDown = true; moved = false;
+      startX = e.pageX; startScroll = el.scrollLeft;
+      el.classList.add("dragging");
+    });
+    window.addEventListener("mouseup", function(){
+      isDown = false;
+      el.classList.remove("dragging");
+    });
+    window.addEventListener("mousemove", function(e){
+      if(!isDown) return;
+      var dx = e.pageX - startX;
+      if(Math.abs(dx) > 3) moved = true;
+      el.scrollLeft = startScroll - dx;
+    });
+    // A plain click right after a drag would otherwise still follow the
+    // link under the cursor - swallow that one click.
+    el.addEventListener("click", function(e){
+      if(moved){ e.preventDefault(); e.stopPropagation(); moved = false; }
+    }, true);
+    // Vertical mouse-wheel over a horizontal row normally does nothing
+    // useful - redirect it into horizontal scroll instead.
+    el.addEventListener("wheel", function(e){
+      if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){
+        el.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }
+    }, { passive:false });
+  }
+
+  // ---------- init ----------
+  initTheme();
+  initHeaderLinksScroll();
+  tickDateTime();
+  setInterval(tickDateTime, 30000);
+  resetEntryForm();
+  renderAll();
+
+})();
+</script>
+</body>
+</html>
