@@ -519,7 +519,7 @@
           <p>The optional "Video / Audio" section adds a playable video and/or audio recording to the main page (after Cards/Features). For video you can pick a YouTube/Vimeo link (automatically converted to an embedded player) or your own file/URL (.mp4, .webm). Audio works the same way — upload a file or paste a URL (.mp3, .wav). Both can have an optional caption above the player.</p>
 
           <h4>Appearance — style, colors, fonts, and layout</h4>
-          <p>The fastest way to set the overall style (colors + fonts together) is through the ready-made presets in the "Website style" section, then fine-tune the result manually in Colors (accent, glow, and two background colors) and Fonts (a separate choice for headings and body text). The "Website layout" section controls arrangement, not color — for the hero section you can choose centered, split into two columns (image left/right), left-aligned, or image as full background; for cards/features you can choose a grid, a list, numbered steps, or a minimal borderless style.</p>
+          <p>The fastest way to set the overall style (colors + fonts together) is through the ready-made presets in the "Website style" section, then fine-tune the result manually in Colors (accent, glow, and two background colors) and Fonts (a separate choice for headings and body text). The "Website layout" section controls arrangement, not color — for the hero section you can choose centered, split into two columns (image left/right), left-aligned, image as full background, or boxed (text and image in a card with a shadow, centered); for cards/features you can choose a grid, a list, numbered steps, or a minimal borderless style.</p>
 
           <h4>Navigation</h4>
           <p>In the Navigation section you turn on/off and rename the links to Hero, Features, and FAQ in the site's left-hand menu. The "Show custom pages in menu" option determines whether custom pages (see below) are automatically added to the menu on every page, or whether you link to them only manually via buttons and cards. Further down in the same section you can add social media icons (Instagram, Facebook, TikTok, YouTube, email…) — they appear as a bottom row in the left-hand menu on every page.</p>
@@ -865,7 +865,7 @@ function getDefaultState(){
   heroImageAlt: '',  // image alt text (SEO + accessibility)
   favicon: '',       // base64 data URL of the favicon from an uploaded file (takes priority over the URL)
   faviconUrl: '',    // optional external favicon URL
-  heroLayout: 'centered', // 'centered' | 'split' — hero section layout
+  heroLayout: 'centered', // 'centered' | 'split' | 'split-reverse' | 'left' | 'imagebg' | 'boxed' — hero section layout
   cardsLayout: 'grid',    // 'grid' | 'list' — cards/features layout
   media: {
     videoType: 'none',   // 'none' | 'embed' (YouTube/Vimeo) | 'file' (custom file/URL)
@@ -1716,6 +1716,7 @@ function renderForm(){
         <option value="split-reverse" ${state.heroLayout==='split-reverse'?'selected':''}>Split reversed (image left, text right)</option>
         <option value="left" ${state.heroLayout==='left'?'selected':''}>Left-aligned (minimal, single column)</option>
         <option value="imagebg" ${state.heroLayout==='imagebg'?'selected':''}>Background image (text over full photo)</option>
+        <option value="boxed" ${state.heroLayout==='boxed'?'selected':''}>Boxed (text and image in a card with a shadow, centered)</option>
       </select>`)}
       ${(state.heroLayout==='split' || state.heroLayout==='split-reverse' || state.heroLayout==='imagebg') && state.heroVisual!=='custom' ? `<div class="note-box" style="margin-top:8px;">Without an image set in the hero section (above, in "Hero section visual"), this layout behaves as left-aligned text.</div>` : ''}
       ${field('Cards / features layout', `<select data-bind="cardsLayout">
@@ -3335,6 +3336,19 @@ function sharedStyleTag(s){
   }
   body.layout-imagebg.no-hero-visual .hero::before{display:none;}
 
+  /* ---------- layout: hero in a boxed card with a shadow, centered ---------- */
+  body.layout-boxed .hero{padding:60px 20px;}
+  body.layout-boxed .hero .wrap{
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);
+    border-radius:28px;padding:56px 32px;
+    box-shadow:0 40px 80px -40px rgba(0,0,0,.55);
+  }
+  body.layout-boxed .hero-visual-img{margin:0 auto 26px;}
+  @media (max-width:600px){
+    body.layout-boxed .hero{padding:36px 14px;}
+    body.layout-boxed .hero .wrap{padding:36px 20px;border-radius:20px;}
+  }
+
   /* ---------- layout: cards as a list (icon left, text right) ---------- */
   body.cards-list .cards{display:flex;flex-direction:column;gap:12px;}
   body.cards-list .card, body.cards-list .card-link{
@@ -3660,7 +3674,7 @@ function buildSiteHTML(s){
   const hasHeroImage = s.heroVisual === 'custom' && !!customImageSrc;
 
   // Site layout — fallback to default for unknown/old values
-  const heroLayoutClass = ['centered','split','split-reverse','left','imagebg'].includes(s.heroLayout) ? s.heroLayout : 'centered';
+  const heroLayoutClass = ['centered','split','split-reverse','left','imagebg','boxed'].includes(s.heroLayout) ? s.heroLayout : 'centered';
   const cardsLayoutClass = ['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid';
 
   // For the "Background image" hero layout, the image goes directly into the hero section's

@@ -613,7 +613,7 @@
           <p>Nepovinná sekce „Video / Audio" přidá na hlavní stránku (za Karty/funkce) přehrávatelné video a/nebo zvukovou nahrávku. U videa vybereš buď odkaz na YouTube/Vimeo (automaticky se převede na vložené video), nebo vlastní soubor/URL (.mp4, .webm). Audio se stejně tak nahraje jako soubor nebo se vloží URL (.mp3, .wav). K oběma jde přidat nepovinný popisek nad přehrávačem.</p>
 
           <h4>Vzhled — grafický styl, barvy, písmo a rozvržení</h4>
-          <p>Grafický styl (barvy + písmo dohromady) nastavíš nejrychleji přes hotové předvolby v sekci „Grafický styl webu" a pak si výsledek ještě doladíš ručně v sekcích Barvy (accent, glow a dvě barvy pozadí) a Písmo (zvlášť pro nadpisy a pro běžný text). V sekci „Rozvržení webu" pak volíš samotné uspořádání, ne barvy — pro hero sekci vystředěné, dvousloupcové (obrázek vlevo/vpravo), zarovnané vlevo nebo obrázek na pozadí; pro karty/funkce mřížku, seznam, číslované kroky nebo minimalistický styl bez rámečků.</p>
+          <p>Grafický styl (barvy + písmo dohromady) nastavíš nejrychleji přes hotové předvolby v sekci „Grafický styl webu" a pak si výsledek ještě doladíš ručně v sekcích Barvy (accent, glow a dvě barvy pozadí) a Písmo (zvlášť pro nadpisy a pro běžný text). V sekci „Rozvržení webu" pak volíš samotné uspořádání, ne barvy — pro hero sekci vystředěné, dvousloupcové (obrázek vlevo/vpravo), zarovnané vlevo, obrázek na pozadí nebo orámovaný box (text i obrázek v kartě se stínem uprostřed); pro karty/funkce mřížku, seznam, číslované kroky nebo minimalistický styl bez rámečků.</p>
 
           <h4>Navigace</h4>
           <p>V sekci Navigace zapneš/vypneš a přejmenuješ odkazy na Hero, Funkce a FAQ v levém menu webu. Volba „Zobrazovat vlastní stránky v menu" určuje, jestli se vlastní stránky (viz níže) automaticky přidávají do menu na každé stránce webu, nebo jestli je propojíš jen ručně přes tlačítka a karty. Dole ve stejné sekci můžeš přidat ikony sociálních sítí (Instagram, Facebook, TikTok, YouTube, e-mail…) — zobrazí se jako spodní řádek levého menu na každé stránce.</p>
@@ -1092,7 +1092,7 @@ function getDefaultState(){
   heroImageAlt: '',  // alternativní text obrázku (SEO + přístupnost)
   favicon: '',       // base64 data URL faviconu z nahraného souboru (má přednost před URL)
   faviconUrl: '',    // volitelná externí URL faviconu
-  heroLayout: 'centered', // 'centered' | 'split' — rozvržení hero sekce
+  heroLayout: 'centered', // 'centered' | 'split' | 'split-reverse' | 'left' | 'imagebg' | 'boxed' — rozvržení hero sekce
   cardsLayout: 'grid',    // 'grid' | 'list' — rozvržení karet/funkcí
   media: {
     videoType: 'none',   // 'none' | 'embed' (YouTube/Vimeo) | 'file' (vlastní soubor/URL)
@@ -1943,6 +1943,7 @@ function renderForm(){
         <option value="split-reverse" ${state.heroLayout==='split-reverse'?'selected':''}>Rozdělené obráceně (obrázek vlevo, text vpravo)</option>
         <option value="left" ${state.heroLayout==='left'?'selected':''}>Zarovnané vlevo (minimalistické, jeden sloupec)</option>
         <option value="imagebg" ${state.heroLayout==='imagebg'?'selected':''}>Obrázek na pozadí (text přes celou fotku)</option>
+        <option value="boxed" ${state.heroLayout==='boxed'?'selected':''}>Orámovaný box (text i obrázek v kartě se stínem, uprostřed)</option>
       </select>`)}
       ${(state.heroLayout==='split' || state.heroLayout==='split-reverse' || state.heroLayout==='imagebg') && state.heroVisual!=='custom' ? `<div class="note-box" style="margin-top:8px;">Bez nastaveného obrázku v hero sekci (výš v „Vizuál v hero sekci") se toto rozvržení chová jako text zarovnaný vlevo.</div>` : ''}
       ${field('Rozvržení karet / funkcí', `<select data-bind="cardsLayout">
@@ -3562,6 +3563,19 @@ function sharedStyleTag(s){
   }
   body.layout-imagebg.no-hero-visual .hero::before{display:none;}
 
+  /* ---------- rozvržení: hero v orámovaném boxu (karta se stínem uprostřed) ---------- */
+  body.layout-boxed .hero{padding:60px 20px;}
+  body.layout-boxed .hero .wrap{
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);
+    border-radius:28px;padding:56px 32px;
+    box-shadow:0 40px 80px -40px rgba(0,0,0,.55);
+  }
+  body.layout-boxed .hero-visual-img{margin:0 auto 26px;}
+  @media (max-width:600px){
+    body.layout-boxed .hero{padding:36px 14px;}
+    body.layout-boxed .hero .wrap{padding:36px 20px;border-radius:20px;}
+  }
+
   /* ---------- rozvržení: karty jako seznam (ikona vlevo, text vpravo) ---------- */
   body.cards-list .cards{display:flex;flex-direction:column;gap:12px;}
   body.cards-list .card, body.cards-list .card-link{
@@ -3892,7 +3906,7 @@ function buildSiteHTML(s){
   const hasHeroImage = s.heroVisual === 'custom' && !!customImageSrc;
 
   // Rozvržení webu — ošetření neznámé/staré hodnoty (fallback na výchozí)
-  const heroLayoutClass = ['centered','split','split-reverse','left','imagebg'].includes(s.heroLayout) ? s.heroLayout : 'centered';
+  const heroLayoutClass = ['centered','split','split-reverse','left','imagebg','boxed'].includes(s.heroLayout) ? s.heroLayout : 'centered';
   const cardsLayoutClass = ['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid';
 
   // U rozvržení "Obrázek na pozadí" jde obrázek přímo do stylu hero sekce (místo <img> tagu),
