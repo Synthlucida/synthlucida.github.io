@@ -1040,6 +1040,8 @@ function getDefaultState(){
   heroImage: '',     // base64 data URL z nahraného souboru
   heroImageUrl: '',  // volitelná externí URL (má přednost před nahraným souborem)
   heroImageAlt: '',  // alternativní text obrázku (SEO + přístupnost)
+  favicon: '',       // base64 data URL faviconu z nahraného souboru (má přednost před URL)
+  faviconUrl: '',    // volitelná externí URL faviconu
   heroLayout: 'centered', // 'centered' | 'split' — rozvržení hero sekce
   cardsLayout: 'grid',    // 'grid' | 'list' — rozvržení karet/funkcí
   media: {
@@ -1771,6 +1773,16 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Favicon</div>
+      <label style="margin-top:0;">Nahrát favicon ze zařízení (čtvercový obrázek, ideálně .png nebo .ico)</label>
+      <input type="file" id="faviconFile" accept="image/*,.ico">
+      <label>Nebo URL faviconu (má přednost)</label>
+      <input type="text" data-bind="faviconUrl" value="${escapeAttr(state.faviconUrl)}" placeholder="https://.../favicon.ico">
+      <div class="note-box" style="margin-top:8px;">Nahraný soubor se vloží přímo do exportovaného HTML (base64), takže funguje i bez samostatného nahrávání favicon.ico na hosting. Pokud vyplníš URL, použije se místo něj. Když nevyplníš nic, zůstane v HTML jen odkaz na "favicon.ico" a soubor musíš nahrát ručně, jako dřív.</div>
+      ${state.favicon ? `<img src="${state.favicon}" style="max-width:64px;border-radius:6px;margin-top:8px;border:1px solid var(--ui-line);background:#fff;">` : ''}
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Hero sekce</div>
       ${field('Eyebrow (malý text nad nadpisem)', `<input type="text" data-bind="heroEyebrow" value="${escapeAttr(state.heroEyebrow)}">`)}
       ${field('Hlavní nadpis', `<input type="text" data-bind="heroTitle" value="${escapeAttr(state.heroTitle)}">`)}
@@ -2044,7 +2056,7 @@ function renderForm(){
       <div class="note-box">
         <b>Po exportu ještě ručně doplň:</b>
         <ul>
-          <li>samotné obrázky ikon (favicon.ico, apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
+          <li>samotné obrázky ikon (${(state.faviconUrl || state.favicon) ? '' : 'favicon.ico, '}apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
           <li>AJ verzi (index-en.html) + hreflang</li>
         </ul>
       </div>
@@ -2062,6 +2074,7 @@ function renderForm(){
   bindSimpleInputs();
   bindNavInputs();
   bindHeroVisualInputs();
+  bindFaviconInput();
   bindMediaInputs();
   bindContactInputs();
   bindPwaInputs();
@@ -2253,6 +2266,23 @@ function bindHeroVisualInputs(){
       const reader = new FileReader();
       reader.onload = () => {
         state.heroImage = reader.result;
+        renderForm();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+function bindFaviconInput(){
+  const fileInput = document.getElementById('faviconFile');
+  if(fileInput){
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.favicon = reader.result;
         renderForm();
         updatePreview();
       };
@@ -3610,8 +3640,12 @@ function buildSiteHTML(s){
 <meta name="robots" content="index, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-<!-- TODO: nahraj skutečné obrázky ikon pod těmito názvy (jen odkazy se generují automaticky) -->
-<link rel="icon" href="favicon.ico" sizes="any">
+${(() => {
+  const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
+  return faviconSrc
+    ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
+    : `<!-- TODO: nahraj skutečný obrázek favicon.ico (jen odkaz se generuje automaticky) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
+})()}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- manifest.json a sw.js stáhneš tlačítky v sekci "PWA" vlevo v generátoru -->
 <link rel="manifest" href="manifest.json">

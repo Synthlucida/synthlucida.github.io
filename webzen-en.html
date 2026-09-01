@@ -813,6 +813,8 @@ function getDefaultState(){
   heroImage: '',     // base64 data URL from an uploaded file
   heroImageUrl: '',  // optional external URL (takes priority over the uploaded file)
   heroImageAlt: '',  // image alt text (SEO + accessibility)
+  favicon: '',       // base64 data URL of the favicon from an uploaded file (takes priority over the URL)
+  faviconUrl: '',    // optional external favicon URL
   heroLayout: 'centered', // 'centered' | 'split' — hero section layout
   cardsLayout: 'grid',    // 'grid' | 'list' — cards/features layout
   media: {
@@ -1544,6 +1546,16 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Favicon</div>
+      <label style="margin-top:0;">Upload a favicon from your device (square image, ideally .png or .ico)</label>
+      <input type="file" id="faviconFile" accept="image/*,.ico">
+      <label>Or a favicon URL (takes priority)</label>
+      <input type="text" data-bind="faviconUrl" value="${escapeAttr(state.faviconUrl)}" placeholder="https://.../favicon.ico">
+      <div class="note-box" style="margin-top:8px;">An uploaded file is embedded directly into the exported HTML (base64), so it works without uploading favicon.ico to your hosting separately. If you fill in a URL, that's used instead. If you leave both empty, the HTML will just keep a link to "favicon.ico" and you'll need to upload that file manually, as before.</div>
+      ${state.favicon ? `<img src="${state.favicon}" style="max-width:64px;border-radius:6px;margin-top:8px;border:1px solid var(--ui-line);background:#fff;">` : ''}
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">Hero section</div>
       ${field('Eyebrow (small text above the heading)', `<input type="text" data-bind="heroEyebrow" value="${escapeAttr(state.heroEyebrow)}">`)}
       ${field('Main heading', `<input type="text" data-bind="heroTitle" value="${escapeAttr(state.heroTitle)}">`)}
@@ -1817,7 +1829,7 @@ function renderForm(){
       <div class="note-box">
         <b>After exporting, still add manually:</b>
         <ul>
-          <li>the actual icon images (favicon.ico, apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
+          <li>the actual icon images (${(state.faviconUrl || state.favicon) ? '' : 'favicon.ico, '}apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
           <li>a translated version of the site + hreflang, if you need one</li>
         </ul>
       </div>
@@ -1835,6 +1847,7 @@ function renderForm(){
   bindSimpleInputs();
   bindNavInputs();
   bindHeroVisualInputs();
+  bindFaviconInput();
   bindMediaInputs();
   bindContactInputs();
   bindPwaInputs();
@@ -2026,6 +2039,23 @@ function bindHeroVisualInputs(){
       const reader = new FileReader();
       reader.onload = () => {
         state.heroImage = reader.result;
+        renderForm();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+function bindFaviconInput(){
+  const fileInput = document.getElementById('faviconFile');
+  if(fileInput){
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.favicon = reader.result;
         renderForm();
         updatePreview();
       };
@@ -3387,8 +3417,12 @@ function buildSiteHTML(s){
 <meta name="robots" content="index, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-<!-- TODO: upload the actual icon images under these names (only the links are generated automatically) -->
-<link rel="icon" href="favicon.ico" sizes="any">
+${(() => {
+  const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
+  return faviconSrc
+    ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
+    : `<!-- TODO: upload the actual favicon.ico image (only the link is generated automatically) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
+})()}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- download manifest.json and sw.js using the buttons in the "PWA" section on the left of the generator -->
 <link rel="manifest" href="manifest.json">
