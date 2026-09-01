@@ -121,6 +121,8 @@
     cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;
   }
   .save-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+  .save-btn:disabled{opacity:.35;cursor:default;}
+  .save-btn:disabled:hover{border-color:var(--ui-line);color:var(--ui-text);}
   .autosave-status{font-size:11.5px;color:var(--ui-text-dim);white-space:nowrap;}
 
   /* ---------- workspace ---------- */
@@ -239,6 +241,10 @@
   }
   input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--ui-accent);}
   textarea{min-height:52px;line-height:1.4;padding-right:30px;}
+  textarea.code-input{
+    font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.5;min-height:90px;
+    font-variant-ligatures:none;-webkit-font-feature-settings:"liga" 0,"calt" 0;font-feature-settings:"liga" 0,"calt" 0;
+  }
   .textarea-wrap{position:relative;}
   /* Skutečné WYSIWYG pole (contenteditable) — zobrazuje rovnou naformátovaný text
      (tučně/kurzíva/…), řídicí znaky (**, __, ++, ~~, [ ](...)) se v něm vůbec
@@ -301,6 +307,10 @@
     font-size:14.5px;line-height:1.6;
   }
   .expand-modal textarea:focus{outline:none;}
+  .expand-modal textarea.code-input{
+    font-family:'JetBrains Mono',monospace;font-size:13.5px;
+    font-variant-ligatures:none;-webkit-font-feature-settings:"liga" 0,"calt" 0;font-feature-settings:"liga" 0,"calt" 0;
+  }
   .expand-modal .rt-ce{
     width:100%;height:100%;border:none;border-radius:0;background:var(--ui-bg-0);
     padding:16px;font-size:14.5px;line-height:1.6;overflow-y:auto;
@@ -450,6 +460,8 @@
     <button class="save-btn" id="showGuideBtn" title="User guide">ℹ️ <span class="btn-label">Guide</span></button>
     <button class="save-btn" id="showArticlesBtn" title="Articles about building websites">📚 <span class="btn-label">Articles</span></button>
     <span class="autosave-status" id="autosaveStatus"></span>
+    <button class="save-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ <span class="btn-label">Undo</span></button>
+    <button class="save-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Redo</span></button>
     <button class="save-btn" id="resetProjectBtn" title="Clears your work in progress and restores sample text">🗑️ <span class="btn-label">New project</span></button>
     <button class="save-btn" id="saveProjectBtn" title="Saves your work in progress to a .json file">💾 <span class="btn-label">Save project</span></button>
     <button class="save-btn" id="loadProjectBtn" title="Loads a previously saved .json file">📂 <span class="btn-label">Load project</span></button>
@@ -897,6 +909,16 @@ function getDefaultState(){
     heading: 'Page not found',
     text: 'The page you\'re looking for isn\'t here — it may have been moved or no longer exists.',
     buttonText: 'Back to homepage'
+  },
+  cookieBanner: {
+    enabled: true,
+    text: 'This site only stores technically necessary data in your browser to operate — no tracking cookies.',
+    buttonText: 'Got it'
+  },
+  customCode: {
+    headHtml: '',    // custom code inserted into <head> (meta tags, verification, fonts…)
+    css: '',          // custom CSS, inserted with the highest priority over the generated styles
+    bodyEndHtml: ''    // custom code/scripts inserted right before </body>
   }
   };
 }
@@ -1445,6 +1467,7 @@ function openTextareaModal(ta){
   const toolbarEl = document.getElementById('expandModalToolbar');
   titleEl.textContent = ta.dataset.fieldLabel || 'Edit text';
   const isRichtext = ta.dataset.richtext === '1';
+  modalTa.classList.toggle('code-input', ta.classList.contains('code-input'));
   toolbarEl.style.display = isRichtext ? 'flex' : 'none';
   modalTa.style.display = isRichtext ? 'none' : '';
   modalCE.style.display = isRichtext ? '' : 'none';
@@ -1826,6 +1849,28 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Cookie banner</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-cookiebanner="enabled" ${state.cookieBanner.enabled?'checked':''}> Show a cookie notice banner
+      </label>
+      <div id="cookieBannerBox" style="margin-top:10px;${state.cookieBanner.enabled?'':'display:none;'}">
+        <div class="note-box" style="margin-top:0;margin-bottom:10px;">The generated site itself doesn't use any tracking cookies or analytics — the default text says so plainly. If you add your own analytics later (Google Analytics, etc.), update the text to match reality. The banner shows only once, until the visitor clicks the button (remembered in their browser), on any page of the site.</div>
+        ${field('Banner text', `<textarea data-cookiebanner="text" style="min-height:60px;">${escapeHtml(state.cookieBanner.text)}</textarea>`)}
+        ${field('Button text', `<input type="text" data-cookiebanner="buttonText" value="${escapeAttr(state.cookieBanner.buttonText)}" placeholder="Got it">`)}
+        <div class="note-box" style="margin-top:8px;">If you have a link in the Footer whose label contains "privacy", "policy", "gdpr", or "cookies", the banner automatically links to it.</div>
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Custom code (advanced)</div>
+      <div class="warn-box" style="margin-top:0;margin-bottom:10px;">⚠️ Advanced users only — anything you write here gets inserted into the site exactly as-is (no validation). A mistake in the code can break the page. If you're not sure, it's safest to leave this section empty. Changes show up right away in the preview on the right.</div>
+      ${field('Custom CSS', `<textarea class="code-input" data-customcode="css" placeholder="/* custom styles, take priority over the generated ones */">${escapeHtml(state.customCode.css)}</textarea>`)}
+      ${field('Custom code in &lt;head&gt;', `<textarea class="code-input" data-customcode="headHtml" placeholder="&lt;meta ...&gt;, verification codes, custom fonts…">${escapeHtml(state.customCode.headHtml)}</textarea>`)}
+      ${field('Custom code before &lt;/body&gt;', `<textarea class="code-input" data-customcode="bodyEndHtml" placeholder="&lt;script&gt;…&lt;/script&gt;, chat widget, tracking code…">${escapeHtml(state.customCode.bodyEndHtml)}</textarea>`)}
+      <div class="note-box" style="margin-top:8px;">Inserted on the homepage, every custom subpage, and the 404 page — so something like a chat widget script only needs to be entered once.</div>
+    </div>
+
+    <div class="fieldset">
       <div class="note-box">
         <b>After exporting, still add manually:</b>
         <ul>
@@ -1853,6 +1898,8 @@ function renderForm(){
   bindPwaInputs();
   bindSitemapInputs();
   bindNotFoundInputs();
+  bindCookieBannerInputs();
+  bindCustomCodeInputs();
   bindFooterInputs();
 
   document.getElementById('downloadManifest').onclick = () => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json');
@@ -2171,6 +2218,35 @@ function bindNotFoundInputs(){
     el.addEventListener('input', () => {
       state.notFound[el.dataset.notfound] = el.value;
       if (previewSectionIndex === 'notfound') updatePreview();
+    });
+  });
+}
+
+function bindCookieBannerInputs(){
+  panel.querySelectorAll('[data-cookiebanner]').forEach(el => {
+    const key = el.dataset.cookiebanner;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', () => {
+        state.cookieBanner[key] = el.checked;
+        // "Show banner" changes whether the rest of the settings are shown — needs a re-render.
+        renderForm();
+        updatePreview();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        state.cookieBanner[key] = el.value;
+        updatePreview();
+      });
+    }
+  });
+}
+
+function bindCustomCodeInputs(){
+  panel.querySelectorAll('[data-customcode]').forEach(el => {
+    const key = el.dataset.customcode;
+    el.addEventListener('input', () => {
+      state.customCode[key] = el.value;
+      updatePreview();
     });
   });
 }
@@ -2808,6 +2884,62 @@ function webzenWatermarkHtml(){
 // Converts a regular YouTube/Vimeo link into its embeddable form, so the video
 // can be shown directly on the page in an <iframe>. Other links (which are
 // already a direct embed URL, or an unrecognized format) are used as-is.
+// Simple cookie/GDPR banner at the bottom of the page — shows only until the
+// visitor clicks the button (then remembered via localStorage, so it won't
+// show again, on any page of the site). Text and button are editable in the
+// "Cookie banner" section — if you add your own analytics to the site later,
+// update the text so it matches reality.
+function cookieBannerHtml(cookieBanner, footer){
+  const cb = cookieBanner || {};
+  if (cb.enabled === false) return '';
+  const text = (cb.text || '').trim() || 'This site only stores technically necessary data in your browser to operate — no tracking cookies.';
+  const buttonText = (cb.buttonText || '').trim() || 'Got it';
+  const privacyLink = (footer && footer.links || []).find(l => /privacy|policy|gdpr|cookie/i.test(l.label || ''));
+  const linkHtml = (privacyLink && (privacyLink.url || '').trim() && privacyLink.url.trim() !== '#')
+    ? ` <a href="${escapeAttr(privacyLink.url)}">${escapeHtml(privacyLink.label)}</a>.`
+    : '';
+  return `<div class="cookie-banner" id="wzCookieBanner" role="dialog" aria-live="polite">
+    <p>${escapeHtml(text)}${linkHtml}</p>
+    <button type="button" id="wzCookieAccept">${escapeHtml(buttonText)}</button>
+  </div>
+<script>(function(){
+  try { if (localStorage.getItem('wzCookieConsent') === '1') return; } catch(e){}
+  var banner = document.getElementById('wzCookieBanner');
+  if (!banner) return;
+  banner.classList.add('show');
+  var btn = document.getElementById('wzCookieAccept');
+  if (btn) btn.addEventListener('click', function(){
+    try { localStorage.setItem('wzCookieConsent', '1'); } catch(e){}
+    banner.classList.remove('show');
+  });
+})();<\/script>`;
+}
+
+// Shared favicon link — uses the uploaded/URL favicon if set (see the
+// "Favicon" section), otherwise falls back to the static favicon.ico
+// (and leaves a TODO note so the user knows to upload it themselves).
+// Used by the homepage, custom subpages, and the 404 page, so the favicon
+// doesn't change/disappear when navigating between them.
+function faviconLinkHtml(s){
+  const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
+  return faviconSrc
+    ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
+    : `<!-- TODO: upload the actual favicon.ico image (only the link is generated automatically) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
+}
+
+// Custom code added manually in "Custom code" — inserted exactly as the user
+// wrote it (not escaped), since it's meant to be real HTML/JS, not displayed
+// text. Used by the homepage, custom subpages, and the 404 page, so it's
+// available site-wide (e.g. a chat widget script).
+function customHeadHtml(s){
+  const html = (s.customCode && s.customCode.headHtml || '').trim();
+  return html ? `\n<!-- Custom code in <head> (added manually) -->\n${html}\n` : '';
+}
+function customBodyEndHtml(s){
+  const html = (s.customCode && s.customCode.bodyEndHtml || '').trim();
+  return html ? `\n<!-- Custom code before </body> (added manually) -->\n${html}\n` : '';
+}
+
 function toVideoEmbedUrl(url){
   const u = (url || '').trim();
   if (!u) return '';
@@ -3188,6 +3320,20 @@ function sharedStyleTag(s){
   footer .webzen-watermark a{color:inherit;text-decoration:underline;}
   footer .webzen-watermark a:hover{color:var(--accent);}
 
+  .cookie-banner{
+    display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;
+    align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;
+    padding:14px 20px;background:#111214;border-top:1px solid rgba(255,255,255,.12);
+    color:#e8e9ee;font-size:13px;
+  }
+  .cookie-banner.show{display:flex;}
+  .cookie-banner p{margin:0;max-width:640px;}
+  .cookie-banner a{color:var(--accent);}
+  .cookie-banner button{
+    background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;
+    font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+
   /* ---------- levé menu ---------- */
   .menu-toggle{
     position:fixed;top:16px;left:16px;z-index:1001;width:42px;height:42px;
@@ -3243,6 +3389,7 @@ function sharedStyleTag(s){
     .nav-scrim{display:none;}
     .page-content{margin-left:230px;}
   }
+${(s.customCode && (s.customCode.css || '').trim()) ? `\n  /* Custom CSS (added manually in "Custom code") */\n${s.customCode.css}\n` : ''}
 </style>`;
 }
 
@@ -3433,12 +3580,7 @@ function buildSiteHTML(s){
 <meta name="robots" content="index, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-${(() => {
-  const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
-  return faviconSrc
-    ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
-    : `<!-- TODO: upload the actual favicon.ico image (only the link is generated automatically) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
-})()}
+${faviconLinkHtml(s)}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- download manifest.json and sw.js using the buttons in the "PWA" section on the left of the generator -->
 <link rel="manifest" href="manifest.json">
@@ -3469,8 +3611,10 @@ ${faqJsonLd}
 <\/script>` : ''}
 
 ${sharedStyleTag(s)}
+${customHeadHtml(s)}
 </head>
 <body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!hasHeroImage ? ' no-hero-visual' : ''}">
+${cookieBannerHtml(s.cookieBanner, s.footer)}
 
 ${sideNavHtml}
 
@@ -3597,6 +3741,7 @@ ${contactSectionHtml ? contactFormScript() : ''}
       });
     }
   <\/script>
+${customBodyEndHtml(s)}
 </body>
 </html>`;
 }
@@ -3673,7 +3818,7 @@ ${(sec.landingCards && sec.landingCards.length) ? `
 <meta name="robots" content="index, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-<link rel="icon" href="favicon.ico" sizes="any">
+${faviconLinkHtml(s)}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -3687,8 +3832,10 @@ ${standalone ? `<style>
   /* Bez levého menu — stránka jako samostatný fragment pro vložení do jiného webu */
   .page-content{margin-left:0 !important;}
 </style>` : ''}
+${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${standalone ? '' : cookieBannerHtml(s.cookieBanner, s.footer)}
 
 ${sideNavHtml}
 
@@ -3712,6 +3859,7 @@ ${mainHtml}
       });
     }
   <\/script>
+${customBodyEndHtml(s)}
 </body>
 </html>`;
 }
@@ -3751,7 +3899,7 @@ function buildNotFoundPageHTML(s, customSectionsData, homeFilename){
 <meta name="robots" content="noindex, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-<link rel="icon" href="favicon.ico" sizes="any">
+${faviconLinkHtml(s)}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -3769,8 +3917,10 @@ ${sharedStyleTag(s)}
   }
   .not-found-section .cta-group{justify-content:center;margin-top:26px;}
 </style>
+${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${cookieBannerHtml(s.cookieBanner, s.footer)}
 
 ${sideNavHtml}
 
@@ -3794,6 +3944,7 @@ ${mainHtml}
       });
     }
   <\/script>
+${customBodyEndHtml(s)}
 </body>
 </html>`;
 }
@@ -3857,7 +4008,115 @@ function updatePreview(){
     frame.srcdoc = buildCurrentPreviewHTML();
     autosaveState();
   }, 120);
+  scheduleHistorySnapshot();
 }
+
+/* ============================================================
+   UNDO / REDO
+   ============================================================
+   The app keeps history as an array of recorded states (JSON strings) plus
+   a pointer to the current position in it — not a classic pair of undo/redo
+   stacks. A new snapshot is saved with a short delay after the last change
+   (so typing one word doesn't create ten undo steps), and only when the
+   state actually differs from the last saved one. Undo/redo just moves the
+   pointer and re-renders the form and preview from that snapshot. */
+let history = [];
+let historyIndex = -1;
+let historyDebounceTimer = null;
+let isRestoringHistory = false;
+const HISTORY_LIMIT = 60;
+const HISTORY_DEBOUNCE_MS = 700;
+
+function initHistory(){
+  history = [JSON.stringify(state)];
+  historyIndex = 0;
+  updateUndoRedoButtons();
+}
+
+function captureHistorySnapshot(){
+  if (isRestoringHistory) return;
+  let snap;
+  try { snap = JSON.stringify(state); } catch (err) { return; }
+  if (snap === history[historyIndex]) return; // no real change, nothing new to save
+  // A new change discards any "future" (redo) branch of the history.
+  history = history.slice(0, historyIndex + 1);
+  history.push(snap);
+  historyIndex = history.length - 1;
+  if (history.length > HISTORY_LIMIT) {
+    history.shift();
+    historyIndex--;
+  }
+  updateUndoRedoButtons();
+}
+
+function scheduleHistorySnapshot(){
+  if (isRestoringHistory) return;
+  clearTimeout(historyDebounceTimer);
+  historyDebounceTimer = setTimeout(captureHistorySnapshot, HISTORY_DEBOUNCE_MS);
+}
+
+function restoreHistoryState(){
+  isRestoringHistory = true;
+  clearTimeout(historyDebounceTimer);
+  try {
+    state = JSON.parse(history[historyIndex]);
+  } catch (err) {
+    isRestoringHistory = false;
+    return;
+  }
+  // The preview of a specific subpage/404 might point at an index that no
+  // longer exists after undo/redo (e.g. a page was added/removed) — fall
+  // back to the homepage preview to be safe.
+  previewSectionIndex = null;
+  updatePreviewIndicator();
+  renderForm();
+  updatePreview();
+  updateUndoRedoButtons();
+  isRestoringHistory = false;
+}
+
+function undoAction(){
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  restoreHistoryState();
+}
+
+function redoAction(){
+  if (historyIndex >= history.length - 1) return;
+  historyIndex++;
+  restoreHistoryState();
+}
+
+function updateUndoRedoButtons(){
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  if (undoBtn) undoBtn.disabled = historyIndex <= 0;
+  if (redoBtn) redoBtn.disabled = historyIndex >= history.length - 1;
+}
+
+document.getElementById('undoBtn').addEventListener('click', undoAction);
+document.getElementById('redoBtn').addEventListener('click', redoAction);
+// Ctrl/Cmd+Z (undo) and Ctrl/Cmd+Shift+Z or Ctrl+Y (redo) — but only outside
+// text fields, so the app doesn't fight the browser's built-in undo inside
+// text you're actively editing (that should keep working as expected).
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const key = e.key.toLowerCase();
+  if (key !== 'z' && key !== 'y') return;
+  const active = document.activeElement;
+  const isEditable = active && (
+    active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
+    active.isContentEditable
+  );
+  if (isEditable) return;
+  if (key === 'y' || (key === 'z' && e.shiftKey)) {
+    e.preventDefault();
+    redoAction();
+  } else if (key === 'z') {
+    e.preventDefault();
+    undoAction();
+  }
+});
 
 // Zachytává zprávy z náhledového iframu (viz previewNavInterceptScript výš) —
 // když uživatel v náhledu klikne na odkaz vedoucí na hlavní nebo vlastní
@@ -3970,6 +4229,7 @@ document.getElementById('resetProjectBtn').addEventListener('click', () => {
   state = getDefaultState();
   previewSectionIndex = null;
   updatePreviewIndicator();
+  initHistory();
   renderForm();
   updatePreview();
   if (autosaveStatusEl) autosaveStatusEl.textContent = 'New project — sample text restored';
@@ -3991,6 +4251,7 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
       state = Object.assign({}, state, loadedState);
       previewSectionIndex = null;
       updatePreviewIndicator();
+      initHistory();
       renderForm();
       updatePreview();
       if (autosaveStatusEl) autosaveStatusEl.textContent = `Project loaded from file ${formatTime(new Date())}`;
@@ -4062,6 +4323,7 @@ document.querySelectorAll('.view-btn').forEach(btn => {
 })();
 
 restoreAutosave();
+initHistory();
 renderForm();
 updatePreview();
 </script>

@@ -121,6 +121,8 @@
     cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;
   }
   .save-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+  .save-btn:disabled{opacity:.35;cursor:default;}
+  .save-btn:disabled:hover{border-color:var(--ui-line);color:var(--ui-text);}
   .autosave-status{font-size:11.5px;color:var(--ui-text-dim);white-space:nowrap;}
 
   /* ---------- workspace ---------- */
@@ -239,6 +241,10 @@
   }
   input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--ui-accent);}
   textarea{min-height:52px;line-height:1.4;padding-right:30px;}
+  textarea.code-input{
+    font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.5;min-height:90px;
+    font-variant-ligatures:none;-webkit-font-feature-settings:"liga" 0,"calt" 0;font-feature-settings:"liga" 0,"calt" 0;
+  }
   .textarea-wrap{position:relative;}
   /* Skutečné WYSIWYG pole (contenteditable) — zobrazuje rovnou naformátovaný text
      (tučně/kurzíva/…), řídicí znaky (**, __, ++, ~~, [ ](...)) se v něm vůbec
@@ -301,6 +307,10 @@
     font-size:14.5px;line-height:1.6;
   }
   .expand-modal textarea:focus{outline:none;}
+  .expand-modal textarea.code-input{
+    font-family:'JetBrains Mono',monospace;font-size:13.5px;
+    font-variant-ligatures:none;-webkit-font-feature-settings:"liga" 0,"calt" 0;font-feature-settings:"liga" 0,"calt" 0;
+  }
   .expand-modal .rt-ce{
     width:100%;height:100%;border:none;border-radius:0;background:var(--ui-bg-0);
     padding:16px;font-size:14.5px;line-height:1.6;overflow-y:auto;
@@ -544,6 +554,8 @@
     <button class="save-btn" id="showGuideBtn" title="Návod k použití">ℹ️ <span class="btn-label">Návod</span></button>
     <button class="save-btn" id="showArticlesBtn" title="Články o tvorbě webu">📚 <span class="btn-label">Články</span></button>
     <span class="autosave-status" id="autosaveStatus"></span>
+    <button class="save-btn" id="undoBtn" title="Zpět (Ctrl+Z)" disabled>↶ <span class="btn-label">Zpět</span></button>
+    <button class="save-btn" id="redoBtn" title="Vpřed (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Vpřed</span></button>
     <button class="save-btn" id="resetProjectBtn" title="Vymaže rozpracovaný obsah a vrátí vzorové texty">🗑️ <span class="btn-label">Nový projekt</span></button>
     <button class="save-btn" id="saveProjectBtn" title="Uloží rozpracovanou práci do souboru .json">💾 <span class="btn-label">Uložit projekt</span></button>
     <button class="save-btn" id="loadProjectBtn" title="Načte dříve uložený soubor .json">📂 <span class="btn-label">Načíst projekt</span></button>
@@ -1124,6 +1136,16 @@ function getDefaultState(){
     heading: 'Stránka nenalezena',
     text: 'Stránka, kterou hledáš, tu bohužel není — možná byla přesunuta nebo už neexistuje.',
     buttonText: 'Zpět na hlavní stránku'
+  },
+  cookieBanner: {
+    enabled: true,
+    text: 'Tento web pro svůj provoz ukládá jen technicky nutná data v prohlížeči, žádné sledovací cookies.',
+    buttonText: 'Rozumím'
+  },
+  customCode: {
+    headHtml: '',    // vlastní kód vložený do <head> (meta tagy, verifikace, fonty…)
+    css: '',          // vlastní CSS, vkládá se s nejvyšší prioritou nad vygenerovaný styl
+    bodyEndHtml: ''    // vlastní kód/skripty vložené těsně před </body>
   }
   };
 }
@@ -1672,6 +1694,7 @@ function openTextareaModal(ta){
   const toolbarEl = document.getElementById('expandModalToolbar');
   titleEl.textContent = ta.dataset.fieldLabel || 'Úprava textu';
   const isRichtext = ta.dataset.richtext === '1';
+  modalTa.classList.toggle('code-input', ta.classList.contains('code-input'));
   toolbarEl.style.display = isRichtext ? 'flex' : 'none';
   modalTa.style.display = isRichtext ? 'none' : '';
   modalCE.style.display = isRichtext ? '' : 'none';
@@ -2053,6 +2076,28 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">Cookie lišta</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-cookiebanner="enabled" ${state.cookieBanner.enabled?'checked':''}> Zobrazovat lištu s upozorněním na cookies
+      </label>
+      <div id="cookieBannerBox" style="margin-top:10px;${state.cookieBanner.enabled?'':'display:none;'}">
+        <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygenerovaný web sám o sobě žádné sledovací cookies ani analytiku nepoužívá — výchozí text to říká na rovinu. Pokud web později doplníš o vlastní analytiku (Google Analytics apod.), uprav text, ať sedí realitě. Lišta se zobrazí jen jednou, dokud návštěvník neklikne na tlačítko (zapamatuje se to v jeho prohlížeči), a to na kterékoli stránce webu.</div>
+        ${field('Text lišty', `<textarea data-cookiebanner="text" style="min-height:60px;">${escapeHtml(state.cookieBanner.text)}</textarea>`)}
+        ${field('Text tlačítka', `<input type="text" data-cookiebanner="buttonText" value="${escapeAttr(state.cookieBanner.buttonText)}" placeholder="Rozumím">`)}
+        <div class="note-box" style="margin-top:8px;">Pokud máš v Patičce odkaz, jehož popisek obsahuje slovo „ochrana", „osobní", „gdpr" nebo „privacy", lišta na něj automaticky přidá odkaz.</div>
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">Vlastní kód (pokročilé)</div>
+      <div class="warn-box" style="margin-top:0;margin-bottom:10px;">⚠️ Jen pro pokročilé — cokoli sem napíšeš, se do webu vloží přesně tak, jak je (bez kontroly). Chyba v kódu může stránku rozbít. Pokud si nejsi jistý/á, tuhle sekci radši nech prázdnou. Změny hned uvidíš v náhledu vpravo.</div>
+      ${field('Vlastní CSS', `<textarea class="code-input" data-customcode="css" placeholder="/* vlastní styly, mají přednost před vygenerovanými */">${escapeHtml(state.customCode.css)}</textarea>`)}
+      ${field('Vlastní kód do &lt;head&gt;', `<textarea class="code-input" data-customcode="headHtml" placeholder="&lt;meta ...&gt;, ověřovací kódy, vlastní fonty…">${escapeHtml(state.customCode.headHtml)}</textarea>`)}
+      ${field('Vlastní kód před &lt;/body&gt;', `<textarea class="code-input" data-customcode="bodyEndHtml" placeholder="&lt;script&gt;…&lt;/script&gt;, widget chatu, sledovací kód…">${escapeHtml(state.customCode.bodyEndHtml)}</textarea>`)}
+      <div class="note-box" style="margin-top:8px;">Vloží se na hlavní stránku, všechny vlastní podstránky i na stránku 404 — takže třeba skript chatu stačí vyplnit jednou.</div>
+    </div>
+
+    <div class="fieldset">
       <div class="note-box">
         <b>Po exportu ještě ručně doplň:</b>
         <ul>
@@ -2080,6 +2125,8 @@ function renderForm(){
   bindPwaInputs();
   bindSitemapInputs();
   bindNotFoundInputs();
+  bindCookieBannerInputs();
+  bindCustomCodeInputs();
   bindFooterInputs();
 
   document.getElementById('downloadManifest').onclick = () => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json');
@@ -2398,6 +2445,35 @@ function bindNotFoundInputs(){
     el.addEventListener('input', () => {
       state.notFound[el.dataset.notfound] = el.value;
       if (previewSectionIndex === 'notfound') updatePreview();
+    });
+  });
+}
+
+function bindCookieBannerInputs(){
+  panel.querySelectorAll('[data-cookiebanner]').forEach(el => {
+    const key = el.dataset.cookiebanner;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', () => {
+        state.cookieBanner[key] = el.checked;
+        // "Zobrazovat lištu" mění, jestli se vůbec zobrazí zbytek nastavení — potřeba re-render.
+        renderForm();
+        updatePreview();
+      });
+    } else {
+      el.addEventListener('input', () => {
+        state.cookieBanner[key] = el.value;
+        updatePreview();
+      });
+    }
+  });
+}
+
+function bindCustomCodeInputs(){
+  panel.querySelectorAll('[data-customcode]').forEach(el => {
+    const key = el.dataset.customcode;
+    el.addEventListener('input', () => {
+      state.customCode[key] = el.value;
+      updatePreview();
     });
   });
 }
@@ -3032,14 +3108,23 @@ function webzenWatermarkHtml(){
 // návštěvník neklikne na "Rozumím" (pak se uloží do localStorage a banner
 // se už znovu nezobrazí). Žádné nastavování kategorií cookies, jen základní
 // upozornění + odkaz na zásady ochrany osobních údajů z patičky (pokud je vyplněný).
-function cookieBannerHtml(footer){
+// Jednoduchá cookie/GDPR lišta dole na stránce — zobrazí se jen dokud
+// návštěvník neklikne na tlačítko (pak se zapamatuje přes localStorage a
+// lišta se už znovu nezobrazí, ani na jiné stránce webu). Text i tlačítko
+// jsou upravitelné v sekci "Cookie lišta" — pokud web později doplníš o
+// vlastní analytiku, uprav si text, ať odpovídá realitě.
+function cookieBannerHtml(cookieBanner, footer){
+  const cb = cookieBanner || {};
+  if (cb.enabled === false) return '';
+  const text = (cb.text || '').trim() || 'Tento web pro svůj provoz ukládá jen technicky nutná data v prohlížeči, žádné sledovací cookies.';
+  const buttonText = (cb.buttonText || '').trim() || 'Rozumím';
   const privacyLink = (footer && footer.links || []).find(l => /ochran|osobn|gdpr|privacy/i.test(l.label || ''));
   const linkHtml = (privacyLink && (privacyLink.url || '').trim() && privacyLink.url.trim() !== '#')
     ? ` <a href="${escapeAttr(privacyLink.url)}">${escapeHtml(privacyLink.label)}</a>.`
     : '';
   return `<div class="cookie-banner" id="wzCookieBanner" role="dialog" aria-live="polite">
-    <p>Tento web používá cookies pro základní fungování a měření návštěvnosti.${linkHtml}</p>
-    <button type="button" id="wzCookieAccept">Rozumím</button>
+    <p>${escapeHtml(text)}${linkHtml}</p>
+    <button type="button" id="wzCookieAccept">${escapeHtml(buttonText)}</button>
   </div>
 <script>(function(){
   try { if (localStorage.getItem('wzCookieConsent') === '1') return; } catch(e){}
@@ -3057,6 +3142,31 @@ function cookieBannerHtml(footer){
 // Převede běžný odkaz na YouTube/Vimeo video na jeho vloženou (embed) podobu,
 // aby šlo video zobrazit přímo na stránce v <iframe>. Jiné odkazy (které už jsou
 // přímo embed adresou, nebo neznámý formát) se použijí tak, jak jsou.
+// Sdílený odkaz na favicon — použije vlastní nahraný/URL favicon, pokud je
+// nastavený (viz sekce "Favicon"), jinak spadne zpět na statický favicon.ico
+// (a nechá TODO poznámku, ať uživatel ví, že si ho musí sám nahrát na hosting).
+// Používá hlavní stránka, vlastní podstránky i stránka 404 — ať se favicon
+// nemění/nemizí při přechodu mezi nimi.
+function faviconLinkHtml(s){
+  const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
+  return faviconSrc
+    ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
+    : `<!-- TODO: nahraj skutečný obrázek favicon.ico (jen odkaz se generuje automaticky) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
+}
+
+// Vlastní kód doplněný ručně v sekci "Vlastní kód" — vkládá se přesně tak,
+// jak ho uživatel napsal (bez escapování), protože jde záměrně o skutečný
+// HTML/JS kód, ne zobrazovaný text. Používá hlavní stránka, vlastní podstránky
+// i stránka 404, ať je dostupný na celém webu (např. skript chatu apod.).
+function customHeadHtml(s){
+  const html = (s.customCode && s.customCode.headHtml || '').trim();
+  return html ? `\n<!-- Vlastní kód do <head> (doplněný ručně) -->\n${html}\n` : '';
+}
+function customBodyEndHtml(s){
+  const html = (s.customCode && s.customCode.bodyEndHtml || '').trim();
+  return html ? `\n<!-- Vlastní kód před </body> (doplněný ručně) -->\n${html}\n` : '';
+}
+
 function toVideoEmbedUrl(url){
   const u = (url || '').trim();
   if (!u) return '';
@@ -3512,6 +3622,7 @@ function sharedStyleTag(s){
     .nav-scrim{display:none;}
     .page-content{margin-left:230px;}
   }
+${(s.customCode && (s.customCode.css || '').trim()) ? `\n  /* Vlastní CSS (doplněné ručně v sekci "Vlastní kód") */\n${s.customCode.css}\n` : ''}
 </style>`;
 }
 
@@ -3702,12 +3813,7 @@ function buildSiteHTML(s){
 <meta name="robots" content="index, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-${(() => {
-  const faviconSrc = (s.faviconUrl || '').trim() || s.favicon || '';
-  return faviconSrc
-    ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
-    : `<!-- TODO: nahraj skutečný obrázek favicon.ico (jen odkaz se generuje automaticky) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
-})()}
+${faviconLinkHtml(s)}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- manifest.json a sw.js stáhneš tlačítky v sekci "PWA" vlevo v generátoru -->
 <link rel="manifest" href="manifest.json">
@@ -3738,9 +3844,10 @@ ${faqJsonLd}
 <\/script>` : ''}
 
 ${sharedStyleTag(s)}
+${customHeadHtml(s)}
 </head>
 <body class="layout-${heroLayoutClass} cards-${cardsLayoutClass}${!hasHeroImage ? ' no-hero-visual' : ''}">
-${cookieBannerHtml(s.footer)}
+${cookieBannerHtml(s.cookieBanner, s.footer)}
 
 ${sideNavHtml}
 
@@ -3867,6 +3974,7 @@ ${contactSectionHtml ? contactFormScript() : ''}
       });
     }
   <\/script>
+${customBodyEndHtml(s)}
 </body>
 </html>`;
 }
@@ -3943,7 +4051,7 @@ ${(sec.landingCards && sec.landingCards.length) ? `
 <meta name="robots" content="index, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-<link rel="icon" href="favicon.ico" sizes="any">
+${faviconLinkHtml(s)}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -3957,8 +4065,10 @@ ${standalone ? `<style>
   /* Bez levého menu — stránka jako samostatný fragment pro vložení do jiného webu */
   .page-content{margin-left:0 !important;}
 </style>` : ''}
+${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${standalone ? '' : cookieBannerHtml(s.cookieBanner, s.footer)}
 
 ${sideNavHtml}
 
@@ -3982,6 +4092,7 @@ ${mainHtml}
       });
     }
   <\/script>
+${customBodyEndHtml(s)}
 </body>
 </html>`;
 }
@@ -4021,7 +4132,7 @@ function buildNotFoundPageHTML(s, customSectionsData, homeFilename){
 <meta name="robots" content="noindex, follow">
 <meta name="generator" content="WEBZEN — https://synthlucida.com">
 
-<link rel="icon" href="favicon.ico" sizes="any">
+${faviconLinkHtml(s)}
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -4039,8 +4150,10 @@ ${sharedStyleTag(s)}
   }
   .not-found-section .cta-group{justify-content:center;margin-top:26px;}
 </style>
+${customHeadHtml(s)}
 </head>
 <body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${cookieBannerHtml(s.cookieBanner, s.footer)}
 
 ${sideNavHtml}
 
@@ -4064,6 +4177,7 @@ ${mainHtml}
       });
     }
   <\/script>
+${customBodyEndHtml(s)}
 </body>
 </html>`;
 }
@@ -4126,7 +4240,115 @@ function updatePreview(){
     frame.srcdoc = buildCurrentPreviewHTML();
     autosaveState();
   }, 120);
+  scheduleHistorySnapshot();
 }
+
+/* ============================================================
+   UNDO / REDO
+   ============================================================
+   Appka drží historii jako pole zaznamenaných stavů (JSON řetězce) +
+   ukazatel na aktuální pozici v ní — ne klasický pár undo/redo zásobníků.
+   Nový snímek se ukládá s malým zpožděním po poslední změně (ať psaní
+   jednoho slova nevytvoří deset kroků zpět), a jen když se stav opravdu
+   liší od posledního uloženého. Krok zpět/vpřed jen posouvá ukazatel a
+   znovu vykreslí formulář i náhled z toho snímku. */
+let history = [];
+let historyIndex = -1;
+let historyDebounceTimer = null;
+let isRestoringHistory = false;
+const HISTORY_LIMIT = 60;
+const HISTORY_DEBOUNCE_MS = 700;
+
+function initHistory(){
+  history = [JSON.stringify(state)];
+  historyIndex = 0;
+  updateUndoRedoButtons();
+}
+
+function captureHistorySnapshot(){
+  if (isRestoringHistory) return;
+  let snap;
+  try { snap = JSON.stringify(state); } catch (err) { return; }
+  if (snap === history[historyIndex]) return; // beze změny, nic nového neukládat
+  // Nová změna zahazuje případnou "budoucí" (redo) větev historie.
+  history = history.slice(0, historyIndex + 1);
+  history.push(snap);
+  historyIndex = history.length - 1;
+  if (history.length > HISTORY_LIMIT) {
+    history.shift();
+    historyIndex--;
+  }
+  updateUndoRedoButtons();
+}
+
+function scheduleHistorySnapshot(){
+  if (isRestoringHistory) return;
+  clearTimeout(historyDebounceTimer);
+  historyDebounceTimer = setTimeout(captureHistorySnapshot, HISTORY_DEBOUNCE_MS);
+}
+
+function restoreHistoryState(){
+  isRestoringHistory = true;
+  clearTimeout(historyDebounceTimer);
+  try {
+    state = JSON.parse(history[historyIndex]);
+  } catch (err) {
+    isRestoringHistory = false;
+    return;
+  }
+  // Náhled konkrétní podstránky/404 se po kroku zpět/vpřed může odkazovat
+  // na už neexistující index (např. šla se smazat/přidat stránka) — pro
+  // jistotu se vrátit na náhled hlavní stránky.
+  previewSectionIndex = null;
+  updatePreviewIndicator();
+  renderForm();
+  updatePreview();
+  updateUndoRedoButtons();
+  isRestoringHistory = false;
+}
+
+function undoAction(){
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  restoreHistoryState();
+}
+
+function redoAction(){
+  if (historyIndex >= history.length - 1) return;
+  historyIndex++;
+  restoreHistoryState();
+}
+
+function updateUndoRedoButtons(){
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  if (undoBtn) undoBtn.disabled = historyIndex <= 0;
+  if (redoBtn) redoBtn.disabled = historyIndex >= history.length - 1;
+}
+
+document.getElementById('undoBtn').addEventListener('click', undoAction);
+document.getElementById('redoBtn').addEventListener('click', redoAction);
+// Klávesové zkratky Ctrl/Cmd+Z (zpět) a Ctrl/Cmd+Shift+Z nebo Ctrl+Y (vpřed) —
+// ale jen mimo textová pole, ať appka nebije s vestavěným undo prohlížeče
+// uvnitř rozepsaného psaní do pole (tam ať funguje to normální, očekávané).
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const key = e.key.toLowerCase();
+  if (key !== 'z' && key !== 'y') return;
+  const active = document.activeElement;
+  const isEditable = active && (
+    active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
+    active.isContentEditable
+  );
+  if (isEditable) return;
+  if (key === 'y' || (key === 'z' && e.shiftKey)) {
+    e.preventDefault();
+    redoAction();
+  } else if (key === 'z') {
+    e.preventDefault();
+    undoAction();
+  }
+});
 
 // Zachytává zprávy z náhledového iframu (viz previewNavInterceptScript výš) —
 // když uživatel v náhledu klikne na odkaz vedoucí na hlavní nebo vlastní
@@ -4239,6 +4461,7 @@ document.getElementById('resetProjectBtn').addEventListener('click', () => {
   state = getDefaultState();
   previewSectionIndex = null;
   updatePreviewIndicator();
+  initHistory();
   renderForm();
   updatePreview();
   if (autosaveStatusEl) autosaveStatusEl.textContent = 'Nový projekt — vzorové texty obnoveny';
@@ -4260,6 +4483,7 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
       state = Object.assign({}, state, loadedState);
       previewSectionIndex = null;
       updatePreviewIndicator();
+      initHistory();
       renderForm();
       updatePreview();
       if (autosaveStatusEl) autosaveStatusEl.textContent = `Projekt načten ze souboru ${formatTime(new Date())}`;
@@ -4785,6 +5009,7 @@ self.addEventListener('fetch', (event) => {
 })();
 
 restoreAutosave();
+initHistory();
 renderForm();
 updatePreview();
 </script>
