@@ -2863,6 +2863,12 @@ function buildContactSectionHtml(contact, brand){
   }
   const phoneField = c.includePhone ? `
         <label>Phone<input type="tel" name="phone" autocomplete="tel"></label>` : '';
+  // Anti-spam honeypot: this field is visually hidden from human visitors
+  // (see .hp-field in the CSS), so they never fill it in - but spambots
+  // crawling the form usually fill in every field they find.
+  // If it comes back filled, contactFormScript() silently drops the submit.
+  const honeypotField = `
+        <div class="hp-field" aria-hidden="true"><label>Leave blank<input type="text" name="_hpwebsite" tabindex="-1" autocomplete="off"></label></div>`;
   return `
     <section class="contact-section wrap" id="contact">
       ${(c.heading||'').trim() ? `<h2>${escapeHtml(c.heading)}</h2>` : ''}
@@ -2872,6 +2878,7 @@ function buildContactSectionHtml(contact, brand){
         <label>Name<input type="text" name="name" autocomplete="name" required></label>
         <label>Email<input type="email" name="email" autocomplete="email" required></label>${phoneField}
         <label>Message<textarea name="message" rows="5" required></textarea></label>
+        ${honeypotField}
         <button type="submit">${escapeHtml(c.submitText || 'Send message')}</button>
         <p class="contact-status" aria-live="polite"></p>
       </form>
@@ -2894,6 +2901,14 @@ function contactFormScript(){
   }
   form.addEventListener('submit', function(e){
     e.preventDefault();
+    // Honeypot: if the hidden field is filled in, treat it as a bot -
+    // pretend the message was sent, but never actually send it.
+    var hp = form.querySelector('input[name="_hpwebsite"]');
+    if (hp && hp.value){
+      form.reset();
+      setStatus('Thanks! Your message has been sent.', false);
+      return;
+    }
     if (provider === 'mailto'){
       var fd = new FormData(form);
       var name = fd.get('name') || '';
@@ -3149,6 +3164,7 @@ function sharedStyleTag(s){
   .contact-status{min-height:1.2em;font-size:13px;margin:0;text-align:center;}
   .contact-status.success{color:#4ade80;}
   .contact-status.error{color:#f87171;}
+  .hp-field{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;}
 
   .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
   .custom-section h1{font-size:clamp(22px,3.5vw,32px);margin:0 0 14px;}

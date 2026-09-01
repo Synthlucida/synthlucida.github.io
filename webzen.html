@@ -3086,6 +3086,12 @@ function buildContactSectionHtml(contact, brand){
   }
   const phoneField = c.includePhone ? `
         <label>Telefon<input type="tel" name="phone" autocomplete="tel"></label>` : '';
+  // Honeypot proti spamu: pole je pro lidské návštěvníky vizuálně schované
+  // (viz .hp-field v CSS), takže ho nevyplní — spamboti ale formuláře
+  // procházejí automaticky a běžně vyplní každé pole, které najdou.
+  // Pokud přijde vyplněné, contactFormScript() odeslání potichu zahodí.
+  const honeypotField = `
+        <div class="hp-field" aria-hidden="true"><label>Nechte prázdné<input type="text" name="_hpwebsite" tabindex="-1" autocomplete="off"></label></div>`;
   return `
     <section class="contact-section wrap" id="contact">
       ${(c.heading||'').trim() ? `<h2>${escapeHtml(c.heading)}</h2>` : ''}
@@ -3095,6 +3101,8 @@ function buildContactSectionHtml(contact, brand){
         <label>Jméno<input type="text" name="name" autocomplete="name" required></label>
         <label>E-mail<input type="email" name="email" autocomplete="email" required></label>${phoneField}
         <label>Zpráva<textarea name="message" rows="5" required></textarea></label>
+        <label class="contact-consent"><input type="checkbox" name="gdprConsent" required> Souhlasím se zpracováním výše uvedených osobních údajů za účelem vyřízení mého dotazu.</label>
+        ${honeypotField}
         <button type="submit">${escapeHtml(c.submitText || 'Odeslat zprávu')}</button>
         <p class="contact-status" aria-live="polite"></p>
       </form>
@@ -3117,6 +3125,14 @@ function contactFormScript(){
   }
   form.addEventListener('submit', function(e){
     e.preventDefault();
+    // Honeypot: pokud je vyplněné skryté pole, jde o bota - tvářit se,
+    // že zpráva odešla, ale ve skutečnosti nikam neposílat.
+    var hp = form.querySelector('input[name="_hpwebsite"]');
+    if (hp && hp.value){
+      form.reset();
+      setStatus('Díky! Zpráva byla odeslána.', false);
+      return;
+    }
     if (provider === 'mailto'){
       var fd = new FormData(form);
       var name = fd.get('name') || '';
@@ -3360,6 +3376,10 @@ function sharedStyleTag(s){
     border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:11px 13px;
     resize:vertical;
   }
+  .contact-form label.contact-consent{
+    flex-direction:row;align-items:flex-start;gap:8px;font-weight:400;font-size:12.5px;line-height:1.5;
+  }
+  .contact-form label.contact-consent input{width:auto;margin-top:3px;flex:0 0 auto;}
   .contact-form input:focus, .contact-form textarea:focus{
     outline:none;border-color:var(--accent);
   }
@@ -3372,6 +3392,7 @@ function sharedStyleTag(s){
   .contact-status{min-height:1.2em;font-size:13px;margin:0;text-align:center;}
   .contact-status.success{color:#4ade80;}
   .contact-status.error{color:#f87171;}
+  .hp-field{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;}
 
   .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
   .custom-section h1{font-size:clamp(22px,3.5vw,32px);margin:0 0 14px;}
