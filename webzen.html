@@ -115,6 +115,23 @@
   }
   .export-btn:hover{box-shadow:0 4px 20px -2px rgba(124,92,255,.55);transform:translateY(-1px);}
   .export-btn:active{transform:translateY(0);}
+  .export-dropdown{position:relative;}
+  .export-btn .dropdown-caret{display:inline-block;margin-left:2px;font-size:11px;transition:transform .15s;}
+  .export-dropdown.open .export-btn .dropdown-caret{transform:rotate(180deg);}
+  .export-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:50;
+    min-width:260px;background:var(--ui-bg-2);border:1px solid var(--ui-line);
+    border-radius:10px;padding:6px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);
+  }
+  .export-dropdown.open .export-menu{display:block;}
+  .export-menu-item{
+    display:block;width:100%;text-align:left;background:transparent;border:none;
+    color:var(--ui-text);padding:9px 10px;border-radius:7px;cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .export-menu-item:hover{background:rgba(124,92,255,.15);}
+  .export-menu-item-title{display:block;font-size:13px;font-weight:600;}
+  .export-menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;}
   .save-btn{
     background:transparent;color:var(--ui-text);border:1px solid var(--ui-line);padding:8px 14px;
     border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -206,6 +223,7 @@
     .export-btn{padding:9px 12px;font-size:13px;}
     .export-btn .btn-label-full{display:none;}
     .export-btn .btn-label-short{display:inline;}
+    .export-menu{right:0;left:auto;min-width:220px;}
     .panel{padding:14px;}
     .row2{grid-template-columns:1fr;}
   }
@@ -560,8 +578,19 @@
     <button class="save-btn" id="saveProjectBtn" title="Uloží rozpracovanou práci do souboru .json">💾 <span class="btn-label">Uložit projekt</span></button>
     <button class="save-btn" id="loadProjectBtn" title="Načte dříve uložený soubor .json">📂 <span class="btn-label">Načíst projekt</span></button>
     <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
-    <button class="export-btn" id="exportBtn" title="Stáhne jen hlavní stránku">↓ <span class="btn-label-full">Stáhnout HTML</span><span class="btn-label-short">HTML</span></button>
-    <button class="export-btn" id="exportAllBtn" title="Stáhne hlavní stránku, všechny vlastní stránky i 404.html jako samostatné soubory">↓ <span class="btn-label-full">Stáhnout celý web</span><span class="btn-label-short">Web</span></button>
+    <div class="export-dropdown" id="exportDropdown">
+      <button type="button" class="export-btn" id="exportToggleBtn" title="Stáhnout web" aria-haspopup="true" aria-expanded="false">↓ <span class="btn-label-full">Stáhnout</span><span class="btn-label-short">Stáhnout</span> <span class="dropdown-caret">▾</span></button>
+      <div class="export-menu" id="exportMenu" role="menu">
+        <button type="button" class="export-menu-item" id="exportBtn" role="menuitem">
+          <span class="export-menu-item-title">Stáhnout HTML</span>
+          <span class="export-menu-item-desc">Stáhne jen hlavní stránku</span>
+        </button>
+        <button type="button" class="export-menu-item" id="exportAllBtn" role="menuitem">
+          <span class="export-menu-item-title">Stáhnout celý web</span>
+          <span class="export-menu-item-desc">Stáhne hlavní stránku, všechny vlastní stránky i 404.html jako samostatné soubory</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="expand-modal-overlay" id="infoModalOverlay">
@@ -575,13 +604,16 @@
           <p>WEBZEN je jednoduchý generátor webů — od jednostránkové prezentace až po web s více podstránkami. Vlevo vyplňuješ formulář, vpravo hned vidíš živý náhled. Nic se neprogramuje — na konci si stáhneš hotový, funkční HTML soubor (nebo víc souborů, pokud máš i vlastní podstránky), který stačí nahrát na hosting. Hodí se na osobní web, prezentaci produktu, službu nebo landing page.</p>
 
           <h4>Jak začít</h4>
-          <p>Nahoře vyplň Název webu, Doménu (použije se v odkazech pro vyhledávače a sociální sítě) a Titulek + Popis stránky pro SEO. Pak nastav Hero sekci — hlavní nadpis a podnadpis, které návštěvník uvidí jako první.</p>
+          <p>Nahoře vyplň Název webu, Doménu (použije se v odkazech pro vyhledávače a sociální sítě) a Titulek + Popis stránky pro SEO. V sekci Favicon můžeš nahrát vlastní ikonku do záložky prohlížeče (soubor se vloží přímo do HTML) nebo zadat URL — pokud nevyplníš nic, zůstane v HTML jen odkaz na „favicon.ico" a soubor musíš nahrát ručně. Pak nastav Hero sekci — hlavní nadpis a podnadpis, které návštěvník uvidí jako první.</p>
 
           <h4>CTA tlačítka a vizuál</h4>
           <p>Pod hero textem můžeš přidat jedno nebo víc tlačítek — každé může vést na sekci webu, na vlastní URL, nebo do FAQ. U každého jde nastavit, jestli je hlavní (výrazné) nebo doplňkové, a jestli se otevírá v nové záložce. Do hero sekce lze volitelně vložit i obrázek — buď nahráním ze zařízení, nebo vložením URL — a je dobré k němu doplnit alternativní text (pomáhá SEO i přístupnosti).</p>
 
-          <h4>Vzhled — barvy a písmo</h4>
-          <p>Barvy nastavíš buď rychle přes připravené palety, nebo ručně (accent, glow a dvě barvy pozadí). Zvlášť si vybereš písmo pro nadpisy a pro běžný text.</p>
+          <h4>Video a audio</h4>
+          <p>Nepovinná sekce „Video / Audio" přidá na hlavní stránku (za Karty/funkce) přehrávatelné video a/nebo zvukovou nahrávku. U videa vybereš buď odkaz na YouTube/Vimeo (automaticky se převede na vložené video), nebo vlastní soubor/URL (.mp4, .webm). Audio se stejně tak nahraje jako soubor nebo se vloží URL (.mp3, .wav). K oběma jde přidat nepovinný popisek nad přehrávačem.</p>
+
+          <h4>Vzhled — grafický styl, barvy, písmo a rozvržení</h4>
+          <p>Grafický styl (barvy + písmo dohromady) nastavíš nejrychleji přes hotové předvolby v sekci „Grafický styl webu" a pak si výsledek ještě doladíš ručně v sekcích Barvy (accent, glow a dvě barvy pozadí) a Písmo (zvlášť pro nadpisy a pro běžný text). V sekci „Rozvržení webu" pak volíš samotné uspořádání, ne barvy — pro hero sekci vystředěné, dvousloupcové (obrázek vlevo/vpravo), zarovnané vlevo nebo obrázek na pozadí; pro karty/funkce mřížku, seznam, číslované kroky nebo minimalistický styl bez rámečků.</p>
 
           <h4>Navigace</h4>
           <p>V sekci Navigace zapneš/vypneš a přejmenuješ odkazy na Hero, Funkce a FAQ v levém menu webu. Volba „Zobrazovat vlastní stránky v menu" určuje, jestli se vlastní stránky (viz níže) automaticky přidávají do menu na každé stránce webu, nebo jestli je propojíš jen ručně přes tlačítka a karty. Dole ve stejné sekci můžeš přidat ikony sociálních sítí (Instagram, Facebook, TikTok, YouTube, e-mail…) — zobrazí se jako spodní řádek levého menu na každé stránce.</p>
@@ -589,11 +621,17 @@
           <h4>Vlastní stránky</h4>
           <p>V sekci „Vlastní stránky" přidáváš další podstránky webu — každá se exportuje jako svůj vlastní samostatný .html soubor (název podle textu v menu, např. <code>o-nas.html</code>) s vlastní URL, <code>&lt;title&gt;</code>, meta description i canonical/OG tagy, takže je to lepší pro SEO i sdílení odkazů než schované sekce v jednom souboru. U každé stránky vybereš typ: <strong>Prostá</strong> (nadpis + text, volitelně obrázek — jako dřív) nebo <strong>Landing</strong> (vlastní hero, podnadpis, volitelné tlačítko a karty funkcí). Pokud je zapnuté zobrazování v menu, objeví se stránka automaticky jako položka v levém menu na každé stránce webu; jinak na ni musíš odkázat ručně — CTA tlačítka i klikatelné karty umí mířit i na konkrétní vlastní stránku. Sitemap.xml pak automaticky obsahuje URL všech vlastních stránek.</p>
 
-          <h4>Karty, FAQ a patička</h4>
-          <p>V sekci Karty / funkce popíšeš jednotlivé výhody nebo služby (ikona, nadpis, text). V sekci FAQ přidáš časté otázky a odpovědi — automaticky se z nich vygeneruje i strukturovaná data pro Google. V Patičce nastavíš, jestli se má zobrazit „© rok značka", volitelný vlastní text (např. IČO, adresa) a odkazy (obchodní podmínky, kontakt apod.).</p>
+          <h4>Karty, FAQ, kontaktní formulář a patička</h4>
+          <p>V sekci Karty / funkce popíšeš jednotlivé výhody nebo služby (ikona, nadpis, text). V sekci FAQ přidáš časté otázky a odpovědi — automaticky se z nich vygeneruje i strukturovaná data pro Google. Volitelná sekce „Kontaktní formulář" přidá na hlavní stránku (za FAQ) formulář s volbou, kam se má odesílat — Formspree, Web3Forms, Netlify Forms (funguje jen při hostování na Netlify), nebo prosté „mailto" bez cizí služby; jde přidat i volitelné pole Telefon a povinný souhlas se zpracováním osobních údajů s vlastním textem. V Patičce nastavíš, jestli se má zobrazit „© rok značka", volitelný vlastní text (např. IČO, adresa) a odkazy (obchodní podmínky, kontakt apod.).</p>
 
           <h4>PWA, sitemapa a robots.txt</h4>
           <p>Dole najdeš pokročilé volby: vygenerování manifest.json a sw.js, díky kterým si návštěvníci mohou web „nainstalovat" jako appku (PWA); dále sitemap.xml a robots.txt pro vyhledávače. Tyto soubory se stahují zvlášť tlačítky a po exportu je nahraješ vedle hlavního HTML souboru. Vygenerovaný sw.js automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html" a stejně tak i s manifestem a ikonami zadanými výše, takže offline cache funguje bez ohledu na to, jestli si hlavní stránku na hostingu přejmenuješ. Nezapomeň doplnit i skutečné obrázky ikon (favicon, apple-touch-icon, ikony 192×192 a 512×512, og-image) — ty generátor sám nevytváří.</p>
+
+          <h4>Stránka 404, cookie lišta a GDPR stránka</h4>
+          <p>Sekce „Stránka 404" vygeneruje samostatný soubor <code>404.html</code>, který většina hostingů (Netlify, GitHub Pages, Vercel…) automaticky zobrazí místo chybové hlášky prohlížeče při neexistující adrese — stahuje se zvlášť tlačítkem a do vyhledávačů se schválně neindexuje. „Cookie lišta" zobrazí jednorázové upozornění dole na stránce (zapamatuje se v prohlížeči návštěvníka) — pokud v Patičce máš odkaz s popiskem obsahujícím „ochrana", „osobní", „gdpr" nebo „privacy", lišta na něj automaticky odkáže. V sekci „GDPR / Zásady ochrany osobních údajů" necháš vygenerovat stránku <code>privacy.html</code>, jejíž text se sám přizpůsobí tomu, jestli a jakou službu používá kontaktní formulář — jde o obecnou šablonu, ne o právní poradenství, takže ji podle povahy webu může být potřeba doplnit nebo nechat zkontrolovat právníkem.</p>
+
+          <h4>Vlastní kód (pokročilé)</h4>
+          <p>Sekce „Vlastní kód" umožňuje vložit vlastní CSS, kód do <code>&lt;head&gt;</code> (např. ověřovací kódy, vlastní fonty) a kód před <code>&lt;/body&gt;</code> (např. skript chatu nebo sledovací kód) — vloží se na hlavní stránku, všechny vlastní podstránky i na stránku 404, takže stačí vyplnit jednou. Cokoli sem napíšeš, se do webu vloží přesně tak, jak je, bez kontroly, takže chyba v kódu může stránku rozbít.</p>
 
           <h4>Náhled na mobilu</h4>
           <p>V pravé části přepínáš náhled mezi Desktop a Mobil, ať vidíš, jak bude web vypadat na telefonu. Pokud upravuješ web přímo z mobilního zařízení, nahoře se objeví přepínač „Upravit obsah / Náhled webu" pro pohodlnější práci na malé obrazovce.</p>
@@ -602,7 +640,7 @@
           <p>Appka průběžně automaticky ukládá rozpracovaný projekt do prohlížeče (localStorage), takže se při zavření karty o nic nepřijde. Přes „💾 Uložit projekt" si navíc můžeš stáhnout .json soubor s celým rozpracovaným webem a později ho přes „📂 Načíst projekt" znovu otevřít — třeba na jiném počítači. Tlačítko „🗑️ Nový projekt" vše vrátí zpět na vzorové texty.</p>
 
           <h4>Export hotového webu</h4>
-          <p>Tlačítko „↓ Stáhnout HTML" vpravo nahoře stáhne jen hlavní stránku jako jeden .html soubor. Pokud máš vytvořené i vlastní stránky, použij tlačítko „↓ Stáhnout celý web" — stáhne hlavní stránku i všechny vlastní stránky najednou, každou jako samostatný soubor (postupně, jeden po druhém). Všechny stažené soubory pak nahraješ vedle sebe na jakýkoli hosting — hlavní stránku můžeš nechat pod staženým názvem, nebo ji přejmenovat na index.html, pokud chceš, aby se web načítal na holé doméně bez názvu souboru v adrese; PWA offline cache funguje automaticky v obou případech. Pokud používáš i PWA nebo sitemapu/robots.txt, stáhni jejich soubory zvlášť a nahraj je vedle ostatních.</p>
+          <p>Tlačítko „↓ Stáhnout" vpravo nahoře rozbalí nabídku se dvěma volbami: „Stáhnout HTML" stáhne jen hlavní stránku jako jeden .html soubor, „Stáhnout celý web" stáhne hlavní stránku i všechny vlastní stránky najednou, každou jako samostatný soubor (postupně, jeden po druhém). Všechny stažené soubory pak nahraješ vedle sebe na jakýkoli hosting — hlavní stránku můžeš nechat pod staženým názvem, nebo ji přejmenovat na index.html, pokud chceš, aby se web načítal na holé doméně bez názvu souboru v adrese; PWA offline cache funguje automaticky v obou případech. Pokud používáš i PWA, sitemapu/robots.txt, stránku 404 nebo GDPR stránku, stáhni jejich soubory zvlášť tlačítky v příslušných sekcích a nahraj je vedle ostatních.</p>
         </div>
 
         <div class="articles-section-content" id="articlesModalContent" style="display:none;">
@@ -4743,8 +4781,31 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
+(function(){
+  const dropdown = document.getElementById('exportDropdown');
+  const toggleBtn = document.getElementById('exportToggleBtn');
+  function closeExportMenu(){
+    dropdown.classList.remove('open');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !dropdown.classList.contains('open');
+    dropdown.classList.toggle('open', willOpen);
+    toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) closeExportMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeExportMenu();
+  });
+  dropdown.__closeExportMenu = closeExportMenu;
+})();
+
 document.getElementById('exportBtn').addEventListener('click', () => {
   downloadTextFile(getHomeFilename(state), buildSiteHTML(state), 'text/html');
+  document.getElementById('exportDropdown').__closeExportMenu();
 });
 
 document.getElementById('exportAllBtn').addEventListener('click', () => {
@@ -4764,6 +4825,7 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
       downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
     }, (customSectionsData.length + 2) * 300);
   }
+  document.getElementById('exportDropdown').__closeExportMenu();
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {

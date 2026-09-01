@@ -115,6 +115,23 @@
   }
   .export-btn:hover{box-shadow:0 4px 20px -2px rgba(124,92,255,.55);transform:translateY(-1px);}
   .export-btn:active{transform:translateY(0);}
+  .export-dropdown{position:relative;}
+  .export-btn .dropdown-caret{display:inline-block;margin-left:2px;font-size:11px;transition:transform .15s;}
+  .export-dropdown.open .export-btn .dropdown-caret{transform:rotate(180deg);}
+  .export-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:50;
+    min-width:260px;background:var(--ui-bg-2);border:1px solid var(--ui-line);
+    border-radius:10px;padding:6px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);
+  }
+  .export-dropdown.open .export-menu{display:block;}
+  .export-menu-item{
+    display:block;width:100%;text-align:left;background:transparent;border:none;
+    color:var(--ui-text);padding:9px 10px;border-radius:7px;cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .export-menu-item:hover{background:rgba(124,92,255,.15);}
+  .export-menu-item-title{display:block;font-size:13px;font-weight:600;}
+  .export-menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;}
   .save-btn{
     background:transparent;color:var(--ui-text);border:1px solid var(--ui-line);padding:8px 14px;
     border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -206,6 +223,7 @@
     .export-btn{padding:9px 12px;font-size:13px;}
     .export-btn .btn-label-full{display:none;}
     .export-btn .btn-label-short{display:inline;}
+    .export-menu{right:0;left:auto;min-width:220px;}
     .panel{padding:14px;}
     .row2{grid-template-columns:1fr;}
   }
@@ -466,8 +484,19 @@
     <button class="save-btn" id="saveProjectBtn" title="Saves your work in progress to a .json file">💾 <span class="btn-label">Save project</span></button>
     <button class="save-btn" id="loadProjectBtn" title="Loads a previously saved .json file">📂 <span class="btn-label">Load project</span></button>
     <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
-    <button class="export-btn" id="exportBtn" title="Downloads only the main page">↓ <span class="btn-label-full">Download HTML</span><span class="btn-label-short">HTML</span></button>
-    <button class="export-btn" id="exportAllBtn" title="Downloads the main page, all custom pages, and 404.html as separate files">↓ <span class="btn-label-full">Download entire site</span><span class="btn-label-short">Site</span></button>
+    <div class="export-dropdown" id="exportDropdown">
+      <button type="button" class="export-btn" id="exportToggleBtn" title="Download site" aria-haspopup="true" aria-expanded="false">↓ <span class="btn-label-full">Download</span><span class="btn-label-short">Download</span> <span class="dropdown-caret">▾</span></button>
+      <div class="export-menu" id="exportMenu" role="menu">
+        <button type="button" class="export-menu-item" id="exportBtn" role="menuitem">
+          <span class="export-menu-item-title">Download HTML</span>
+          <span class="export-menu-item-desc">Downloads only the main page</span>
+        </button>
+        <button type="button" class="export-menu-item" id="exportAllBtn" role="menuitem">
+          <span class="export-menu-item-title">Download entire site</span>
+          <span class="export-menu-item-desc">Downloads the main page, all custom pages, and 404.html as separate files</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="expand-modal-overlay" id="infoModalOverlay">
@@ -481,13 +510,16 @@
           <p>WEBZEN is a simple website generator — anything from a one-page site to a site with multiple subpages. You fill in a form on the left, and see a live preview on the right straight away. There's no coding involved — at the end you download a ready-made, working HTML file (or several files, if you also have custom subpages) that you just upload to any hosting. It's great for a personal website, a product showcase, a service page, or a landing page.</p>
 
           <h4>Getting started</h4>
-          <p>At the top, fill in the Website name, the Domain (used in links for search engines and social media), and the page Title + Description for SEO. Then set up the Hero section — the main heading and subheading that visitors see first.</p>
+          <p>At the top, fill in the Website name, the Domain (used in links for search engines and social media), and the page Title + Description for SEO. In the Favicon section you can upload your own browser-tab icon (it's embedded directly in the HTML) or enter a URL — if you leave it blank, the HTML just links to "favicon.ico" and you'll need to upload that file manually. Then set up the Hero section — the main heading and subheading that visitors see first.</p>
 
           <h4>CTA buttons and visual</h4>
           <p>Below the hero text you can add one or more buttons — each can link to a section of the site, a custom URL, or the FAQ. For each one you can set whether it's primary (bold) or secondary, and whether it opens in a new tab. You can optionally add an image to the hero section too — either by uploading a file or by pasting a URL — and it's a good idea to add alt text (it helps both SEO and accessibility).</p>
 
-          <h4>Appearance — colors and fonts</h4>
-          <p>You can set colors quickly using the ready-made palettes, or manually (accent, glow, and two background colors). You choose a font for headings and a separate one for body text.</p>
+          <h4>Video and audio</h4>
+          <p>The optional "Video / Audio" section adds a playable video and/or audio recording to the main page (after Cards/Features). For video you can pick a YouTube/Vimeo link (automatically converted to an embedded player) or your own file/URL (.mp4, .webm). Audio works the same way — upload a file or paste a URL (.mp3, .wav). Both can have an optional caption above the player.</p>
+
+          <h4>Appearance — style, colors, fonts, and layout</h4>
+          <p>The fastest way to set the overall style (colors + fonts together) is through the ready-made presets in the "Website style" section, then fine-tune the result manually in Colors (accent, glow, and two background colors) and Fonts (a separate choice for headings and body text). The "Website layout" section controls arrangement, not color — for the hero section you can choose centered, split into two columns (image left/right), left-aligned, or image as full background; for cards/features you can choose a grid, a list, numbered steps, or a minimal borderless style.</p>
 
           <h4>Navigation</h4>
           <p>In the Navigation section you turn on/off and rename the links to Hero, Features, and FAQ in the site's left-hand menu. The "Show custom pages in menu" option determines whether custom pages (see below) are automatically added to the menu on every page, or whether you link to them only manually via buttons and cards. Further down in the same section you can add social media icons (Instagram, Facebook, TikTok, YouTube, email…) — they appear as a bottom row in the left-hand menu on every page.</p>
@@ -495,11 +527,17 @@
           <h4>Custom pages</h4>
           <p>In the "Custom pages" section you add extra subpages for your site — each one is exported as its own separate .html file (named after the menu text, e.g. <code>about-us.html</code>) with its own URL, <code>&lt;title&gt;</code>, meta description, and canonical/OG tags, which is better for SEO and link sharing than hidden sections within one file. For each page you choose a type: <strong>Simple</strong> (heading + text, optional image — as before) or <strong>Landing</strong> (its own hero, subtitle, optional button, and feature cards). If showing in the menu is enabled, the page appears automatically as an item in the left-hand menu on every page; otherwise you have to link to it manually — both CTA buttons and clickable cards can point to a specific custom page. Sitemap.xml then automatically includes the URLs of all custom pages.</p>
 
-          <h4>Cards, FAQ, and footer</h4>
-          <p>In the Cards / features section you describe individual benefits or services (icon, heading, text). In the FAQ section you add frequently asked questions and answers — structured data for Google is automatically generated from them too. In the Footer you set whether to show "© year brand", an optional custom text (e.g. business ID, address), and links (terms of service, contact, etc.).</p>
+          <h4>Cards, FAQ, contact form, and footer</h4>
+          <p>In the Cards / features section you describe individual benefits or services (icon, heading, text). In the FAQ section you add frequently asked questions and answers — structured data for Google is automatically generated from them too. The optional "Contact form" section adds a form to the main page (after FAQ) with a choice of where submissions go — Formspree, Web3Forms, Netlify Forms (only works when hosted on Netlify), or a plain "mailto" with no third-party service; you can also add an optional Phone field and a required consent checkbox for personal-data processing with your own wording. In the Footer you set whether to show "© year brand", an optional custom text (e.g. business ID, address), and links (terms of service, contact, etc.).</p>
 
           <h4>PWA, sitemap, and robots.txt</h4>
           <p>Further down you'll find advanced options: generating manifest.json and sw.js, which let visitors "install" the site as an app (PWA); plus sitemap.xml and robots.txt for search engines. These files are downloaded separately using their own buttons, and after export you upload them alongside the main HTML file. The generated sw.js automatically accounts for the main page under both its actual downloaded file name and "index.html", and likewise for the manifest and icons you set above, so the offline cache works no matter whether you rename the main page on your hosting. Don't forget to also add the actual icon images (favicon, apple-touch-icon, 192×192 and 512×512 icons, og-image) — the generator doesn't create those itself.</p>
+
+          <h4>404 page, cookie banner, and GDPR page</h4>
+          <p>The "404 page" section generates a standalone <code>404.html</code> file, which most hosts (Netlify, GitHub Pages, Vercel…) automatically show instead of the browser's generic error page for a non-existent address — it's downloaded separately with its own button and is deliberately excluded from search indexing. "Cookie banner" shows a one-time notice at the bottom of the page (remembered in the visitor's browser) — if your Footer has a link whose label contains "privacy", "personal", "gdpr", or "cookie", the banner automatically links to it. The "GDPR / Privacy Policy" section generates a <code>privacy.html</code> page whose text automatically adapts to whether — and which — service your contact form uses. It's a general template, not legal advice, so depending on your site you may need to expand it or have it checked by a lawyer.</p>
+
+          <h4>Custom code (advanced)</h4>
+          <p>The "Custom code" section lets you add your own CSS, code for <code>&lt;head&gt;</code> (e.g. verification codes, custom fonts), and code before <code>&lt;/body&gt;</code> (e.g. a chat widget or tracking script) — it's inserted on the main page, all custom subpages, and the 404 page, so you only need to fill it in once. Whatever you type here goes into the site exactly as written, with no validation, so a mistake in the code can break the page.</p>
 
           <h4>Mobile preview</h4>
           <p>On the right you can switch the preview between Desktop and Mobile, so you can see how the site will look on a phone. If you're editing the site directly from a mobile device, a "Edit content / Site preview" switch appears at the top for more comfortable work on a small screen.</p>
@@ -508,7 +546,7 @@
           <p>The app continuously auto-saves your work in progress to the browser (localStorage), so you won't lose anything if you close the tab. Using "💾 Save project" you can also download a .json file with the whole site in progress and later re-open it via "📂 Load project" — for example on another computer. The "🗑️ New project" button resets everything back to the sample text.</p>
 
           <h4>Exporting the finished site</h4>
-          <p>The "↓ Download HTML" button at the top right downloads just the main page as a single .html file. If you've also created custom pages, use the "↓ Download entire site" button — it downloads the main page and all custom pages at once, each as a separate file (one after another). Upload all the downloaded files together to any hosting — you can keep the main page under its downloaded name, or rename it to index.html if you want the site to load at the bare domain without a file name in the address; the PWA offline cache works automatically either way. If you're also using PWA or the sitemap/robots.txt, download those files separately and upload them alongside the rest.</p>
+          <p>The "↓ Download" button at the top right opens a menu with two options: "Download HTML" downloads just the main page as a single .html file, and "Download entire site" downloads the main page and all custom pages at once, each as a separate file (one after another). Upload all the downloaded files together to any hosting — you can keep the main page under its downloaded name, or rename it to index.html if you want the site to load at the bare domain without a file name in the address; the PWA offline cache works automatically either way. If you're also using PWA, sitemap/robots.txt, the 404 page, or the GDPR page, download those files separately using the buttons in their own sections and upload them alongside the rest.</p>
         </div>
 
         <div class="articles-section-content" id="articlesModalContent" style="display:none;">
@@ -4515,8 +4553,31 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
+(function(){
+  const dropdown = document.getElementById('exportDropdown');
+  const toggleBtn = document.getElementById('exportToggleBtn');
+  function closeExportMenu(){
+    dropdown.classList.remove('open');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !dropdown.classList.contains('open');
+    dropdown.classList.toggle('open', willOpen);
+    toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) closeExportMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeExportMenu();
+  });
+  dropdown.__closeExportMenu = closeExportMenu;
+})();
+
 document.getElementById('exportBtn').addEventListener('click', () => {
   downloadTextFile(getHomeFilename(state), buildSiteHTML(state), 'text/html');
+  document.getElementById('exportDropdown').__closeExportMenu();
 });
 
 document.getElementById('exportAllBtn').addEventListener('click', () => {
@@ -4536,6 +4597,7 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
       downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
     }, (customSectionsData.length + 2) * 300);
   }
+  document.getElementById('exportDropdown').__closeExportMenu();
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {
