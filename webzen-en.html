@@ -62,6 +62,21 @@
   }
   .donate-bar a{color:var(--ui-accent);text-decoration:none;font-weight:600;}
   .donate-bar a:hover{text-decoration:underline;}
+  .wz-unlock-inline{display:inline-flex;align-items:center;gap:6px;margin-left:8px;vertical-align:middle;}
+  .wz-unlock-inline input{
+    background:var(--ui-bg-1);border:1px solid var(--ui-line);color:var(--ui-text);
+    border-radius:6px;padding:4px 8px;font-size:12px;width:150px;font-family:'JetBrains Mono',monospace;
+  }
+  .wz-unlock-inline input:focus{outline:none;border-color:var(--ui-accent);}
+  .wz-unlock-inline button{
+    background:transparent;border:1px solid var(--ui-accent);color:var(--ui-accent);
+    border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .wz-unlock-inline button:hover{background:rgba(124,92,255,.15);}
+  .wz-unlock-msg{margin-left:8px;font-weight:600;}
+  .wz-unlock-msg.ok{color:#4caf82;}
+  .wz-unlock-msg.err{color:#e0615a;}
   .promo-bar{
     flex:0 0 auto;text-align:center;padding:7px 20px;font-size:12px;
     color:var(--ui-text-dim);background:var(--ui-bg-2);border-bottom:1px solid var(--ui-line);
@@ -71,6 +86,8 @@
   /* Fullscreen / focus mode — hides the promo banner (promo-bar) and the
      "buy a coffee" support banner (donate-bar), freeing up more space to work in. */
   body.focus-mode .promo-bar, body.focus-mode .donate-bar{display:none;}
+  /* No-branding unlock — also hides the "other apps" promo bar. */
+  body.wz-nobrand .promo-bar{display:none;}
   #fullscreenBtn.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.15);}
 
   /* Guide and Articles are now shown in a modal window (see .info-modal-*),
@@ -733,8 +750,13 @@
     · 💪 <a href="https://synthlucida.com/delnas.html" target="_blank" rel="noopener">Dělňas</a>
   </div>
 
-  <div class="donate-bar">
-    If you enjoy this app and want to support the project, we'd really appreciate it. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Buy us a coffee</a>. Thank you! ☕
+  <div class="donate-bar" id="wzDonateBar">
+    Want your generated website without the WEBZEN footer link, and without the popup offering a break every 30 minutes while you're working on your website? Get an unlock code via <a href="https://uklidnito.gumroad.com/l/webzen" id="wzGumroadLink" target="_blank" rel="noopener">Gumroad</a>.
+    <span class="wz-unlock-inline">
+      <input type="password" id="wzUnlockInput" placeholder="Unlock code" autocomplete="off">
+      <button type="button" id="wzUnlockSubmit">Unlock</button>
+    </span>
+    <span class="wz-unlock-msg" id="wzUnlockMsg"></span>
   </div>
 
   <div class="relax-modal-overlay" id="relaxModalOverlay">
@@ -2969,6 +2991,9 @@ ${linksHtml}${socialHtml}
 // smazat jedním kliknutím na viditelný blok — a je zdvojený s <meta name="generator">
 // v <head>, takže i po smazání tohoto řádku zůstane v kódu druhá stopa.
 function webzenWatermarkHtml(){
+  try {
+    if (localStorage.getItem('wz_nobrand_unlocked') === '1') return '';
+  } catch(e){}
   return `<p class="webzen-watermark" id="wzMark"></p>
 <script>(function(){
   var el = document.getElementById('wzMark');
@@ -4682,7 +4707,74 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeRelaxModal();
   });
-  setInterval(openRelaxModal, RELAX_INTERVAL_MS);
+  let relaxTimer = null;
+  function startRelaxTimer(){
+    if (relaxTimer) return;
+    relaxTimer = setInterval(openRelaxModal, RELAX_INTERVAL_MS);
+  }
+  function stopRelaxTimer(){
+    if (relaxTimer){ clearInterval(relaxTimer); relaxTimer = null; }
+    closeRelaxModal();
+  }
+  // Exposed so the "no-branding unlock" block below can turn it off, even
+  // if the timer already started before the code was entered.
+  window.wzStopRelaxReminder = stopRelaxTimer;
+  let alreadyUnlocked = false;
+  try { alreadyUnlocked = localStorage.getItem('wz_nobrand_unlocked') === '1'; } catch(e){}
+  if (alreadyUnlocked) stopRelaxTimer();
+  else startRelaxTimer();
+})();
+
+/* ---------- no-branding unlock (no WEBZEN footer link + no relax popup) ----------
+   The unlock code is never kept in readable form in the code, only its SHA-256
+   hash — the entered code gets hashed too, and only the two hashes are
+   compared, so the code isn't visible in the console or in the source. */
+(function(){
+  const WZ_NOBRAND_HASH = 'bf37c9a5fc39f2273248d50933da5a6de091b2afac26440a0e3aa25444148161';
+  const LS_KEY = 'wz_nobrand_unlocked';
+  const input = document.getElementById('wzUnlockInput');
+  const btn = document.getElementById('wzUnlockSubmit');
+  const msg = document.getElementById('wzUnlockMsg');
+  if (!input || !btn || !msg) return;
+
+  async function sha256Hex(text){
+    const enc = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function setUnlockedUi(){
+    const bar = document.getElementById('wzDonateBar');
+    if (bar) bar.style.display = 'none';
+    document.body.classList.add('wz-nobrand');
+  }
+
+  let already = false;
+  try { already = localStorage.getItem(LS_KEY) === '1'; } catch(e){}
+  if (already) setUnlockedUi();
+
+  async function tryUnlock(){
+    const val = input.value.trim();
+    if (!val) return;
+    let hash;
+    try {
+      hash = await sha256Hex(val);
+    } catch(err){
+      alert('Could not verify the code (requires https or localhost).');
+      return;
+    }
+    if (hash === WZ_NOBRAND_HASH){
+      try { localStorage.setItem(LS_KEY, '1'); } catch(e){}
+      if (window.wzStopRelaxReminder) window.wzStopRelaxReminder();
+      setUnlockedUi();
+      alert('Code accepted — the website will have no WEBZEN link and no break-reminder popup.');
+    } else {
+      alert('The code you entered is invalid.');
+    }
+  }
+
+  btn.addEventListener('click', tryUnlock);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
 })();
 
 restoreAutosave();
