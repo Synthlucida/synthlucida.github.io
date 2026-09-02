@@ -108,38 +108,28 @@
   .article-content ul{margin:0 0 8px;padding-left:18px;}
   .article-content li{margin:0 0 4px;}
   .topbar-spacer{flex:1;}
-  .export-btn{
-    background:var(--ui-accent);color:#fff;border:none;padding:9px 16px;
-    border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
-    cursor:pointer;box-shadow:0 0 0 rgba(124,92,255,0);transition:box-shadow .2s,transform .15s;
-  }
-  .export-btn:hover{box-shadow:0 4px 20px -2px rgba(124,92,255,.55);transform:translateY(-1px);}
-  .export-btn:active{transform:translateY(0);}
-  .export-dropdown{position:relative;}
-  .export-btn .dropdown-caret{display:inline-block;margin-left:2px;font-size:11px;transition:transform .15s;}
-  .export-dropdown.open .export-btn .dropdown-caret{transform:rotate(180deg);}
-  .export-menu{
+  /* A single "Menu" button in the top bar groups all the less-frequent /
+     secondary actions (downloads, CZ version, guide, articles, project)
+     so the toolbar stays tidy. Undo/Redo and the fullscreen toggle stay
+     outside the menu, always visible side by side. */
+  .topbar-menu{position:relative;}
+  .topbar-menu-list{
     display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:50;
     min-width:260px;background:var(--ui-bg-2);border:1px solid var(--ui-line);
     border-radius:10px;padding:6px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);
+    flex-direction:column;gap:2px;
   }
-  .export-dropdown.open .export-menu{display:block;}
-  .export-menu-item{
+  .topbar-menu.open .topbar-menu-list{display:flex;}
+  .menu-item{
     display:block;width:100%;text-align:left;background:transparent;border:none;
     color:var(--ui-text);padding:9px 10px;border-radius:7px;cursor:pointer;
-    font-family:'Inter',sans-serif;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;text-decoration:none;
+    box-sizing:border-box;
   }
-  .export-menu-item:hover{background:rgba(124,92,255,.15);}
-  .export-menu-item-title{display:block;font-size:13px;font-weight:600;}
-  .export-menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;}
-
-  /* "⋮ More" — an invisible wrapper on desktop (display:contents), the
-     buttons behave like normal toolbar items. Only on mobile (see the
-     media query below) do they collapse behind a button into a dropdown
-     menu, so the toolbar doesn't wrap onto two lines. */
-  .topbar-more{display:contents;}
-  .topbar-more-menu{display:contents;}
-  .topbar-more-toggle{display:none;}
+  .menu-item:hover{background:rgba(124,92,255,.15);}
+  .menu-item-title{display:block;font-size:13px;font-weight:600;}
+  .menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;font-weight:400;}
+  .menu-divider{height:1px;background:var(--ui-line);margin:5px 4px;}
   .save-btn{
     background:transparent;color:var(--ui-text);border:1px solid var(--ui-line);padding:8px 14px;
     border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -227,39 +217,17 @@
     .workspace.show-preview .panel{display:none;}
     .preview-frame-holder{padding:12px;}
 
-    /* Less-frequent actions (EN/CZ switch, fullscreen, guide, articles,
-       new/save/load project) collapse behind a "⋮" button on mobile, so
-       the toolbar doesn't take up so much space — on desktop they stay
-       visible normally (see above). */
-    .topbar-more{display:block;position:relative;}
-    .topbar-more-toggle{
-      display:inline-flex;align-items:center;gap:4px;
-    }
-    /* Both dropdown menus (export and "more") get their top position computed
-       in JS from the button's actual on-screen position (see
-       positionDropdownMenu), so the menu never overflows the screen no matter
-       where in the toolbar the button ends up. Here just fixed positioning
-       and sizing so it works across the full width of the screen. */
-    .export-menu, .topbar-more-menu{
+    /* The menu's top position gets computed in JS from the "Menu" button's
+       actual on-screen position (see positionDropdownMenu), so the menu
+       never overflows the screen no matter where in the toolbar the
+       button ends up. Here just fixed positioning and sizing. */
+    .topbar-menu-list{
       position:fixed;left:12px;right:12px;min-width:0;width:auto;
     }
-    .topbar-more-menu{
-      display:none;z-index:50;
-      flex-direction:column;gap:4px;
-      background:var(--ui-bg-2);border:1px solid var(--ui-line);
-      border-radius:10px;padding:8px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);
-    }
-    .topbar-more.open .topbar-more-menu{display:flex;}
-    .topbar-more-menu .save-btn{width:100%;justify-content:flex-start;}
-    .topbar-more-menu .btn-label{display:inline !important;}
   }
-  .export-btn .btn-label-short{display:none;}
   @media(max-width:480px){
     .topbar .btn-label{display:none;}
     .save-btn{padding:8px 10px;}
-    .export-btn{padding:9px 12px;font-size:13px;}
-    .export-btn .btn-label-full{display:none;}
-    .export-btn .btn-label-short{display:inline;}
     .panel{padding:14px;}
     .row2{grid-template-columns:1fr;}
   }
@@ -512,29 +480,26 @@
     <button class="save-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ <span class="btn-label">Undo</span></button>
     <button class="save-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Redo</span></button>
     <span class="autosave-status" id="autosaveStatus"></span>
-    <div class="export-dropdown" id="exportDropdown">
-      <button type="button" class="export-btn" id="exportToggleBtn" title="Download site" aria-haspopup="true" aria-expanded="false">↓ <span class="btn-label-full">Download</span><span class="btn-label-short">Download</span> <span class="dropdown-caret">▾</span></button>
-      <div class="export-menu" id="exportMenu" role="menu">
-        <button type="button" class="export-menu-item" id="exportBtn" role="menuitem">
-          <span class="export-menu-item-title">Download HTML</span>
-          <span class="export-menu-item-desc">Downloads only the main page</span>
+    <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top bars)">⛶ <span class="btn-label">Fullscreen</span></button>
+    <div class="topbar-menu" id="topbarMenu">
+      <button type="button" class="save-btn" id="topbarMenuToggle" title="Menu" aria-haspopup="true" aria-expanded="false">☰ <span class="btn-label">Menu</span></button>
+      <div class="topbar-menu-list" id="topbarMenuList" role="menu">
+        <button type="button" class="menu-item" id="exportBtn" role="menuitem">
+          <span class="menu-item-title">↓ Download HTML</span>
+          <span class="menu-item-desc">Downloads only the main page</span>
         </button>
-        <button type="button" class="export-menu-item" id="exportAllBtn" role="menuitem">
-          <span class="export-menu-item-title">Download entire site</span>
-          <span class="export-menu-item-desc">Downloads the main page, all custom pages, and 404.html as separate files</span>
+        <button type="button" class="menu-item" id="exportAllBtn" role="menuitem">
+          <span class="menu-item-title">↓ Download entire site</span>
+          <span class="menu-item-desc">Downloads the main page, all custom pages, and 404.html as separate files</span>
         </button>
-      </div>
-    </div>
-    <div class="topbar-more" id="topbarMore">
-      <button type="button" class="save-btn topbar-more-toggle" id="topbarMoreToggle" title="More options" aria-haspopup="true" aria-expanded="false">⋮ <span class="btn-label">More</span></button>
-      <div class="topbar-more-menu" id="topbarMoreMenu" role="menu">
-        <a class="save-btn" href="./webzen.html" title="Přepnout na českou verzi">🌐 <span class="btn-label">CZ</span></a>
-        <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top bars)">⛶ <span class="btn-label">Fullscreen</span></button>
-        <button class="save-btn" id="showGuideBtn" title="User guide">ℹ️ <span class="btn-label">Guide</span></button>
-        <button class="save-btn" id="showArticlesBtn" title="Articles about building websites">📚 <span class="btn-label">Articles</span></button>
-        <button class="save-btn" id="resetProjectBtn" title="Clears your work in progress and restores sample text">🗑️ <span class="btn-label">New project</span></button>
-        <button class="save-btn" id="saveProjectBtn" title="Saves your work in progress to a .json file">💾 <span class="btn-label">Save project</span></button>
-        <button class="save-btn" id="loadProjectBtn" title="Loads a previously saved .json file">📂 <span class="btn-label">Load project</span></button>
+        <div class="menu-divider"></div>
+        <a class="menu-item" href="./webzen.html" title="Přepnout na českou verzi" role="menuitem">🌐 Česká verze</a>
+        <button type="button" class="menu-item" id="showGuideBtn" role="menuitem">ℹ️ Guide</button>
+        <button type="button" class="menu-item" id="showArticlesBtn" role="menuitem">📚 Articles</button>
+        <div class="menu-divider"></div>
+        <button type="button" class="menu-item" id="resetProjectBtn" role="menuitem">🗑️ New project</button>
+        <button type="button" class="menu-item" id="saveProjectBtn" role="menuitem">💾 Save project</button>
+        <button type="button" class="menu-item" id="loadProjectBtn" role="menuitem">📂 Load project</button>
         <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
       </div>
     </div>
@@ -4624,10 +4589,14 @@ function positionDropdownMenu(menu, toggleBtn){
 }
 
 (function(){
-  const dropdown = document.getElementById('exportDropdown');
-  const toggleBtn = document.getElementById('exportToggleBtn');
-  const menuEl = document.getElementById('exportMenu');
-  function closeExportMenu(){
+  // A single "☰ Menu" button in the top bar groups all the less-frequent
+  // actions (downloads, language switch, guide, articles, project) into
+  // one dropdown menu. Undo/Redo and the fullscreen toggle stay outside
+  // the menu, always visible side by side.
+  const dropdown = document.getElementById('topbarMenu');
+  const toggleBtn = document.getElementById('topbarMenuToggle');
+  const menuEl = document.getElementById('topbarMenuList');
+  function closeMenu(){
     dropdown.classList.remove('open');
     toggleBtn.setAttribute('aria-expanded', 'false');
   }
@@ -4639,48 +4608,21 @@ function positionDropdownMenu(menu, toggleBtn){
     toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
   });
   document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target)) closeExportMenu();
+    if (!dropdown.contains(e.target)) closeMenu();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeExportMenu();
-  });
-  dropdown.__closeExportMenu = closeExportMenu;
-})();
-
-(function(){
-  // "⋮ More" button — on mobile it tucks less-frequent actions (language
-  // switch, fullscreen, guide, articles, new/save/load project) into a
-  // dropdown menu, so the toolbar doesn't take up so much space. On
-  // desktop this has no visible effect — those buttons stay inline as usual.
-  const dropdown = document.getElementById('topbarMore');
-  const toggleBtn = document.getElementById('topbarMoreToggle');
-  const menuEl = document.getElementById('topbarMoreMenu');
-  function closeMoreMenu(){
-    dropdown.classList.remove('open');
-    toggleBtn.setAttribute('aria-expanded', 'false');
-  }
-  toggleBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const willOpen = !dropdown.classList.contains('open');
-    if (willOpen) positionDropdownMenu(menuEl, toggleBtn);
-    dropdown.classList.toggle('open', willOpen);
-    toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-  });
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target)) closeMoreMenu();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeMoreMenu();
+    if (e.key === 'Escape') closeMenu();
   });
   // Clicking any item in the menu (link or button) closes the menu again.
-  dropdown.querySelectorAll('.save-btn').forEach(btn => {
-    btn.addEventListener('click', closeMoreMenu);
+  dropdown.querySelectorAll('.menu-item').forEach(btn => {
+    btn.addEventListener('click', closeMenu);
   });
+  dropdown.__closeMenu = closeMenu;
 })();
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   downloadTextFile(getHomeFilename(state), buildSiteHTML(state), 'text/html');
-  document.getElementById('exportDropdown').__closeExportMenu();
+  document.getElementById('topbarMenu').__closeMenu();
 });
 
 document.getElementById('exportAllBtn').addEventListener('click', () => {
@@ -4700,7 +4642,7 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
       downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
     }, (customSectionsData.length + 2) * 300);
   }
-  document.getElementById('exportDropdown').__closeExportMenu();
+  document.getElementById('topbarMenu').__closeMenu();
 });
 
 document.querySelectorAll('.mobile-tab').forEach(tab => {
