@@ -295,10 +295,10 @@
   }
 
   /* ---- trophies ---- */
-  .trophy-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .trophy-card-head h2{ margin:0; }
-  .trophy-summary{ font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.6; flex-shrink:0; }
-  .trophy-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 4px; }
+  .trophy-card .trophy-summary{
+    font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.6; flex-shrink:0; margin-left:auto;
+  }
+  .trophy-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 4px; margin-top:16px; }
   .trophy{
     display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; cursor:pointer;
     padding:8px 2px; border-radius:12px; transition:background 0.2s; font-family:'Poppins', sans-serif; color:#fff;
@@ -635,28 +635,6 @@
   </header>
 
   <main>
-    <section class="card xp-card" id="xpCard">
-      <div class="xp-head">
-        <div class="xp-badge">
-          <div class="xp-badge-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.8 6.6L22 9.3l-5.3 4.6L18.2 21 12 17.3 5.8 21l1.5-7.1L2 9.3l7.2-.7L12 2z"/></svg>
-          </div>
-          <div class="xp-badge-text">
-            <div class="xp-level" id="xpLevel">Level 1</div>
-            <div class="xp-title" id="xpTitle">Newcomer</div>
-          </div>
-        </div>
-        <div class="xp-right">
-          <div class="xp-amount" id="xpAmount">0 <span>XP</span></div>
-          <div class="xp-streak" id="xpStreak" hidden>🔥 0 days</div>
-        </div>
-      </div>
-      <div class="xp-progress-bar"><div class="xp-progress-fill" id="xpProgressFill"></div></div>
-      <div class="xp-progress-label" id="xpProgressLabel">0 / 50 XP to Level 2</div>
-      <div class="xp-slogan" id="xpSlogan"></div>
-      <div class="xp-info">XP grows whenever your daily count is lower than your recent average (or hits zero). It's always calculated for days that have already ended.</div>
-    </section>
-
     <section class="card hero-card">
       <button id="addBtn" class="add-btn" aria-label="Add 5 puffs">
         <span class="puff-ripple" id="puffRipple"></span>
@@ -682,6 +660,28 @@
 
       <button id="undoBtn" class="undo-btn" disabled>↺ undo last entry</button>
       <div class="hero-joke" id="heroJoke"></div>
+    </section>
+
+    <section class="card xp-card" id="xpCard">
+      <div class="xp-head">
+        <div class="xp-badge">
+          <div class="xp-badge-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.8 6.6L22 9.3l-5.3 4.6L18.2 21 12 17.3 5.8 21l1.5-7.1L2 9.3l7.2-.7L12 2z"/></svg>
+          </div>
+          <div class="xp-badge-text">
+            <div class="xp-level" id="xpLevel">Level 1</div>
+            <div class="xp-title" id="xpTitle">Newcomer</div>
+          </div>
+        </div>
+        <div class="xp-right">
+          <div class="xp-amount" id="xpAmount">0 <span>XP</span></div>
+          <div class="xp-streak" id="xpStreak" hidden>🔥 0 days</div>
+        </div>
+      </div>
+      <div class="xp-progress-bar"><div class="xp-progress-fill" id="xpProgressFill"></div></div>
+      <div class="xp-progress-label" id="xpProgressLabel">0 / 50 XP to Level 2</div>
+      <div class="xp-slogan" id="xpSlogan"></div>
+      <div class="xp-info">XP grows whenever your daily count is lower than your recent average (or hits zero). It's always calculated for days that have already ended.</div>
     </section>
 
     <section class="chips-row">
@@ -747,13 +747,17 @@
       </div>
     </section>
 
-    <section class="card trophy-card" id="trophyCard">
-      <div class="trophy-card-head">
-        <h2 style="margin:0;">Trophies</h2>
-        <div class="trophy-summary" id="trophySummary">0 / 0 done</div>
-      </div>
+    <details class="card info-card trophy-card" id="trophyCard">
+      <summary>
+        <span class="info-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z"/><path d="M7 5H4a3 3 0 003 3M17 5h3a3 3 0 01-3 3"/></svg>
+        </span>
+        Trophies
+        <span class="trophy-summary" id="trophySummary">0 / 0</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
       <div class="trophy-grid" id="trophyGrid"></div>
-    </section>
+    </details>
 
     <section class="card history-card">
       <h2>History</h2>
@@ -1033,21 +1037,49 @@
   // long-term when consumption trends down over time.
   function computeXPState(){
     if(!totalsMap) rebuildTotalsMap();
-    var state = { xp: 0, streakDays: 0, bestStreak: 0, smokeFreeDayCount: 0, daysTracked: 0 };
+    var state = {
+      xp: 0, streakDays: 0, bestStreak: 0, smokeFreeDayCount: 0, daysTracked: 0,
+      hadBigLeap: false, hasNightOwl: false, hasEarlyBird: false,
+      loggingStreak: 0, loggingBestStreak: 0
+    };
     if(!data.entries.length) return state;
 
-    var today0 = startOfDay(new Date());
     var minTs = data.entries[0].ts;
-    for(var i=1;i<data.entries.length;i++){ if(data.entries[i].ts < minTs) minTs = data.entries[i].ts; }
+    for(var i=0;i<data.entries.length;i++){
+      var e = data.entries[i];
+      if(e.ts < minTs) minTs = e.ts;
+      var h = new Date(e.ts).getHours();
+      if(h >= 0 && h < 4) state.hasNightOwl = true;
+      if(h >= 5 && h < 7) state.hasEarlyBird = true;
+    }
+
+    var today0 = startOfDay(new Date());
     var earliestDay = startOfDay(new Date(minTs));
     var totalDaysRaw = Math.round((today0 - earliestDay) / 86400000);
     state.daysTracked = totalDaysRaw + 1; // includes today
+
+    // consecutive calendar days with a logged entry (regardless of amount) — today included
+    var daysSet = {};
+    for(var di=0; di<data.entries.length; di++){
+      daysSet[dateKey(startOfDay(new Date(data.entries[di].ts)))] = true;
+    }
+    var logSpan = Math.min(totalDaysRaw, 400);
+    var logBest = 0, logRun = 0;
+    for(var lk=0; lk<=logSpan; lk++){
+      var ld = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+lk);
+      if(daysSet[dateKey(ld)]){ logRun++; if(logRun > logBest) logBest = logRun; }
+      else logRun = 0;
+    }
+    state.loggingBestStreak = logBest;
+    state.loggingStreak = logRun;
+
     var totalDays = Math.min(totalDaysRaw, 365);
     if(totalDays < 8) return state; // not enough history for a reliable baseline yet
 
     var BASELINE_WINDOW = 7;
     var dayXPs = [];
     var smokeFreeDayCount = 0;
+    var hadBigLeap = false;
     for(var k=BASELINE_WINDOW; k<totalDays; k++){
       var dayDate = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+k);
       var baseSum = 0;
@@ -1063,9 +1095,11 @@
       } else if(val === 0){
         xpDay = 25;
         smokeFreeDayCount++;
+        hadBigLeap = true;
       } else if(val < baseline){
         var reduction = (baseline - val) / baseline;
         xpDay = Math.max(1, Math.round(reduction*20));
+        if(reduction >= 0.5) hadBigLeap = true;
       }
       dayXPs.push(xpDay);
     }
@@ -1086,6 +1120,7 @@
     state.streakDays = streak;
     state.bestStreak = bestStreak;
     state.smokeFreeDayCount = smokeFreeDayCount;
+    state.hadBigLeap = hadBigLeap;
     return state;
   }
 
@@ -1096,18 +1131,32 @@
     { id:"month_tracked", icon:"🗓️", title:"A month of tracking", desc:"You've been tracking puffs for 30 days." },
     { id:"quarter_tracked", icon:"📆", title:"A quarter", desc:"You've been tracking puffs for 90 days." },
     { id:"year_tracked", icon:"🏆", title:"A full year", desc:"You've been tracking puffs for 365 days." },
+    { id:"entries50", icon:"🗂️", title:"50 entries", desc:"You have 50 entries logged." },
+    { id:"entries200", icon:"🧾", title:"200 entries", desc:"You have 200 entries logged." },
+    { id:"logging_streak7", icon:"📝", title:"A week of logging", desc:"You logged at least one puff every day for 7 days in a row." },
+    { id:"logging_streak30", icon:"🖋️", title:"A month of logging", desc:"You logged at least one puff every day for 30 days in a row." },
+    { id:"night_owl", icon:"🦉", title:"Night owl", desc:"You have an entry between midnight and 4am." },
+    { id:"early_bird", icon:"🐦", title:"Early bird", desc:"You have an entry between 5am and 7am." },
     { id:"first_drop", icon:"📉", title:"First drop", desc:"You had a day with fewer puffs than your usual average." },
+    { id:"big_leap", icon:"🚀", title:"Big leap", desc:"On one day you cut consumption by at least half compared to your usual average." },
     { id:"smoke_free_day", icon:"🌙", title:"Smoke-free day", desc:"You made it through a whole day at zero, even though it's usually not a zero day for you." },
+    { id:"smoke_free5", icon:"🌤️", title:"5 smoke-free days", desc:"You've collected 5 smoke-free days in total." },
+    { id:"smoke_free25", icon:"☀️", title:"25 smoke-free days", desc:"You've collected 25 smoke-free days in total." },
     { id:"streak3", icon:"🔥", title:"3 days in a row", desc:"3 days in a row with reduced consumption." },
     { id:"streak7", icon:"🔥", title:"A week in a row", desc:"7 days in a row with reduced consumption." },
     { id:"streak14", icon:"⚡", title:"Two weeks in a row", desc:"14 days in a row with reduced consumption." },
     { id:"streak30", icon:"💎", title:"A month in a row", desc:"30 days in a row with reduced consumption." },
     { id:"streak100", icon:"👑", title:"100 days in a row", desc:"100 days in a row with reduced consumption." },
+    { id:"streak200", icon:"🐉", title:"200 days in a row", desc:"200 days in a row with reduced consumption." },
     { id:"level5", icon:"⭐", title:"Level 5", desc:"You reached Level 5." },
     { id:"level10", icon:"🌟", title:"Level 10", desc:"You reached Level 10." },
+    { id:"level15", icon:"🌠", title:"Level 15", desc:"You reached Level 15." },
+    { id:"level20", icon:"🪐", title:"Level 20", desc:"You reached Level 20." },
     { id:"xp100", icon:"✨", title:"100 XP", desc:"You collected 100 XP." },
     { id:"xp500", icon:"💫", title:"500 XP", desc:"You collected 500 XP." },
     { id:"xp1000", icon:"🏅", title:"1000 XP", desc:"You collected 1000 XP." },
+    { id:"xp2000", icon:"🎖️", title:"2000 XP", desc:"You collected 2000 XP." },
+    { id:"xp5000", icon:"🏵️", title:"5000 XP", desc:"You collected 5000 XP." },
     { id:"goal_set", icon:"🎯", title:"Custom goal", desc:"You set your own daily goal." },
     { id:"backup_made", icon:"💾", title:"Backed up", desc:"You downloaded a backup of your data." }
   ];
@@ -1118,18 +1167,32 @@
       case "month_tracked": return s.daysTracked >= 30;
       case "quarter_tracked": return s.daysTracked >= 90;
       case "year_tracked": return s.daysTracked >= 365;
+      case "entries50": return data.entries.length >= 50;
+      case "entries200": return data.entries.length >= 200;
+      case "logging_streak7": return s.loggingBestStreak >= 7;
+      case "logging_streak30": return s.loggingBestStreak >= 30;
+      case "night_owl": return !!s.hasNightOwl;
+      case "early_bird": return !!s.hasEarlyBird;
       case "first_drop": return s.xp > 0;
+      case "big_leap": return !!s.hadBigLeap;
       case "smoke_free_day": return s.smokeFreeDayCount >= 1;
+      case "smoke_free5": return s.smokeFreeDayCount >= 5;
+      case "smoke_free25": return s.smokeFreeDayCount >= 25;
       case "streak3": return s.bestStreak >= 3;
       case "streak7": return s.bestStreak >= 7;
       case "streak14": return s.bestStreak >= 14;
       case "streak30": return s.bestStreak >= 30;
       case "streak100": return s.bestStreak >= 100;
+      case "streak200": return s.bestStreak >= 200;
       case "level5": return s.level >= 5;
       case "level10": return s.level >= 10;
+      case "level15": return s.level >= 15;
+      case "level20": return s.level >= 20;
       case "xp100": return s.xp >= 100;
       case "xp500": return s.xp >= 500;
       case "xp1000": return s.xp >= 1000;
+      case "xp2000": return s.xp >= 2000;
+      case "xp5000": return s.xp >= 5000;
       case "goal_set": return data.goal !== null && data.goal > 0;
       case "backup_made": return !!data.hasExportedBackup;
       default: return false;
@@ -1159,7 +1222,7 @@
       grid.appendChild(btn);
     }
 
-    if(summaryEl) summaryEl.textContent = unlockedIds.length + " / " + ACHIEVEMENTS.length + " done";
+    if(summaryEl) summaryEl.textContent = unlockedIds.length + " / " + ACHIEVEMENTS.length;
 
     var prevUnlocked = {};
     (data.unlockedTrophies || []).forEach(function(id){ prevUnlocked[id] = true; });

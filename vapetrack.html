@@ -295,10 +295,10 @@
   }
 
   /* ---- trophies ---- */
-  .trophy-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .trophy-card-head h2{ margin:0; }
-  .trophy-summary{ font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.6; flex-shrink:0; }
-  .trophy-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 4px; }
+  .trophy-card .trophy-summary{
+    font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.6; flex-shrink:0; margin-left:auto;
+  }
+  .trophy-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 4px; margin-top:16px; }
   .trophy{
     display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; cursor:pointer;
     padding:8px 2px; border-radius:12px; transition:background 0.2s; font-family:'Poppins', sans-serif; color:#fff;
@@ -751,13 +751,17 @@
       </div>
     </section>
 
-    <section class="card trophy-card" id="trophyCard">
-      <div class="trophy-card-head">
-        <h2 style="margin:0;">Poháry</h2>
-        <div class="trophy-summary" id="trophySummary">0 / 0 splněno</div>
-      </div>
+    <details class="card info-card trophy-card" id="trophyCard">
+      <summary>
+        <span class="info-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z"/><path d="M7 5H4a3 3 0 003 3M17 5h3a3 3 0 01-3 3"/></svg>
+        </span>
+        Poháry
+        <span class="trophy-summary" id="trophySummary">0 / 0</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
       <div class="trophy-grid" id="trophyGrid"></div>
-    </section>
+    </details>
 
     <section class="card history-card">
       <h2>Historie záznamů</h2>
@@ -1093,21 +1097,49 @@
   // roste, jen když se spotřeba v čase snižuje.
   function computeXPState(){
     if(!totalsMap) rebuildTotalsMap();
-    var state = { xp: 0, streakDays: 0, bestStreak: 0, smokeFreeDayCount: 0, daysTracked: 0 };
+    var state = {
+      xp: 0, streakDays: 0, bestStreak: 0, smokeFreeDayCount: 0, daysTracked: 0,
+      hadBigLeap: false, hasNightOwl: false, hasEarlyBird: false,
+      loggingStreak: 0, loggingBestStreak: 0
+    };
     if(!data.entries.length) return state;
 
-    var today0 = startOfDay(new Date());
     var minTs = data.entries[0].ts;
-    for(var i=1;i<data.entries.length;i++){ if(data.entries[i].ts < minTs) minTs = data.entries[i].ts; }
+    for(var i=0;i<data.entries.length;i++){
+      var e = data.entries[i];
+      if(e.ts < minTs) minTs = e.ts;
+      var h = new Date(e.ts).getHours();
+      if(h >= 0 && h < 4) state.hasNightOwl = true;
+      if(h >= 5 && h < 7) state.hasEarlyBird = true;
+    }
+
+    var today0 = startOfDay(new Date());
     var earliestDay = startOfDay(new Date(minTs));
     var totalDaysRaw = Math.round((today0 - earliestDay) / 86400000);
     state.daysTracked = totalDaysRaw + 1; // včetně dneška
+
+    // série dní se zápisem (bez ohledu na množství) – počítá se i dnešek
+    var daysSet = {};
+    for(var di=0; di<data.entries.length; di++){
+      daysSet[dateKey(startOfDay(new Date(data.entries[di].ts)))] = true;
+    }
+    var logSpan = Math.min(totalDaysRaw, 400);
+    var logBest = 0, logRun = 0;
+    for(var lk=0; lk<=logSpan; lk++){
+      var ld = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+lk);
+      if(daysSet[dateKey(ld)]){ logRun++; if(logRun > logBest) logBest = logRun; }
+      else logRun = 0;
+    }
+    state.loggingBestStreak = logBest;
+    state.loggingStreak = logRun;
+
     var totalDays = Math.min(totalDaysRaw, 365);
     if(totalDays < 8) return state; // zatím málo historie na spolehlivý základ
 
     var BASELINE_WINDOW = 7;
     var dayXPs = [];
     var smokeFreeDayCount = 0;
+    var hadBigLeap = false;
     for(var k=BASELINE_WINDOW; k<totalDays; k++){
       var dayDate = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+k);
       var baseSum = 0;
@@ -1123,9 +1155,11 @@
       } else if(val === 0){
         xpDay = 25;
         smokeFreeDayCount++;
+        hadBigLeap = true;
       } else if(val < baseline){
         var reduction = (baseline - val) / baseline;
         xpDay = Math.max(1, Math.round(reduction*20));
+        if(reduction >= 0.5) hadBigLeap = true;
       }
       dayXPs.push(xpDay);
     }
@@ -1146,6 +1180,7 @@
     state.streakDays = streak;
     state.bestStreak = bestStreak;
     state.smokeFreeDayCount = smokeFreeDayCount;
+    state.hadBigLeap = hadBigLeap;
     return state;
   }
 
@@ -1156,18 +1191,32 @@
     { id:"month_tracked", icon:"🗓️", title:"Měsíc sledování", desc:"Sleduješ potahy už 30 dní." },
     { id:"quarter_tracked", icon:"📆", title:"Čtvrt roku", desc:"Sleduješ potahy už 90 dní." },
     { id:"year_tracked", icon:"🏆", title:"Celý rok", desc:"Sleduješ potahy už 365 dní." },
+    { id:"entries50", icon:"🗂️", title:"50 zápisů", desc:"Máš v deníčku 50 zápisů." },
+    { id:"entries200", icon:"🧾", title:"200 zápisů", desc:"Máš v deníčku 200 zápisů." },
+    { id:"logging_streak7", icon:"📝", title:"Týden zápisků", desc:"7 dní v řadě sis zapsal/a aspoň jeden potah." },
+    { id:"logging_streak30", icon:"🖋️", title:"Měsíc zápisků", desc:"30 dní v řadě sis zapsal/a aspoň jeden potah." },
+    { id:"night_owl", icon:"🦉", title:"Noční sova", desc:"Máš záznam mezi půlnocí a 4:00." },
+    { id:"early_bird", icon:"🐦", title:"Ranní ptáče", desc:"Máš záznam mezi 5:00 a 7:00." },
     { id:"first_drop", icon:"📉", title:"První pokles", desc:"Měl/a jsi den s méně potahy, než je tvůj běžný průměr." },
+    { id:"big_leap", icon:"🚀", title:"Velký skok", desc:"V jeden den jsi snížil/a spotřebu aspoň o polovinu oproti běžnému průměru." },
     { id:"smoke_free_day", icon:"🌙", title:"Bezdymý den", desc:"Zvládl/a jsi celý den na nule, i když je to jinak tvůj běžný den." },
+    { id:"smoke_free5", icon:"🌤️", title:"5 bezdymých dní", desc:"Nasbíral/a jsi celkem 5 bezdymých dní." },
+    { id:"smoke_free25", icon:"☀️", title:"25 bezdymých dní", desc:"Nasbíral/a jsi celkem 25 bezdymých dní." },
     { id:"streak3", icon:"🔥", title:"3 dny v řadě", desc:"3 dny v řadě se sníženou spotřebou." },
     { id:"streak7", icon:"🔥", title:"Týden v řadě", desc:"7 dní v řadě se sníženou spotřebou." },
     { id:"streak14", icon:"⚡", title:"Dva týdny v řadě", desc:"14 dní v řadě se sníženou spotřebou." },
     { id:"streak30", icon:"💎", title:"Měsíc v řadě", desc:"30 dní v řadě se sníženou spotřebou." },
     { id:"streak100", icon:"👑", title:"100 dní v řadě", desc:"100 dní v řadě se sníženou spotřebou." },
+    { id:"streak200", icon:"🐉", title:"200 dní v řadě", desc:"200 dní v řadě se sníženou spotřebou." },
     { id:"level5", icon:"⭐", title:"Level 5", desc:"Dosáhl/a jsi Level 5." },
     { id:"level10", icon:"🌟", title:"Level 10", desc:"Dosáhl/a jsi Level 10." },
+    { id:"level15", icon:"🌠", title:"Level 15", desc:"Dosáhl/a jsi Level 15." },
+    { id:"level20", icon:"🪐", title:"Level 20", desc:"Dosáhl/a jsi Level 20." },
     { id:"xp100", icon:"✨", title:"100 XP", desc:"Nasbíral/a jsi 100 XP." },
     { id:"xp500", icon:"💫", title:"500 XP", desc:"Nasbíral/a jsi 500 XP." },
     { id:"xp1000", icon:"🏅", title:"1000 XP", desc:"Nasbíral/a jsi 1000 XP." },
+    { id:"xp2000", icon:"🎖️", title:"2000 XP", desc:"Nasbíral/a jsi 2000 XP." },
+    { id:"xp5000", icon:"🏵️", title:"5000 XP", desc:"Nasbíral/a jsi 5000 XP." },
     { id:"goal_set", icon:"🎯", title:"Vlastní cíl", desc:"Nastavil/a jsi svůj denní cíl." },
     { id:"backup_made", icon:"💾", title:"Zálohováno", desc:"Stáhl/a jsi zálohu svých dat." }
   ];
@@ -1178,18 +1227,32 @@
       case "month_tracked": return s.daysTracked >= 30;
       case "quarter_tracked": return s.daysTracked >= 90;
       case "year_tracked": return s.daysTracked >= 365;
+      case "entries50": return data.entries.length >= 50;
+      case "entries200": return data.entries.length >= 200;
+      case "logging_streak7": return s.loggingBestStreak >= 7;
+      case "logging_streak30": return s.loggingBestStreak >= 30;
+      case "night_owl": return !!s.hasNightOwl;
+      case "early_bird": return !!s.hasEarlyBird;
       case "first_drop": return s.xp > 0;
+      case "big_leap": return !!s.hadBigLeap;
       case "smoke_free_day": return s.smokeFreeDayCount >= 1;
+      case "smoke_free5": return s.smokeFreeDayCount >= 5;
+      case "smoke_free25": return s.smokeFreeDayCount >= 25;
       case "streak3": return s.bestStreak >= 3;
       case "streak7": return s.bestStreak >= 7;
       case "streak14": return s.bestStreak >= 14;
       case "streak30": return s.bestStreak >= 30;
       case "streak100": return s.bestStreak >= 100;
+      case "streak200": return s.bestStreak >= 200;
       case "level5": return s.level >= 5;
       case "level10": return s.level >= 10;
+      case "level15": return s.level >= 15;
+      case "level20": return s.level >= 20;
       case "xp100": return s.xp >= 100;
       case "xp500": return s.xp >= 500;
       case "xp1000": return s.xp >= 1000;
+      case "xp2000": return s.xp >= 2000;
+      case "xp5000": return s.xp >= 5000;
       case "goal_set": return data.goal !== null && data.goal > 0;
       case "backup_made": return !!data.hasExportedBackup;
       default: return false;
@@ -1219,7 +1282,7 @@
       grid.appendChild(btn);
     }
 
-    if(summaryEl) summaryEl.textContent = unlockedIds.length + " / " + ACHIEVEMENTS.length + " splněno";
+    if(summaryEl) summaryEl.textContent = unlockedIds.length + " / " + ACHIEVEMENTS.length;
 
     var prevUnlocked = {};
     (data.unlockedTrophies || []).forEach(function(id){ prevUnlocked[id] = true; });
