@@ -217,6 +217,20 @@
   }
   .mobile-tab.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.15);}
 
+  /* Horní lišta se může zalomit na druhý řádek prakticky při jakékoli šířce,
+     jakmile se do ní tlačítka nevejdou (viz vždy zapnutý flex-wrap výš
+     u .topbar) — to začíná už dost nad breakpointem 860px níž, přičemž
+     tlačítko "Menu" pak může skončit kdekoli na tom zalomeném řádku. Tahle
+     pojistka (menu přišpendlené na celou šířku s pozicí dopočítanou v JS,
+     viz positionDropdownMenu) proto potřebuje širší práh než zbytek
+     rozvržení pro telefony/tablety — jinak by vznikla mezera, kdy je
+     tlačítko už zalomené, ale menu pořád používá pozicování napravo jako
+     na desktopu a může vyjet mimo obrazovku. */
+  @media(max-width:1200px){
+    .topbar-menu-list{
+      position:fixed;left:12px;right:12px;min-width:0;width:auto;
+    }
+  }
   /* ---------- responsive layout for editing on phones / narrow tablets ---------- */
   @media(max-width:860px){
     .mobile-tabs{display:flex;}
@@ -237,14 +251,6 @@
     .workspace.show-editor .preview-wrap{display:none;}
     .workspace.show-preview .panel{display:none;}
     .preview-frame-holder{padding:12px;}
-
-    /* Pozice (top/left/right) menu se na mobilu dopočítává v JS podle
-       skutečné polohy tlačítka "Menu" (viz positionDropdownMenu), ať menu
-       nikdy nepřeteče mimo obrazovku bez ohledu na to, kde v liště
-       tlačítko zrovna je. Tady jen fixed pozice a rozměry. */
-    .topbar-menu-list{
-      position:fixed;left:12px;right:12px;min-width:0;width:auto;
-    }
   }
   @media(max-width:480px){
     .topbar .btn-label{display:none;}
@@ -4829,13 +4835,16 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
-// Na mobilu (kde rozbalovací menu používá position:fixed, viz CSS) dopočítá
-// jeho svislou pozici podle skutečné polohy tlačítka, ať menu nikdy nepřeteče
-// mimo obrazovku bez ohledu na to, kde v liště tlačítko zrovna je (vodorovně
-// už menu drží při zemi CSS pravidla left/right:12px). Na desktopu se nic
-// nemění — tam řídí pozici čistě CSS a tenhle inline styl se rovnou smaže.
+// Dopočítá svislou pozici menu podle skutečné polohy tlačítka "Menu"
+// vždy, když ho CSS přišpendlí přes position:fixed (viz breakpoint 1200px
+// v CSS — širší než rozvržení pro telefony/tablety, protože tlačítka
+// v horní liště se můžou zalomit na druhý řádek už dřív a tlačítko pak
+// může skončit kdekoli na tom řádku). Menu tak nikdy nepřeteče mimo
+// obrazovku bez ohledu na to, kde tlačítko zrovna je (vodorovně už menu
+// drží při zemi CSS pravidla left/right:12px). Nad 1200px se nic nemění —
+// tam řídí pozici čistě CSS a tenhle inline styl se rovnou smaže.
 function positionDropdownMenu(menu, toggleBtn){
-  if (window.innerWidth > 860) {
+  if (window.innerWidth > 1200) {
     menu.style.top = '';
     return;
   }
