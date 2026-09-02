@@ -909,6 +909,22 @@
     </div>
   </details>
 
+  <section class="card" id="backupSection" aria-label="Complete data backup">
+    <h2>Complete backup</h2>
+    <p style="font-size:12px;color:rgba(255,255,255,0.55);margin:0 0 14px;line-height:1.5;">Exports and imports absolutely everything you've saved at once — trips, service entries, and the vehicle list. Handy for moving between devices or as a backup.</p>
+    <div class="routes-card-actions" style="display:flex;flex-wrap:wrap;gap:8px;">
+      <button class="btn-sm" id="importAllBtn" title="Import a complete backup from a file (from another device)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Import all
+      </button>
+      <button class="btn-sm" id="exportAllBtn" title="Export a complete backup to a file (for another device)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+        Export all
+      </button>
+    </div>
+    <input type="file" id="importAllFile" accept="application/json,.json" class="sr-only" aria-hidden="true" tabindex="-1">
+  </section>
+
   <footer>
     SYNTHLUCIDA VEHICLE LOGBOOK
     <span class="sep">·</span>
@@ -992,6 +1008,10 @@
     importRoutesFile: document.getElementById("importRoutesFile"),
     roadCar: document.getElementById("roadCar"),
     toast: document.getElementById("toast"),
+
+    exportAllBtn: document.getElementById("exportAllBtn"),
+    importAllBtn: document.getElementById("importAllBtn"),
+    importAllFile: document.getElementById("importAllFile"),
 
     serviceTypeSeg: document.getElementById("serviceTypeSeg"),
     sDate: document.getElementById("sDate"),
@@ -2172,6 +2192,132 @@
     w.focus();
     setTimeout(function(){ w.print(); }, 350);
     showToast("Open the print dialog and choose “Save as PDF”");
+  });
+
+  els.exportAllBtn.addEventListener("click", function(){
+    var entries = loadEntries();
+    var service = loadServiceEntries();
+    var vehicles = loadVehicleRegistry();
+    if(!entries.length && !service.length && !vehicles.length){ showToast("No entries to export"); return; }
+    var payload = {
+      app: "denik-vozidla",
+      type: "full-backup",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entries: entries,
+      service: service,
+      vehicles: vehicles
+    };
+    downloadBlob("vehicle-logbook-backup-" + Date.now() + ".json", JSON.stringify(payload, null, 2), "application/json;charset=utf-8;");
+    showToast("Complete backup exported");
+  });
+
+  els.importAllBtn.addEventListener("click", function(){
+    els.importAllFile.value = "";
+    els.importAllFile.click();
+  });
+
+  els.importAllFile.addEventListener("change", function(){
+    var file = this.files && this.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var data;
+      try { data = JSON.parse(reader.result); } catch(e){ showToast("Could not read the file"); return; }
+      if(!data || typeof data !== "object"){ showToast("Invalid file format"); return; }
+
+      var incomingEntries = Array.isArray(data.entries) ? data.entries.filter(isValidEntry) : [];
+      var incomingService = Array.isArray(data.service) ? data.service.filter(isValidServiceEntry) : [];
+      var incomingVehicles = Array.isArray(data.vehicles) ? data.vehicles.filter(function(v){ return typeof v === "string" && v.trim(); }) : [];
+
+      if(!incomingEntries.length && !incomingService.length && !incomingVehicles.length){
+        showToast("No valid entries found in the file");
+        return;
+      }
+
+      var addedEntries = 0, addedService = 0;
+
+      if(incomingEntries.length){
+        var existingEntries = loadEntries();
+        var existingEntryIds = {};
+        existingEntries.forEach(function(e){ existingEntryIds[String(e.id)] = true; });
+        incomingEntries.forEach(function(e){
+          var id = e.id;
+          if(id === undefined || id === null || existingEntryIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + addedEntries;
+          existingEntryIds[String(id)] = true;
+          var purposeVal = PURPOSE_LABELS[e.purpose] ? e.purpose : "sluzebni";
+          existingEntries.unshift({
+            id: id,
+            purpose: purposeVal,
+            date: String(e.date),
+            vehicle: (e.vehicle ? String(e.vehicle) : "Unnamed").slice(0,30),
+            fromPlace: e.fromPlace ? String(e.fromPlace).slice(0,60) : "",
+            toPlace: e.toPlace ? String(e.toPlace).slice(0,60) : "",
+            odoStart: parseFloat(e.odoStart) || 0,
+            odoEnd: parseFloat(e.odoEnd) || 0,
+            distance: parseFloat(e.distance) || (parseFloat(e.odoEnd) - parseFloat(e.odoStart)) || 0,
+            driver: e.driver ? String(e.driver).slice(0,40) : "",
+            mapLink: e.mapLink || "",
+            notes: e.notes ? String(e.notes).slice(0,200) : ""
+          });
+          addedEntries++;
+        });
+        if(existingEntries.length > 500) existingEntries = existingEntries.slice(0,500);
+        saveToStorage(STORAGE_ENTRIES, existingEntries);
+      }
+
+      if(incomingService.length){
+        var existingService = loadServiceEntries();
+        var existingServiceIds = {};
+        existingService.forEach(function(e){ existingServiceIds[String(e.id)] = true; });
+        incomingService.forEach(function(e){
+          var id = e.id;
+          if(id === undefined || id === null || existingServiceIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + addedService;
+          existingServiceIds[String(id)] = true;
+          var typeVal = SERVICE_TYPE_LABELS[e.type] ? e.type : "jine";
+          var odo = parseFloat(e.odo);
+          var price = parseFloat(e.price);
+          existingService.unshift({
+            id: id,
+            type: typeVal,
+            date: String(e.date),
+            vehicle: (e.vehicle ? String(e.vehicle) : "Unnamed").slice(0,30),
+            odo: isFinite(odo) ? odo : null,
+            price: isFinite(price) ? price : null,
+            nextDate: e.nextDate ? String(e.nextDate) : "",
+            notes: e.notes ? String(e.notes).slice(0,200) : ""
+          });
+          addedService++;
+        });
+        saveServiceEntries(existingService);
+      }
+
+      if(incomingVehicles.length){
+        var registry = loadVehicleRegistry();
+        var known = {};
+        registry.forEach(function(v){ known[v] = true; });
+        incomingVehicles.forEach(function(v){
+          v = String(v).slice(0,30);
+          if(v && !known[v]){ known[v] = true; registry.push(v); }
+        });
+        saveVehicleRegistry(registry);
+      }
+
+      ensureVehiclesRegistered();
+      renderVehicleOptions();
+      renderServiceVehicleOptions();
+      renderSummary();
+      renderEntries();
+      renderServiceSummary();
+      renderServiceEntries();
+
+      var parts = [];
+      if(addedEntries) parts.push(addedEntries + " trip(s)");
+      if(addedService) parts.push(addedService + " service entr" + (addedService === 1 ? "y" : "ies"));
+      showToast(parts.length ? "Imported: " + parts.join(", ") : "Backup imported");
+    };
+    reader.onerror = function(){ showToast("Could not read the file"); };
+    reader.readAsText(file);
   });
 
   function init(){
