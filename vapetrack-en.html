@@ -404,6 +404,7 @@
   .heatmap-legend{ display:flex; align-items:center; gap:4px; margin-top:10px; font-size:9.5px; opacity:0.5; }
   .heatmap-legend .heat-cell{ width:9px; height:9px; }
   .heatmap-summary{ font-size:11px; opacity:0.6; margin-top:10px; line-height:1.5; }
+  .chart-insight{ font-size:11px; opacity:0.6; margin-top:10px; line-height:1.5; }
 
   /* ---- goal ---- */
   .goal-input-row{ display:flex; gap:8px; }
@@ -735,6 +736,12 @@
       <div class="chart-svg-wrap"><div class="bar-chart hourly" id="hourlyChart"></div></div>
     </section>
 
+    <section class="card chart-card">
+      <h2>Gaps between puffs (last 14 days)</h2>
+      <div class="chart-svg-wrap"><div class="bar-chart" id="gapChart"></div></div>
+      <div class="chart-insight" id="gapInsight"></div>
+    </section>
+
     <section class="card goal-card">
       <h2>Daily goal</h2>
       <div class="goal-input-row">
@@ -794,6 +801,7 @@
           <li>Hourly distribution over the last 7 days – when you puff most often</li>
           <li>Comparison of this week with last week (up/down in %)</li>
           <li>Your busiest hour of the day</li>
+          <li>Gaps between puffs – the average time between consecutive entries per day (last 14 days), plus the overall average, shortest, and longest gap; long overnight gaps (over 3h) are excluded</li>
         </ul>
 
         <div class="info-section-title">Daily goal</div>
@@ -1002,6 +1010,51 @@
       }
     }
     return buckets;
+  }
+
+  // ---------- gaps between entries (puffs) ----------
+  // A gap is the time between two consecutive entries (not between individual
+  // puffs within one entry). Each gap is attributed to the day of the LATER
+  // of the two entries. Long gaps (typically overnight sleep) are excluded
+  // from the chart and summary — otherwise one overnight gap could dominate
+  // an entire day, or the overall average.
+  var NIGHT_GAP_THRESHOLD_MIN = 180; // 3h+ counts as an overnight/long gap, not a regular one
+
+  function computeGaps(){
+    var sorted = data.entries.slice().sort(function(a,b){ return a.ts - b.ts; });
+    var gaps = [];
+    for(var i=1;i<sorted.length;i++){
+      gaps.push({ minutes:(sorted[i].ts - sorted[i-1].ts)/60000, ts: sorted[i].ts });
+    }
+    return gaps;
+  }
+
+  function computeWakingGaps(){
+    return computeGaps().filter(function(g){ return g.minutes <= NIGHT_GAP_THRESHOLD_MIN; });
+  }
+
+  function gapDailyAvg(numDays){
+    var gaps = computeWakingGaps();
+    var sums = {}, counts = {};
+    for(var i=0;i<gaps.length;i++){
+      var k = dateKey(new Date(gaps[i].ts));
+      sums[k] = (sums[k] || 0) + gaps[i].minutes;
+      counts[k] = (counts[k] || 0) + 1;
+    }
+    var out = [];
+    var today = startOfDay(new Date());
+    for(var i=numDays-1;i>=0;i--){
+      var d = new Date(today.getFullYear(), today.getMonth(), today.getDate()-i);
+      var k = dateKey(d);
+      out.push({ date:d, avg: counts[k] ? sums[k]/counts[k] : 0, count: counts[k] || 0 });
+    }
+    return out;
+  }
+
+  function formatMinutes(mins){
+    if(mins < 60) return Math.round(mins) + " min";
+    var h = Math.floor(mins/60), m = Math.round(mins%60);
+    return h + "h" + (m>0 ? " " + m + "m" : "");
   }
 
   // ---------- gamification / XP ----------
@@ -1917,6 +1970,50 @@
     renderBarChart("hourlyChart", hourly, labels, { highlight:highlight, highlightClass:"now-hour" });
   }
 
+  function renderGapChart(){
+    var days = gapDailyAvg(14);
+    var values = days.map(function(d){ return Math.round(d.avg); });
+    var todayIdx = values.length - 1;
+    var labels = days.map(function(d,i){
+      if(i % 2 === 0 || i === todayIdx) return DAY_ABBR[d.date.getDay()] + " " + d.date.getDate();
+      return "";
+    });
+    var highlight = days.map(function(d,i){ return i === todayIdx; });
+    renderBarChart("gapChart", values, labels, { showAvg:true, highlight:highlight, highlightClass:"today" });
+
+    var insightEl = document.getElementById("gapInsight");
+    if(!insightEl) return;
+    var allGaps = computeGaps();
+    var gaps = computeWakingGaps();
+    var excluded = allGaps.length - gaps.length;
+
+    if(gaps.length === 0){
+      insightEl.textContent = excluded > 0
+        ? "Only long (overnight) gaps so far \u2014 not enough data for a regular gap overview."
+        : "Not enough entries yet to compute gaps (need at least 2).";
+      return;
+    }
+
+    var sum = 0, min = gaps[0].minutes, max = gaps[0].minutes;
+    for(var i=0;i<gaps.length;i++){
+      var m = gaps[i].minutes;
+      sum += m;
+      if(m < min) min = m;
+      if(m > max) max = m;
+    }
+    var avg = sum / gaps.length;
+    var text =
+      "Average gap: " + formatMinutes(avg) +
+      " \u00b7 shortest " + formatMinutes(min) +
+      " \u00b7 longest " + formatMinutes(max) +
+      " (from " + gaps.length + " " + plural(gaps.length,"gap","gaps") + ").";
+    if(excluded > 0){
+      text += " Excludes " + excluded + " long " + plural(excluded,"gap","gaps") +
+        " (e.g. overnight) over " + formatMinutes(NIGHT_GAP_THRESHOLD_MIN) + ".";
+    }
+    insightEl.textContent = text;
+  }
+
   function renderGoal(){
     var input = document.getElementById("goalInput");
     if(document.activeElement !== input){
@@ -2021,6 +2118,7 @@
     renderDailyChart();
     renderHeatmap();
     renderHourlyChart();
+    renderGapChart();
     renderGoal();
     renderHistory();
   }
