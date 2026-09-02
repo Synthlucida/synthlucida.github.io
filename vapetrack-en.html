@@ -294,6 +294,30 @@
     100%{ box-shadow:0 0 0 rgba(167,139,250,0); }
   }
 
+  /* ---- trophies ---- */
+  .trophy-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .trophy-card-head h2{ margin:0; }
+  .trophy-summary{ font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.6; flex-shrink:0; }
+  .trophy-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 4px; }
+  .trophy{
+    display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; cursor:pointer;
+    padding:8px 2px; border-radius:12px; transition:background 0.2s; font-family:'Poppins', sans-serif; color:#fff;
+  }
+  .trophy:active{ background:rgba(255,255,255,0.06); }
+  .trophy-icon{
+    width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:19px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border);
+  }
+  .trophy.unlocked .trophy-icon{
+    background:radial-gradient(circle at 35% 30%, #f4f0ff, var(--accent-color) 60%, var(--accent-glow) 100%);
+    box-shadow:0 0 12px rgba(167,139,250,0.55);
+    border-color:transparent;
+  }
+  .trophy.locked .trophy-icon{ filter:grayscale(1); opacity:0.35; }
+  .trophy-name{ font-size:8.7px; text-align:center; line-height:1.25; opacity:0.75; }
+  .trophy.locked .trophy-name{ opacity:0.4; }
+  .trophy-card.trophy-pulse{ animation:xpLevelUpGlow 1.3s ease; }
+
   /* ---- hero / counter ---- */
   .hero-card{ display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center; }
 
@@ -329,6 +353,7 @@
     font-family:'Poppins', sans-serif; font-size:12px; padding:8px 14px; border-radius:999px; cursor:pointer;
   }
   .undo-btn:disabled{ opacity:0.3; cursor:default; }
+  .hero-joke{ font-size:11.5px; opacity:0.55; text-align:center; line-height:1.4; padding:0 6px; }
 
   /* ---- chips ---- */
   .chips-row{ display:flex; gap:10px; }
@@ -396,7 +421,7 @@
   .goal-progress-label{ font-size:11px; opacity:0.6; margin-top:6px; }
 
   /* ---- history ---- */
-  .history-list{ display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; }
+  .history-list{ display:flex; flex-direction:column; gap:6px; }
   .day-group{ background:rgba(255,255,255,0.03); border-radius:10px; overflow:hidden; }
   .day-summary{
     display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; list-style:none; font-size:12.5px;
@@ -407,7 +432,14 @@
   .day-summary-stats .day-total{ color:var(--accent-color); font-weight:500; }
   .day-summary .chevron{ width:12px; height:12px; color:var(--accent-color); transition:transform 0.25s; flex-shrink:0; }
   .day-group[open] .day-summary .chevron{ transform:rotate(180deg); }
-  .day-entries{ display:flex; flex-direction:column; gap:6px; padding:0 10px 10px; }
+  .day-entries{
+    display:flex; flex-direction:column; gap:6px; padding:0 10px 10px;
+    max-height:320px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin; scrollbar-color:var(--accent-color) transparent;
+  }
+  .day-entries::-webkit-scrollbar{ width:5px; }
+  .day-entries::-webkit-scrollbar-track{ background:transparent; }
+  .day-entries::-webkit-scrollbar-thumb{ background:var(--accent-color); border-radius:999px; opacity:0.5; }
   .history-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     background:rgba(255,255,255,0.045); border-radius:10px; padding:8px 10px; font-size:12.5px;
@@ -587,10 +619,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5.6c0-.6.4-1 1-1 4 0 6 1 7 2.2 1-1.2 3-2.2 7-2.2.6 0 1 .4 1 1V19"/><path d="M12 6.8V19"/></svg>
         POHÁDKOVNÍK
       </a>
-      <a href="https://synthlucida.com/delnas.html" aria-label="Dělňas">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 13h18"/></svg>
-        DĚLŇAS
-      </a>
       <a href="https://uklidnito.eu" aria-label="Uklidnito.eu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
         UKLIDNITO
@@ -607,6 +635,28 @@
   </header>
 
   <main>
+    <section class="card xp-card" id="xpCard">
+      <div class="xp-head">
+        <div class="xp-badge">
+          <div class="xp-badge-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.8 6.6L22 9.3l-5.3 4.6L18.2 21 12 17.3 5.8 21l1.5-7.1L2 9.3l7.2-.7L12 2z"/></svg>
+          </div>
+          <div class="xp-badge-text">
+            <div class="xp-level" id="xpLevel">Level 1</div>
+            <div class="xp-title" id="xpTitle">Newcomer</div>
+          </div>
+        </div>
+        <div class="xp-right">
+          <div class="xp-amount" id="xpAmount">0 <span>XP</span></div>
+          <div class="xp-streak" id="xpStreak" hidden>🔥 0 days</div>
+        </div>
+      </div>
+      <div class="xp-progress-bar"><div class="xp-progress-fill" id="xpProgressFill"></div></div>
+      <div class="xp-progress-label" id="xpProgressLabel">0 / 50 XP to Level 2</div>
+      <div class="xp-slogan" id="xpSlogan"></div>
+      <div class="xp-info">XP grows whenever your daily count is lower than your recent average (or hits zero). It's always calculated for days that have already ended.</div>
+    </section>
+
     <section class="card hero-card">
       <button id="addBtn" class="add-btn" aria-label="Add 5 puffs">
         <span class="puff-ripple" id="puffRipple"></span>
@@ -631,28 +681,7 @@
       </div>
 
       <button id="undoBtn" class="undo-btn" disabled>↺ undo last entry</button>
-    </section>
-
-    <section class="card xp-card" id="xpCard">
-      <div class="xp-head">
-        <div class="xp-badge">
-          <div class="xp-badge-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.8 6.6L22 9.3l-5.3 4.6L18.2 21 12 17.3 5.8 21l1.5-7.1L2 9.3l7.2-.7L12 2z"/></svg>
-          </div>
-          <div class="xp-badge-text">
-            <div class="xp-level" id="xpLevel">Level 1</div>
-            <div class="xp-title" id="xpTitle">Rookie</div>
-          </div>
-        </div>
-        <div class="xp-right">
-          <div class="xp-amount" id="xpAmount">0 <span>XP</span></div>
-          <div class="xp-streak" id="xpStreak" hidden>🔥 0 days</div>
-        </div>
-      </div>
-      <div class="xp-progress-bar"><div class="xp-progress-fill" id="xpProgressFill"></div></div>
-      <div class="xp-progress-label" id="xpProgressLabel">0 / 50 XP to Level 2</div>
-      <div class="xp-slogan" id="xpSlogan"></div>
-      <div class="xp-info">XP grows when your daily count is lower than your recent average (or zero). It's always calculated retroactively, for days that have already ended.</div>
+      <div class="hero-joke" id="heroJoke"></div>
     </section>
 
     <section class="chips-row">
@@ -718,6 +747,14 @@
       </div>
     </section>
 
+    <section class="card trophy-card" id="trophyCard">
+      <div class="trophy-card-head">
+        <h2 style="margin:0;">Trophies</h2>
+        <div class="trophy-summary" id="trophySummary">0 / 0 done</div>
+      </div>
+      <div class="trophy-grid" id="trophyGrid"></div>
+    </section>
+
     <section class="card history-card">
       <h2>History</h2>
       <div class="history-list" id="historyList"></div>
@@ -761,20 +798,6 @@
           <li>The app only shows the numbers, it never judges or advises – it’s purely informational</li>
         </ul>
 
-        <div class="info-section-title">XP and levels</div>
-        <p>VAPETRACK includes a simple game layer that rewards long-term reduction of consumption – not individual "good" days, but a real trend.</p>
-        <ul>
-          <li>XP isn't stored as a separate number anywhere – it's always recalculated from your full entry history, so it's always accurate and works correctly even after restoring from a backup</li>
-          <li>The system needs at least 8 days of history before any XP shows up – only then does it have enough data to work out your "usual" daily baseline</li>
-          <li>For every elapsed day (today doesn't count yet, since it hasn't ended), your puff count is compared to the average of the previous 7 days</li>
-          <li>If a day is below that average, you earn XP proportional to how much lower it was – the bigger the drop, the more points</li>
-          <li>A full day with zero puffs earns a large bonus</li>
-          <li>A day at or above your average earns no XP, but also no penalty – a worse day never sets you back</li>
-          <li>XP accumulates across your entire history (up to 365 days back), so your level only keeps rising over time if your consumption actually trends down</li>
-          <li>The streak shows how many days in a row you've stayed below your average – it appears from 2 days in a row onward</li>
-          <li>Each level has its own title (Rookie, Observer, Determined… up to Legend), and the app notifies you whenever you level up</li>
-        </ul>
-
         <div class="info-section-title">Controls</div>
         <ul>
           <li>Switch between Czech and English (CZ/EN) near the top of the page</li>
@@ -783,46 +806,6 @@
         </ul>
 
         <p>The app doesn’t send any personal data to a server – everything stays in your browser until you download a backup yourself.</p>
-      </div>
-    </details>
-
-    <details class="card info-card" id="articleSection">
-      <summary>
-        <span class="info-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.6c.6.5 1 1.3 1 2.4h6c0-1.1.4-1.9 1-2.4A7 7 0 0 0 12 2Z"/></svg>
-        </span>
-        Vaping and reducing nicotine
-        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-      </summary>
-      <div class="info-content">
-        <p>A short overview of how nicotine addiction works and the approaches people most commonly use to cut back. This isn’t medical advice – just a summary of generally known principles.</p>
-
-        <div class="info-section-title">How the addiction forms</div>
-        <p>After inhalation, nicotine reaches the bloodstream within seconds and triggers the release of dopamine in the brain, producing a brief feeling of satisfaction. The body gradually gets used to this dose and needs it more and more often – that's how physical dependence forms, layered on top of learned habits and rituals (a puff after a meal, with coffee, when stressed). So quitting isn't just about the nicotine itself, but also about those triggers.</p>
-
-        <div class="info-section-title">Gradually lowering the strength</div>
-        <ul>
-          <li>The most common approach is lowering the e-liquid's nicotine strength in small steps (e.g. every 1–2 weeks) instead of dropping to zero all at once</li>
-          <li>This lets the body adapt gradually, and withdrawal symptoms tend to be milder</li>
-          <li>Risk: at a lower strength, people tend to vape more often or take harder puffs to make up for the lower dose – so it's worth tracking total puff count too, not just the mg in the liquid</li>
-        </ul>
-
-        <div class="info-section-title">Reducing frequency and ritual</div>
-        <ul>
-          <li>Stretching the interval between puffs by a few minutes at a time, gradually up to hours</li>
-          <li>Recognizing your typical triggers (after a meal, with coffee, in the car, when stressed) and consciously replacing them with something else – a walk, a glass of water, gum, a few deep breaths</li>
-          <li>Tracking your own data (like in this app) helps you see the real trend instead of the feeling of "I don't actually vape that much"</li>
-        </ul>
-
-        <div class="info-section-title">What to keep in mind</div>
-        <ul>
-          <li>Quitting isn't linear – worse days are normal, and what matters is the long-term direction, not any single day</li>
-          <li>Alcohol and stress are the most common relapse triggers</li>
-          <li>Sudden complete cessation ("cold turkey") works well for some people, while others do better with a gradual reduction – there's no one-size-fits-all method</li>
-        </ul>
-
-        <div class="info-section-title">When to seek help</div>
-        <p>If you've struggled for a long time to cut back on your own, or you're experiencing strong withdrawal symptoms, it's worth reaching out to a doctor or a dedicated smoking-cessation service. This text is not medical advice and doesn't replace a professional consultation.</p>
       </div>
     </details>
 
@@ -883,8 +866,6 @@
       <a href="https://synthlucida.com/vodovaha-en.html">LEVEL</a>
       <span class="sep">·</span>
       <a href="https://synthlucida.com/pohadkovnik.html">POHÁDKOVNÍK</a>
-      <span class="sep">·</span>
-      <a href="https://synthlucida.com/delnas.html">DĚLŇAS</a>
       <span class="sep">·</span>
       <a href="https://uklidnito.eu">UKLIDNITO</a>
       <span class="sep">·</span>
@@ -948,6 +929,8 @@
     if(!Array.isArray(d.entries)) d.entries = [];
     if(typeof d.goal !== "number") d.goal = null;
     if(typeof d.xpLastSeenLevel !== "number") d.xpLastSeenLevel = 0;
+    if(!Array.isArray(d.unlockedTrophies)) d.unlockedTrophies = [];
+    if(typeof d.hasExportedBackup !== "boolean") d.hasExportedBackup = false;
     return d;
   }
 
@@ -1016,14 +999,15 @@
     }
     return buckets;
   }
+
   // ---------- gamification / XP ----------
   // XP is computed deterministically from all entries (no separately stored
-  // counter), just like the rest of the app's stats – so it always stays
-  // consistent with the history and also works correctly after a backup import.
+  // counter), same as the rest of the app's stats — so it's always
+  // consistent with history and works retroactively after a backup import.
   var XP_LEVEL_TITLES = [
-    "Rookie","Observer","You Tried","On the Right Track","Determined",
-    "Strong Will","Habit Fighter","Master of Self-Control","Role Model",
-    "Master of Calm","Legend"
+    "Newcomer","Observer","Giving it a try","On the right track","Determined",
+    "Strong willed","Habit fighter","Master of self-control","Role model",
+    "Calm master","Legend"
   ];
   function levelTitle(level){
     var idx = Math.min(level, XP_LEVEL_TITLES.length) - 1;
@@ -1039,30 +1023,31 @@
     var nextT = xpThreshold(lvl);
     return { level: lvl, prevThreshold: prevT, nextThreshold: nextT, progress: (xp - prevT) / (nextT - prevT) };
   }
-  // For every ELAPSED day (today doesn't count yet, since it hasn't ended),
-  // compares the puff count against the average of the previous 7 days
-  // (the "usual" daily baseline):
-  //  - a zero day when the baseline was non-zero -> large bonus
-  //  - a day below baseline -> XP proportional to the percentage reduction
+  // For every FINISHED day (today doesn't count yet — it isn't over), compares
+  // the puff count to the average of the previous 7 days ("normal" day):
+  //  - a zero day when the baseline was non-zero -> big bonus
+  //  - a day below baseline -> XP scaled to the % reduction
   //  - a zero day when the baseline is also zero -> small maintenance bonus
-  //  - a day at/above baseline -> 0 XP (no penalty for a worse day)
-  // Summed across the whole history (max. 365 days back), so XP only grows
-  // over the long run when consumption actually trends down over time.
+  //  - a day at/above baseline -> 0 XP (no punishment for a worse day)
+  // Summed across all history (up to 365 days back), so XP only grows
+  // long-term when consumption trends down over time.
   function computeXPState(){
     if(!totalsMap) rebuildTotalsMap();
-    var state = { xp: 0, streakDays: 0 };
+    var state = { xp: 0, streakDays: 0, bestStreak: 0, smokeFreeDayCount: 0, daysTracked: 0 };
     if(!data.entries.length) return state;
 
     var today0 = startOfDay(new Date());
     var minTs = data.entries[0].ts;
     for(var i=1;i<data.entries.length;i++){ if(data.entries[i].ts < minTs) minTs = data.entries[i].ts; }
     var earliestDay = startOfDay(new Date(minTs));
-    var totalDays = Math.round((today0 - earliestDay) / 86400000);
-    totalDays = Math.min(totalDays, 365);
-    if(totalDays < 8) return state; // not enough history yet for a reliable baseline
+    var totalDaysRaw = Math.round((today0 - earliestDay) / 86400000);
+    state.daysTracked = totalDaysRaw + 1; // includes today
+    var totalDays = Math.min(totalDaysRaw, 365);
+    if(totalDays < 8) return state; // not enough history for a reliable baseline yet
 
     var BASELINE_WINDOW = 7;
     var dayXPs = [];
+    var smokeFreeDayCount = 0;
     for(var k=BASELINE_WINDOW; k<totalDays; k++){
       var dayDate = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+k);
       var baseSum = 0;
@@ -1077,6 +1062,7 @@
         if(val === 0) xpDay = 3;
       } else if(val === 0){
         xpDay = 25;
+        smokeFreeDayCount++;
       } else if(val < baseline){
         var reduction = (baseline - val) / baseline;
         xpDay = Math.max(1, Math.round(reduction*20));
@@ -1085,7 +1071,12 @@
     }
 
     var xp = 0;
-    for(var s=0;s<dayXPs.length;s++) xp += dayXPs[s];
+    var bestStreak = 0, curRun = 0;
+    for(var s=0;s<dayXPs.length;s++){
+      xp += dayXPs[s];
+      if(dayXPs[s] > 0){ curRun++; if(curRun > bestStreak) bestStreak = curRun; }
+      else curRun = 0;
+    }
     var streak = 0;
     for(var e2=dayXPs.length-1; e2>=0; e2--){
       if(dayXPs[e2] > 0) streak++; else break;
@@ -1093,7 +1084,98 @@
 
     state.xp = xp;
     state.streakDays = streak;
+    state.bestStreak = bestStreak;
+    state.smokeFreeDayCount = smokeFreeDayCount;
     return state;
+  }
+
+  // ---------- trophies / achievements ----------
+  var ACHIEVEMENTS = [
+    { id:"first_entry", icon:"📌", title:"First entry", desc:"You logged your very first puff." },
+    { id:"week_tracked", icon:"📅", title:"A week of tracking", desc:"You've been tracking puffs for 7 days." },
+    { id:"month_tracked", icon:"🗓️", title:"A month of tracking", desc:"You've been tracking puffs for 30 days." },
+    { id:"quarter_tracked", icon:"📆", title:"A quarter", desc:"You've been tracking puffs for 90 days." },
+    { id:"year_tracked", icon:"🏆", title:"A full year", desc:"You've been tracking puffs for 365 days." },
+    { id:"first_drop", icon:"📉", title:"First drop", desc:"You had a day with fewer puffs than your usual average." },
+    { id:"smoke_free_day", icon:"🌙", title:"Smoke-free day", desc:"You made it through a whole day at zero, even though it's usually not a zero day for you." },
+    { id:"streak3", icon:"🔥", title:"3 days in a row", desc:"3 days in a row with reduced consumption." },
+    { id:"streak7", icon:"🔥", title:"A week in a row", desc:"7 days in a row with reduced consumption." },
+    { id:"streak14", icon:"⚡", title:"Two weeks in a row", desc:"14 days in a row with reduced consumption." },
+    { id:"streak30", icon:"💎", title:"A month in a row", desc:"30 days in a row with reduced consumption." },
+    { id:"streak100", icon:"👑", title:"100 days in a row", desc:"100 days in a row with reduced consumption." },
+    { id:"level5", icon:"⭐", title:"Level 5", desc:"You reached Level 5." },
+    { id:"level10", icon:"🌟", title:"Level 10", desc:"You reached Level 10." },
+    { id:"xp100", icon:"✨", title:"100 XP", desc:"You collected 100 XP." },
+    { id:"xp500", icon:"💫", title:"500 XP", desc:"You collected 500 XP." },
+    { id:"xp1000", icon:"🏅", title:"1000 XP", desc:"You collected 1000 XP." },
+    { id:"goal_set", icon:"🎯", title:"Custom goal", desc:"You set your own daily goal." },
+    { id:"backup_made", icon:"💾", title:"Backed up", desc:"You downloaded a backup of your data." }
+  ];
+  function isAchievementUnlocked(id, s){
+    switch(id){
+      case "first_entry": return data.entries.length >= 1;
+      case "week_tracked": return s.daysTracked >= 7;
+      case "month_tracked": return s.daysTracked >= 30;
+      case "quarter_tracked": return s.daysTracked >= 90;
+      case "year_tracked": return s.daysTracked >= 365;
+      case "first_drop": return s.xp > 0;
+      case "smoke_free_day": return s.smokeFreeDayCount >= 1;
+      case "streak3": return s.bestStreak >= 3;
+      case "streak7": return s.bestStreak >= 7;
+      case "streak14": return s.bestStreak >= 14;
+      case "streak30": return s.bestStreak >= 30;
+      case "streak100": return s.bestStreak >= 100;
+      case "level5": return s.level >= 5;
+      case "level10": return s.level >= 10;
+      case "xp100": return s.xp >= 100;
+      case "xp500": return s.xp >= 500;
+      case "xp1000": return s.xp >= 1000;
+      case "goal_set": return data.goal !== null && data.goal > 0;
+      case "backup_made": return !!data.hasExportedBackup;
+      default: return false;
+    }
+  }
+  function renderTrophies(s){
+    var grid = document.getElementById("trophyGrid");
+    var summaryEl = document.getElementById("trophySummary");
+    if(!grid) return;
+
+    var unlockedIds = [];
+    grid.innerHTML = "";
+    for(var i=0;i<ACHIEVEMENTS.length;i++){
+      var a = ACHIEVEMENTS[i];
+      var unlocked = isAchievementUnlocked(a.id, s);
+      if(unlocked) unlockedIds.push(a.id);
+
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "trophy" + (unlocked ? " unlocked" : " locked");
+      btn.innerHTML = '<span class="trophy-icon">' + a.icon + '</span><span class="trophy-name">' + escapeHtml(a.title) + '</span>';
+      (function(a, unlocked){
+        btn.addEventListener("click", function(){
+          showToast((unlocked ? "✅ " : "🔒 ") + a.title + " — " + a.desc, 3200);
+        });
+      })(a, unlocked);
+      grid.appendChild(btn);
+    }
+
+    if(summaryEl) summaryEl.textContent = unlockedIds.length + " / " + ACHIEVEMENTS.length + " done";
+
+    var prevUnlocked = {};
+    (data.unlockedTrophies || []).forEach(function(id){ prevUnlocked[id] = true; });
+    var newly = unlockedIds.filter(function(id){ return !prevUnlocked[id]; });
+    if(newly.length){
+      data.unlockedTrophies = unlockedIds;
+      saveData();
+      var card = document.getElementById("trophyCard");
+      if(card){ card.classList.remove("trophy-pulse"); void card.offsetWidth; card.classList.add("trophy-pulse"); }
+      if(newly.length === 1){
+        var one = ACHIEVEMENTS.filter(function(a){ return a.id === newly[0]; })[0];
+        showToast("🏆 New trophy: " + one.title + "!", 3200);
+      } else {
+        showToast("🏆 New trophies: " + newly.length + "×!", 3200);
+      }
+    }
   }
 
   function xpDayOfYearSeed(){
@@ -1101,47 +1183,79 @@
     var start = new Date(now.getFullYear(),0,0);
     return Math.floor((now - start) / 86400000);
   }
+
+  // ---------- joke of the day ----------
+  var DAILY_JOKES = [
+    "Your lungs are sending you a thank-you note today. No stamp, but it's sincere.",
+    "Even dragons give their lungs a break sometimes.",
+    "The stats don't lie. Your lungs are clapping quietly, but they're clapping.",
+    "The cloud is staying up in the sky today, where it belongs.",
+    "Your wallet just breathed a small sigh of relief. Your card noticed too.",
+    "Even superheroes take a day off. Today's one of those days.",
+    "If XP were exchangeable for cookies, you'd be rich by now.",
+    "Future-you just quietly said thanks. No fuss, just a heads-up.",
+    "Even the best DJs take breaks between songs. You're taking breaks between puffs.",
+    "This pace would get a nod of approval from your couch.",
+    "Level up! Somewhere out there, an invisible fan club is clapping for you.",
+    "Your e-cig might miss you a little today. It'll survive.",
+    "Nobody said this would be easy. Nobody said it wouldn't be funny, though.",
+    "Even your router would be proud of this streak — and it's seen a lot.",
+    "Smaller cloud today, bigger style points.",
+    "Your vape battery is a little bored today. It'll live.",
+    "Your neighbors probably won't thank you out loud. The air around you is a bit cleaner though.",
+    "This is the kind of progress you can't photograph, but you can feel it.",
+    "The data shows progress. Your sense of humor shows you're doing just fine.",
+    "One more day like this and you'll need your own trophy shelf.",
+    "Your lungs are debating whether to send an email or write you a poem.",
+    "Even a backpack needs lightening sometimes. Today's that for your lungs.",
+    "Think of it as a level in a game. Bonus points for style.",
+    "This day won't make the history books, but it'll make your own history."
+  ];
+  function pickDailyJoke(){
+    return DAILY_JOKES[(xpDayOfYearSeed()*7 + 3) % DAILY_JOKES.length];
+  }
+
   var XP_SLOGANS = {
     empty: [
-      "Tap the button and start earning your first XP.",
+      "Tap the button to start earning your first XP.",
       "Every logged puff is a step toward seeing the real picture."
     ],
     building: [
-      "Log a few more days – then your first XP will show up.",
-      "The XP baseline is calculated from 7 days of history. Hang in there."
+      "Track for a few more days — your first XP will show up soon.",
+      "The XP baseline needs 7 days of history. Hang in there."
     ],
     legendary: [
-      "This isn't luck anymore. This is the new normal.",
-      "Your body is getting used to calm – and it shows.",
+      "This isn't luck anymore. This is your new normal.",
+      "Your body is getting used to the calm — and it shows.",
       "This streak speaks for itself.",
       "You're not experimenting anymore. You're just living differently."
     ],
     onFire: [
-      "A full week in a row. That counts.",
+      "A full week in a row. This counts.",
       "The habit is losing ground.",
-      "You're keeping pace – don't stop now.",
-      "Seven days of proof that it works."
+      "You're keeping pace — don't stop now.",
+      "Seven days of proof that it's possible."
     ],
     momentum: [
-      "A few days in a row – and it shows.",
+      "A few days in a row — and it shows.",
       "Small steps, but in the right direction.",
       "This is the start of a pattern that fits you."
     ],
     progress: [
-      "This week is lighter than the last one. See it?",
-      "The curve is trending down. That's the direction that matters.",
+      "This week is lighter than last week. See it?",
+      "The curve is going down. That's the direction that matters.",
       "Slow, but it's working."
     ],
     gentle: [
-      "Days vary. What matters is coming back to it.",
-      "No single day defines you – just the direction across weeks.",
-      "Even a small step tomorrow counts more than a perfect yesterday.",
+      "Days vary. What matters is coming back.",
+      "No single day defines you — only the direction across weeks.",
+      "A small step tomorrow counts more than a perfect yesterday.",
       "It's not about zero. It's about less than yesterday."
     ],
     neutral: [
-      "The data tells you more than a feeling does – watch your trend.",
+      "Data tells you more than a feeling — watch your trend.",
       "Learn from your days and adjust course.",
-      "Logging it is the first step toward change."
+      "Logging it is the first step to changing it."
     ]
   };
   function pickFromPool(arr){ return arr[xpDayOfYearSeed() % arr.length]; }
@@ -1186,6 +1300,9 @@
     }
 
     document.getElementById("xpSlogan").textContent = pickSlogan(state);
+
+    state.level = info.level;
+    renderTrophies(state);
 
     if(info.level > data.xpLastSeenLevel){
       data.xpLastSeenLevel = info.level;
@@ -1236,7 +1353,6 @@
   }
   function resetAll(){
     data.entries = [];
-    data.xpLastSeenLevel = 0;
     saveData();
     renderAll();
   }
@@ -1275,6 +1391,11 @@
     var fileDate = new Date().toISOString().slice(0,10);
     downloadBlob(blob, "vapetrack-backup-" + fileDate + ".json");
     showToast("Backup downloaded");
+    if(!data.hasExportedBackup){
+      data.hasExportedBackup = true;
+      saveData();
+      renderXP();
+    }
   }
 
   var pendingImport = null;
@@ -1504,6 +1625,8 @@
       lastSubEl.textContent = "no entries yet";
     }
     document.getElementById("undoBtn").disabled = data.entries.length === 0;
+    var jokeEl = document.getElementById("heroJoke");
+    if(jokeEl) jokeEl.textContent = "😄 " + pickDailyJoke();
   }
 
   function tickRelative(){
@@ -1897,6 +2020,7 @@
     data.goal = (v === "" || isNaN(n) || n <= 0) ? null : n;
     saveData();
     renderGoal();
+    renderXP();
   });
 
   var confirmOverlay = document.getElementById("confirmOverlay");

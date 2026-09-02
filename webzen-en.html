@@ -132,6 +132,14 @@
   .export-menu-item:hover{background:rgba(124,92,255,.15);}
   .export-menu-item-title{display:block;font-size:13px;font-weight:600;}
   .export-menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;}
+
+  /* "⋮ More" — an invisible wrapper on desktop (display:contents), the
+     buttons behave like normal toolbar items. Only on mobile (see the
+     media query below) do they collapse behind a button into a dropdown
+     menu, so the toolbar doesn't wrap onto two lines. */
+  .topbar-more{display:contents;}
+  .topbar-more-menu{display:contents;}
+  .topbar-more-toggle{display:none;}
   .save-btn{
     background:transparent;color:var(--ui-text);border:1px solid var(--ui-line);padding:8px 14px;
     border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -205,7 +213,7 @@
     .topbar-brand{font-size:14px;flex:1 1 auto;}
     .topbar-brand-tagline{display:none;}
     .topbar-sub{display:none !important;}
-    .autosave-status{order:5;flex:1 1 100%;}
+    .autosave-status{font-size:11px;}
     .workspace{flex-direction:column;overflow:visible;}
     .panel{
       width:100%;flex:1 1 auto;border-right:none;border-bottom:1px solid var(--ui-line);
@@ -215,6 +223,24 @@
     .workspace.show-editor .preview-wrap{display:none;}
     .workspace.show-preview .panel{display:none;}
     .preview-frame-holder{padding:12px;}
+
+    /* Less-frequent actions (EN/CZ switch, fullscreen, guide, articles,
+       new/save/load project) collapse behind a "⋮" button on mobile, so
+       the toolbar doesn't take up so much space — on desktop they stay
+       visible normally (see above). */
+    .topbar-more{display:block;position:relative;}
+    .topbar-more-toggle{
+      display:inline-flex;align-items:center;gap:4px;
+    }
+    .topbar-more-menu{
+      display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:50;
+      flex-direction:column;gap:4px;min-width:230px;
+      background:var(--ui-bg-2);border:1px solid var(--ui-line);
+      border-radius:10px;padding:8px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);
+    }
+    .topbar-more.open .topbar-more-menu{display:flex;}
+    .topbar-more-menu .save-btn{width:100%;justify-content:flex-start;}
+    .topbar-more-menu .btn-label{display:inline !important;}
   }
   .export-btn .btn-label-short{display:none;}
   @media(max-width:480px){
@@ -473,17 +499,9 @@
     <div class="topbar-brand"><span class="topbar-brand-name">WEBZEN</span><span class="topbar-brand-tagline"> — Build a website easily and quickly — no coding, for FREE.</span></div>
     <div class="topbar-sub">made in SYNTHLUCIDA</div>
     <div class="topbar-spacer"></div>
-    <a class="save-btn" href="./webzen.html" title="Přepnout na českou verzi">🌐 <span class="btn-label">CZ</span></a>
-    <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top bars)">⛶ <span class="btn-label">Fullscreen</span></button>
-    <button class="save-btn" id="showGuideBtn" title="User guide">ℹ️ <span class="btn-label">Guide</span></button>
-    <button class="save-btn" id="showArticlesBtn" title="Articles about building websites">📚 <span class="btn-label">Articles</span></button>
-    <span class="autosave-status" id="autosaveStatus"></span>
     <button class="save-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ <span class="btn-label">Undo</span></button>
     <button class="save-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Redo</span></button>
-    <button class="save-btn" id="resetProjectBtn" title="Clears your work in progress and restores sample text">🗑️ <span class="btn-label">New project</span></button>
-    <button class="save-btn" id="saveProjectBtn" title="Saves your work in progress to a .json file">💾 <span class="btn-label">Save project</span></button>
-    <button class="save-btn" id="loadProjectBtn" title="Loads a previously saved .json file">📂 <span class="btn-label">Load project</span></button>
-    <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
+    <span class="autosave-status" id="autosaveStatus"></span>
     <div class="export-dropdown" id="exportDropdown">
       <button type="button" class="export-btn" id="exportToggleBtn" title="Download site" aria-haspopup="true" aria-expanded="false">↓ <span class="btn-label-full">Download</span><span class="btn-label-short">Download</span> <span class="dropdown-caret">▾</span></button>
       <div class="export-menu" id="exportMenu" role="menu">
@@ -495,6 +513,19 @@
           <span class="export-menu-item-title">Download entire site</span>
           <span class="export-menu-item-desc">Downloads the main page, all custom pages, and 404.html as separate files</span>
         </button>
+      </div>
+    </div>
+    <div class="topbar-more" id="topbarMore">
+      <button type="button" class="save-btn topbar-more-toggle" id="topbarMoreToggle" title="More options" aria-haspopup="true" aria-expanded="false">⋮ <span class="btn-label">More</span></button>
+      <div class="topbar-more-menu" id="topbarMoreMenu" role="menu">
+        <a class="save-btn" href="./webzen.html" title="Přepnout na českou verzi">🌐 <span class="btn-label">CZ</span></a>
+        <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top bars)">⛶ <span class="btn-label">Fullscreen</span></button>
+        <button class="save-btn" id="showGuideBtn" title="User guide">ℹ️ <span class="btn-label">Guide</span></button>
+        <button class="save-btn" id="showArticlesBtn" title="Articles about building websites">📚 <span class="btn-label">Articles</span></button>
+        <button class="save-btn" id="resetProjectBtn" title="Clears your work in progress and restores sample text">🗑️ <span class="btn-label">New project</span></button>
+        <button class="save-btn" id="saveProjectBtn" title="Saves your work in progress to a .json file">💾 <span class="btn-label">Save project</span></button>
+        <button class="save-btn" id="loadProjectBtn" title="Loads a previously saved .json file">📂 <span class="btn-label">Load project</span></button>
+        <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
       </div>
     </div>
   </div>
@@ -4587,6 +4618,35 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
     if (e.key === 'Escape') closeExportMenu();
   });
   dropdown.__closeExportMenu = closeExportMenu;
+})();
+
+(function(){
+  // "⋮ More" button — on mobile it tucks less-frequent actions (language
+  // switch, fullscreen, guide, articles, new/save/load project) into a
+  // dropdown menu, so the toolbar doesn't take up so much space. On
+  // desktop this has no visible effect — those buttons stay inline as usual.
+  const dropdown = document.getElementById('topbarMore');
+  const toggleBtn = document.getElementById('topbarMoreToggle');
+  function closeMoreMenu(){
+    dropdown.classList.remove('open');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !dropdown.classList.contains('open');
+    dropdown.classList.toggle('open', willOpen);
+    toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) closeMoreMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMoreMenu();
+  });
+  // Clicking any item in the menu (link or button) closes the menu again.
+  dropdown.querySelectorAll('.save-btn').forEach(btn => {
+    btn.addEventListener('click', closeMoreMenu);
+  });
 })();
 
 document.getElementById('exportBtn').addEventListener('click', () => {

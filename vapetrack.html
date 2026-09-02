@@ -294,6 +294,30 @@
     100%{ box-shadow:0 0 0 rgba(167,139,250,0); }
   }
 
+  /* ---- trophies ---- */
+  .trophy-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .trophy-card-head h2{ margin:0; }
+  .trophy-summary{ font-family:'JetBrains Mono', monospace; font-size:11px; opacity:0.6; flex-shrink:0; }
+  .trophy-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 4px; }
+  .trophy{
+    display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; cursor:pointer;
+    padding:8px 2px; border-radius:12px; transition:background 0.2s; font-family:'Poppins', sans-serif; color:#fff;
+  }
+  .trophy:active{ background:rgba(255,255,255,0.06); }
+  .trophy-icon{
+    width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:19px; background:rgba(255,255,255,0.05); border:1px solid var(--card-border);
+  }
+  .trophy.unlocked .trophy-icon{
+    background:radial-gradient(circle at 35% 30%, #f4f0ff, var(--accent-color) 60%, var(--accent-glow) 100%);
+    box-shadow:0 0 12px rgba(167,139,250,0.55);
+    border-color:transparent;
+  }
+  .trophy.locked .trophy-icon{ filter:grayscale(1); opacity:0.35; }
+  .trophy-name{ font-size:8.7px; text-align:center; line-height:1.25; opacity:0.75; }
+  .trophy.locked .trophy-name{ opacity:0.4; }
+  .trophy-card.trophy-pulse{ animation:xpLevelUpGlow 1.3s ease; }
+
   /* ---- hero / counter ---- */
   .hero-card{ display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center; }
 
@@ -329,6 +353,7 @@
     font-family:'Poppins', sans-serif; font-size:12px; padding:8px 14px; border-radius:999px; cursor:pointer;
   }
   .undo-btn:disabled{ opacity:0.3; cursor:default; }
+  .hero-joke{ font-size:11.5px; opacity:0.55; text-align:center; line-height:1.4; padding:0 6px; }
 
   /* ---- chips ---- */
   .chips-row{ display:flex; gap:10px; }
@@ -396,7 +421,7 @@
   .goal-progress-label{ font-size:11px; opacity:0.6; margin-top:6px; }
 
   /* ---- history ---- */
-  .history-list{ display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; }
+  .history-list{ display:flex; flex-direction:column; gap:6px; }
   .day-group{ background:rgba(255,255,255,0.03); border-radius:10px; overflow:hidden; }
   .day-summary{
     display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; list-style:none; font-size:12.5px;
@@ -407,7 +432,14 @@
   .day-summary-stats .day-total{ color:var(--accent-color); font-weight:500; }
   .day-summary .chevron{ width:12px; height:12px; color:var(--accent-color); transition:transform 0.25s; flex-shrink:0; }
   .day-group[open] .day-summary .chevron{ transform:rotate(180deg); }
-  .day-entries{ display:flex; flex-direction:column; gap:6px; padding:0 10px 10px; }
+  .day-entries{
+    display:flex; flex-direction:column; gap:6px; padding:0 10px 10px;
+    max-height:320px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin; scrollbar-color:var(--accent-color) transparent;
+  }
+  .day-entries::-webkit-scrollbar{ width:5px; }
+  .day-entries::-webkit-scrollbar-track{ background:transparent; }
+  .day-entries::-webkit-scrollbar-thumb{ background:var(--accent-color); border-radius:999px; opacity:0.5; }
   .history-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     background:rgba(255,255,255,0.045); border-radius:10px; padding:8px 10px; font-size:12.5px;
@@ -631,6 +663,7 @@
       </div>
 
       <button id="undoBtn" class="undo-btn" disabled>↺ opravit poslední záznam</button>
+      <div class="hero-joke" id="heroJoke"></div>
     </section>
 
     <section class="card xp-card" id="xpCard">
@@ -716,6 +749,14 @@
         <div class="goal-progress-bar"><div class="goal-progress-fill" id="goalFill"></div></div>
         <div class="goal-progress-label" id="goalLabel"></div>
       </div>
+    </section>
+
+    <section class="card trophy-card" id="trophyCard">
+      <div class="trophy-card-head">
+        <h2 style="margin:0;">Poháry</h2>
+        <div class="trophy-summary" id="trophySummary">0 / 0 splněno</div>
+      </div>
+      <div class="trophy-grid" id="trophyGrid"></div>
     </section>
 
     <section class="card history-card">
@@ -948,6 +989,8 @@
     if(!Array.isArray(d.entries)) d.entries = [];
     if(typeof d.goal !== "number") d.goal = null;
     if(typeof d.xpLastSeenLevel !== "number") d.xpLastSeenLevel = 0;
+    if(!Array.isArray(d.unlockedTrophies)) d.unlockedTrophies = [];
+    if(typeof d.hasExportedBackup !== "boolean") d.hasExportedBackup = false;
     return d;
   }
 
@@ -1050,19 +1093,21 @@
   // roste, jen když se spotřeba v čase snižuje.
   function computeXPState(){
     if(!totalsMap) rebuildTotalsMap();
-    var state = { xp: 0, streakDays: 0 };
+    var state = { xp: 0, streakDays: 0, bestStreak: 0, smokeFreeDayCount: 0, daysTracked: 0 };
     if(!data.entries.length) return state;
 
     var today0 = startOfDay(new Date());
     var minTs = data.entries[0].ts;
     for(var i=1;i<data.entries.length;i++){ if(data.entries[i].ts < minTs) minTs = data.entries[i].ts; }
     var earliestDay = startOfDay(new Date(minTs));
-    var totalDays = Math.round((today0 - earliestDay) / 86400000);
-    totalDays = Math.min(totalDays, 365);
+    var totalDaysRaw = Math.round((today0 - earliestDay) / 86400000);
+    state.daysTracked = totalDaysRaw + 1; // včetně dneška
+    var totalDays = Math.min(totalDaysRaw, 365);
     if(totalDays < 8) return state; // zatím málo historie na spolehlivý základ
 
     var BASELINE_WINDOW = 7;
     var dayXPs = [];
+    var smokeFreeDayCount = 0;
     for(var k=BASELINE_WINDOW; k<totalDays; k++){
       var dayDate = new Date(earliestDay.getFullYear(), earliestDay.getMonth(), earliestDay.getDate()+k);
       var baseSum = 0;
@@ -1077,6 +1122,7 @@
         if(val === 0) xpDay = 3;
       } else if(val === 0){
         xpDay = 25;
+        smokeFreeDayCount++;
       } else if(val < baseline){
         var reduction = (baseline - val) / baseline;
         xpDay = Math.max(1, Math.round(reduction*20));
@@ -1085,7 +1131,12 @@
     }
 
     var xp = 0;
-    for(var s=0;s<dayXPs.length;s++) xp += dayXPs[s];
+    var bestStreak = 0, curRun = 0;
+    for(var s=0;s<dayXPs.length;s++){
+      xp += dayXPs[s];
+      if(dayXPs[s] > 0){ curRun++; if(curRun > bestStreak) bestStreak = curRun; }
+      else curRun = 0;
+    }
     var streak = 0;
     for(var e2=dayXPs.length-1; e2>=0; e2--){
       if(dayXPs[e2] > 0) streak++; else break;
@@ -1093,7 +1144,98 @@
 
     state.xp = xp;
     state.streakDays = streak;
+    state.bestStreak = bestStreak;
+    state.smokeFreeDayCount = smokeFreeDayCount;
     return state;
+  }
+
+  // ---------- poháry / achievements ----------
+  var ACHIEVEMENTS = [
+    { id:"first_entry", icon:"📌", title:"První záznam", desc:"Zaznamenal/a jsi svůj první potah." },
+    { id:"week_tracked", icon:"📅", title:"Týden sledování", desc:"Sleduješ potahy už 7 dní." },
+    { id:"month_tracked", icon:"🗓️", title:"Měsíc sledování", desc:"Sleduješ potahy už 30 dní." },
+    { id:"quarter_tracked", icon:"📆", title:"Čtvrt roku", desc:"Sleduješ potahy už 90 dní." },
+    { id:"year_tracked", icon:"🏆", title:"Celý rok", desc:"Sleduješ potahy už 365 dní." },
+    { id:"first_drop", icon:"📉", title:"První pokles", desc:"Měl/a jsi den s méně potahy, než je tvůj běžný průměr." },
+    { id:"smoke_free_day", icon:"🌙", title:"Bezdymý den", desc:"Zvládl/a jsi celý den na nule, i když je to jinak tvůj běžný den." },
+    { id:"streak3", icon:"🔥", title:"3 dny v řadě", desc:"3 dny v řadě se sníženou spotřebou." },
+    { id:"streak7", icon:"🔥", title:"Týden v řadě", desc:"7 dní v řadě se sníženou spotřebou." },
+    { id:"streak14", icon:"⚡", title:"Dva týdny v řadě", desc:"14 dní v řadě se sníženou spotřebou." },
+    { id:"streak30", icon:"💎", title:"Měsíc v řadě", desc:"30 dní v řadě se sníženou spotřebou." },
+    { id:"streak100", icon:"👑", title:"100 dní v řadě", desc:"100 dní v řadě se sníženou spotřebou." },
+    { id:"level5", icon:"⭐", title:"Level 5", desc:"Dosáhl/a jsi Level 5." },
+    { id:"level10", icon:"🌟", title:"Level 10", desc:"Dosáhl/a jsi Level 10." },
+    { id:"xp100", icon:"✨", title:"100 XP", desc:"Nasbíral/a jsi 100 XP." },
+    { id:"xp500", icon:"💫", title:"500 XP", desc:"Nasbíral/a jsi 500 XP." },
+    { id:"xp1000", icon:"🏅", title:"1000 XP", desc:"Nasbíral/a jsi 1000 XP." },
+    { id:"goal_set", icon:"🎯", title:"Vlastní cíl", desc:"Nastavil/a jsi svůj denní cíl." },
+    { id:"backup_made", icon:"💾", title:"Zálohováno", desc:"Stáhl/a jsi zálohu svých dat." }
+  ];
+  function isAchievementUnlocked(id, s){
+    switch(id){
+      case "first_entry": return data.entries.length >= 1;
+      case "week_tracked": return s.daysTracked >= 7;
+      case "month_tracked": return s.daysTracked >= 30;
+      case "quarter_tracked": return s.daysTracked >= 90;
+      case "year_tracked": return s.daysTracked >= 365;
+      case "first_drop": return s.xp > 0;
+      case "smoke_free_day": return s.smokeFreeDayCount >= 1;
+      case "streak3": return s.bestStreak >= 3;
+      case "streak7": return s.bestStreak >= 7;
+      case "streak14": return s.bestStreak >= 14;
+      case "streak30": return s.bestStreak >= 30;
+      case "streak100": return s.bestStreak >= 100;
+      case "level5": return s.level >= 5;
+      case "level10": return s.level >= 10;
+      case "xp100": return s.xp >= 100;
+      case "xp500": return s.xp >= 500;
+      case "xp1000": return s.xp >= 1000;
+      case "goal_set": return data.goal !== null && data.goal > 0;
+      case "backup_made": return !!data.hasExportedBackup;
+      default: return false;
+    }
+  }
+  function renderTrophies(s){
+    var grid = document.getElementById("trophyGrid");
+    var summaryEl = document.getElementById("trophySummary");
+    if(!grid) return;
+
+    var unlockedIds = [];
+    grid.innerHTML = "";
+    for(var i=0;i<ACHIEVEMENTS.length;i++){
+      var a = ACHIEVEMENTS[i];
+      var unlocked = isAchievementUnlocked(a.id, s);
+      if(unlocked) unlockedIds.push(a.id);
+
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "trophy" + (unlocked ? " unlocked" : " locked");
+      btn.innerHTML = '<span class="trophy-icon">' + a.icon + '</span><span class="trophy-name">' + escapeHtml(a.title) + '</span>';
+      (function(a, unlocked){
+        btn.addEventListener("click", function(){
+          showToast((unlocked ? "✅ " : "🔒 ") + a.title + " — " + a.desc, 3200);
+        });
+      })(a, unlocked);
+      grid.appendChild(btn);
+    }
+
+    if(summaryEl) summaryEl.textContent = unlockedIds.length + " / " + ACHIEVEMENTS.length + " splněno";
+
+    var prevUnlocked = {};
+    (data.unlockedTrophies || []).forEach(function(id){ prevUnlocked[id] = true; });
+    var newly = unlockedIds.filter(function(id){ return !prevUnlocked[id]; });
+    if(newly.length){
+      data.unlockedTrophies = unlockedIds;
+      saveData();
+      var card = document.getElementById("trophyCard");
+      if(card){ card.classList.remove("trophy-pulse"); void card.offsetWidth; card.classList.add("trophy-pulse"); }
+      if(newly.length === 1){
+        var one = ACHIEVEMENTS.filter(function(a){ return a.id === newly[0]; })[0];
+        showToast("🏆 Nový pohár: " + one.title + "!", 3200);
+      } else {
+        showToast("🏆 Nové poháry: " + newly.length + "×!", 3200);
+      }
+    }
   }
 
   function xpDayOfYearSeed(){
@@ -1101,6 +1243,38 @@
     var start = new Date(now.getFullYear(),0,0);
     return Math.floor((now - start) / 86400000);
   }
+
+  // ---------- vtipná hláška dne ----------
+  var DAILY_JOKES = [
+    "Tvoje plíce ti dnes posílají děkovný dopis. Bez razítka, ale upřímný.",
+    "I draci občas dají svým plicím pauzu.",
+    "Statistiky nelžou. Tvoje plíce ti tleskají potichu, ale tleskají.",
+    "Oblak dnes zůstane radši jen na obloze.",
+    "Tvoje peněženka si dnes trochu oddechla. Řekla jí to i platební karta.",
+    "I superhrdinové mají dny volna. Dnešek je jeden z nich.",
+    "Kdyby XP šlo směnit za sušenky, byl/a bys už boháč/ka.",
+    "Tvoje budoucí já ti právě potichu děkuje. Bez dramatu, jen tak mimochodem.",
+    "I nejlepší DJs dělají pauzy mezi songy. Ty děláš pauzy mezi potahy.",
+    "Tohle tempo by pochválil i tvůj gauč.",
+    "Level up! Někde tam venku ti teď tleská neviditelný fanklub.",
+    "Tvoje e-cigareta si dnes možná trochu stýská. Přežije to.",
+    "Nikdo neříkal, že to bude lehké. Ale taky nikdo neříkal, že to nebude vtipné.",
+    "Za tenhle streak by tě pochválil i tvůj router – a ten toho vidí hodně.",
+    "Menší oblak dnes, o to větší styl.",
+    "Tvoje baterka do vapu se dneska nudí. To přežije taky.",
+    "Sousedi ti asi nepoděkujou nahlas. Vzduch kolem tebe je ale o něco čistší.",
+    "Tohle je ten typ pokroku, co se nedá vyfotit, ale jde cítit.",
+    "Data ukazují pokrok. Tvůj smysl pro humor ukazuje, že jsi v pohodě.",
+    "Ještě jeden takový den a začneš potřebovat vlastní trofejovou skříň.",
+    "Tvoje plíce právě zvažují, jestli ti napsat děkovný email nebo rovnou básničku.",
+    "I batoh někdy potřebuje odlehčit. Dnešek je pro tvoje plíce přesně tohle.",
+    "Klidně si to představ jako level ve hře. Bonusové body za styl.",
+    "Tenhle den se nezapíše do učebnic, ale do tvojí historie rozhodně ano."
+  ];
+  function pickDailyJoke(){
+    return DAILY_JOKES[(xpDayOfYearSeed()*7 + 3) % DAILY_JOKES.length];
+  }
+
   var XP_SLOGANS = {
     empty: [
       "Klepni na tlačítko a začni sbírat svoje první XP.",
@@ -1186,6 +1360,9 @@
     }
 
     document.getElementById("xpSlogan").textContent = pickSlogan(state);
+
+    state.level = info.level;
+    renderTrophies(state);
 
     if(info.level > data.xpLastSeenLevel){
       data.xpLastSeenLevel = info.level;
@@ -1275,6 +1452,11 @@
     var fileDate = new Date().toISOString().slice(0,10);
     downloadBlob(blob, "vapetrack-zaloha-" + fileDate + ".json");
     showToast("Záloha stažena");
+    if(!data.hasExportedBackup){
+      data.hasExportedBackup = true;
+      saveData();
+      renderXP();
+    }
   }
 
   var pendingImport = null;
@@ -1504,6 +1686,8 @@
       lastSubEl.textContent = "zatím žádný záznam";
     }
     document.getElementById("undoBtn").disabled = data.entries.length === 0;
+    var jokeEl = document.getElementById("heroJoke");
+    if(jokeEl) jokeEl.textContent = "😄 " + pickDailyJoke();
   }
 
   function tickRelative(){
@@ -1899,6 +2083,7 @@
     data.goal = (v === "" || isNaN(n) || n <= 0) ? null : n;
     saveData();
     renderGoal();
+    renderXP();
   });
 
   var confirmOverlay = document.getElementById("confirmOverlay");

@@ -132,6 +132,14 @@
   .export-menu-item:hover{background:rgba(124,92,255,.15);}
   .export-menu-item-title{display:block;font-size:13px;font-weight:600;}
   .export-menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;}
+
+  /* "⋮ Více" — na desktopu neviditelný obal (display:contents), tlačítka se
+     chovají jako běžné položky lišty. Teprve na mobilu (viz media query níž)
+     se schovají za tlačítko a otevírají jako rozbalovací menu, ať lišta
+     nezabírá tolik místa a nepřeskakuje na dva řádky. */
+  .topbar-more{display:contents;}
+  .topbar-more-menu{display:contents;}
+  .topbar-more-toggle{display:none;}
   .save-btn{
     background:transparent;color:var(--ui-text);border:1px solid var(--ui-line);padding:8px 14px;
     border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -205,7 +213,7 @@
     .topbar-brand{font-size:14px;flex:1 1 auto;}
     .topbar-brand-tagline{display:none;}
     .topbar-sub{display:none !important;}
-    .autosave-status{order:5;flex:1 1 100%;}
+    .autosave-status{font-size:11px;}
     .workspace{flex-direction:column;overflow:visible;}
     .panel{
       width:100%;flex:1 1 auto;border-right:none;border-bottom:1px solid var(--ui-line);
@@ -215,6 +223,23 @@
     .workspace.show-editor .preview-wrap{display:none;}
     .workspace.show-preview .panel{display:none;}
     .preview-frame-holder{padding:12px;}
+
+    /* Méně časté akce (EN, celá obrazovka, návod, články, nový/uložit/načíst
+       projekt) se na mobilu schovají za tlačítko "⋮", ať lišta nezabírá
+       tolik místa — na desktopu zůstávají vidět normálně (viz výš). */
+    .topbar-more{display:block;position:relative;}
+    .topbar-more-toggle{
+      display:inline-flex;align-items:center;gap:4px;
+    }
+    .topbar-more-menu{
+      display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:50;
+      flex-direction:column;gap:4px;min-width:230px;
+      background:var(--ui-bg-2);border:1px solid var(--ui-line);
+      border-radius:10px;padding:8px;box-shadow:0 12px 32px -8px rgba(0,0,0,.5);
+    }
+    .topbar-more.open .topbar-more-menu{display:flex;}
+    .topbar-more-menu .save-btn{width:100%;justify-content:flex-start;}
+    .topbar-more-menu .btn-label{display:inline !important;}
   }
   .export-btn .btn-label-short{display:none;}
   @media(max-width:480px){
@@ -567,17 +592,9 @@
     <div class="topbar-brand"><span class="topbar-brand-name">WEBZEN</span><span class="topbar-brand-tagline"> — Tvorba webu snadno a rychle — bez kódování a ZDARMA.</span></div>
     <div class="topbar-sub">made in SYNTHLUCIDA</div>
     <div class="topbar-spacer"></div>
-    <a class="save-btn" href="./webzen-en.html" title="Switch to English version">🌐 <span class="btn-label">EN</span></a>
-    <button class="save-btn" id="fullscreenBtn" title="Přepnout na celou obrazovku (schová horní lišty)">⛶ <span class="btn-label">Celá obrazovka</span></button>
-    <button class="save-btn" id="showGuideBtn" title="Návod k použití">ℹ️ <span class="btn-label">Návod</span></button>
-    <button class="save-btn" id="showArticlesBtn" title="Články o tvorbě webu">📚 <span class="btn-label">Články</span></button>
-    <span class="autosave-status" id="autosaveStatus"></span>
     <button class="save-btn" id="undoBtn" title="Zpět (Ctrl+Z)" disabled>↶ <span class="btn-label">Zpět</span></button>
     <button class="save-btn" id="redoBtn" title="Vpřed (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Vpřed</span></button>
-    <button class="save-btn" id="resetProjectBtn" title="Vymaže rozpracovaný obsah a vrátí vzorové texty">🗑️ <span class="btn-label">Nový projekt</span></button>
-    <button class="save-btn" id="saveProjectBtn" title="Uloží rozpracovanou práci do souboru .json">💾 <span class="btn-label">Uložit projekt</span></button>
-    <button class="save-btn" id="loadProjectBtn" title="Načte dříve uložený soubor .json">📂 <span class="btn-label">Načíst projekt</span></button>
-    <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
+    <span class="autosave-status" id="autosaveStatus"></span>
     <div class="export-dropdown" id="exportDropdown">
       <button type="button" class="export-btn" id="exportToggleBtn" title="Stáhnout web" aria-haspopup="true" aria-expanded="false">↓ <span class="btn-label-full">Stáhnout</span><span class="btn-label-short">Stáhnout</span> <span class="dropdown-caret">▾</span></button>
       <div class="export-menu" id="exportMenu" role="menu">
@@ -589,6 +606,19 @@
           <span class="export-menu-item-title">Stáhnout celý web</span>
           <span class="export-menu-item-desc">Stáhne hlavní stránku, všechny vlastní stránky i 404.html jako samostatné soubory</span>
         </button>
+      </div>
+    </div>
+    <div class="topbar-more" id="topbarMore">
+      <button type="button" class="save-btn topbar-more-toggle" id="topbarMoreToggle" title="Další možnosti" aria-haspopup="true" aria-expanded="false">⋮ <span class="btn-label">Více</span></button>
+      <div class="topbar-more-menu" id="topbarMoreMenu" role="menu">
+        <a class="save-btn" href="./webzen-en.html" title="Switch to English version">🌐 <span class="btn-label">EN</span></a>
+        <button class="save-btn" id="fullscreenBtn" title="Přepnout na celou obrazovku (schová horní lišty)">⛶ <span class="btn-label">Celá obrazovka</span></button>
+        <button class="save-btn" id="showGuideBtn" title="Návod k použití">ℹ️ <span class="btn-label">Návod</span></button>
+        <button class="save-btn" id="showArticlesBtn" title="Články o tvorbě webu">📚 <span class="btn-label">Články</span></button>
+        <button class="save-btn" id="resetProjectBtn" title="Vymaže rozpracovaný obsah a vrátí vzorové texty">🗑️ <span class="btn-label">Nový projekt</span></button>
+        <button class="save-btn" id="saveProjectBtn" title="Uloží rozpracovanou práci do souboru .json">💾 <span class="btn-label">Uložit projekt</span></button>
+        <button class="save-btn" id="loadProjectBtn" title="Načte dříve uložený soubor .json">📂 <span class="btn-label">Načíst projekt</span></button>
+        <input type="file" id="loadProjectFile" accept="application/json,.json" style="display:none;">
       </div>
     </div>
   </div>
@@ -4815,6 +4845,35 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
     if (e.key === 'Escape') closeExportMenu();
   });
   dropdown.__closeExportMenu = closeExportMenu;
+})();
+
+(function(){
+  // Tlačítko "⋮ Více" — na mobilu schovává méně časté akce (EN, celá
+  // obrazovka, návod, články, nový/uložit/načíst projekt) do rozbalovacího
+  // menu, ať horní lišta nezabírá tolik místa. Na desktopu se nijak
+  // neprojeví, tam jsou tlačítka pořád vidět normálně vedle sebe.
+  const dropdown = document.getElementById('topbarMore');
+  const toggleBtn = document.getElementById('topbarMoreToggle');
+  function closeMoreMenu(){
+    dropdown.classList.remove('open');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !dropdown.classList.contains('open');
+    dropdown.classList.toggle('open', willOpen);
+    toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) closeMoreMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMoreMenu();
+  });
+  // Kliknutí na kteroukoli položku v menu (odkaz nebo tlačítko) menu zase zavře.
+  dropdown.querySelectorAll('.save-btn').forEach(btn => {
+    btn.addEventListener('click', closeMoreMenu);
+  });
 })();
 
 document.getElementById('exportBtn').addEventListener('click', () => {
