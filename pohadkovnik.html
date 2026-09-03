@@ -679,8 +679,6 @@
   ];
   var THEME_KEY = "pohadkovnik_theme";
   var HIST_KEY = "pohadkovnik_historie";
-  var KOMBINACE_KEY = "pohadkovnik_posledni_kombinace";
-  var POCET_PAMATOVANYCH = 5;
 
   var ZAKAZANA = ['kurva','píča','čurák','hovno','sráč','debil','kokot','zmrd','mrdat','píčus','sviňa','blb','idiot','hajzl'];
   function jeNevhodne(t){ var l=(t||'').toLowerCase(); return ZAKAZANA.some(function(w){ return l.indexOf(w)>-1; }); }
@@ -692,6 +690,47 @@ function SO(place){ return O_(place, "", "a"); }
 function COMPL(hero, place){ return (hero.rod === 'f' && place.obyvatelRod === 'f') ? "y" : "i"; }
 function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function rozsah(n){
+  var a = [];
+  for(var i=0;i<n;i++) a.push(i);
+  return a;
+}
+function nahodnePoradi(n){
+  var a = rozsah(n);
+  for(var i=a.length-1;i>0;i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+// "Taškový" los (shuffle bag): vybírá z pole tak, aby se stejná položka nezopakovala
+// dřív, než se vystřídají všechny ostatní — teprve pak se pořadí znovu zamíchá.
+// Díky tomu appka dokola nepapouškuje stejné hrdiny/místa/zápletky. Stav si appka
+// pamatuje v localStorage (per klíč), aby platil i mezi jednotlivými pohádkami.
+var BAG_PREFIX = "pohadkovnik_bag_";
+function bagPick(key, arr){
+  if(!arr || arr.length === 0) return undefined;
+  if(arr.length === 1) return arr[0];
+  var storageKey = BAG_PREFIX + key;
+  var stav = null;
+  try{ stav = JSON.parse(localStorage.getItem(storageKey)); }catch(e){ stav = null; }
+  if(!stav || !Array.isArray(stav.zbyva) || stav.pocet !== arr.length){
+    stav = { zbyva: nahodnePoradi(arr.length), pocet: arr.length, posledni: -1 };
+  }
+  if(stav.zbyva.length === 0){
+    var nove = nahodnePoradi(arr.length);
+    if(nove.length > 1 && nove[0] === stav.posledni){
+      var zamenIdx = 1 + Math.floor(Math.random()*(nove.length-1));
+      var tmp = nove[0]; nove[0] = nove[zamenIdx]; nove[zamenIdx] = tmp;
+    }
+    stav.zbyva = nove;
+  }
+  var idx = stav.zbyva.shift();
+  stav.posledni = idx;
+  try{ localStorage.setItem(storageKey, JSON.stringify(stav)); }catch(e){}
+  return arr[idx];
+}
 
 var HRDINOVE = [
   {jmeno:"malý drak Emil", rod:"m"},
@@ -792,7 +831,9 @@ var UVODY = [
   "V zemi, kterou najdeš jen ve snech,",
   "Tam, kde končí mapy a začíná fantazie,",
   "Před dávnými časy, ještě než uměl kdokoliv spočítat všechny hvězdy,",
-  "Říká se, že jednoho večera,"
+  "Říká se, že jednoho večera,",
+  "Kdesi za devatero kopci a devatero mlýny,",
+  "V čase, kdy se hvězdy teprve učily svítit,"
 ];
 
 var TONE_KEYS = ["veselá","dobrodruzna","konejsiva"];
@@ -816,6 +857,9 @@ var INTRA_VARIANTY = [
   },
   function(hero, place, mistoNazev, uvod){
     return uvod+" "+hero.jmeno+" nebyl"+S(hero)+" "+H_(hero,"žádný obyčejný tvor","žádná obyčejná bytost")+". Bydlel"+S(hero)+" v kraji zvaném "+mistoNazev+" — "+place.popis+" — a v hlavě se "+H_(hero,"mu","jí")+" pořád honilo tisíc otázek o tom, co všechno svět ještě skrývá.";
+  },
+  function(hero, place, mistoNazev, uvod){
+    return uvod+" žil"+S(hero)+" v kraji zvaném "+mistoNazev+" — "+place.popis+" — "+hero.jmeno+", "+H_(hero,"tvor s nenasytnou zvědavostí","bytost s nenasytnou zvědavostí")+", kter"+H_(hero,"ý","á")+" snil"+S(hero)+" o dni, kdy zažije něco, o čem bude moct vyprávět ještě za mnoho let.";
   }
 ];
 
@@ -825,6 +869,9 @@ var INTRA_MLADSI_VARIANTY = [
   },
   function(hero, mistoNazev){
     return "V kraji zvaném "+mistoNazev+" žil"+S(hero)+" jednou "+hero.jmeno+".";
+  },
+  function(hero, mistoNazev){
+    return "V kraji zvaném "+mistoNazev+" bydlel"+S(hero)+" "+hero.jmeno+" a tohle je "+H_(hero,"jeho","její")+" malá pohádka.";
   }
 ];
 
@@ -900,6 +947,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return cap(hero.jmeno)+" si tu noc "+H_(hero,"uvědomil","uvědomila")+", že ostatní "+H_(hero,"ho","ji")+" nesoudí zdaleka tak přísně, jak si "+H_(hero,"sám","sama")+" myslel"+S(hero)+". "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Ještě dlouho potom si "+hero.jmeno+" "+H_(hero,"pamatoval","pamatovala")+" ten pocit, kdy se chvění v kolenou proměnilo v hrdost. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"pochopil","pochopila")+", že o odvaze se dá jenom mluvit, dokud ji člověk sám nezažije. "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -913,12 +966,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return cap(hero.jmeno)+" "+H_(hero,"zjistil","zjistila")+", že odvaha znamená jít dál, i když je trochu strach. Dobrou noc!"; },
       function(hero){ return "Odvaha je, když se trochu bojíš, a přesto jdeš dál. Dobrou noc!"; },
-      function(hero){ return "Strach je jen návštěvník — nakonec vždycky odejde. Dobrou noc!"; }
+      function(hero){ return "Strach je jen návštěvník — nakonec vždycky odejde. Dobrou noc!"; },
+      function(hero){ return "I malý krůček odvahy se počítá. Dobrou noc!"; }
     ],
     titul: [
       function(hero){ return cap(hero.jmeno)+" a noc, kdy "+H_(hero,"přemohl","přemohla")+" strach"; },
       function(hero){ return cap(hero.jmeno)+" a lávka nad hlubokou roklí"; },
-      function(hero){ return cap(hero.jmeno)+" a slova, která pomohla"; }
+      function(hero){ return cap(hero.jmeno)+" a slova, která pomohla"; },
+      function(hero){ return cap(hero.jmeno)+" a chvíle za oponou"; }
     ]
   },
 
@@ -991,6 +1046,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" s pocitem, že stačilo přestat čekat a udělat ten první krok "+H_(hero,"sám","sama")+". "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" s příjemným pocitem, že na světě je teď o jednoho kamaráda víc. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Ten večer si "+hero.jmeno+" "+H_(hero,"uvědomil","uvědomila")+", že samota dokáže zmizet rychleji, než by si "+H_(hero,"myslel","myslela")+". "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -1004,12 +1065,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return cap(hero.jmeno)+" "+H_(hero,"pochopil","pochopila")+", že i malý úsměv dokáže najít nového kamaráda. Dobrou noc!"; },
       function(hero){ return "Sdílet svačinu je skvělý způsob, jak si najít kamaráda. Dobrou noc!"; },
-      function(hero){ return "Někdy stačí jen říct ahoj. Dobrou noc!"; }
+      function(hero){ return "Někdy stačí jen říct ahoj. Dobrou noc!"; },
+      function(hero){ return "Kamarády najdeš, i když je nehledáš. Dobrou noc!"; }
     ],
     titul: [
       function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a nové přátelství v kraji "+mistoNazev; },
       function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a podané sousto"; },
-      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a obyčejné „Ahoj“"; }
+      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a obyčejné „Ahoj“"; },
+      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a hra, která sblížila"; }
     ]
   },
 
@@ -1082,6 +1145,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return cap(hero.jmeno)+" "+H_(hero,"pochopil","pochopila")+", že klíček "+H_(hero,"ho","ji")+" nakonec nedovedl ke zlatu, ale k něčemu mnohem osobnějšímu — ke kousku vlastní rodinné historie. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" s rukou pevně sevřenou kolem svého objevu a s hlavou plnou vzpomínek na cestu. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Než "+hero.jmeno+" "+H_(hero,"usnul","usnula")+", ještě jednou si v duchu "+H_(hero,"prošel","prošla")+" celou cestu a "+H_(hero,"usmál se","usmála se")+" nad tím, jak moc si ji "+H_(hero,"užil","užila")+". "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -1095,12 +1164,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return "Největším pokladem bylo nakonec nové přátelství. Dobrou noc!"; },
       function(hero){ return "Někdy je největší poklad ten, co si přineseš v srdci. Dobrou noc!"; },
-      function(hero){ return "Sny nás někdy vedou k překvapením. Dobrou noc!"; }
+      function(hero){ return "Sny nás někdy vedou k překvapením. Dobrou noc!"; },
+      function(hero){ return "Cesta za pokladem bývá zábavnější než poklad sám. Dobrou noc!"; }
     ],
     titul: [
       function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a poklad z kraje "+mistoNazev; },
       function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a tři hádanky"; },
-      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a zvonek ze snu"; }
+      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a zvonek ze snu"; },
+      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a klíček bez zámku"; }
     ]
   },
 
@@ -1173,6 +1244,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" s pocitem, že i malá pomoc dokáže někomu vrátit úsměv na tvář. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"cítil","cítila")+" ještě dlouho hřejivé teplo v hrudi z toho, že "+H_(hero,"mohl","mohla")+" být užitečn"+H_(hero,"ý","á")+". "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Než "+hero.jmeno+" "+H_(hero,"usnul","usnula")+", "+H_(hero,"pomyslel","pomyslela")+" si, že být nablízku, když to někdo potřebuje, je vlastně to nejdůležitější, co může udělat. "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -1186,12 +1263,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return "Pomáhat kamarádům je krásný pocit. Dobrou noc!"; },
       function(hero){ return "Nejlepší je nikdy neváhat, když někdo potřebuje pomoc. Dobrou noc!"; },
-      function(hero){ return "Když někdo volá o pomoc, neváhej. Dobrou noc!"; }
+      function(hero){ return "Když někdo volá o pomoc, neváhej. Dobrou noc!"; },
+      function(hero){ return "Pomoc se vždycky nějak vrátí. Dobrou noc!"; }
     ],
     titul: [
       function(hero){ return cap(hero.jmeno)+" spěchá na pomoc"; },
       function(hero){ return cap(hero.jmeno)+" a den, kdy nikdo nezaváhal"; },
-      function(hero){ return cap(hero.jmeno)+" a volání o pomoc"; }
+      function(hero){ return cap(hero.jmeno)+" a volání o pomoc"; },
+      function(hero){ return cap(hero.jmeno)+" a stopa ke starému stromu"; }
     ]
   },
 
@@ -1264,6 +1343,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return "Když "+hero.jmeno+" konečně "+H_(hero,"zahlédl","zahlédla")+" známé tváře, "+H_(hero,"rozběhl","rozběhla")+" se k nim s úlevou v srdci. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" ve vlastní posteli s pocitem, že už nikdy nebude brát domov jako samozřejmost. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Než "+hero.jmeno+" "+H_(hero,"usnul","usnula")+", "+H_(hero,"zamával","zamávala")+" v duchu všem, kdo "+H_(hero,"mu","jí")+" pomohli najít cestu zpátky. "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -1277,12 +1362,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return "Doma je vždycky nejkrásněji. Dobrou noc!"; },
       function(hero){ return "Cesta domů je vždycky ta nejhezčí cesta. Dobrou noc!"; },
-      function(hero){ return "Když se ztratíš, někdo tě vždycky najde. Dobrou noc!"; }
+      function(hero){ return "Když se ztratíš, někdo tě vždycky najde. Dobrou noc!"; },
+      function(hero){ return "Domov na tebe vždycky počká. Dobrou noc!"; }
     ],
     titul: [
       function(hero){ return cap(hero.jmeno)+" a cesta domů"; },
       function(hero){ return cap(hero.jmeno)+" a první světla domova"; },
-      function(hero){ return cap(hero.jmeno)+" a ztracený pohled"; }
+      function(hero){ return cap(hero.jmeno)+" a ztracený pohled"; },
+      function(hero){ return cap(hero.jmeno)+" a cesta davem zpátky"; }
     ]
   },
 
@@ -1355,6 +1442,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return cap(hero.jmeno)+" "+H_(hero,"usnul","usnula")+" s melodií ještě v hlavě a pocitem, že někdy je největší tajemství jen chvíle ticha pro sebe. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" s pocitem, že svět kolem "+H_(hero,"něj","ní")+" skrývá ještě spoustu krásných věcí, které teprve čekají na objevení. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Než "+hero.jmeno+" "+H_(hero,"usnul","usnula")+", "+H_(hero,"usmál se","usmála se")+" při pomyšlení, kolik takových tajemství možná ještě čeká. "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -1368,12 +1461,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return "Tajemství někdy skrývají to nejhezčí. Dobrou noc!"; },
       function(hero){ return "Nejkrásnější tajemství jsou ta, co skrývají dárek. Dobrou noc!"; },
-      function(hero){ return "Trpělivé hledání se vždycky vyplatí. Dobrou noc!"; }
+      function(hero){ return "Trpělivé hledání se vždycky vyplatí. Dobrou noc!"; },
+      function(hero){ return "Zvědavost se někdy pěkně vyplatí. Dobrou noc!"; }
     ],
     titul: [
       function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a tajemství kraje "+mistoNazev; },
       function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a lístek psaný třpytivým inkoustem"; },
-      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a poslední kousek skládačky"; }
+      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a poslední kousek skládačky"; },
+      function(hero, place, mistoNazev){ return cap(hero.jmeno)+" a píseň pro radost"; }
     ]
   },
 
@@ -1446,6 +1541,12 @@ var THEME_STORIES = {
       },
       function(hero, tonKlic){
         return cap(hero.jmeno)+" "+H_(hero,"pochopil","pochopila")+", že i po čtyřech nezdarech může přijít pátý pokus, který se konečně povede. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return cap(hero.jmeno)+" "+H_(hero,"usínal","usínala")+" s pocitem, že věci, které nejdřív nejdou, nakonec jdou skoro vždycky. "+toneSentence(hero, tonKlic);
+      },
+      function(hero, tonKlic){
+        return "Než "+hero.jmeno+" "+H_(hero,"usnul","usnula")+", "+H_(hero,"pomyslel","pomyslela")+" si, že zítra to půjde ještě o kousek líp. "+toneSentence(hero, tonKlic);
       }
     ],
     mladsiCore: [
@@ -1459,12 +1560,14 @@ var THEME_STORIES = {
     mladsiZaver: [
       function(hero){ return "Kdo to nevzdá, nakonec to dokáže. Dobrou noc!"; },
       function(hero){ return "Zkoušet znovu a znovu se nakonec vždycky vyplatí. Dobrou noc!"; },
-      function(hero){ return "Chyby nás jen posouvají dál. Dobrou noc!"; }
+      function(hero){ return "Chyby nás jen posouvají dál. Dobrou noc!"; },
+      function(hero){ return "Trpělivost nakonec přinese ovoce. Dobrou noc!"; }
     ],
     titul: [
       function(hero){ return cap(hero.jmeno)+" to nikdy "+H_(hero,"nevzdal","nevzdala"); },
       function(hero){ return cap(hero.jmeno)+" a trpělivý učitel"; },
-      function(hero){ return cap(hero.jmeno)+" a chyba, která pomohla"; }
+      function(hero){ return cap(hero.jmeno)+" a chyba, která pomohla"; },
+      function(hero){ return cap(hero.jmeno)+" a loďka, která nakonec vyplula"; }
     ]
   }
 };
@@ -1486,27 +1589,12 @@ var teKlice = Object.keys(THEME_STORIES);
     return arr.map(function(p){ return "<p>"+escapeHtml(p)+"</p>"; }).join("");
   }
 
-  function updateComboHint(){
-    var el = document.getElementById("comboHint");
-    if(!el) return;
-    var obyvateleCelkem = miKlice.reduce(function(sum, k){ return sum + MISTA[k].obyvatele.length; }, 0);
-    var n = HRDINOVE.length * obyvateleCelkem * teKlice.length * UVODY.length * INTRA_VARIANTY.length;
-    el.textContent = "přes " + n.toLocaleString('cs-CZ') + " kombinací pohádek";
-  }
-
   function naplnSelecty(){
     var mistaSel = document.getElementById("mista");
     var temaSel = document.getElementById("tema");
     var optHtml = '<option value="random">Nechat kouzlo vybrat</option>';
     mistaSel.innerHTML = optHtml + miKlice.map(function(k){ return '<option value="'+k+'">'+cap(k)+'</option>'; }).join('');
     temaSel.innerHTML = optHtml + teKlice.map(function(k){ return '<option value="'+k+'">'+THEME_LABELS[k]+'</option>'; }).join('');
-  }
-
-  function nactiKombinaceHistorii(){
-    try{ return JSON.parse(localStorage.getItem(KOMBINACE_KEY)) || []; }catch(e){ return []; }
-  }
-  function ulozKombinaceHistorii(arr){
-    try{ localStorage.setItem(KOMBINACE_KEY, JSON.stringify(arr)); }catch(e){}
   }
 
   function vygenerujKandidata(){
@@ -1517,57 +1605,51 @@ var teKlice = Object.keys(THEME_STORIES);
     var vek = document.getElementById("age").value;
     var tonSel = document.getElementById("tonSelect").value;
 
-    var hero = heroInput ? {jmeno: heroInput, rod: heroRodSel} : pick(HRDINOVE);
-    var mistoKlic = mistoSel === "random" ? pick(miKlice) : mistoSel;
+    // Vše níže se losuje přes bagPick ("taškový" los) místo čistě náhodně —
+    // appka si tak pamatuje, co už nedávno padlo, a stejná věc (hrdina, místo,
+    // dějová linka, konec...) se nezopakuje dřív, než se vystřídají všechny
+    // ostatní možnosti. Nejdůležitější je to u dejIdx: ten určuje CELOU
+    // dějovou kostru pohádky (problém → cesta → zápletka → řešení), takže
+    // právě tady byla repetitivnost nejvíc vidět.
+    var hero = heroInput ? {jmeno: heroInput, rod: heroRodSel} : bagPick("hrdina", HRDINOVE);
+    var mistoKlic = mistoSel === "random" ? bagPick("misto", miKlice) : mistoSel;
     var mistoRaw = MISTA[mistoKlic];
     var mistoNazev = cap(mistoKlic);
-    var obyvatelPick = pick(mistoRaw.obyvatele);
+    var obyvatelPick = bagPick("obyvatel_"+mistoKlic, mistoRaw.obyvatele);
     var place = { popis: mistoRaw.popis, obyvatel: obyvatelPick.jmeno, obyvatelRod: obyvatelPick.rod };
-    var temaNazev = temaSel === "random" ? pick(teKlice) : temaSel;
+    var temaNazev = temaSel === "random" ? bagPick("tema", teKlice) : temaSel;
     var theme = THEME_STORIES[temaNazev];
-    var uvod = pick(UVODY);
-    var tonKlic = tonSel === "random" ? pick(TONE_KEYS) : tonSel;
-    var dejIdx = Math.floor(Math.random() * theme.problem.length);
-    var maZapletku = Math.random() < 0.5;
-
-    var podpis = temaNazev+"|"+mistoKlic+"|"+dejIdx+"|"+obyvatelPick.jmeno+"|"+(heroInput || hero.jmeno)+"|"+vek;
+    var uvod = bagPick("uvod", UVODY);
+    var tonKlic = tonSel === "random" ? bagPick("tonalita", TONE_KEYS) : tonSel;
+    var dejIdx = bagPick("dej_"+temaNazev, rozsah(theme.problem.length));
+    var maZapletku = bagPick("zapletka_"+temaNazev, [true, false]);
 
     return {
       hero:hero, mistoKlic:mistoKlic, mistoNazev:mistoNazev, place:place,
       temaNazev:temaNazev, theme:theme, uvod:uvod, tonKlic:tonKlic,
-      dejIdx:dejIdx, maZapletku:maZapletku, vek:vek, podpis:podpis
+      dejIdx:dejIdx, maZapletku:maZapletku, vek:vek
     };
   }
 
   function vytvorPohadku(){
-    var historie = nactiKombinaceHistorii();
-    var k, pokusy = 0;
-    do {
-      k = vygenerujKandidata();
-      pokusy++;
-    } while(historie.indexOf(k.podpis) !== -1 && pokusy < 10);
-
-    historie.unshift(k.podpis);
-    if(historie.length > POCET_PAMATOVANYCH) historie = historie.slice(0, POCET_PAMATOVANYCH);
-    ulozKombinaceHistorii(historie);
-
-    var hero = k.hero, place = k.place, mistoNazev = k.mistoNazev, theme = k.theme;
+    var k = vygenerujKandidata();
+    var hero = k.hero, place = k.place, mistoNazev = k.mistoNazev, theme = k.theme, temaNazev = k.temaNazev;
     var uvod = k.uvod, tonKlic = k.tonKlic, dejIdx = k.dejIdx, vek = k.vek;
 
     var odstavce = [];
     if(vek === "mladsi"){
-      odstavce.push(pick(INTRA_MLADSI_VARIANTY)(hero, mistoNazev));
-      odstavce.push(pick(theme.mladsiCore)(hero, place, mistoNazev));
-      odstavce.push(pick(theme.mladsiZaver)(hero));
+      odstavce.push(bagPick("intra_mladsi", INTRA_MLADSI_VARIANTY)(hero, mistoNazev));
+      odstavce.push(bagPick("mladsiCore_"+temaNazev, theme.mladsiCore)(hero, place, mistoNazev));
+      odstavce.push(bagPick("mladsiZaver_"+temaNazev, theme.mladsiZaver)(hero));
     } else {
-      odstavce.push(pick(INTRA_VARIANTY)(hero, place, mistoNazev, uvod));
+      odstavce.push(bagPick("intra", INTRA_VARIANTY)(hero, place, mistoNazev, uvod));
       odstavce.push(theme.problem[dejIdx](hero, place, mistoNazev));
       odstavce.push(theme.cesta[dejIdx](hero, place, mistoNazev));
       if(k.maZapletku){
         odstavce.push(theme.peripetie[dejIdx % theme.peripetie.length](hero, place, mistoNazev));
       }
       odstavce.push(theme.reseni[dejIdx](hero, place, mistoNazev));
-      odstavce.push(pick(theme.zaver)(hero, tonKlic));
+      odstavce.push(bagPick("zaver_"+temaNazev, theme.zaver)(hero, tonKlic));
     }
 
     var nazev = theme.titul[dejIdx % theme.titul.length](hero, place, mistoNazev);
@@ -1897,7 +1979,7 @@ var teKlice = Object.keys(THEME_STORIES);
   var botStatusEl = document.getElementById("botStatus");
   if(botStatusEl){
     botStatusEl.addEventListener("click", function(){
-      showToast(pick(BOT_VTIPY));
+      showToast(bagPick("bot_vtip", BOT_VTIPY));
     });
   }
 
@@ -1940,7 +2022,6 @@ var teKlice = Object.keys(THEME_STORIES);
   }
 
   naplnSelecty();
-  updateComboHint();
   applyTheme(getSelectedTheme(), false);
   renderThemeGrid();
   updateBrandDateTime();
