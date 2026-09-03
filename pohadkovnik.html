@@ -16,12 +16,16 @@
       magenta: ['#e879f9', '#4a1259']
     };
     try {
-      var id = localStorage.getItem('pohadkovnik_theme');
-      var pair = THEME_COLORS[id];
-      if(pair){
-        var root = document.documentElement.style;
-        root.setProperty('--accent-color', pair[0]);
-        root.setProperty('--accent-glow', pair[1]);
+      var id = localStorage.getItem('pohadkovnik_theme') || 'duha';
+      if(id === 'duha'){
+        document.documentElement.classList.add('motiv-duha');
+      } else {
+        var pair = THEME_COLORS[id];
+        if(pair){
+          var root = document.documentElement.style;
+          root.setProperty('--accent-color', pair[0]);
+          root.setProperty('--accent-glow', pair[1]);
+        }
       }
     } catch(e){}
   })();
@@ -131,6 +135,26 @@
     --card-border:rgba(255,255,255,0.09);
   }
 
+  /* Výchozí "duhový" motiv — barvy appky se pomalu a plynule proměňují mezi
+     všemi odstíny z nabídky Motiv, dokud si uživatel nevybere pevnou barvu. */
+  @keyframes motivDuha{
+    0%{   --accent-color:#a78bfa; --accent-glow:#3b2166; }
+    10%{  --accent-color:#818cf8; --accent-glow:#241f5c; }
+    20%{  --accent-color:#22d3ee; --accent-glow:#0e4a52; }
+    30%{  --accent-color:#2dd4bf; --accent-glow:#073b36; }
+    40%{  --accent-color:#34d399; --accent-glow:#0d3d2a; }
+    50%{  --accent-color:#fbbf24; --accent-glow:#4a2e05; }
+    60%{  --accent-color:#fb923c; --accent-glow:#4a2408; }
+    70%{  --accent-color:#f87171; --accent-glow:#4a1010; }
+    80%{  --accent-color:#f472b6; --accent-glow:#6b1441; }
+    90%{  --accent-color:#e879f9; --accent-glow:#4a1259; }
+    100%{ --accent-color:#a78bfa; --accent-glow:#3b2166; }
+  }
+  html.motiv-duha{ animation:motivDuha 48s linear infinite; }
+  @media (prefers-reduced-motion: reduce){
+    html.motiv-duha{ animation:none; }
+  }
+
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html{ scroll-behavior:smooth; }
   html,body{ overscroll-behavior-y:none; }
@@ -226,6 +250,14 @@
   .theme-grid{ display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; justify-items:center; }
   .theme-swatch{ width:28px; height:28px; border-radius:50%; border:2px solid transparent; cursor:pointer; padding:0; position:relative; transition:0.2s; }
   .theme-swatch.active{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.15); }
+  .theme-swatch--duha{
+    background:conic-gradient(from 0deg, #a78bfa, #818cf8, #22d3ee, #2dd4bf, #34d399, #fbbf24, #fb923c, #f87171, #f472b6, #e879f9, #a78bfa);
+    animation:duhaSwatchSpin 6s linear infinite;
+  }
+  @keyframes duhaSwatchSpin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){
+    .theme-swatch--duha{ animation:none; }
+  }
 
   main{ display:flex; flex-direction:column; gap:16px; }
 
@@ -604,7 +636,7 @@
           <li>Klikni na <strong>Vykouzlit pohádku</strong> — příběh se během okamžiku objeví jako stránka z knihy. Tlačítkem <strong>Jiná varianta</strong> vygeneruješ nový příběh se stejným nastavením.</li>
           <li>Pohádka se ti líbí? Klikni na <strong>Uložit do knihovny</strong> — zůstane uložená v tomto prohlížeči a kdykoliv se k ní vrátíš v sekci "Knihovna pohádek" níže. Tlačítkem <strong>Stáhnout .txt</strong> si ji uložíš jako textový soubor i pro čtení offline nebo tisk.</li>
           <li>V knihovně pohádek klikni na kteroukoliv uloženou pohádku a znovu se ti zobrazí; křížkem ji smažeš.</li>
-          <li>Barevný motiv appky si můžeš kdykoliv změnit tlačítkem <strong>Motiv</strong> v hlavičce — nastavení se zapamatuje na příště.</li>
+          <li>Appka má ve výchozím stavu duhový motiv, který barvy plynule proměňuje. Pokud máš radši jednu stálou barvu, vyber si ji tlačítkem <strong>Motiv</strong> v hlavičce — nastavení se zapamatuje na příště.</li>
         </ul>
 
         <div class="info-section-title" style="font-family:'Orbitron', sans-serif; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--accent-color); margin:16px 0 8px;">Bezpečnost a soukromí</div>
@@ -621,13 +653,13 @@
     <div class="footer-links">
       POHÁDKOVNÍK
       <span class="sep">·</span>
-      <a href="https://synthlucida.com/vapetrack.html">VAPETRACK</a>
+      <a href="https://synthlucida.com/landing_vapetrack-en.html">VAPETRACK</a>
       <span class="sep">·</span>
       <a href="https://synthlucida.com/tripcost.html">TRIP COST</a>
       <span class="sep">·</span>
-      <a href="https://synthlucida.com/weather.html">WEATHER</a>
+      <a href="https://synthlucida.com/landing_weather.html">WEATHER</a>
       <span class="sep">·</span>
-      <a href="https://synthlucida.com/webzen.html">WEBZENith</a>
+      <a href="https://synthlucida.com/landing_webzenith-en.html">WEBZENith</a>
       <span class="sep">·</span>
       <a href="https://synthlucida.com/vyplata.html">VÝPLATA</a>
       <span class="sep">·</span>
@@ -667,6 +699,7 @@
   "use strict";
 
   var THEMES = [
+    {id:"duha",    name:"Duhový (mění se)", accent:"#a78bfa", glow:"#3b2166", zive:true},
     {id:"violet",  name:"Violet",  accent:"#a78bfa", glow:"#3b2166"},
     {id:"indigo",  name:"Indigo",  accent:"#818cf8", glow:"#241f5c"},
     {id:"cyan",    name:"Cyan",    accent:"#22d3ee", glow:"#0e4a52"},
@@ -761,6 +794,23 @@ var HRDINOVE = [
   {jmeno:"beruška Klárka", rod:"f"},
   {jmeno:"vodník Křepelka", rod:"m"}
 ];
+
+// Hrdinové, kteří logicky patří i do podvodního světa (žijí ve vodě, nebo v ní
+// dokážou dýchat) — používá se, aby se do "podmořského hradu" nelosovala
+// suchozemská zvířata jako liška, ježek nebo medvídek, u kterých by to
+// nedávalo smysl.
+var HRDINOVE_VODNI = HRDINOVE.filter(function(h){
+  return ["mořská víla Adélka","kapřík Kubík","vodní víla Rusalka","vodník Křepelka","žabák Prokop"].indexOf(h.jmeno) > -1;
+});
+
+// A naopak: ryba a mořská víla umí žít jen ve vodě, takže by nedávalo smysl,
+// aby vyšly jako hrdina třeba lesní nebo vesnické pohádky — tam je proto
+// z losování vynecháváme. Vodní víla Rusalka, vodník a žabák v pohádkách
+// tradičně žijí i na souši poblíž rybníka nebo lesa, takže ti zůstávají
+// v obou skupinách.
+var HRDINOVE_SUCHOZEMSKE = HRDINOVE.filter(function(h){
+  return ["mořská víla Adélka","kapřík Kubík"].indexOf(h.jmeno) === -1;
+});
 
 // ---------- místa: každé má popis a NĚKOLIK možných vedlejších postav (vybírá se náhodně) ----------
 var MISTA = {
@@ -1612,8 +1662,13 @@ var teKlice = Object.keys(THEME_STORIES);
     // ostatní možnosti. Nejdůležitější je to u dejIdx: ten určuje CELOU
     // dějovou kostru pohádky (problém → cesta → zápletka → řešení), takže
     // právě tady byla repetitivnost nejvíc vidět.
-    var hero = heroInput ? {jmeno: heroInput, rod: heroRodSel} : bagPick("hrdina", HRDINOVE);
     var mistoKlic = mistoSel === "random" ? bagPick("misto", miKlice) : mistoSel;
+    // U podmořského hradu losujeme hrdinu jen z bytostí, které logicky patří
+    // do vody — suchozemská zvířata by tam jinak žila bez vysvětlení, což
+    // nedávalo smysl. A obráceně: ryba nebo mořská víla by zase nedávaly
+    // smysl jako hrdina pohádky odehrávající se na souši.
+    var hrdinoveNaLos = mistoKlic === "podmořský hrad" ? HRDINOVE_VODNI : HRDINOVE_SUCHOZEMSKE;
+    var hero = heroInput ? {jmeno: heroInput, rod: heroRodSel} : bagPick("hrdina", hrdinoveNaLos);
     var mistoRaw = MISTA[mistoKlic];
     var mistoNazev = cap(mistoKlic);
     var obyvatelPick = bagPick("obyvatel_"+mistoKlic, mistoRaw.obyvatele);
@@ -1912,13 +1967,24 @@ var teKlice = Object.keys(THEME_STORIES);
 
   document.getElementById("pdfBtn").addEventListener("click", exportStoryPDF);
 
-  function getSelectedTheme(){ try{ return localStorage.getItem(THEME_KEY) || "violet"; }catch(e){ return "violet"; } }
+  function getSelectedTheme(){ try{ return localStorage.getItem(THEME_KEY) || "duha"; }catch(e){ return "duha"; } }
   function applyTheme(id, save){
     var t = null;
     for(var i=0;i<THEMES.length;i++){ if(THEMES[i].id === id){ t = THEMES[i]; break; } }
     if(!t) t = THEMES[0];
-    document.documentElement.style.setProperty("--accent-color", t.accent);
-    document.documentElement.style.setProperty("--accent-glow", t.glow);
+    var root = document.documentElement;
+    if(t.zive){
+      // Duhový motiv barvy neproměňuje inline stylem, ale CSS animací
+      // (viz .motiv-duha) — proto se tu jen povolí a případné pevné
+      // barvy z předchozího motivu se smažou.
+      root.classList.add("motiv-duha");
+      root.style.removeProperty("--accent-color");
+      root.style.removeProperty("--accent-glow");
+    } else {
+      root.classList.remove("motiv-duha");
+      root.style.setProperty("--accent-color", t.accent);
+      root.style.setProperty("--accent-glow", t.glow);
+    }
     if(save){ try{ localStorage.setItem(THEME_KEY, t.id); }catch(e){} }
     var swatches = document.querySelectorAll(".theme-swatch");
     Array.prototype.forEach.call(swatches, function(s){ s.classList.toggle("active", s.getAttribute("data-theme") === t.id); });
@@ -1930,11 +1996,11 @@ var teKlice = Object.keys(THEME_STORIES);
     THEMES.forEach(function(t){
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "theme-swatch" + (t.id === current ? " active" : "");
+      b.className = "theme-swatch" + (t.zive ? " theme-swatch--duha" : "") + (t.id === current ? " active" : "");
       b.setAttribute("data-theme", t.id);
       b.setAttribute("aria-label", t.name);
       b.title = t.name;
-      b.style.background = t.accent;
+      if(!t.zive){ b.style.background = t.accent; }
       b.addEventListener("click", function(){ applyTheme(t.id, true); });
       grid.appendChild(b);
     });
