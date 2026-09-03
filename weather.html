@@ -511,6 +511,14 @@
   .activity-chip svg{ width:16px; height:16px; color:var(--accent-color); flex-shrink:0; }
   .activity-trend{ display:flex; align-items:flex-start; gap:9px; font-size:12px; opacity:0.65; line-height:1.5; }
   .activity-trend svg{ width:14px; height:14px; color:var(--accent-color); flex-shrink:0; margin-top:2px; }
+  .activity-outlook{
+    display:flex; flex-direction:column; gap:9px; margin-top:12px; padding-top:12px;
+    border-top:1px solid rgba(255,255,255,0.08);
+  }
+  .activity-outlook-row{ display:flex; align-items:flex-start; gap:10px; font-size:12px; line-height:1.5; opacity:0.85; }
+  .activity-outlook-row.muted{ opacity:0.55; }
+  .activity-outlook-row svg{ width:15px; height:15px; color:var(--accent-color); flex-shrink:0; margin-top:2px; }
+  .activity-outlook-row b{ font-weight:500; color:#fff; }
 
   /* ---- precipitation / storm outlook ---- */
   .precip-block{
@@ -1155,6 +1163,74 @@
     return items;
   }
 
+  // ---------- den-po-dni výhled pro jednotlivé aktivity (kdy bude/nebude vhodno) ----------
+  function dayGroup(data,i){ return weatherInfo(data.daily.weather_code[i], 1).group; }
+  function dayProb(data,i){ return (data.daily.precipitation_probability_max && data.daily.precipitation_probability_max[i]) || 0; }
+  function dayWindMax(data,i){ return (data.daily.wind_speed_10m_max && data.daily.wind_speed_10m_max[i]) || 0; }
+  function dayTmax(data,i){ return data.daily.temperature_2m_max[i]; }
+  function dayTmin(data,i){ return data.daily.temperature_2m_min[i]; }
+
+  function bikeOkDay(data,i){
+    var g = dayGroup(data,i);
+    return g !== "rain" && g !== "storm" && dayProb(data,i) < 40 && dayWindMax(data,i) < 35 && dayTmax(data,i) >= 8 && dayTmax(data,i) <= 30;
+  }
+  function skateOkDay(data,i){
+    var g = dayGroup(data,i);
+    return g !== "rain" && g !== "storm" && dayProb(data,i) < 30 && dayWindMax(data,i) < 25 && dayTmax(data,i) >= 12 && dayTmax(data,i) <= 28;
+  }
+  function hikeOkDay(data,i){
+    var g = dayGroup(data,i);
+    return g !== "storm" && dayProb(data,i) < 55 && dayWindMax(data,i) < 45 && dayTmax(data,i) <= 32 && dayTmin(data,i) >= -8;
+  }
+  function campDayOk(data,i){
+    return !(dayProb(data,i) > 50 || dayGroup(data,i) === "storm" || dayTmin(data,i) < 4);
+  }
+  function campWindowOk(data,i){
+    var end = Math.min(i+2, data.daily.time.length-1);
+    for(var k=i; k<=end; k++){ if(!campDayOk(data,k)) return false; }
+    return true;
+  }
+
+  // Zjistí, jestli je aktivita OK dnes (a jak dlouho to tak zůstane), nebo kdy se to
+  // v nejbližších dnech zlepší (pokud OK není). okFn dostává (data, indexDo daily pole).
+  function activityTiming(okFn, data, maxLookahead){
+    var n = Math.min(data.daily.time.length, maxLookahead+1);
+    if(okFn(data,0)){
+      var end = 0;
+      for(var i=1;i<n;i++){ if(okFn(data,i)) end = i; else break; }
+      return { ok:true, endIdx:end };
+    }
+    for(var j=1;j<n;j++){ if(okFn(data,j)) return { ok:false, etaIdx:j }; }
+    return { ok:false, etaIdx:null };
+  }
+
+  function timingText(timing, data){
+    if(timing.ok){
+      if(timing.endIdx === 0) return "vhodné dnes";
+      return "vhodné dnes až do "+fmtDayNameGenitive(data.daily.time[timing.endIdx]);
+    }
+    if(timing.etaIdx == null) return "v nejbližších dnech se to nezlepší";
+    if(timing.etaIdx === 1) return "zlepší se zítra";
+    return "zlepší se "+fmtDayName(data.daily.time[timing.etaIdx]);
+  }
+
+  function buildActivityOutlook(data, mush){
+    var lookahead = Math.min(6, data.daily.time.length - 1);
+    var rows = [];
+    if(mush){
+      rows.push({ name:"Houbaření", icon:"mushroom", ok:mush.ok, text:mush.outlookText });
+    }
+    var bikeT = activityTiming(bikeOkDay, data, lookahead);
+    rows.push({ name:"Kolo", icon:"bike", ok:bikeT.ok, text:timingText(bikeT, data) });
+    var skateT = activityTiming(skateOkDay, data, lookahead);
+    rows.push({ name:"Brusle", icon:"skate", ok:skateT.ok, text:timingText(skateT, data) });
+    var hikeT = activityTiming(hikeOkDay, data, lookahead);
+    rows.push({ name:"Výlet", icon:"hike", ok:hikeT.ok, text:timingText(hikeT, data) });
+    var campT = activityTiming(campWindowOk, data, lookahead);
+    rows.push({ name:"Kemping", icon:"tent", ok:campT.ok, text:timingText(campT, data) });
+    return rows;
+  }
+
   function forecastTrend(data){
     var daily = data.daily;
     var n = daily.time.length;
@@ -1611,7 +1687,7 @@
         .catch(function(){ return null; }),
       fetchIssPasses(place)
     ]).then(function(results){
-      var mush = computeMushroomConditions(results[1]);
+      var mush = computeMushroomConditions(results[1], results[0]);
       render(place, results[0], mush, results[2]);
     }).catch(function(err){ setState("Předpověď se nepodařilo načíst. Zkuste to prosím znovu."); console.error(err); });
   }
@@ -1672,26 +1748,61 @@
     return html;
   }
 
-  // ---------- houbařské podmínky (uplynulý týden) ----------
-  function computeMushroomConditions(mushData){
+  // ---------- houbařské podmínky (uplynulý týden + výhled) ----------
+  function mushWindowOk(rainQ, tempQ, frostQ){
+    var rainSum = 0, tempSum = 0, tempCount = 0, frost = false;
+    for(var k=0; k<rainQ.length; k++){
+      rainSum += rainQ[k];
+      if(tempQ[k] != null){ tempSum += tempQ[k]; tempCount++; }
+      if(frostQ[k]) frost = true;
+    }
+    var avgTemp = tempCount ? tempSum/tempCount : null;
+    return rainSum >= 15 && avgTemp !== null && avgTemp >= 8 && avgTemp <= 24 && !frost;
+  }
+
+  function computeMushroomConditions(mushData, forecastData){
     if(!mushData || !mushData.daily || !mushData.daily.time || !mushData.daily.time.length) return null;
     var d = mushData.daily;
     var n = d.time.length;
     var pastDays = Math.max(0, n - 1); // poslední den je "dnes/zítra" (forecast_days:1), ten do bilance nepočítáme
     if(pastDays < 3) return null;
-    var rainSum = 0;
-    var tempSum = 0;
-    var tempCount = 0;
-    var frost = false;
+
+    var rainQ = [], tempQ = [], frostQ = [];
     for(var i=0; i<pastDays; i++){
-      rainSum += (d.precipitation_sum[i] || 0);
+      rainQ.push(d.precipitation_sum[i] || 0);
       var tmax = d.temperature_2m_max[i], tmin = d.temperature_2m_min[i];
-      if(tmax != null && tmin != null){ tempSum += (tmax+tmin)/2; tempCount++; }
-      if(tmin != null && tmin <= -1) frost = true;
+      tempQ.push((tmax != null && tmin != null) ? (tmax+tmin)/2 : null);
+      frostQ.push(tmin != null && tmin <= -1);
     }
-    var avgTemp = tempCount ? tempSum/tempCount : null;
-    var ok = rainSum >= 15 && avgTemp !== null && avgTemp >= 8 && avgTemp <= 24 && !frost;
-    return { ok: ok, rain7d: rainSum, avgTemp: avgTemp, frost: frost };
+    var rainSum = rainQ.reduce(function(a,b){ return a+b; }, 0);
+    var tempVals = tempQ.filter(function(t){ return t != null; });
+    var avgTemp = tempVals.length ? tempVals.reduce(function(a,b){ return a+b; },0)/tempVals.length : null;
+    var frost = frostQ.some(function(f){ return f; });
+    var ok = mushWindowOk(rainQ, tempQ, frostQ);
+
+    var outlookText;
+    if(ok){
+      outlookText = "houby teď rostou, klidně vyrazte – vydrží, dokud se neudělá sucho nebo nepřijde mrazík";
+    } else if(forecastData && forecastData.daily && forecastData.daily.time){
+      var fd = forecastData.daily;
+      var lookahead = Math.min(6, fd.time.length - 1);
+      var found = null;
+      for(var f=1; f<=lookahead; f++){
+        rainQ.push(fd.precipitation_sum ? (fd.precipitation_sum[f] || 0) : 0);
+        var ftmax = fd.temperature_2m_max[f], ftmin = fd.temperature_2m_min[f];
+        tempQ.push((ftmax != null && ftmin != null) ? (ftmax+ftmin)/2 : null);
+        frostQ.push(ftmin != null && ftmin <= -1);
+        rainQ.shift(); tempQ.shift(); frostQ.shift();
+        if(mushWindowOk(rainQ, tempQ, frostQ)){ found = f; break; }
+      }
+      if(found === 1) outlookText = "po dešti by se mělo zlepšit už zítra";
+      else if(found != null) outlookText = "po dešti by se mělo zlepšit "+fmtDayName(fd.time[found]);
+      else outlookText = "zatím sucho (za týden napršelo jen "+rainSum.toFixed(0)+" mm), houby zatím nečekejte";
+    } else {
+      outlookText = "zatím sucho, houby zatím nečekejte";
+    }
+
+    return { ok: ok, rain7d: rainSum, avgTemp: avgTemp, frost: frost, outlookText: outlookText };
   }
 
   function fmtHour(iso){
@@ -1907,6 +2018,7 @@
 
     var activities = activityAdvice(cur, data, mush);
     var trend = forecastTrend(data);
+    var outlook = buildActivityOutlook(data, mush);
     html += '<div class="activity-block">';
     html += '<div class="activity-label">Blbnutí venku</div>';
     html += '<div class="activity-chips">';
@@ -1915,6 +2027,11 @@
     }
     html += '</div>';
     html += '<div class="activity-trend">'+icon(trend.dir === "up" ? "trendUp" : trend.dir === "down" ? "trendDown" : "trendFlat")+'<span>'+trend.text+'</span></div>';
+    html += '<div class="activity-outlook">';
+    for(var o=0; o<outlook.length; o++){
+      html += '<div class="activity-outlook-row'+(outlook[o].ok ? "" : " muted")+'">'+icon(outlook[o].icon)+'<span><b>'+outlook[o].name+':</b> '+outlook[o].text+'</span></div>';
+    }
+    html += '</div>';
     html += '</div>';
 
     html += '<div class="wind-block">';
