@@ -1374,7 +1374,8 @@
   <button class="community-send-btn" onclick="sendCommunityMessage()" data-i18n-aria="community_send_btn" aria-label="Send">➤</button>
 </div>
 <div class="community-admin-login-row" id="community-admin-login-row">
-  <input type="password" id="community-admin-password" class="community-input" placeholder="admin heslo…" autocomplete="off" onkeydown="if(event.key==='Enter'){adminLogin();} if(event.key==='Escape'){cancelAdminLogin();}">
+  <input type="email" id="community-admin-email" class="community-input" placeholder="admin e-mail…" autocomplete="username" style="max-width:130px;" onkeydown="if(event.key==='Enter'){document.getElementById('community-admin-password').focus();} if(event.key==='Escape'){cancelAdminLogin();}">
+  <input type="password" id="community-admin-password" class="community-input" placeholder="admin heslo…" autocomplete="current-password" onkeydown="if(event.key==='Enter'){adminLogin();} if(event.key==='Escape'){cancelAdminLogin();}">
   <button class="community-send-btn" onclick="adminLogin()" aria-label="Login">✓</button>
 </div>
 <div class="community-error" id="community-error"></div>
@@ -1885,9 +1886,8 @@
     messagingSenderId: "244515647380",
     appId: "1:244515647380:web:c7f75f3bea55434f9b6981"
   };
-  // E-mail účtu, který jsi vytvořil v Authentication -> Users (krok 1 v návodu).
-  // Heslo se NIKDY neukládá do kódu - zadává se za běhu do skrytého pole po napsání 666.
-  const ADMIN_EMAIL = "zanta.david@gmail.com";
+  // E-mail ani heslo účtu z Authentication -> Users (krok 1 v návodu) se NIKDY
+  // neukládají do kódu - obojí se zadává za běhu do skrytých polí po napsání 666.
   try {
     firebase.initializeApp(firebaseConfig);
   } catch (e) {
@@ -6626,8 +6626,11 @@
     toggleCommunityInput(false);
     if (!row) return;
     row.classList.add('visible');
+    const emailField = document.getElementById('community-admin-email');
     const pwField = document.getElementById('community-admin-password');
-    if (pwField) { pwField.value = ''; pwField.focus(); }
+    if (emailField) emailField.value = '';
+    if (pwField) pwField.value = '';
+    if (emailField) emailField.focus();
   }
 
   function cancelAdminLogin() {
@@ -6636,15 +6639,18 @@
   }
 
   function adminLogin() {
+    const emailField = document.getElementById('community-admin-email');
     const pwField = document.getElementById('community-admin-password');
-    if (!pwField) return;
+    if (!emailField || !pwField) return;
+    const email = emailField.value.trim();
     const password = pwField.value;
-    if (!password) return;
+    if (!email || !password) return;
     if (typeof firebase === 'undefined' || !firebase.auth) {
       showCommunityError(i18nText.community_err_unavailable[guideLang] || i18nText.community_err_unavailable.en);
       return;
     }
-    firebase.auth().signInWithEmailAndPassword(ADMIN_EMAIL, password).then(() => {
+    firebase.auth().signInWithEmailAndPassword(email, password).then(() => {
+      emailField.value = '';
       pwField.value = '';
       cancelAdminLogin();
     }).catch((err) => {
