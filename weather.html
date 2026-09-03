@@ -378,7 +378,17 @@
   .day:focus-visible{ outline:2px solid var(--accent-color); outline-offset:-2px; }
   .day-name{ width:60px; font-size:12.5px; font-weight:500; letter-spacing:0.3px; flex-shrink:0; }
   .day svg{ width:21px; height:21px; color:var(--accent-color); filter:drop-shadow(0 0 5px var(--accent-color)); flex-shrink:0; }
-  .day-cond{ font-size:11.5px; opacity:0.6; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .day-cond{ font-size:11.5px; opacity:0.6; flex:1; min-width:0; overflow:hidden; white-space:nowrap; position:relative; }
+  .day-cond-text{ display:inline-block; white-space:nowrap; }
+  .day-cond.marquee .day-cond-text{
+    animation-name:dayCondMarquee; animation-timing-function:ease-in-out; animation-iteration-count:infinite;
+    animation-duration:var(--marquee-duration, 8s);
+  }
+  @keyframes dayCondMarquee{
+    0%,10%{ transform:translateX(0); }
+    45%,55%{ transform:translateX(var(--marquee-shift, 0)); }
+    90%,100%{ transform:translateX(0); }
+  }
   .day-range{ margin-left:auto; font-family:'JetBrains Mono', monospace; font-size:13px; display:flex; gap:9px; flex-shrink:0; }
   .day-range .lo{ opacity:0.45; }
   .day-warn-dot{ width:7px; height:7px; border-radius:50%; background:#fb923c; box-shadow:0 0 6px #fb923c; flex-shrink:0; }
@@ -409,6 +419,17 @@
   .warn-item.level-high .dot{ background:#fca5a5; }
 
   /* ---- radar map ---- */
+  .section-label-btn{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;
+    background:none; border:none; cursor:pointer; padding:0; margin:0 0 12px 2px;
+    font-family:'Orbitron', sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--accent-color); text-shadow:0 0 10px var(--accent-color); opacity:0.9; text-align:left;
+  }
+  .section-label-btn:focus-visible{ outline:2px solid var(--accent-color); outline-offset:2px; }
+  .section-label-btn-text{ flex:1; min-width:0; }
+  .section-label-chevron{ flex-shrink:0; display:flex; opacity:0.8; transition:transform 0.3s; }
+  .section-label-chevron svg{ width:14px; height:14px; color:var(--accent-color); }
+  .section-label-btn[aria-expanded="true"] .section-label-chevron{ transform:rotate(180deg); }
   .radar-block{ margin-bottom:8px; }
   .radar-wrap{
     position:relative; width:100%; border-radius:18px; overflow:hidden;
@@ -1966,7 +1987,7 @@
       html += '<button type="button" class="day" data-day-idx="'+d+'" aria-expanded="false">';
       html += '<div class="day-name">'+(d===0?"Dnes":fmtDay(data.daily.time[d]))+'</div>';
       html += icon(di.icon);
-      html += '<div class="day-cond">'+di.label+'</div>';
+      html += '<div class="day-cond"><span class="day-cond-text">'+di.label+'</span></div>';
       if(isWarnDay) html += '<div class="day-warn-dot" aria-hidden="true"></div>';
       html += '<div class="day-range"><span class="hi">'+Math.round(data.daily.temperature_2m_max[d])+'°</span><span class="lo">'+Math.round(data.daily.temperature_2m_min[d])+'°</span></div>';
       html += '<div class="day-chevron">'+icon("chevron")+'</div>';
@@ -1984,9 +2005,9 @@
     }
     html += '</div>';
 
-    html += '<div class="section-label">Bouřky a srážky &ndash; kde to zase spadne nejvíc</div>';
-    html += '<div class="radar-block">';
-    html += '<div class="radar-wrap"><iframe src="https://embed.windy.com/embed2.html?lat=49.80&amp;lon=15.47&amp;detailLat=49.80&amp;detailLon=15.47&amp;width=650&amp;height=450&amp;zoom=7&amp;level=surface&amp;overlay=radar&amp;product=radar&amp;menu=&amp;message=true&amp;marker=&amp;calendar=&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=default&amp;metricTemp=default&amp;radarRange=-1" title="Radarová mapa srážek a bouřek – Česko" allowfullscreen></iframe></div>';
+    html += '<button type="button" class="section-label-btn" id="radarToggle" aria-expanded="false" aria-controls="radarBlock"><span class="section-label-btn-text">Bouřky a srážky &ndash; kde to zase spadne nejvíc</span><span class="section-label-chevron">'+icon("chevron")+'</span></button>';
+    html += '<div class="radar-block hidden" id="radarBlock">';
+    html += '<div class="radar-wrap"><iframe data-src="https://embed.windy.com/embed2.html?lat=49.80&amp;lon=15.47&amp;detailLat=49.80&amp;detailLon=15.47&amp;width=650&amp;height=450&amp;zoom=7&amp;level=surface&amp;overlay=radar&amp;product=radar&amp;menu=&amp;message=true&amp;marker=&amp;calendar=&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=default&amp;metricTemp=default&amp;radarRange=-1" title="Radarová mapa srážek a bouřek – Česko" allowfullscreen loading="lazy"></iframe></div>';
     html += '<a class="radar-link" href="https://www.windy.com/-Radar-radar?radar,49.80,15.47,7" target="_blank" rel="noopener">Otevřít radar v plné verzi ↗</a>';
     html += '</div>';
 
@@ -2003,7 +2024,52 @@
         this.setAttribute("aria-expanded", willOpen ? "true" : "false");
       });
     }
+
+    setupDayCondMarquees();
+
+    var radarToggle = document.getElementById("radarToggle");
+    if(radarToggle){
+      radarToggle.addEventListener("click", function(){
+        var block = document.getElementById("radarBlock");
+        if(!block) return;
+        var willOpen = block.classList.contains("hidden");
+        block.classList.toggle("hidden");
+        this.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        if(willOpen){
+          var frame = block.querySelector("iframe[data-src]");
+          if(frame){ frame.src = frame.getAttribute("data-src"); frame.removeAttribute("data-src"); }
+        }
+      });
+    }
   }
+
+  // ---------- auto-scrolling text for long forecast condition labels ----------
+  function setupDayCondMarquee(container){
+    var text = container.querySelector(".day-cond-text");
+    if(!text) return;
+    container.classList.remove("marquee");
+    container.style.removeProperty("--marquee-shift");
+    container.style.removeProperty("--marquee-duration");
+    var overflow = text.scrollWidth - container.clientWidth;
+    if(overflow > 2){
+      var shift = -(overflow + 3);
+      var duration = Math.max(4.5, (Math.abs(shift) / 18) + 3);
+      container.style.setProperty("--marquee-shift", shift + "px");
+      container.style.setProperty("--marquee-duration", duration + "s");
+      container.classList.add("marquee");
+    }
+  }
+
+  function setupDayCondMarquees(){
+    var condEls = els.content.querySelectorAll(".day-cond");
+    for(var ce=0; ce<condEls.length; ce++){ setupDayCondMarquee(condEls[ce]); }
+  }
+
+  var dayCondResizeTimer = null;
+  window.addEventListener("resize", function(){
+    clearTimeout(dayCondResizeTimer);
+    dayCondResizeTimer = setTimeout(setupDayCondMarquees, 150);
+  });
 
   function statBlock(label, value){
     return '<div class="stat"><div class="stat-label">'+label+'</div><div class="stat-value">'+value+'</div></div>';
