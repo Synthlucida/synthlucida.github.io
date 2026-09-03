@@ -716,6 +716,12 @@ header::after {
   background: rgba(255,255,255,0.03);
   transition: all 0.25s ease;
   font-size: 14px;
+  /* Orbitron's line-height:normal doesn't leave enough room above cap-height
+     for accents (á/é/í/ř/š/ž...), so Czech labels like "Popis aplikací" or
+     "KONTAKTNÍ FORMULÁŘ" had their diacritics crowding/touching the button's
+     top edge. A taller line-height gives them clearance without changing
+     the button's visual padding. */
+  line-height: 1.75;
   letter-spacing: 0.5px;
   box-shadow: 0 0 10px rgba(0,240,255,0.12);
   font-family: 'Orbitron', sans-serif;
@@ -3566,6 +3572,12 @@ Privacy Policy
     const btn = document.getElementById('lang-toggle-btn');
     if (btn) btn.textContent = lang === 'cz' ? '🇬🇧 EN' : '🇨🇿 CZ';
     try { localStorage.setItem('synthlucida_lang', lang); } catch (e) {}
+    // Resize the nested app-descriptions-panel first (if open) so the outer
+    // platforms-panel's scrollHeight below picks up its new, translated
+    // content height instead of the pre-switch pixel value.
+    document.querySelectorAll('.app-descriptions-panel.open').forEach(function (p) {
+      p.style.maxHeight = p.scrollHeight + 'px';
+    });
     document.querySelectorAll('.platforms-panel.open, .contact-form-panel.open').forEach(function (p) {
       p.style.maxHeight = p.scrollHeight + 'px';
     });
@@ -3582,6 +3594,9 @@ Privacy Policy
   }
 
   window.addEventListener('resize', function () {
+    document.querySelectorAll('.app-descriptions-panel.open').forEach(function (p) {
+      p.style.maxHeight = p.scrollHeight + 'px';
+    });
     document.querySelectorAll('.platforms-panel.open, .contact-form-panel.open').forEach(function (p) {
       p.style.maxHeight = p.scrollHeight + 'px';
     });
