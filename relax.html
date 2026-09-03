@@ -183,6 +183,26 @@
   }
   .lang-btn.active-btn { color: rgba(255,255,255,0.75); box-shadow: 0 0 10px rgba(255,255,255,0.12); }
 
+  #tap-synth-toggle {
+    min-width: 44px; padding: 6px 14px;
+    border-radius: 20px; font-size: 0.9rem;
+    background: rgba(120, 80, 255, 0.18);
+    border: 1px solid rgba(165, 135, 255, 0.6);
+    color: #fff;
+    box-shadow: 0 0 14px rgba(120, 80, 255, 0.35);
+    animation: synthTogglePulse 3.2s ease-in-out infinite;
+  }
+  #tap-synth-toggle:hover, #tap-synth-toggle.active-btn {
+    background: rgba(120, 80, 255, 0.32);
+    border-color: rgba(190, 165, 255, 0.95);
+    box-shadow: 0 0 22px rgba(150, 120, 255, 0.6);
+    animation: none;
+  }
+  @keyframes synthTogglePulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(120, 80, 255, 0.3); }
+    50% { box-shadow: 0 0 22px rgba(155, 125, 255, 0.55); }
+  }
+
   .volume-control {
     display: flex; align-items: center; gap: 8px;
   }
@@ -294,7 +314,8 @@
     100% { transform: translate3d(5vw, -5vh, 0) scale(1.2); opacity: 0.8; }
   }
 
-  .top-bar { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); left: calc(20px + env(safe-area-inset-left, 0px)); z-index: 20; }
+  .top-bar { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); left: calc(20px + env(safe-area-inset-left, 0px)); z-index: 20; opacity: 1; transition: opacity 0.35s ease; }
+  .top-bar.tsp-hidden { opacity: 0; pointer-events: none; }
   .info-btn { 
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); 
     width: 40px; height: 40px; border-radius: 50%; font-family: 'Orbitron', sans-serif; font-size: 1.2rem; 
@@ -844,20 +865,53 @@ setInterval(updateMoonPhase, 3600000);
     starsCanvas.height = h;
     mapConst();
   }
+
+  // --- Tap synth panel: keep it fully on-screen without a page fullscreen ---
+  // The panel is anchored above the bottom control bar and its CSS max-height
+  // is a flat vh value. When the browser isn't in fullscreen (address bar /
+  // toolbar eating into the viewport, short windows, mobile landscape, etc.)
+  // that vh value can be taller than the actual space available above the
+  // control bar, so the top of the panel gets pushed above the top edge of
+  // the screen and clipped by the page's overflow:hidden — invisible, with
+  // no way to scroll up to it. This recomputes the panel's max-height from
+  // the real, live gap between the top of the viewport and the control bar,
+  // so the whole panel (scrolling internally if needed) always stays visible.
+  function updateSynthPanelMaxHeight() {
+    const uiContainer = document.querySelector('.ui-container');
+    const panel = document.getElementById('tap-synth-panel');
+    if (!uiContainer || !panel) return;
+
+    let vhFactor = 0.6;
+    if (window.matchMedia('(max-width: 700px) and (orientation: landscape)').matches) {
+      vhFactor = 0.78;
+    } else if (window.innerWidth <= 480) {
+      vhFactor = 0.65;
+    }
+
+    const containerTop = uiContainer.getBoundingClientRect().top;
+    const panelMarginBottom = 14; // matches .tap-synth-panel's CSS margin-bottom
+    const topBreathingRoom = 12;  // small gap so the panel never touches the very top edge
+    const available = containerTop - panelMarginBottom - topBreathingRoom;
+    const designCap = window.innerHeight * vhFactor;
+
+    panel.style.maxHeight = Math.max(120, Math.min(available, designCap)) + 'px';
+  }
+
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(resize, 150);
+    resizeTimer = setTimeout(() => { resize(); updateSynthPanelMaxHeight(); }, 150);
   });
-  window.addEventListener('orientationchange', () => { setTimeout(resize, 250); });
+  window.addEventListener('orientationchange', () => { setTimeout(() => { resize(); updateSynthPanelMaxHeight(); }, 250); });
   // Some PC browsers report a stale window size for a moment after the fullscreen
   // transition finishes, which used to leave a sliver of the canvas un-sized.
   // The CSS box itself now always fills the viewport (see #stars/#drops), and we
   // additionally re-check the pixel size a few times as the transition settles.
   document.addEventListener("fullscreenchange", () => {
-    [50, 200, 500, 900].forEach(delay => setTimeout(resize, delay));
+    [50, 200, 500, 900].forEach(delay => setTimeout(() => { resize(); updateSynthPanelMaxHeight(); }, delay));
   });
   resize();
+  updateSynthPanelMaxHeight();
 
   let drops = [];
   const numDrops = isMobile ? 22 : 55;
@@ -1818,7 +1872,13 @@ setInterval(updateMoonPhase, 3600000);
 
   const tapSynthToggle = document.getElementById('tap-synth-toggle');
   const tapSynthPanel = document.getElementById('tap-synth-panel');
-  tapSynthToggle.addEventListener('click', () => { tapSynthPanel.classList.toggle('open'); tapSynthToggle.classList.toggle('active-btn'); });
+  const topBar = document.querySelector('.top-bar');
+  tapSynthToggle.addEventListener('click', () => {
+    updateSynthPanelMaxHeight(); // re-measure right before opening, in case the control bar's own height changed since the last resize
+    const isOpen = tapSynthPanel.classList.toggle('open');
+    tapSynthToggle.classList.toggle('active-btn', isOpen);
+    if (topBar) topBar.classList.toggle('tsp-hidden', isOpen); // hide the top-left info button while the synth panel covers that area
+  });
 
   document.getElementById('tsp-scale').addEventListener('change', (e) => currentScale = e.target.value);
   document.getElementById('tsp-range').addEventListener('change', (e) => tapRange = parseFloat(e.target.value));
