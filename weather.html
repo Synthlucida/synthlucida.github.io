@@ -824,11 +824,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           VÝPLATA
         </a>
-        <a class="player-back" href="https://synthlucida.com/webzen.html" aria-label="Webzen">
+        <a class="player-back" href="https://synthlucida.com/landing_webzenith.html" aria-label="WEBZENith">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           WEBZENith
         </a>
-        <a class="player-back" href="https://synthlucida.com/progrese-cz.html" aria-label="Progrese">
+        <a class="player-back" href="https://synthlucida.com/progrese-landing-cz.html" aria-label="Progrese">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           PROGRESE
         </a>
@@ -844,7 +844,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           VODOVÁHA
         </a>
-        <a class="player-back" href="https://synthlucida.com/vapetrack.html" aria-label="Vapetrack">
+        <a class="player-back" href="https://synthlucida.com/landing_vapetrack.html" aria-label="Vapetrack">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           VAPETRACK
         </a>
@@ -970,15 +970,15 @@
     <span class="sep">·</span>
     <a href="https://synthlucida.com/vyplata.html" target="_blank" rel="noopener">VÝPLATA</a>
     <span class="sep">·</span>
-    <a href="https://synthlucida.com/webzen.html" target="_blank" rel="noopener">WEBZEN</a>
+    <a href="https://synthlucida.com/landing_webzenith.html" target="_blank" rel="noopener">WEBZENith</a>
     <span class="sep">·</span>
-    <a href="https://synthlucida.com/progrese-cz.html" target="_blank" rel="noopener">PROGRESE</a>
+    <a href="https://synthlucida.com/progrese-landing-cz.html" target="_blank" rel="noopener">PROGRESE</a>
     <span class="sep">·</span>
     <a href="https://synthlucida.com/michani-liquidu.html" target="_blank" rel="noopener">MÍCHÁRNA</a>
     <span class="sep">·</span>
     <a href="https://synthlucida.com/vodovaha.html" target="_blank" rel="noopener">VODOVÁHA</a>
     <span class="sep">·</span>
-    <a href="https://synthlucida.com/vapetrack.html" target="_blank" rel="noopener">VAPETRACK</a>
+    <a href="https://synthlucida.com/landing_vapetrack.html" target="_blank" rel="noopener">VAPETRACK</a>
     <span class="sep">·</span>
     <a href="https://synthlucida.com/pohadkovnik.html" target="_blank" rel="noopener">POHÁDKOVNÍK</a>
     <span class="sep">·</span>
@@ -2143,6 +2143,7 @@
     }
 
     setupDayCondMarquees();
+    setupHourlyGraphRepaintFix();
 
     var radarToggle = document.getElementById("radarToggle");
     if(radarToggle){
@@ -2187,6 +2188,31 @@
     clearTimeout(dayCondResizeTimer);
     dayCondResizeTimer = setTimeout(setupDayCondMarquees, 150);
   });
+
+  // ---------- iOS Safari stale-paint workaround for the hourly SVG graph ----------
+  // Filtered (drop-shadow) SVG paths inside a non-uniformly-scaled viewBox can get
+  // "stuck" on an old paint when scrolled out of and back into view on iOS Safari.
+  // Forcing a reflow/repaint the moment the graph re-enters the viewport fixes it.
+  var hourlyGraphObserver = null;
+  function setupHourlyGraphRepaintFix(){
+    if(!("IntersectionObserver" in window)) return;
+    if(hourlyGraphObserver){ hourlyGraphObserver.disconnect(); hourlyGraphObserver = null; }
+    var wrap = els.content.querySelector(".hourly-graph-wrap");
+    if(!wrap) return;
+    hourlyGraphObserver = new IntersectionObserver(function(entries){
+      for(var e=0; e<entries.length; e++){
+        var entry = entries[e];
+        if(!entry.isIntersecting) continue;
+        var svg = entry.target.querySelector(".hg-svg");
+        if(svg){
+          svg.style.display = "none";
+          void svg.offsetHeight; // force reflow
+          svg.style.display = "";
+        }
+      }
+    }, { threshold: 0.01 });
+    hourlyGraphObserver.observe(wrap);
+  }
 
   function statBlock(label, value){
     return '<div class="stat"><div class="stat-label">'+label+'</div><div class="stat-value">'+value+'</div></div>';
