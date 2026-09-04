@@ -83,9 +83,11 @@
   .wz-unlock-msg.ok{color:#4caf82;}
   .wz-unlock-msg.err{color:#e0615a;}
   /* Fullscreen / focus mode — hides the "buy a coffee" support banner
-     (donate-bar), freeing up more space to work in. Links to other apps
-     (formerly the "promo-bar") now live in the "Other apps" menu section. */
-  body.focus-mode .donate-bar{display:none;}
+     (donate-bar) and the app's bottom footer bar (synthlucida.com link and
+     Privacy Policy link), freeing up more space to work in. Links to other
+     apps (formerly the "promo-bar") now live in the "Other apps" menu section. */
+  body.focus-mode .donate-bar,
+  body.focus-mode .app-footer{display:none;}
   #fullscreenBtn.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.15);}
 
   /* Guide and Articles are now shown in a modal window (see .info-modal-*),
@@ -145,6 +147,15 @@
   .menu-item:hover{background:rgba(124,92,255,.15);}
   .menu-item-title{display:block;font-size:13px;font-weight:600;}
   .menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;font-weight:400;}
+  /* Row with the source-code sale link + countdown to the next relax-break
+     popup (see the "relax pauza" JS below). */
+  .menu-item-row{display:flex;align-items:center;gap:6px;}
+  .menu-item-row .menu-item{width:auto;flex:1;}
+  .relax-countdown{
+    flex:0 0 auto;font-size:11px;font-family:'JetBrains Mono',monospace;
+    color:var(--ui-text-dim);background:var(--ui-bg-1);border:1px solid var(--ui-line);
+    border-radius:6px;padding:4px 7px;white-space:nowrap;
+  }
   .menu-divider{height:1px;background:var(--ui-line);margin:5px 4px;}
   .menu-section-title{
     padding:8px 10px 2px;font-size:11px;font-weight:600;text-transform:uppercase;
@@ -176,7 +187,7 @@
   }
   .preview-wrap{flex:1;display:flex;flex-direction:column;min-width:0;background:#08090c;}
   .preview-toolbar{
-    display:flex;align-items:center;gap:8px;padding:10px 16px;
+    display:flex;align-items:center;gap:8px;padding:10px 16px;flex-wrap:wrap;
     border-bottom:1px solid var(--ui-line);flex:0 0 auto;
   }
   .preview-toolbar .label{font-size:12px;color:var(--ui-text-dim);margin-right:4px;}
@@ -204,6 +215,11 @@
     transition:width .25s ease;
   }
   .preview-frame-holder.mobile #previewFrame{width:390px;max-width:100%;height:100%;}
+
+  /* ---------- full-page preview of the finished site (no editor panel) ---------- */
+  .workspace.preview-only .panel{display:none;}
+  .workspace.preview-only .preview-frame-holder{padding:0;}
+  .workspace.preview-only #previewFrame{border-radius:0;box-shadow:none;}
 
   /* ---------- mobile editor/preview switch (hidden on desktop) ---------- */
   .mobile-tabs{
@@ -281,6 +297,18 @@
     color:var(--ui-accent);font-family:'JetBrains Mono',monospace;font-size:10.5px;
     letter-spacing:0;
   }
+  /* ---------- collapsible (accordion) left panel sections ---------- */
+  .fieldset-title.fieldset-toggle{cursor:pointer;}
+  .fieldset-title.fieldset-toggle:hover{color:#fff;}
+  .fieldset-title.fieldset-toggle::after{
+    content:'▾';margin-left:auto;flex:0 0 auto;font-size:10px;
+    color:var(--ui-text-dim);transition:transform .2s ease;
+  }
+  .fieldset.collapsed{padding-bottom:6px;}
+  .fieldset.collapsed .fieldset-title.fieldset-toggle::after{transform:rotate(-90deg);}
+  .fieldset-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .22s ease;}
+  .fieldset.collapsed .fieldset-body-wrap{grid-template-rows:0fr;}
+  .fieldset-body{overflow:hidden;min-height:0;}
   label{display:block;font-size:12px;color:var(--ui-text-dim);margin:10px 0 4px;}
   label:first-child{margin-top:0;}
   input[type=text],textarea,select{
@@ -493,6 +521,29 @@
     font-size:12px;line-height:1.5;color:#fca5a5;background:rgba(248,113,113,.08);
     border:1px solid rgba(248,113,113,.4);border-radius:8px;padding:12px;margin-top:8px;
   }
+  /* ---------- "Site icons" — source image crop + previews of generated icons ---------- */
+  .icon-crop-row{display:flex;gap:14px;margin-top:10px;align-items:flex-start;}
+  .icon-crop-viewport{
+    flex:0 0 auto;width:120px;height:120px;border-radius:14px;overflow:hidden;
+    border:1px solid var(--ui-line);background:var(--ui-bg-2);
+  }
+  .icon-crop-preview{
+    width:100%;height:100%;background-repeat:no-repeat;background-size:cover;
+    transform-origin:center;
+  }
+  .icon-crop-controls{flex:1;min-width:0;}
+  .icon-crop-controls label{margin-top:8px;}
+  .icon-crop-controls label:first-child{margin-top:0;}
+  .icon-crop-controls input[type=range]{width:100%;}
+  .icon-preview-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .icon-preview-item{
+    display:flex;flex-direction:column;align-items:center;gap:5px;
+    font-size:10.5px;color:var(--ui-text-dim);
+  }
+  .icon-preview-item img{
+    width:48px;height:48px;border-radius:8px;border:1px solid var(--ui-line);
+    background:#fff;object-fit:cover;
+  }
 </style>
 <script data-goatcounter="https://webzen.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -507,11 +558,14 @@
     <button class="save-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ <span class="btn-label">Undo</span></button>
     <button class="save-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Redo</span></button>
     <span class="autosave-status" id="autosaveStatus"></span>
-    <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top bars)">⛶ <span class="btn-label">Fullscreen</span></button>
+    <button class="save-btn" id="fullscreenBtn" title="Switch to fullscreen (hides the top and bottom bars)">⛶ <span class="btn-label">Fullscreen</span></button>
     <div class="topbar-menu" id="topbarMenu">
       <button type="button" class="save-btn" id="topbarMenuToggle" title="Menu" aria-haspopup="true" aria-expanded="false">☰ <span class="btn-label">Menu</span></button>
       <div class="topbar-menu-list" id="topbarMenuList" role="menu">
-        <a class="menu-item" href="https://uklidnito.gumroad.com/l/webzenith2026" target="_blank" rel="noopener" role="menuitem">🛒 Buy the source code</a>
+        <div class="menu-item-row">
+          <a class="menu-item" href="https://uklidnito.gumroad.com/l/webzenith2026" target="_blank" rel="noopener" role="menuitem">🛒 Buy the source code</a>
+          <span class="relax-countdown" id="relaxCountdown" title="Time until the relax-break popup appears">⏱ 30:00</span>
+        </div>
         <div class="menu-divider"></div>
         <button type="button" class="menu-item" id="exportBtn" role="menuitem">
           <span class="menu-item-title">↓ Download HTML</span>
@@ -533,16 +587,16 @@
         <div class="menu-divider"></div>
         <div class="menu-section-title">Other apps</div>
         <a class="menu-item" href="https://relaxplayer.eu" target="_blank" rel="noopener" role="menuitem">🎧 RELAX PLAYER</a>
-        <a class="menu-item" href="https://synthlucida.com/weather.html" target="_blank" rel="noopener" role="menuitem">🌦️ Weather</a>
+        <a class="menu-item" href="https://synthlucida.com/landing_weather.html" target="_blank" rel="noopener" role="menuitem">🌦️ Weather</a>
         <a class="menu-item" href="https://synthlucida.com/vyplata.html" target="_blank" rel="noopener" role="menuitem">💸 Payday</a>
         <a class="menu-item" href="https://synthlucida.com/tripcost-en.html" target="_blank" rel="noopener" role="menuitem">🚗 Trip Cost</a>
-        <a class="menu-item" href="https://synthlucida.com/progrese-cz.html" target="_blank" rel="noopener" role="menuitem">🎹 Progrese</a>
+        <a class="menu-item" href="https://synthlucida.com/progrese-landing.html" target="_blank" rel="noopener" role="menuitem">🎹 Progrese</a>
         <a class="menu-item" href="https://uklidnito.eu" target="_blank" rel="noopener" role="menuitem">🧘 Uklidni To</a>
-        <a class="menu-item" href="https://noctuarytarot.com" target="_blank" rel="noopener" role="menuitem">🔮 Noctuary Tarot</a>
+        <a class="menu-item" href="https://noctuarytarot.com/landing-en.html" target="_blank" rel="noopener" role="menuitem">🔮 Noctuary Tarot</a>
         <a class="menu-item" href="https://synthlucida.com/e-liquid-mixing-calculator.html" target="_blank" rel="noopener" role="menuitem">🧪 Liquid Mixing</a>
         <a class="menu-item" href="https://synthlucida.com/denik-vozidla-en.html" target="_blank" rel="noopener" role="menuitem">📒 Logbook</a>
         <a class="menu-item" href="https://synthlucida.com/vodovaha-en.html" target="_blank" rel="noopener" role="menuitem">📐 Level</a>
-        <a class="menu-item" href="https://synthlucida.com/vapetrack-en.html" target="_blank" rel="noopener" role="menuitem">💨 Vapetrack</a>
+        <a class="menu-item" href="https://synthlucida.com/landing_vapetrack-en.html" target="_blank" rel="noopener" role="menuitem">💨 Vapetrack</a>
         <a class="menu-item" href="https://synthlucida.com/pohadkovnik.html" target="_blank" rel="noopener" role="menuitem">📖 Pohádkovník</a>
         <a class="menu-item" href="https://synthlucida.com/delnas.html" target="_blank" rel="noopener" role="menuitem">💪 Dělňas</a>
       </div>
@@ -581,7 +635,7 @@
           <p>In the Cards / features section you describe individual benefits or services (icon, heading, text). In the FAQ section you add frequently asked questions and answers — structured data for Google is automatically generated from them too. The optional "Contact form" section adds a form to the main page (after FAQ) with a choice of where submissions go — Formspree, Web3Forms, Netlify Forms (only works when hosted on Netlify), or a plain "mailto" with no third-party service; you can also add an optional Phone field and a required consent checkbox for personal-data processing with your own wording. In the Footer you set whether to show "© year brand", an optional custom text (e.g. business ID, address), and links (terms of service, contact, etc.).</p>
 
           <h4>PWA, sitemap, and robots.txt</h4>
-          <p>Further down you'll find advanced options: generating manifest.json and sw.js, which let visitors "install" the site as an app (PWA); plus sitemap.xml and robots.txt for search engines. These files are downloaded separately using their own buttons, and after export you upload them alongside the main HTML file. The generated sw.js automatically accounts for the main page under both its actual downloaded file name and "index.html", and likewise for the manifest and icons you set above, so the offline cache works no matter whether you rename the main page on your hosting. Don't forget to also add the actual icon images (favicon, apple-touch-icon, 192×192 and 512×512 icons, og-image) — the generator doesn't create those itself.</p>
+          <p>Further down you'll find advanced options: generating manifest.json and sw.js, which let visitors "install" the site as an app (PWA); plus sitemap.xml and robots.txt for search engines. These files can also be downloaded separately with their own buttons, but they're now included in "Download entire site" from the menu too, so there's no need to handle them by hand. The generated sw.js automatically accounts for the main page under both its actual downloaded file name and "index.html", and likewise for the manifest and icons you set above, so the offline cache works no matter whether you rename the main page on your hosting. The icon images themselves (favicon, apple-touch-icon, 192×192, 512×512, OG image) are generated in the "Site icons" section — just upload one image and adjust the crop, the app prepares every size and correct filename itself.</p>
 
           <h4>404 page, cookie banner, and GDPR page</h4>
           <p>The "404 page" section generates a standalone <code>404.html</code> file, which most hosts (Netlify, GitHub Pages, Vercel…) automatically show instead of the browser's generic error page for a non-existent address — it's downloaded separately with its own button and is deliberately excluded from search indexing. "Cookie banner" shows a one-time notice at the bottom of the page (remembered in the visitor's browser) — if your Footer has a link whose label contains "privacy", "personal", "gdpr", or "cookie", the banner automatically links to it. The "GDPR / Privacy Policy" section generates a <code>privacy.html</code> page whose text automatically adapts to whether — and which — service your contact form uses. It's a general template, not legal advice, so depending on your site you may need to expand it or have it checked by a lawyer.</p>
@@ -794,6 +848,7 @@
         <span class="label">Preview:</span>
         <button class="view-btn active" data-view="desktop">Desktop</button>
         <button class="view-btn" data-view="mobile">Mobile</button>
+        <button class="view-btn" id="fullPagePreviewBtn" type="button" title="Show the site preview across the full area, without the editor panel">⛶ Full page</button>
         <span class="preview-page-indicator" id="previewPageIndicator"></span>
       </div>
       <div class="preview-frame-holder" id="frameHolder">
@@ -904,6 +959,14 @@ function getDefaultState(){
   heroImageAlt: '',  // image alt text (SEO + accessibility)
   favicon: '',       // base64 data URL of the favicon from an uploaded file (takes priority over the URL)
   faviconUrl: '',    // optional external favicon URL
+  icons: {
+    source: '',          // base64 data URL of the uploaded source image for icons (resized to a sensible max size)
+    appleTouchIcon: '',  // generated base64 PNG 180×180
+    icon192: '',          // generated base64 PNG 192×192
+    icon512: '',          // generated base64 PNG 512×512
+    ogImage: ''            // generated base64 PNG 1200×630 (social-share image)
+  },
+  iconsCrop: { x: 50, y: 50, zoom: 100 }, // crop position/zoom (x/y in %, zoom in % — 100 = no zoom)
   heroLayout: 'centered', // 'centered' | 'split' | 'split-reverse' | 'left' | 'imagebg' | 'boxed' — hero section layout
   cardsLayout: 'grid',    // 'grid' | 'list' — cards/features layout
   media: {
@@ -1021,13 +1084,42 @@ const FONT_OPTIONS_DISPLAY = [
   ["'Space Grotesk', sans-serif","Space Grotesk"],
   ["'Orbitron', sans-serif","Orbitron"],
   ["'Playfair Display', serif","Playfair Display"],
-  ["'Poppins', sans-serif","Poppins"]
+  ["'Poppins', sans-serif","Poppins"],
+  ["'Montserrat', sans-serif","Montserrat"],
+  ["'Outfit', sans-serif","Outfit"],
+  ["'Bebas Neue', sans-serif","Bebas Neue (bold uppercase)"],
+  ["'DM Serif Display', serif","DM Serif Display"],
+  ["'Archivo Black', sans-serif","Archivo Black (extra bold)"]
 ];
 const FONT_OPTIONS_BODY = [
   ["'Inter', sans-serif","Inter"],
   ["'Poppins', sans-serif","Poppins"],
-  ["system-ui, sans-serif","System font"]
+  ["system-ui, sans-serif","System font"],
+  ["'Roboto', sans-serif","Roboto"],
+  ["'Lato', sans-serif","Lato"],
+  ["'Nunito Sans', sans-serif","Nunito Sans"],
+  ["'Merriweather', serif","Merriweather (serif)"]
 ];
+
+// Maps a font's CSS value (see FONT_OPTIONS_DISPLAY/BODY above) to its Google
+// Fonts CSS2 API parameter (family + the weights that font actually offers).
+// system-ui needs no Google Font.
+const FONT_GOOGLE_SPEC = {
+  "'Space Grotesk', sans-serif": "Space+Grotesk:wght@500;600;700",
+  "'Orbitron', sans-serif": "Orbitron:wght@600;700",
+  "'Playfair Display', serif": "Playfair+Display:wght@600;700",
+  "'Poppins', sans-serif": "Poppins:wght@300;400;500;600;700",
+  "'Inter', sans-serif": "Inter:wght@400;500;600",
+  "'Montserrat', sans-serif": "Montserrat:wght@500;600;700",
+  "'Outfit', sans-serif": "Outfit:wght@500;600;700",
+  "'Bebas Neue', sans-serif": "Bebas+Neue:wght@400",
+  "'DM Serif Display', serif": "DM+Serif+Display:wght@400",
+  "'Archivo Black', sans-serif": "Archivo+Black:wght@400",
+  "'Roboto', sans-serif": "Roboto:wght@400;500;600",
+  "'Lato', sans-serif": "Lato:wght@400;700",
+  "'Nunito Sans', sans-serif": "Nunito+Sans:wght@400;600;700",
+  "'Merriweather', serif": "Merriweather:wght@400;700"
+};
 
 const SOCIAL_PLATFORM_OPTIONS = [
   ['instagram', 'Instagram', '📸'],
@@ -1619,7 +1711,7 @@ function updateFullscreenBtnUi(active){
   btn.innerHTML = active
     ? '⛶ <span class="btn-label">Exit fullscreen</span>'
     : '⛶ <span class="btn-label">Fullscreen</span>';
-  btn.title = active ? 'Exit fullscreen mode' : 'Switch to fullscreen (hides the top bars)';
+  btn.title = active ? 'Exit fullscreen mode' : 'Switch to fullscreen (hides the top and bottom bars)';
 }
 function toggleAppFullscreen(){
   const turningOn = !document.body.classList.contains('focus-mode');
@@ -1643,6 +1735,46 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeTextareaModal(); closeInfoModal(); }
 });
 
+/* ---------- collapsible (accordion) left panel sections ---------- */
+// The panel re-renders often (renderForm), but open/closed sections
+// shouldn't reset each time — the state lives here between calls.
+const collapsedFieldsets = new Set();
+let fieldsetsInitialized = false;
+
+function initCollapsibleFieldsets(){
+  const fieldsets = panel.querySelectorAll(':scope > .fieldset');
+  fieldsets.forEach((fs, idx) => {
+    const title = fs.querySelector('.fieldset-title');
+    if (!title) return; // the last fieldset (closing note) has no title
+    const key = title.textContent.trim() || ('section-' + idx);
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'fieldset-body-wrap';
+    const body = document.createElement('div');
+    body.className = 'fieldset-body';
+    bodyWrap.appendChild(body);
+    while (title.nextSibling) body.appendChild(title.nextSibling);
+    fs.appendChild(bodyWrap);
+    title.classList.add('fieldset-toggle');
+    title.setAttribute('role', 'button');
+    title.setAttribute('tabindex', '0');
+    // on the very first render leave only the first section open, collapse the rest
+    if (!fieldsetsInitialized && idx > 0) collapsedFieldsets.add(key);
+    const isCollapsed = collapsedFieldsets.has(key);
+    fs.classList.toggle('collapsed', isCollapsed);
+    title.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    const toggle = () => {
+      const nowCollapsed = fs.classList.toggle('collapsed');
+      title.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      if (nowCollapsed) collapsedFieldsets.add(key); else collapsedFieldsets.delete(key);
+    };
+    title.addEventListener('click', toggle);
+    title.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+  fieldsetsInitialized = true;
+}
+
 function renderForm(){
   panel.innerHTML = `
     <div class="fieldset">
@@ -1654,13 +1786,13 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
-      <div class="fieldset-title">Favicon</div>
-      <label style="margin-top:0;">Upload a favicon from your device (square image, ideally .png or .ico)</label>
-      <input type="file" id="faviconFile" accept="image/*,.ico">
-      <label>Or a favicon URL (takes priority)</label>
+      <div class="fieldset-title">Site icons</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Upload one image (ideally a logo or icon with the main motif centered) — the app prepares the favicon, home-screen icon (Apple/PWA) in every size needed, and a social-share image (OG) from it automatically. Fine-tune the crop with the sliders — sharp, final versions of every icon are only generated once you click "Apply crop".</div>
+      <label style="margin-top:0;">Upload image for icons</label>
+      <input type="file" id="iconSourceFile" accept="image/*">
+      ${iconsSectionHtml(state)}
+      <label style="margin-top:14px;">Or a favicon URL (independent of the icons above, takes priority)</label>
       <input type="text" data-bind="faviconUrl" value="${escapeAttr(state.faviconUrl)}" placeholder="https://.../favicon.ico">
-      <div class="note-box" style="margin-top:8px;">An uploaded file is embedded directly into the exported HTML (base64), so it works without uploading favicon.ico to your hosting separately. If you fill in a URL, that's used instead. If you leave both empty, the HTML will just keep a link to "favicon.ico" and you'll need to upload that file manually, as before.</div>
-      ${state.favicon ? `<img src="${state.favicon}" style="max-width:64px;border-radius:6px;margin-top:8px;border:1px solid var(--ui-line);background:#fff;">` : ''}
     </div>
 
     <div class="fieldset">
@@ -1896,7 +2028,7 @@ function renderForm(){
 
     <div class="fieldset">
       <div class="fieldset-title">PWA — manifest + service worker</div>
-      <div class="note-box" style="margin-top:0;margin-bottom:10px;">This generates <b>manifest.json</b> and <b>sw.js</b> based on the details below. <code>sw.js</code> automatically accounts for the main page under both its actual downloaded file name and "index.html", so the offline cache works whether or not you rename the file on your hosting — renaming to <b>index.html</b> is only needed if you want the site to load at the bare domain without a file name in the address. Download both files with the buttons further down, save them next to the main HTML, and also upload the icon images themselves in the correct sizes — the generator doesn't create those itself.</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">This generates <b>manifest.json</b> and <b>sw.js</b> based on the details below. <code>sw.js</code> automatically accounts for the main page under both its actual downloaded file name and "index.html", so the offline cache works whether or not you rename the file on your hosting — renaming to <b>index.html</b> is only needed if you want the site to load at the bare domain without a file name in the address. Both files download automatically together with the rest of the site through "Download entire site" in the menu (the buttons below download them separately too) — prepare the icon images themselves in the "Site icons" section above.</div>
       ${field('Full app name (manifest "name")', `<input type="text" data-pwa="name" value="${escapeAttr(state.pwa.name)}" placeholder="${escapeAttr(state.brand)}">`)}
       ${field('Short name (manifest "short_name", ideally under 12 characters)', `<input type="text" data-pwa="shortName" value="${escapeAttr(state.pwa.shortName)}" placeholder="${escapeAttr(state.brand)}">`)}
       <div class="row2">
@@ -1981,13 +2113,14 @@ function renderForm(){
       <div class="note-box">
         <b>After exporting, still add manually:</b>
         <ul>
-          <li>the actual icon images (${(state.faviconUrl || state.favicon) ? '' : 'favicon.ico, '}apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
+          ${missingIconsListItem(state)}
           <li>a translated version of the site + hreflang, if you need one</li>
         </ul>
       </div>
     </div>
   `;
 
+  initCollapsibleFieldsets();
   renderSwatches();
   renderStylePresets();
   renderSections();
@@ -1999,7 +2132,7 @@ function renderForm(){
   bindSimpleInputs();
   bindNavInputs();
   bindHeroVisualInputs();
-  bindFaviconInput();
+  bindIconCropperInputs();
   bindMediaInputs();
   bindContactInputs();
   bindPwaInputs();
@@ -2207,19 +2340,165 @@ function bindHeroVisualInputs(){
   }
 }
 
-function bindFaviconInput(){
-  const fileInput = document.getElementById('faviconFile');
-  if(fileInput){
+// Resizes the uploaded image to a sensible maximum size, so the app doesn't
+// store a multi-megabyte phone photo in localStorage — 1400px max is plenty
+// for cropping into square icons and the OG image.
+function resizeImageDataUrl(dataUrl, maxDim){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// Renders a square crop of the source image based on the current
+// position/zoom (same logic as the CSS preview: background-position in %
+// + zoom) onto a canvas with an edge of "size" pixels.
+function cropSquareCanvas(img, size, xPercent, yPercent, zoomPercent){
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const coverScale = Math.max(size / img.naturalWidth, size / img.naturalHeight);
+  const scale = coverScale * (zoomPercent / 100);
+  const drawW = img.naturalWidth * scale;
+  const drawH = img.naturalHeight * scale;
+  const offsetX = (size - drawW) * (xPercent / 100);
+  const offsetY = (size - drawH) * (yPercent / 100);
+  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  return canvas;
+}
+
+// Downscales an already-cropped square canvas to a smaller target size
+// (higher quality than re-cropping the source image separately for each size).
+function resizeCanvasTo(sourceCanvas, size){
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sourceCanvas, 0, 0, size, size);
+  return canvas;
+}
+
+function roundRectPath(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Social-share image (OG, 1200×630) — generated from the site's colors
+// (same gradient as the page background) + centered icon + brand name.
+// Not an editable design, just a sensible default so nothing else needs
+// to be uploaded.
+function generateOgImageCanvas(iconCanvas, s){
+  const w = 1200, h = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, s.bg1 || '#1a1a1a');
+  grad.addColorStop(1, s.bg2 || '#000000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  const iconSize = 360;
+  const iconX = (w - iconSize) / 2;
+  const iconY = 76;
+  ctx.save();
+  roundRectPath(ctx, iconX, iconY, iconSize, iconSize, 48);
+  ctx.clip();
+  ctx.drawImage(iconCanvas, iconX, iconY, iconSize, iconSize);
+  ctx.restore();
+  const brand = (s.brand || '').trim();
+  if (brand){
+    ctx.fillStyle = '#ffffff';
+    ctx.font = "700 56px 'Space Grotesk', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText(brand, w / 2, iconY + iconSize + 88, w - 120);
+  }
+  return canvas;
+}
+
+// From the current crop (state.iconsCrop) generates the favicon,
+// apple-touch-icon, both PWA icons (192/512) and the OG image, and stores
+// them in state as base64 PNGs.
+async function regenerateIconsFromCrop(){
+  if (!state.icons.source) return;
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = state.icons.source;
+  });
+  const { x, y, zoom } = state.iconsCrop;
+  const master = cropSquareCanvas(img, 512, x, y, zoom);
+  state.icons.icon512 = master.toDataURL('image/png');
+  state.icons.icon192 = resizeCanvasTo(master, 192).toDataURL('image/png');
+  state.icons.appleTouchIcon = resizeCanvasTo(master, 180).toDataURL('image/png');
+  state.favicon = resizeCanvasTo(master, 64).toDataURL('image/png');
+  state.icons.ogImage = generateOgImageCanvas(master, state).toDataURL('image/png');
+  renderForm();
+  updatePreview();
+}
+
+function bindIconCropperInputs(){
+  const fileInput = document.getElementById('iconSourceFile');
+  if (fileInput){
     fileInput.addEventListener('change', () => {
       const file = fileInput.files && fileInput.files[0];
-      if(!file) return;
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
-        state.favicon = reader.result;
-        renderForm();
-        updatePreview();
+      reader.onload = async () => {
+        state.icons.source = await resizeImageDataUrl(reader.result, 1400);
+        state.iconsCrop = { x: 50, y: 50, zoom: 100 };
+        await regenerateIconsFromCrop();
       };
       reader.readAsDataURL(file);
+    });
+  }
+  const viewport = document.getElementById('iconCropViewport');
+  const preview = document.getElementById('iconCropPreview');
+  const zoomRange = document.getElementById('iconZoomRange');
+  const xRange = document.getElementById('iconPosXRange');
+  const yRange = document.getElementById('iconPosYRange');
+  if (viewport && preview && zoomRange && xRange && yRange){
+    // The sliders only recompute the live CSS preview (cheap, smooth) —
+    // the actual sharp PNG files are generated only once the button is clicked.
+    const updateLivePreview = () => {
+      state.iconsCrop.zoom = Number(zoomRange.value);
+      state.iconsCrop.x = Number(xRange.value);
+      state.iconsCrop.y = Number(yRange.value);
+      preview.style.transform = `scale(${(state.iconsCrop.zoom / 100).toFixed(2)})`;
+      preview.style.backgroundPosition = `${state.iconsCrop.x}% ${state.iconsCrop.y}%`;
+    };
+    zoomRange.addEventListener('input', updateLivePreview);
+    xRange.addEventListener('input', updateLivePreview);
+    yRange.addEventListener('input', updateLivePreview);
+  }
+  const applyBtn = document.getElementById('applyIconCrop');
+  if (applyBtn){
+    applyBtn.addEventListener('click', () => {
+      applyBtn.disabled = true;
+      applyBtn.textContent = '⏳ Generating…';
+      regenerateIconsFromCrop().finally(() => {
+        applyBtn.disabled = false;
+        applyBtn.textContent = '✓ Apply crop and generate icons';
+      });
     });
   }
 }
@@ -2587,6 +2866,61 @@ function selectHtml(bindKey, options, current){
     `</select>`;
 }
 
+// Content of the "Site icons" section below the upload button — the crop
+// controls (sliders) and previews of the generated icons. Returns an empty
+// string until a source image has been uploaded.
+function iconsSectionHtml(s){
+  if (!s.icons.source) return '';
+  const zoom = (s.iconsCrop.zoom / 100).toFixed(2);
+  let html = `
+    <div class="icon-crop-row">
+      <div class="icon-crop-viewport" id="iconCropViewport">
+        <div class="icon-crop-preview" id="iconCropPreview" style="background-image:url('${s.icons.source}');transform:scale(${zoom});background-position:${s.iconsCrop.x}% ${s.iconsCrop.y}%;"></div>
+      </div>
+      <div class="icon-crop-controls">
+        <label style="margin-top:0;">Zoom</label>
+        <input type="range" id="iconZoomRange" min="100" max="300" value="${s.iconsCrop.zoom}">
+        <label>Horizontal position</label>
+        <input type="range" id="iconPosXRange" min="0" max="100" value="${s.iconsCrop.x}">
+        <label>Vertical position</label>
+        <input type="range" id="iconPosYRange" min="0" max="100" value="${s.iconsCrop.y}">
+        <button type="button" class="add-btn" id="applyIconCrop" style="margin-top:10px;">✓ Apply crop and generate icons</button>
+      </div>
+    </div>`;
+  if (s.icons.icon512){
+    html += `
+    <div class="icon-preview-row">
+      <div class="icon-preview-item"><img src="${s.favicon || s.icons.icon192}" alt=""><span>favicon</span></div>
+      <div class="icon-preview-item"><img src="${s.icons.appleTouchIcon}" alt=""><span>apple-touch</span></div>
+      <div class="icon-preview-item"><img src="${s.icons.icon192}" alt=""><span>192×192</span></div>
+      <div class="icon-preview-item"><img src="${s.icons.icon512}" alt=""><span>512×512</span></div>
+    </div>
+    <label style="margin-top:14px;">Social-share image (OG, 1200×630) — generated automatically</label>
+    <img src="${s.icons.ogImage}" style="width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--ui-line);">
+    <div class="note-box" style="margin-top:8px;">Favicon, apple-touch-icon.png, ${escapeHtml(s.pwa.icon192)}, ${escapeHtml(s.pwa.icon512)} and og-image.png now download automatically together with the rest of the site through "Download entire site" — nothing to upload manually.</div>`;
+  } else {
+    html += `
+    <div class="note-box" style="margin-top:10px;">Just a crop preview so far — click "Apply crop and generate icons" above to actually create the favicon, apple-touch-icon, both PWA icons and the OG image from it.</div>`;
+  }
+  return html;
+}
+
+// Line in the closing "Still to add manually after export" note — lists only
+// the icons that are genuinely still missing (the "Site icons" section can
+// prepare all of them at once), or confirms none are needed anymore.
+function missingIconsListItem(s){
+  const missing = [];
+  if (!(s.faviconUrl || s.favicon)) missing.push('favicon');
+  if (!s.icons.appleTouchIcon) missing.push('apple-touch-icon.png');
+  if (!s.icons.icon192) missing.push(escapeHtml(s.pwa.icon192));
+  if (!s.icons.icon512) missing.push(escapeHtml(s.pwa.icon512));
+  if (!s.icons.ogImage) missing.push('og-image.png');
+  if (!missing.length){
+    return '<li>✅ favicon, apple-touch-icon, both PWA icons and the OG image are generated in the "Site icons" section and download automatically with the rest of the site via "Download entire site"</li>';
+  }
+  return `<li>icon images still missing: ${missing.join(', ')} — easiest is to add them in the "Site icons" section above, the app will then download them together with the rest of the site</li>`;
+}
+
 function renderStylePresets(){
   const summary = document.getElementById('stylePresetSummary');
   const box = document.getElementById('stylePresets');
@@ -2915,6 +3249,14 @@ function downloadTextFile(filename, content, mime){
   URL.revokeObjectURL(url);
 }
 
+// Downloads a base64 data URL (a generated icon) as a real file under the
+// given name — used for favicon/apple-touch-icon/PWA icons/OG image.
+function downloadDataUrl(filename, dataUrl){
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 /* ============================================================
    GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML
    ============================================================ */
@@ -3078,6 +3420,20 @@ function faviconLinkHtml(s){
   return faviconSrc
     ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
     : `<!-- TODO: upload the actual favicon.ico image (only the link is generated automatically) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
+}
+
+// Builds the Google Fonts <link> tags for only the fonts actually selected
+// (heading + body) — instead of the old hardcoded list of every available
+// font at once. Smaller/faster export, and a newly added font just needs an
+// entry in FONT_OPTIONS_DISPLAY/BODY + FONT_GOOGLE_SPEC above.
+function googleFontsLinkHtml(s){
+  const specs = [s.fontDisplay, s.fontBody].map(f => FONT_GOOGLE_SPEC[f]).filter(Boolean);
+  const uniqueSpecs = [...new Set(specs)];
+  if (!uniqueSpecs.length) return '';
+  const familyParams = uniqueSpecs.map(spec => `family=${spec}`).join('&');
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?${familyParams}&display=swap" rel="stylesheet">`;
 }
 
 // Custom code added manually in "Custom code" — inserted exactly as the user
@@ -3764,9 +4120,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 <script type="application/ld+json">
 {
@@ -4001,9 +4355,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 ${sharedStyleTag(s)}
 ${standalone ? `<style>
@@ -4082,9 +4434,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 ${sharedStyleTag(s)}
 <style>
@@ -4230,9 +4580,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 ${sharedStyleTag(s)}
 <style>
@@ -4666,21 +5014,31 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
 document.getElementById('exportAllBtn').addEventListener('click', () => {
   const homeFilename = getHomeFilename(state);
-  downloadTextFile(homeFilename, buildSiteHTML(state), 'text/html');
   const customSectionsData = computeCustomSectionsData(state);
-  customSectionsData.forEach((sec, i) => {
-    setTimeout(() => {
-      downloadTextFile(sec.filename, buildSectionPageHTML(state, sec, customSectionsData, homeFilename), 'text/html');
-    }, (i + 1) * 300);
+  const jobs = [];
+  jobs.push(() => downloadTextFile(homeFilename, buildSiteHTML(state), 'text/html'));
+  customSectionsData.forEach(sec => {
+    jobs.push(() => downloadTextFile(sec.filename, buildSectionPageHTML(state, sec, customSectionsData, homeFilename), 'text/html'));
   });
-  setTimeout(() => {
-    downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html');
-  }, (customSectionsData.length + 1) * 300);
+  jobs.push(() => downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html'));
   if (state.privacyPage && state.privacyPage.enabled) {
-    setTimeout(() => {
-      downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
-    }, (customSectionsData.length + 2) * 300);
+    jobs.push(() => downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html'));
   }
+  // PWA and SEO files — previously only downloadable separately via buttons
+  // in the "PWA"/"Sitemap.xml" sections, now part of the full export so
+  // "Download entire site" actually means the entire site in one click.
+  jobs.push(() => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json'));
+  jobs.push(() => downloadTextFile('sw.js', buildServiceWorkerJS(state), 'text/javascript'));
+  jobs.push(() => downloadTextFile('sitemap.xml', buildSitemapXML(state), 'application/xml'));
+  jobs.push(() => downloadTextFile('robots.txt', buildRobotsTXT(state), 'text/plain'));
+  // Generated icons (see the "Site icons" section) — only downloaded if
+  // they've actually been created in the editor (image uploaded + crop applied).
+  if (state.icons.appleTouchIcon) jobs.push(() => downloadDataUrl('apple-touch-icon.png', state.icons.appleTouchIcon));
+  if (state.icons.icon192) jobs.push(() => downloadDataUrl((state.pwa.icon192 || 'icon-192.png').trim(), state.icons.icon192));
+  if (state.icons.icon512) jobs.push(() => downloadDataUrl((state.pwa.icon512 || 'icon-512.png').trim(), state.icons.icon512));
+  if (state.icons.ogImage) jobs.push(() => downloadDataUrl('og-image.png', state.icons.ogImage));
+
+  jobs.forEach((job, i) => setTimeout(job, i * 300));
   document.getElementById('topbarMenu').__closeMenu();
 });
 
@@ -4695,18 +5053,35 @@ document.querySelectorAll('.mobile-tab').forEach(tab => {
   });
 });
 
-document.querySelectorAll('.view-btn').forEach(btn => {
+document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view-btn[data-view]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('frameHolder').classList.toggle('mobile', btn.dataset.view === 'mobile');
   });
 });
 
+/* ---------- full-page preview of the finished site (no editor panel) ---------- */
+(function(){
+  const btn = document.getElementById('fullPagePreviewBtn');
+  const ws = document.getElementById('workspace');
+  if (!btn || !ws) return;
+  function setPreviewOnly(active){
+    ws.classList.toggle('preview-only', active);
+    btn.classList.toggle('active', active);
+    btn.textContent = active ? '✕ Back to editing' : '⛶ Full page';
+  }
+  btn.addEventListener('click', () => setPreviewOnly(!ws.classList.contains('preview-only')));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && ws.classList.contains('preview-only')) setPreviewOnly(false);
+  });
+})();
+
 /* ---------- relax pauza: vyskakovací okno každých 30 minut ---------- */
 (function(){
   const RELAX_INTERVAL_MS = 30 * 60 * 1000; // 30 minut
   const overlay = document.getElementById('relaxModalOverlay');
+  const countdownEl = document.getElementById('relaxCountdown');
   if (!overlay) return;
   function openRelaxModal(){
     overlay.classList.add('open');
@@ -4721,14 +5096,38 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeRelaxModal();
   });
+
+  function formatCountdown(ms){
+    const totalSec = Math.max(0, Math.round(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
   let relaxTimer = null;
+  let nextFireAt = 0;
+  function tick(){
+    const remaining = nextFireAt - Date.now();
+    if (remaining <= 0){
+      openRelaxModal();
+      // The countdown always resets to another 30 minutes once it fires.
+      nextFireAt = Date.now() + RELAX_INTERVAL_MS;
+    }
+    if (countdownEl) countdownEl.textContent = '⏱ ' + formatCountdown(nextFireAt - Date.now());
+  }
   function startRelaxTimer(){
     if (relaxTimer) return;
-    relaxTimer = setInterval(openRelaxModal, RELAX_INTERVAL_MS);
+    nextFireAt = Date.now() + RELAX_INTERVAL_MS;
+    if (countdownEl){
+      countdownEl.style.display = '';
+      countdownEl.textContent = '⏱ ' + formatCountdown(RELAX_INTERVAL_MS);
+    }
+    relaxTimer = setInterval(tick, 1000);
   }
   function stopRelaxTimer(){
     if (relaxTimer){ clearInterval(relaxTimer); relaxTimer = null; }
     closeRelaxModal();
+    if (countdownEl) countdownEl.style.display = 'none';
   }
   // Exposed so the "no-branding unlock" block below can turn it off, even
   // if the timer already started before the code was entered.

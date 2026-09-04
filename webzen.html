@@ -83,9 +83,11 @@
   .wz-unlock-msg.ok{color:#4caf82;}
   .wz-unlock-msg.err{color:#e0615a;}
   /* Režim celé obrazovky / focus mode — schová lištu s podporou kávou
-     (donate-bar), ať zbyde víc místa na tvorbu webu. Odkazy na další
-     appky (dřív "promo-bar") teď žijí v sekci "Další aplikace" v menu. */
-  body.focus-mode .donate-bar{display:none;}
+     (donate-bar) i spodní patičku appky (odkaz na synthlucida.com a Zásady
+     ochrany osobních údajů), ať zbyde víc místa na tvorbu webu. Odkazy na
+     další appky (dřív "promo-bar") teď žijí v sekci "Další aplikace" v menu. */
+  body.focus-mode .donate-bar,
+  body.focus-mode .app-footer{display:none;}
   #fullscreenBtn.active{color:#fff;border-color:var(--ui-accent);background:rgba(124,92,255,.15);}
 
   /* Návod a Články se od teď zobrazují v modálním okně (viz .info-modal-*),
@@ -145,6 +147,15 @@
   .menu-item:hover{background:rgba(124,92,255,.15);}
   .menu-item-title{display:block;font-size:13px;font-weight:600;}
   .menu-item-desc{display:block;font-size:11.5px;color:var(--ui-text-dim);margin-top:2px;line-height:1.4;font-weight:400;}
+  /* Řádek s odkazem na prodej zdrojáku + odpočtem do dalšího vyskakovacího
+     okna s nabídkou pauzy (viz "relax pauza" JS níže). */
+  .menu-item-row{display:flex;align-items:center;gap:6px;}
+  .menu-item-row .menu-item{width:auto;flex:1;}
+  .relax-countdown{
+    flex:0 0 auto;font-size:11px;font-family:'JetBrains Mono',monospace;
+    color:var(--ui-text-dim);background:var(--ui-bg-1);border:1px solid var(--ui-line);
+    border-radius:6px;padding:4px 7px;white-space:nowrap;
+  }
   .menu-divider{height:1px;background:var(--ui-line);margin:5px 4px;}
   .menu-section-title{
     padding:8px 10px 2px;font-size:11px;font-weight:600;text-transform:uppercase;
@@ -176,7 +187,7 @@
   }
   .preview-wrap{flex:1;display:flex;flex-direction:column;min-width:0;background:#08090c;}
   .preview-toolbar{
-    display:flex;align-items:center;gap:8px;padding:10px 16px;
+    display:flex;align-items:center;gap:8px;padding:10px 16px;flex-wrap:wrap;
     border-bottom:1px solid var(--ui-line);flex:0 0 auto;
   }
   .preview-toolbar .label{font-size:12px;color:var(--ui-text-dim);margin-right:4px;}
@@ -204,6 +215,11 @@
     transition:width .25s ease;
   }
   .preview-frame-holder.mobile #previewFrame{width:390px;max-width:100%;height:100%;}
+
+  /* ---------- náhled hotového webu přes celou plochu (bez panelu úprav) ---------- */
+  .workspace.preview-only .panel{display:none;}
+  .workspace.preview-only .preview-frame-holder{padding:0;}
+  .workspace.preview-only #previewFrame{border-radius:0;box-shadow:none;}
 
   /* ---------- mobile editor/preview switch (hidden on desktop) ---------- */
   .mobile-tabs{
@@ -281,6 +297,18 @@
     color:var(--ui-accent);font-family:'JetBrains Mono',monospace;font-size:10.5px;
     letter-spacing:0;
   }
+  /* ---------- rozevírací (accordion) sekce levého panelu ---------- */
+  .fieldset-title.fieldset-toggle{cursor:pointer;}
+  .fieldset-title.fieldset-toggle:hover{color:#fff;}
+  .fieldset-title.fieldset-toggle::after{
+    content:'▾';margin-left:auto;flex:0 0 auto;font-size:10px;
+    color:var(--ui-text-dim);transition:transform .2s ease;
+  }
+  .fieldset.collapsed{padding-bottom:6px;}
+  .fieldset.collapsed .fieldset-title.fieldset-toggle::after{transform:rotate(-90deg);}
+  .fieldset-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .22s ease;}
+  .fieldset.collapsed .fieldset-body-wrap{grid-template-rows:0fr;}
+  .fieldset-body{overflow:hidden;min-height:0;}
   label{display:block;font-size:12px;color:var(--ui-text-dim);margin:10px 0 4px;}
   label:first-child{margin-top:0;}
   input[type=text],textarea,select{
@@ -587,6 +615,29 @@
     font-size:12px;line-height:1.5;color:#fca5a5;background:rgba(248,113,113,.08);
     border:1px solid rgba(248,113,113,.4);border-radius:8px;padding:12px;margin-top:8px;
   }
+  /* ---------- "Ikony webu" — výřez zdrojového obrázku + náhledy vygenerovaných ikon ---------- */
+  .icon-crop-row{display:flex;gap:14px;margin-top:10px;align-items:flex-start;}
+  .icon-crop-viewport{
+    flex:0 0 auto;width:120px;height:120px;border-radius:14px;overflow:hidden;
+    border:1px solid var(--ui-line);background:var(--ui-bg-2);
+  }
+  .icon-crop-preview{
+    width:100%;height:100%;background-repeat:no-repeat;background-size:cover;
+    transform-origin:center;
+  }
+  .icon-crop-controls{flex:1;min-width:0;}
+  .icon-crop-controls label{margin-top:8px;}
+  .icon-crop-controls label:first-child{margin-top:0;}
+  .icon-crop-controls input[type=range]{width:100%;}
+  .icon-preview-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .icon-preview-item{
+    display:flex;flex-direction:column;align-items:center;gap:5px;
+    font-size:10.5px;color:var(--ui-text-dim);
+  }
+  .icon-preview-item img{
+    width:48px;height:48px;border-radius:8px;border:1px solid var(--ui-line);
+    background:#fff;object-fit:cover;
+  }
 </style>
 <script data-goatcounter="https://webzen.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -601,11 +652,14 @@
     <button class="save-btn" id="undoBtn" title="Zpět (Ctrl+Z)" disabled>↶ <span class="btn-label">Zpět</span></button>
     <button class="save-btn" id="redoBtn" title="Vpřed (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Vpřed</span></button>
     <span class="autosave-status" id="autosaveStatus"></span>
-    <button class="save-btn" id="fullscreenBtn" title="Přepnout na celou obrazovku (schová horní lišty)">⛶ <span class="btn-label">Celá obrazovka</span></button>
+    <button class="save-btn" id="fullscreenBtn" title="Přepnout na celou obrazovku (schová horní i dolní lišty)">⛶ <span class="btn-label">Celá obrazovka</span></button>
     <div class="topbar-menu" id="topbarMenu">
       <button type="button" class="save-btn" id="topbarMenuToggle" title="Menu" aria-haspopup="true" aria-expanded="false">☰ <span class="btn-label">Menu</span></button>
       <div class="topbar-menu-list" id="topbarMenuList" role="menu">
-        <a class="menu-item" href="https://uklidnito.gumroad.com/l/webzenith2026" target="_blank" rel="noopener" role="menuitem">🛒 Prodej zdrojového kódu</a>
+        <div class="menu-item-row">
+          <a class="menu-item" href="https://uklidnito.gumroad.com/l/webzenith2026" target="_blank" rel="noopener" role="menuitem">🛒 Prodej zdrojového kódu</a>
+          <span class="relax-countdown" id="relaxCountdown" title="Za tuto dobu se zobrazí okno s nabídkou pauzy">⏱ 30:00</span>
+        </div>
         <div class="menu-divider"></div>
         <button type="button" class="menu-item" id="exportBtn" role="menuitem">
           <span class="menu-item-title">↓ Stáhnout HTML</span>
@@ -627,16 +681,16 @@
         <div class="menu-divider"></div>
         <div class="menu-section-title">Další aplikace</div>
         <a class="menu-item" href="https://relaxplayer.eu" target="_blank" rel="noopener" role="menuitem">🎧 RELAX PLAYER</a>
-        <a class="menu-item" href="https://synthlucida.com/weather.html" target="_blank" rel="noopener" role="menuitem">🌦️ Weather</a>
+        <a class="menu-item" href="https://synthlucida.com/landing_weather.html" target="_blank" rel="noopener" role="menuitem">🌦️ Weather</a>
         <a class="menu-item" href="https://synthlucida.com/vyplata.html" target="_blank" rel="noopener" role="menuitem">💸 Výplata</a>
         <a class="menu-item" href="https://synthlucida.com/tripcost.html" target="_blank" rel="noopener" role="menuitem">🚗 Trip Cost</a>
-        <a class="menu-item" href="https://synthlucida.com/progrese-cz.html" target="_blank" rel="noopener" role="menuitem">🎹 Progrese</a>
+        <a class="menu-item" href="https://synthlucida.com/progrese-landing-cz.html" target="_blank" rel="noopener" role="menuitem">🎹 Progrese</a>
         <a class="menu-item" href="https://uklidnito.eu" target="_blank" rel="noopener" role="menuitem">🧘 Uklidni To</a>
-        <a class="menu-item" href="https://noctuarytarot.com" target="_blank" rel="noopener" role="menuitem">🔮 Noctuary Tarot</a>
+        <a class="menu-item" href="https://noctuarytarot.com/landing.html" target="_blank" rel="noopener" role="menuitem">🔮 Noctuary Tarot</a>
         <a class="menu-item" href="https://synthlucida.com/michani-liquidu.html" target="_blank" rel="noopener" role="menuitem">🧪 Míchání liquidu</a>
         <a class="menu-item" href="https://synthlucida.com/denik-vozidla.html" target="_blank" rel="noopener" role="menuitem">📒 Deník vozidla</a>
         <a class="menu-item" href="https://synthlucida.com/vodovaha.html" target="_blank" rel="noopener" role="menuitem">📐 Vodováha</a>
-        <a class="menu-item" href="https://synthlucida.com/vapetrack.html" target="_blank" rel="noopener" role="menuitem">💨 Vapetrack</a>
+        <a class="menu-item" href="https://synthlucida.com/landing_vapetrack.html" target="_blank" rel="noopener" role="menuitem">💨 Vapetrack</a>
         <a class="menu-item" href="https://synthlucida.com/pohadkovnik.html" target="_blank" rel="noopener" role="menuitem">📖 Pohádkovník</a>
         <a class="menu-item" href="https://synthlucida.com/delnas.html" target="_blank" rel="noopener" role="menuitem">💪 Dělňas</a>
       </div>
@@ -675,7 +729,7 @@
           <p>V sekci Karty / funkce popíšeš jednotlivé výhody nebo služby (ikona, nadpis, text). V sekci FAQ přidáš časté otázky a odpovědi — automaticky se z nich vygeneruje i strukturovaná data pro Google. Volitelná sekce „Kontaktní formulář" přidá na hlavní stránku (za FAQ) formulář s volbou, kam se má odesílat — Formspree, Web3Forms, Netlify Forms (funguje jen při hostování na Netlify), nebo prosté „mailto" bez cizí služby; jde přidat i volitelné pole Telefon a povinný souhlas se zpracováním osobních údajů s vlastním textem. V Patičce nastavíš, jestli se má zobrazit „© rok značka", volitelný vlastní text (např. IČO, adresa) a odkazy (obchodní podmínky, kontakt apod.).</p>
 
           <h4>PWA, sitemapa a robots.txt</h4>
-          <p>Dole najdeš pokročilé volby: vygenerování manifest.json a sw.js, díky kterým si návštěvníci mohou web „nainstalovat" jako appku (PWA); dále sitemap.xml a robots.txt pro vyhledávače. Tyto soubory se stahují zvlášť tlačítky a po exportu je nahraješ vedle hlavního HTML souboru. Vygenerovaný sw.js automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html" a stejně tak i s manifestem a ikonami zadanými výše, takže offline cache funguje bez ohledu na to, jestli si hlavní stránku na hostingu přejmenuješ. Nezapomeň doplnit i skutečné obrázky ikon (favicon, apple-touch-icon, ikony 192×192 a 512×512, og-image) — ty generátor sám nevytváří.</p>
+          <p>Dole najdeš pokročilé volby: vygenerování manifest.json a sw.js, díky kterým si návštěvníci mohou web „nainstalovat" jako appku (PWA); dále sitemap.xml a robots.txt pro vyhledávače. Tyto soubory se dají stáhnout i zvlášť tlačítky, ale hlavně jsou teď součástí "Stáhnout celý web" v menu, takže je není potřeba řešit ručně. Vygenerovaný sw.js automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html" a stejně tak i s manifestem a ikonami zadanými výše, takže offline cache funguje bez ohledu na to, jestli si hlavní stránku na hostingu přejmenuješ. Samotné obrázky ikon (favicon, apple-touch-icon, 192×192, 512×512, OG obrázek) si necháš vygenerovat v sekci „Ikony webu" — stačí nahrát jeden obrázek a doladit výřez, appka z něj připraví všechny velikosti i názvy souborů sama.</p>
 
           <h4>Stránka 404, cookie lišta a GDPR stránka</h4>
           <p>Sekce „Stránka 404" vygeneruje samostatný soubor <code>404.html</code>, který většina hostingů (Netlify, GitHub Pages, Vercel…) automaticky zobrazí místo chybové hlášky prohlížeče při neexistující adrese — stahuje se zvlášť tlačítkem a do vyhledávačů se schválně neindexuje. „Cookie lišta" zobrazí jednorázové upozornění dole na stránce (zapamatuje se v prohlížeči návštěvníka) — pokud v Patičce máš odkaz s popiskem obsahujícím „ochrana", „osobní", „gdpr" nebo „privacy", lišta na něj automaticky odkáže. V sekci „GDPR / Zásady ochrany osobních údajů" necháš vygenerovat stránku <code>privacy.html</code>, jejíž text se sám přizpůsobí tomu, jestli a jakou službu používá kontaktní formulář — jde o obecnou šablonu, ne o právní poradenství, takže ji podle povahy webu může být potřeba doplnit nebo nechat zkontrolovat právníkem.</p>
@@ -888,6 +942,7 @@
         <span class="label">Náhled:</span>
         <button class="view-btn active" data-view="desktop">Desktop</button>
         <button class="view-btn" data-view="mobile">Mobil</button>
+        <button class="view-btn" id="fullPagePreviewBtn" type="button" title="Zobrazit náhled webu přes celou plochu, bez panelu úprav">⛶ Celá stránka</button>
         <span class="preview-page-indicator" id="previewPageIndicator"></span>
       </div>
       <div class="preview-frame-holder" id="frameHolder">
@@ -1131,6 +1186,14 @@ function getDefaultState(){
   heroImageAlt: '',  // alternativní text obrázku (SEO + přístupnost)
   favicon: '',       // base64 data URL faviconu z nahraného souboru (má přednost před URL)
   faviconUrl: '',    // volitelná externí URL faviconu
+  icons: {
+    source: '',          // base64 data URL nahraného zdrojového obrázku pro ikony (zmenšený na rozumnou velikost)
+    appleTouchIcon: '',  // vygenerovaný base64 PNG 180×180
+    icon192: '',          // vygenerovaný base64 PNG 192×192
+    icon512: '',          // vygenerovaný base64 PNG 512×512
+    ogImage: ''            // vygenerovaný base64 PNG 1200×630 (sdílecí obrázek pro sociální sítě)
+  },
+  iconsCrop: { x: 50, y: 50, zoom: 100 }, // pozice/přiblížení výřezu (x/y v %, zoom v % - 100 = bez přiblížení)
   heroLayout: 'centered', // 'centered' | 'split' | 'split-reverse' | 'left' | 'imagebg' | 'boxed' — rozvržení hero sekce
   cardsLayout: 'grid',    // 'grid' | 'list' — rozvržení karet/funkcí
   media: {
@@ -1248,13 +1311,42 @@ const FONT_OPTIONS_DISPLAY = [
   ["'Space Grotesk', sans-serif","Space Grotesk"],
   ["'Orbitron', sans-serif","Orbitron"],
   ["'Playfair Display', serif","Playfair Display"],
-  ["'Poppins', sans-serif","Poppins"]
+  ["'Poppins', sans-serif","Poppins"],
+  ["'Montserrat', sans-serif","Montserrat"],
+  ["'Outfit', sans-serif","Outfit"],
+  ["'Bebas Neue', sans-serif","Bebas Neue (velká verzálková písmena)"],
+  ["'DM Serif Display', serif","DM Serif Display"],
+  ["'Archivo Black', sans-serif","Archivo Black (velmi tučné)"]
 ];
 const FONT_OPTIONS_BODY = [
   ["'Inter', sans-serif","Inter"],
   ["'Poppins', sans-serif","Poppins"],
-  ["system-ui, sans-serif","Systémové písmo"]
+  ["system-ui, sans-serif","Systémové písmo"],
+  ["'Roboto', sans-serif","Roboto"],
+  ["'Lato', sans-serif","Lato"],
+  ["'Nunito Sans', sans-serif","Nunito Sans"],
+  ["'Merriweather', serif","Merriweather (serif)"]
 ];
+
+// Mapa CSS hodnoty písma (viz FONT_OPTIONS_DISPLAY/BODY výš) na parametr pro
+// Google Fonts CSS2 API (rodina + váhy, které daný font na Google Fonts má).
+// system-ui žádný Google Font nepotřebuje.
+const FONT_GOOGLE_SPEC = {
+  "'Space Grotesk', sans-serif": "Space+Grotesk:wght@500;600;700",
+  "'Orbitron', sans-serif": "Orbitron:wght@600;700",
+  "'Playfair Display', serif": "Playfair+Display:wght@600;700",
+  "'Poppins', sans-serif": "Poppins:wght@300;400;500;600;700",
+  "'Inter', sans-serif": "Inter:wght@400;500;600",
+  "'Montserrat', sans-serif": "Montserrat:wght@500;600;700",
+  "'Outfit', sans-serif": "Outfit:wght@500;600;700",
+  "'Bebas Neue', sans-serif": "Bebas+Neue:wght@400",
+  "'DM Serif Display', serif": "DM+Serif+Display:wght@400",
+  "'Archivo Black', sans-serif": "Archivo+Black:wght@400",
+  "'Roboto', sans-serif": "Roboto:wght@400;500;600",
+  "'Lato', sans-serif": "Lato:wght@400;700",
+  "'Nunito Sans', sans-serif": "Nunito+Sans:wght@400;600;700",
+  "'Merriweather', serif": "Merriweather:wght@400;700"
+};
 
 const SOCIAL_PLATFORM_OPTIONS = [
   ['instagram', 'Instagram', '📸'],
@@ -1846,7 +1938,7 @@ function updateFullscreenBtnUi(active){
   btn.innerHTML = active
     ? '⛶ <span class="btn-label">Ukončit celou obrazovku</span>'
     : '⛶ <span class="btn-label">Celá obrazovka</span>';
-  btn.title = active ? 'Ukončit režim celé obrazovky' : 'Přepnout na celou obrazovku (schová horní lišty)';
+  btn.title = active ? 'Ukončit režim celé obrazovky' : 'Přepnout na celou obrazovku (schová horní i dolní lišty)';
 }
 function toggleAppFullscreen(){
   const turningOn = !document.body.classList.contains('focus-mode');
@@ -1870,6 +1962,46 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeTextareaModal(); closeInfoModal(); }
 });
 
+/* ---------- rozevírací (accordion) sekce levého panelu ---------- */
+// Panel se překresluje často (renderForm), ale otevřené/zavřené sekce
+// se tím nemají resetovat — stav se drží tady mezi jednotlivými voláními.
+const collapsedFieldsets = new Set();
+let fieldsetsInitialized = false;
+
+function initCollapsibleFieldsets(){
+  const fieldsets = panel.querySelectorAll(':scope > .fieldset');
+  fieldsets.forEach((fs, idx) => {
+    const title = fs.querySelector('.fieldset-title');
+    if (!title) return; // poslední fieldset (závěrečná poznámka) titulek nemá
+    const key = title.textContent.trim() || ('sekce-' + idx);
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'fieldset-body-wrap';
+    const body = document.createElement('div');
+    body.className = 'fieldset-body';
+    bodyWrap.appendChild(body);
+    while (title.nextSibling) body.appendChild(title.nextSibling);
+    fs.appendChild(bodyWrap);
+    title.classList.add('fieldset-toggle');
+    title.setAttribute('role', 'button');
+    title.setAttribute('tabindex', '0');
+    // při úplně prvním vykreslení nech otevřenou jen první sekci, zbytek sbal
+    if (!fieldsetsInitialized && idx > 0) collapsedFieldsets.add(key);
+    const isCollapsed = collapsedFieldsets.has(key);
+    fs.classList.toggle('collapsed', isCollapsed);
+    title.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    const toggle = () => {
+      const nowCollapsed = fs.classList.toggle('collapsed');
+      title.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      if (nowCollapsed) collapsedFieldsets.add(key); else collapsedFieldsets.delete(key);
+    };
+    title.addEventListener('click', toggle);
+    title.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+  fieldsetsInitialized = true;
+}
+
 function renderForm(){
   panel.innerHTML = `
     <div class="fieldset">
@@ -1881,13 +2013,13 @@ function renderForm(){
     </div>
 
     <div class="fieldset">
-      <div class="fieldset-title">Favicon</div>
-      <label style="margin-top:0;">Nahrát favicon ze zařízení (čtvercový obrázek, ideálně .png nebo .ico)</label>
-      <input type="file" id="faviconFile" accept="image/*,.ico">
-      <label>Nebo URL faviconu (má přednost)</label>
+      <div class="fieldset-title">Ikony webu</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Nahraj jeden obrázek (ideálně logo nebo ikonka s hlavním motivem uprostřed) — appka z něj sama připraví favicon, ikonu na plochu (Apple/PWA) ve všech potřebných velikostech i obrázek pro sdílení na sociálních sítích (OG). Výřez doladíš posuvníky, teprve po kliknutí na "Použít výřez" se vygenerují ostré verze všech ikon.</div>
+      <label style="margin-top:0;">Nahrát obrázek pro ikony</label>
+      <input type="file" id="iconSourceFile" accept="image/*">
+      ${iconsSectionHtml(state)}
+      <label style="margin-top:14px;">Nebo URL faviconu (nezávislé na ikonách výš, má přednost)</label>
       <input type="text" data-bind="faviconUrl" value="${escapeAttr(state.faviconUrl)}" placeholder="https://.../favicon.ico">
-      <div class="note-box" style="margin-top:8px;">Nahraný soubor se vloží přímo do exportovaného HTML (base64), takže funguje i bez samostatného nahrávání favicon.ico na hosting. Pokud vyplníš URL, použije se místo něj. Když nevyplníš nic, zůstane v HTML jen odkaz na "favicon.ico" a soubor musíš nahrát ručně, jako dřív.</div>
-      ${state.favicon ? `<img src="${state.favicon}" style="max-width:64px;border-radius:6px;margin-top:8px;border:1px solid var(--ui-line);background:#fff;">` : ''}
     </div>
 
     <div class="fieldset">
@@ -2123,7 +2255,7 @@ function renderForm(){
 
     <div class="fieldset">
       <div class="fieldset-title">PWA — manifest + service worker</div>
-      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygeneruje se <b>manifest.json</b> a <b>sw.js</b> podle údajů níž. <code>sw.js</code> automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html", takže offline cache funguje, ať už si soubor na hostingu přejmenuješ nebo ne — <b>index.html</b> je potřeba jen pokud chceš, aby se web načítal na holé doméně bez názvu souboru v adrese. Stáhni oba soubory tlačítky dole, ulož je vedle hlavního HTML a nahraj i samotné obrázky ikon ve správných rozměrech — ty generátor sám nevytváří.</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Vygeneruje se <b>manifest.json</b> a <b>sw.js</b> podle údajů níž. <code>sw.js</code> automaticky počítá s hlavní stránkou pod jejím skutečným staženým názvem i pod „index.html", takže offline cache funguje, ať už si soubor na hostingu přejmenuješ nebo ne — <b>index.html</b> je potřeba jen pokud chceš, aby se web načítal na holé doméně bez názvu souboru v adrese. Oba soubory se automaticky stáhnou spolu se zbytkem webu přes "Stáhnout celý web" v menu (tlačítka dole je stáhnou i samostatně) — samotné obrázky ikon připravíš v sekci „Ikony webu" výš.</div>
       ${field('Celý název appky (manifest "name")', `<input type="text" data-pwa="name" value="${escapeAttr(state.pwa.name)}" placeholder="${escapeAttr(state.brand)}">`)}
       ${field('Krátký název (manifest "short_name", ideálně do 12 znaků)', `<input type="text" data-pwa="shortName" value="${escapeAttr(state.pwa.shortName)}" placeholder="${escapeAttr(state.brand)}">`)}
       <div class="row2">
@@ -2208,13 +2340,14 @@ function renderForm(){
       <div class="note-box">
         <b>Po exportu ještě ručně doplň:</b>
         <ul>
-          <li>samotné obrázky ikon (${(state.faviconUrl || state.favicon) ? '' : 'favicon.ico, '}apple-touch-icon.png, ${escapeHtml(state.pwa.icon192)}, ${escapeHtml(state.pwa.icon512)}, og-image.png)</li>
+          ${missingIconsListItem(state)}
           <li>AJ verzi (index-en.html) + hreflang</li>
         </ul>
       </div>
     </div>
   `;
 
+  initCollapsibleFieldsets();
   renderSwatches();
   renderStylePresets();
   renderSections();
@@ -2226,7 +2359,7 @@ function renderForm(){
   bindSimpleInputs();
   bindNavInputs();
   bindHeroVisualInputs();
-  bindFaviconInput();
+  bindIconCropperInputs();
   bindMediaInputs();
   bindContactInputs();
   bindPwaInputs();
@@ -2434,19 +2567,164 @@ function bindHeroVisualInputs(){
   }
 }
 
-function bindFaviconInput(){
-  const fileInput = document.getElementById('faviconFile');
-  if(fileInput){
+// Zmenší nahraný obrázek na rozumnou maximální velikost, ať appka
+// v localStorage neukládá klidně několikamegabajtovou fotku z mobilu —
+// pro výřez do čtvercových ikon i OG obrázku bohatě stačí max. 1400 px.
+function resizeImageDataUrl(dataUrl, maxDim){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// Vykreslí čtvercový výřez zdrojového obrázku podle aktuální pozice/přiblížení
+// (stejná logika jako CSS náhled: background-position v % + zoom) do canvasu
+// o hraně "size" pixelů.
+function cropSquareCanvas(img, size, xPercent, yPercent, zoomPercent){
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const coverScale = Math.max(size / img.naturalWidth, size / img.naturalHeight);
+  const scale = coverScale * (zoomPercent / 100);
+  const drawW = img.naturalWidth * scale;
+  const drawH = img.naturalHeight * scale;
+  const offsetX = (size - drawW) * (xPercent / 100);
+  const offsetY = (size - drawH) * (yPercent / 100);
+  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  return canvas;
+}
+
+// Zmenší už oříznutý čtvercový canvas na menší cílovou velikost (kvalitněji
+// než opakované ořezávání ze zdrojového obrázku pro každou velikost zvlášť).
+function resizeCanvasTo(sourceCanvas, size){
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sourceCanvas, 0, 0, size, size);
+  return canvas;
+}
+
+function roundRectPath(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Sdílecí obrázek pro sociální sítě (OG, 1200×630) — vygenerovaný z barev
+// webu (stejný přechod jako pozadí stránky) + vycentrovaná ikona + název webu.
+// Není to editovatelný design, jen rozumný výchozí obrázek, ať uživatel
+// nemusí nic dalšího nahrávat.
+function generateOgImageCanvas(iconCanvas, s){
+  const w = 1200, h = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, s.bg1 || '#1a1a1a');
+  grad.addColorStop(1, s.bg2 || '#000000');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  const iconSize = 360;
+  const iconX = (w - iconSize) / 2;
+  const iconY = 76;
+  ctx.save();
+  roundRectPath(ctx, iconX, iconY, iconSize, iconSize, 48);
+  ctx.clip();
+  ctx.drawImage(iconCanvas, iconX, iconY, iconSize, iconSize);
+  ctx.restore();
+  const brand = (s.brand || '').trim();
+  if (brand){
+    ctx.fillStyle = '#ffffff';
+    ctx.font = "700 56px 'Space Grotesk', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText(brand, w / 2, iconY + iconSize + 88, w - 120);
+  }
+  return canvas;
+}
+
+// Z aktuálního výřezu (state.iconsCrop) vygeneruje favicon, apple-touch-icon,
+// obě PWA ikony (192/512) i OG obrázek a uloží je do state jako base64 PNG.
+async function regenerateIconsFromCrop(){
+  if (!state.icons.source) return;
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = state.icons.source;
+  });
+  const { x, y, zoom } = state.iconsCrop;
+  const master = cropSquareCanvas(img, 512, x, y, zoom);
+  state.icons.icon512 = master.toDataURL('image/png');
+  state.icons.icon192 = resizeCanvasTo(master, 192).toDataURL('image/png');
+  state.icons.appleTouchIcon = resizeCanvasTo(master, 180).toDataURL('image/png');
+  state.favicon = resizeCanvasTo(master, 64).toDataURL('image/png');
+  state.icons.ogImage = generateOgImageCanvas(master, state).toDataURL('image/png');
+  renderForm();
+  updatePreview();
+}
+
+function bindIconCropperInputs(){
+  const fileInput = document.getElementById('iconSourceFile');
+  if (fileInput){
     fileInput.addEventListener('change', () => {
       const file = fileInput.files && fileInput.files[0];
-      if(!file) return;
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
-        state.favicon = reader.result;
-        renderForm();
-        updatePreview();
+      reader.onload = async () => {
+        state.icons.source = await resizeImageDataUrl(reader.result, 1400);
+        state.iconsCrop = { x: 50, y: 50, zoom: 100 };
+        await regenerateIconsFromCrop();
       };
       reader.readAsDataURL(file);
+    });
+  }
+  const viewport = document.getElementById('iconCropViewport');
+  const preview = document.getElementById('iconCropPreview');
+  const zoomRange = document.getElementById('iconZoomRange');
+  const xRange = document.getElementById('iconPosXRange');
+  const yRange = document.getElementById('iconPosYRange');
+  if (viewport && preview && zoomRange && xRange && yRange){
+    // Posuvníky jen přepočítají živý CSS náhled (levné, plynulé) — skutečné
+    // vygenerování ostrých PNG souborů proběhne až po kliknutí na tlačítko.
+    const updateLivePreview = () => {
+      state.iconsCrop.zoom = Number(zoomRange.value);
+      state.iconsCrop.x = Number(xRange.value);
+      state.iconsCrop.y = Number(yRange.value);
+      preview.style.transform = `scale(${(state.iconsCrop.zoom / 100).toFixed(2)})`;
+      preview.style.backgroundPosition = `${state.iconsCrop.x}% ${state.iconsCrop.y}%`;
+    };
+    zoomRange.addEventListener('input', updateLivePreview);
+    xRange.addEventListener('input', updateLivePreview);
+    yRange.addEventListener('input', updateLivePreview);
+  }
+  const applyBtn = document.getElementById('applyIconCrop');
+  if (applyBtn){
+    applyBtn.addEventListener('click', () => {
+      applyBtn.disabled = true;
+      applyBtn.textContent = '⏳ Generuji…';
+      regenerateIconsFromCrop().finally(() => {
+        applyBtn.disabled = false;
+        applyBtn.textContent = '✓ Použít výřez a vygenerovat ikony';
+      });
     });
   }
 }
@@ -2814,6 +3092,61 @@ function selectHtml(bindKey, options, current){
     `</select>`;
 }
 
+// Obsah sekce "Ikony webu" pod nahrávacím tlačítkem — výřez (posuvníky) a
+// náhledy vygenerovaných ikon. Vrací prázdný řetězec, dokud není nahraný
+// žádný zdrojový obrázek.
+function iconsSectionHtml(s){
+  if (!s.icons.source) return '';
+  const zoom = (s.iconsCrop.zoom / 100).toFixed(2);
+  let html = `
+    <div class="icon-crop-row">
+      <div class="icon-crop-viewport" id="iconCropViewport">
+        <div class="icon-crop-preview" id="iconCropPreview" style="background-image:url('${s.icons.source}');transform:scale(${zoom});background-position:${s.iconsCrop.x}% ${s.iconsCrop.y}%;"></div>
+      </div>
+      <div class="icon-crop-controls">
+        <label style="margin-top:0;">Přiblížení</label>
+        <input type="range" id="iconZoomRange" min="100" max="300" value="${s.iconsCrop.zoom}">
+        <label>Vodorovná pozice</label>
+        <input type="range" id="iconPosXRange" min="0" max="100" value="${s.iconsCrop.x}">
+        <label>Svislá pozice</label>
+        <input type="range" id="iconPosYRange" min="0" max="100" value="${s.iconsCrop.y}">
+        <button type="button" class="add-btn" id="applyIconCrop" style="margin-top:10px;">✓ Použít výřez a vygenerovat ikony</button>
+      </div>
+    </div>`;
+  if (s.icons.icon512){
+    html += `
+    <div class="icon-preview-row">
+      <div class="icon-preview-item"><img src="${s.favicon || s.icons.icon192}" alt=""><span>favicon</span></div>
+      <div class="icon-preview-item"><img src="${s.icons.appleTouchIcon}" alt=""><span>apple-touch</span></div>
+      <div class="icon-preview-item"><img src="${s.icons.icon192}" alt=""><span>192×192</span></div>
+      <div class="icon-preview-item"><img src="${s.icons.icon512}" alt=""><span>512×512</span></div>
+    </div>
+    <label style="margin-top:14px;">Obrázek pro sdílení na sociálních sítích (OG, 1200×630) — vygenerovaný automaticky</label>
+    <img src="${s.icons.ogImage}" style="width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--ui-line);">
+    <div class="note-box" style="margin-top:8px;">Favicon, apple-touch-icon.png, ${escapeHtml(s.pwa.icon192)}, ${escapeHtml(s.pwa.icon512)} i og-image.png se teď stáhnou automaticky spolu se zbytkem webu přes "Stáhnout celý web" v menu — nikam se nemusí nahrávat ručně.</div>`;
+  } else {
+    html += `
+    <div class="note-box" style="margin-top:10px;">Zatím jen náhled výřezu — klikni na "Použít výřez a vygenerovat ikony" výš, ať se z něj skutečně vytvoří favicon, apple-touch-icon, obě PWA ikony i OG obrázek.</div>`;
+  }
+  return html;
+}
+
+// Řádek v závěrečné poznámce "Po exportu ještě ručně doplň" — vypíše jen
+// ikony, které opravdu ještě chybí (sekce "Ikony webu" je umí připravit
+// všechny najednou), případně potvrdí, že už je není třeba řešit.
+function missingIconsListItem(s){
+  const missing = [];
+  if (!(s.faviconUrl || s.favicon)) missing.push('favicon');
+  if (!s.icons.appleTouchIcon) missing.push('apple-touch-icon.png');
+  if (!s.icons.icon192) missing.push(escapeHtml(s.pwa.icon192));
+  if (!s.icons.icon512) missing.push(escapeHtml(s.pwa.icon512));
+  if (!s.icons.ogImage) missing.push('og-image.png');
+  if (!missing.length){
+    return '<li>✅ favicon, apple-touch-icon, obě PWA ikony i OG obrázek jsou vygenerované v sekci "Ikony webu" a stáhnou se automaticky spolu se zbytkem webu přes "Stáhnout celý web"</li>';
+  }
+  return `<li>obrázky ikon, které ještě chybí: ${missing.join(', ')} — nejjednodušší je doplnit je v sekci "Ikony webu" výš, appka je pak stáhne spolu se zbytkem webu</li>`;
+}
+
 function renderStylePresets(){
   const summary = document.getElementById('stylePresetSummary');
   const box = document.getElementById('stylePresets');
@@ -3138,6 +3471,14 @@ function downloadTextFile(filename, content, mime){
   URL.revokeObjectURL(url);
 }
 
+// Stáhne base64 data URL (vygenerovanou ikonu) jako skutečný soubor pod
+// zadaným jménem — používá se pro favicon/apple-touch-icon/PWA ikony/OG obrázek.
+function downloadDataUrl(filename, dataUrl){
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 /* ============================================================
    GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML
    ============================================================ */
@@ -3305,6 +3646,20 @@ function faviconLinkHtml(s){
   return faviconSrc
     ? `<link rel="icon" href="${escapeAttr(faviconSrc)}">`
     : `<!-- TODO: nahraj skutečný obrázek favicon.ico (jen odkaz se generuje automaticky) -->\n<link rel="icon" href="favicon.ico" sizes="any">`;
+}
+
+// Sestaví <link> tagy pro Google Fonts jen pro skutečně vybrané písmo (nadpisy
+// + text) — místo dřívějšího natvrdo vepsaného seznamu úplně všech dostupných
+// písem najednou. Export je tak menší/rychlejší a nové písmo v nabídce stačí
+// přidat jen do FONT_OPTIONS_DISPLAY/BODY + FONT_GOOGLE_SPEC výš.
+function googleFontsLinkHtml(s){
+  const specs = [s.fontDisplay, s.fontBody].map(f => FONT_GOOGLE_SPEC[f]).filter(Boolean);
+  const uniqueSpecs = [...new Set(specs)];
+  if (!uniqueSpecs.length) return '';
+  const familyParams = uniqueSpecs.map(spec => `family=${spec}`).join('&');
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?${familyParams}&display=swap" rel="stylesheet">`;
 }
 
 // Vlastní kód doplněný ručně v sekci "Vlastní kód" — vkládá se přesně tak,
@@ -3996,9 +4351,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 <script type="application/ld+json">
 {
@@ -4233,9 +4586,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 ${sharedStyleTag(s)}
 ${standalone ? `<style>
@@ -4314,9 +4665,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 ${sharedStyleTag(s)}
 <style>
@@ -4461,9 +4810,7 @@ ${faviconLinkHtml(s)}
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Orbitron:wght@600;700&family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+${googleFontsLinkHtml(s)}
 
 ${sharedStyleTag(s)}
 <style>
@@ -4893,21 +5240,31 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
 document.getElementById('exportAllBtn').addEventListener('click', () => {
   const homeFilename = getHomeFilename(state);
-  downloadTextFile(homeFilename, buildSiteHTML(state), 'text/html');
   const customSectionsData = computeCustomSectionsData(state);
-  customSectionsData.forEach((sec, i) => {
-    setTimeout(() => {
-      downloadTextFile(sec.filename, buildSectionPageHTML(state, sec, customSectionsData, homeFilename), 'text/html');
-    }, (i + 1) * 300);
+  const jobs = [];
+  jobs.push(() => downloadTextFile(homeFilename, buildSiteHTML(state), 'text/html'));
+  customSectionsData.forEach(sec => {
+    jobs.push(() => downloadTextFile(sec.filename, buildSectionPageHTML(state, sec, customSectionsData, homeFilename), 'text/html'));
   });
-  setTimeout(() => {
-    downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html');
-  }, (customSectionsData.length + 1) * 300);
+  jobs.push(() => downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html'));
   if (state.privacyPage && state.privacyPage.enabled) {
-    setTimeout(() => {
-      downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html');
-    }, (customSectionsData.length + 2) * 300);
+    jobs.push(() => downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html'));
   }
+  // PWA a SEO soubory — dřív se daly stáhnout jen zvlášť tlačítky v sekcích
+  // "PWA"/"Sitemap.xml", teď jsou součástí kompletního exportu, ať "Stáhnout
+  // celý web" skutečně znamená celý web na jedno kliknutí.
+  jobs.push(() => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json'));
+  jobs.push(() => downloadTextFile('sw.js', buildServiceWorkerJS(state), 'text/javascript'));
+  jobs.push(() => downloadTextFile('sitemap.xml', buildSitemapXML(state), 'application/xml'));
+  jobs.push(() => downloadTextFile('robots.txt', buildRobotsTXT(state), 'text/plain'));
+  // Vygenerované ikony (viz sekce "Ikony webu") — stáhnou se jen pokud už
+  // byly v editoru vytvořené (uživatel nahrál obrázek a použil výřez).
+  if (state.icons.appleTouchIcon) jobs.push(() => downloadDataUrl('apple-touch-icon.png', state.icons.appleTouchIcon));
+  if (state.icons.icon192) jobs.push(() => downloadDataUrl((state.pwa.icon192 || 'icon-192.png').trim(), state.icons.icon192));
+  if (state.icons.icon512) jobs.push(() => downloadDataUrl((state.pwa.icon512 || 'icon-512.png').trim(), state.icons.icon512));
+  if (state.icons.ogImage) jobs.push(() => downloadDataUrl('og-image.png', state.icons.ogImage));
+
+  jobs.forEach((job, i) => setTimeout(job, i * 300));
   document.getElementById('topbarMenu').__closeMenu();
 });
 
@@ -4922,18 +5279,35 @@ document.querySelectorAll('.mobile-tab').forEach(tab => {
   });
 });
 
-document.querySelectorAll('.view-btn').forEach(btn => {
+document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view-btn[data-view]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('frameHolder').classList.toggle('mobile', btn.dataset.view === 'mobile');
   });
 });
 
+/* ---------- náhled hotového webu přes celou plochu (bez panelu úprav) ---------- */
+(function(){
+  const btn = document.getElementById('fullPagePreviewBtn');
+  const ws = document.getElementById('workspace');
+  if (!btn || !ws) return;
+  function setPreviewOnly(active){
+    ws.classList.toggle('preview-only', active);
+    btn.classList.toggle('active', active);
+    btn.textContent = active ? '✕ Zpět na úpravu' : '⛶ Celá stránka';
+  }
+  btn.addEventListener('click', () => setPreviewOnly(!ws.classList.contains('preview-only')));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && ws.classList.contains('preview-only')) setPreviewOnly(false);
+  });
+})();
+
 /* ---------- relax pauza: vyskakovací okno každých 30 minut ---------- */
 (function(){
   const RELAX_INTERVAL_MS = 30 * 60 * 1000; // 30 minut
   const overlay = document.getElementById('relaxModalOverlay');
+  const countdownEl = document.getElementById('relaxCountdown');
   if (!overlay) return;
   function openRelaxModal(){
     overlay.classList.add('open');
@@ -4948,14 +5322,38 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeRelaxModal();
   });
+
+  function formatCountdown(ms){
+    const totalSec = Math.max(0, Math.round(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
   let relaxTimer = null;
+  let nextFireAt = 0;
+  function tick(){
+    const remaining = nextFireAt - Date.now();
+    if (remaining <= 0){
+      openRelaxModal();
+      // Vždy po zobrazení se odpočet resetuje na dalších 30 minut.
+      nextFireAt = Date.now() + RELAX_INTERVAL_MS;
+    }
+    if (countdownEl) countdownEl.textContent = '⏱ ' + formatCountdown(nextFireAt - Date.now());
+  }
   function startRelaxTimer(){
     if (relaxTimer) return;
-    relaxTimer = setInterval(openRelaxModal, RELAX_INTERVAL_MS);
+    nextFireAt = Date.now() + RELAX_INTERVAL_MS;
+    if (countdownEl){
+      countdownEl.style.display = '';
+      countdownEl.textContent = '⏱ ' + formatCountdown(RELAX_INTERVAL_MS);
+    }
+    relaxTimer = setInterval(tick, 1000);
   }
   function stopRelaxTimer(){
     if (relaxTimer){ clearInterval(relaxTimer); relaxTimer = null; }
     closeRelaxModal();
+    if (countdownEl) countdownEl.style.display = 'none';
   }
   // Zpřístupněno navenek, aby ho po zadání odemykacího kódu mohl vypnout
   // blok "odemčení bez brandingu" níže, i když se popup mezitím už rozjel.
