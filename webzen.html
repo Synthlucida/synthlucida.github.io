@@ -1498,8 +1498,15 @@ function renderRichCE(ce, raw){
 // oddělovač (U+200B) — jinak by dvě sousední značky splynuly v nerozlišitelnou
 // řadu hvězdiček a při zpětném čtení by se špatně spárovaly. Do zobrazeného
 // textu to nijak nezasáhne (nulová šířka).
+const RICH_MARKER_TOKENS = ['***', '**', '__', '++', '~~', '*'];
 function appendRaw(state, s){
   if (s && s[0] === '*' && state.str.endsWith('*')) state.str += '\u200B';
+  // Značka (***, **, __, ++, ~~, *) nalepená přímo na písmeno/číslici by ji
+  // richText() při zpětném čtení odmítl uznat za formátování (schválně,
+  // kvůli ochraně běžného textu jako "C++") - neviditelná nulová mezera na
+  // obou stranách tomu předchází, aniž by se cokoli vizuálně změnilo.
+  if (s && RICH_MARKER_TOKENS.includes(s) && /[\p{L}\p{N}]$/u.test(state.str)) state.str += '\u200B';
+  else if (s && !RICH_MARKER_TOKENS.includes(s) && /^[\p{L}\p{N}]/u.test(s) && RICH_MARKER_TOKENS.some(tok => state.str.endsWith(tok))) state.str += '\u200B';
   state.str += s;
 }
 function ceToRaw(node){
@@ -1774,7 +1781,15 @@ function wrapSelectionCE(ce, type){
     ce.dispatchEvent(new Event('input', {bubbles:true}));
     return;
   }
-  const content = range.toString() || 'text';
+  const selectedText = range.toString();
+  if (!selectedText && ce.textContent.trim() !== ''){
+    // Nic není opravdu vybráno (jen kurzor někde v existujícím textu) —
+    // vložení placeholder slova by potichu rozseklo/porušilo obsah pole,
+    // proto se v tomto případě nic nedělá (placeholder dává smysl jen
+    // v úplně prázdném poli, viz podmínka výše).
+    return;
+  }
+  const content = selectedText || 'text';
   const el = buildRichTag(type, content);
   range.deleteContents();
   range.insertNode(el);
