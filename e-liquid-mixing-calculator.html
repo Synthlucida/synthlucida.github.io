@@ -234,6 +234,18 @@
   .bar{display:flex; height:14px; border-radius:7px; overflow:hidden; margin-top:16px; border:1px solid var(--line);}
   .bar div{height:100%;}
 
+  .bottle-wrap{display:flex; align-items:center; gap:20px; margin-top:18px; flex-wrap:wrap;}
+  .bottle-svg{width:80px; height:160px; flex-shrink:0;}
+  .bottle-legend{flex:1; min-width:170px; display:flex; flex-direction:column; gap:9px;}
+  .blitem{display:flex; align-items:baseline; gap:8px; font-size:12.5px; color:var(--text-dim); line-height:1.4;}
+  .blitem .dot{transform:translateY(-1px);}
+  .blitem b{color:var(--text); font-weight:700;}
+  .blitem .bpct{color:var(--text-dim); font-size:11px;}
+  .bottle-caption{width:100%; font-size:10.5px; color:var(--text-dim); opacity:0.75; margin-top:10px; font-style:italic;}
+  @media (max-width:480px){
+    .bottle-wrap{flex-direction:column; align-items:flex-start;}
+  }
+
   .status-msg{
     font-size:12px; margin-top:14px; padding:10px 12px; border-radius:7px;
     display:none; line-height:1.6;
@@ -390,7 +402,37 @@
   <div class="panel" id="resultPanel" style="display:none;">
     <label class="label" style="margin-bottom:12px;">Recipe — what to pour</label>
     <div class="result-grid" id="resultGrid"></div>
-    <div class="bar" id="bar"></div>
+
+    <div class="bottle-wrap">
+      <svg class="bottle-svg" viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <clipPath id="bottleClip">
+            <path d="M40,40 L60,40 L60,58 L78,74 L78,180 Q78,190 68,190 L32,190 Q22,190 22,180 L22,74 L40,58 Z"/>
+          </clipPath>
+          <linearGradient id="bottleShine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+            <stop offset="20%" stop-color="#ffffff" stop-opacity="0.03"/>
+            <stop offset="32%" stop-color="#ffffff" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <rect x="34" y="16" width="32" height="26" rx="7" style="fill:var(--panel-2); stroke:var(--line); stroke-width:1.5;"/>
+
+        <g clip-path="url(#bottleClip)">
+          <rect id="lyNic" x="15" y="192" width="70" height="0" style="fill:var(--rose);"/>
+          <rect id="lyArom" x="15" y="192" width="70" height="0" style="fill:var(--violet);"/>
+          <rect id="lyPg" x="15" y="192" width="70" height="0" style="fill:var(--amber);"/>
+          <rect id="lyVg" x="15" y="192" width="70" height="0" style="fill:var(--teal);"/>
+          <rect x="15" y="38" width="70" height="154" fill="url(#bottleShine)"/>
+        </g>
+
+        <path d="M40,40 L60,40 L60,58 L78,74 L78,180 Q78,190 68,190 L32,190 Q22,190 22,180 L22,74 L40,58 Z"
+              fill="none" style="stroke:var(--line); stroke-width:2;"/>
+      </svg>
+      <div class="bottle-legend" id="bottleLegend"></div>
+      <p class="bottle-caption">Illustrative representation of the mixed liquid, to scale by volume.</p>
+    </div>
+
     <div class="summary-line" id="summaryLine"></div>
     <div class="actions">
       <button class="cta" id="saveRecipeBtn">💾 Save this mix</button>
@@ -431,6 +473,36 @@ function parseRatio(str){
 
 function fmt(n){
   return (Math.round(n*100)/100).toString();
+}
+
+function updateBottle(nicVol, flavorVol, neededPG, neededVG){
+  const TOP_Y = 38, BOTTOM_Y = 192;
+  const totalH = BOTTOM_Y - TOP_Y;
+  const total = Math.max(nicVol + flavorVol + neededPG + neededVG, 0.0001);
+
+  const parts = [
+    {id:'lyNic', v: nicVol},
+    {id:'lyArom', v: flavorVol},
+    {id:'lyPg', v: neededPG},
+    {id:'lyVg', v: neededVG}
+  ];
+
+  let y = BOTTOM_Y;
+  parts.forEach(p=>{
+    const h = totalH * (p.v/total);
+    y -= h;
+    const el = document.getElementById(p.id);
+    el.setAttribute('y', y.toFixed(2));
+    el.setAttribute('height', h.toFixed(2));
+  });
+
+  const pct = v => fmt(v/total*100);
+  document.getElementById('bottleLegend').innerHTML = `
+    <div class="blitem"><span class="dot rose"></span>Nicotine base — <b>${fmt(nicVol)} ml</b> <span class="bpct">(${pct(nicVol)}%)</span></div>
+    <div class="blitem"><span class="dot violet"></span>Flavoring — <b>${fmt(flavorVol)} ml</b> <span class="bpct">(${pct(flavorVol)}%)</span></div>
+    <div class="blitem"><span class="dot amber"></span>PG — <b>${fmt(neededPG)} ml</b> <span class="bpct">(${pct(neededPG)}%)</span></div>
+    <div class="blitem"><span class="dot teal"></span>VG — <b>${fmt(neededVG)} ml</b> <span class="bpct">(${pct(neededVG)}%)</span></div>
+  `;
 }
 
 function calculate(){
@@ -521,14 +593,7 @@ function calculate(){
     </div>
   `;
 
-  const bar = document.getElementById('bar');
-  const segs = [
-    {v: nicVol, c: 'var(--rose)'},
-    {v: flavorVol, c: 'var(--violet)'},
-    {v: neededPG, c: 'var(--amber)'},
-    {v: neededVG, c: 'var(--teal)'}
-  ];
-  bar.innerHTML = segs.map(s => `<div style="width:${(s.v/V*100).toFixed(2)}%; background:${s.c};"></div>`).join('');
+  updateBottle(nicVol, flavorVol, neededPG, neededVG);
 
   const finalPGpct = totalPG / V * 100;
   const finalVGpct = totalVG / V * 100;
