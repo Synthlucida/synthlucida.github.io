@@ -788,6 +788,17 @@ header::after {
 .app-descriptions-panel.open {
   opacity: 1;
   margin-top: 16px;
+  /* A generous fixed cap instead of a JS-computed pixel height. The old
+     approach measured each panel's exact content height in JS and wrote it
+     as an inline max-height, but that measurement went stale (and clipped
+     the last bit of content) whenever it was taken while a nested panel's
+     own max-height transition was still running -- switching languages or
+     even a mobile browser's address-bar-triggered resize event could both
+     retrigger it. A fixed cap well above any realistic content height
+     removes the need for that measurement (and the race) entirely: the
+     panel still only ever grows to its actual content height, since
+     max-height merely sets a ceiling. */
+  max-height: 6000px;
 }
 
 /* SYNTHLUCIDA for Android toggle — same small badge size/style as the
@@ -2354,6 +2365,13 @@ rel="noopener noreferrer">
 <span class="platform-icon">💪</span>DĚLŇAS
 </a>
 
+<a class="platform-link"
+href="https://synthlucida.com/relax-landing-cz.html"
+target="_blank"
+rel="noopener noreferrer">
+<span class="platform-icon">🌌</span>Ambient Flow
+</a>
+
 </div>
 </div>
 
@@ -2434,7 +2452,7 @@ rel="noopener noreferrer">
 <li>Novinky a videa na FACEBOOKU a YOUTUBE</li>
 <li>Licencované zvuky a hudbu na AUDIOJUNGLE a POND5</li>
 <li>Recenze a komunitu na SYNTH REVIEWS</li>
-<li>Relaxační a wellness aplikace UKLIDNITO, RELAXPLAYER a NOCTUARY TAROT</li>
+<li>Relaxační a wellness aplikace UKLIDNITO, RELAXPLAYER, AMBIENT FLOW a NOCTUARY TAROT</li>
 <li>Praktické nástroje WEATHER, TRIPCOST, PAYDAY, SYNTHLUCIDA WEBZENith, PROGRESE, MÍCHÁRNU, DENÍK VOZIDLA, VODOVÁHU a VAPETRACK</li>
 <li>Bezplatný generátor pohádek pro děti POHÁDKOVNÍK</li>
 <li>Bezplatný pracovní deník výkonu a mzdy DĚLŇAS</li>
@@ -2516,6 +2534,11 @@ rel="noopener noreferrer">
 <div class="app-card" data-i18n="delnas-desc">
 <h3>DĚLŇAS</h3>
 <p>Bezplatný pracovní deník výkonu a mzdy pro úkolovou/normovanou práci. Nastav si vlastní úkony a mzdové stupně, zapisuj odpracované směny a appka spočítá odhad výdělku, hodinovou mzdu i XP/level, včetně grafů vývoje a roční heatmapy.</p>
+</div>
+
+<div class="app-card" data-i18n="ambientflow-desc">
+<h3>AMBIENT FLOW</h3>
+<p>Bezplatný ambientní syntezátor přímo v prohlížeči. Klepnutím na noční oblohu zahraješ tóny a poskládáš sekvenci, přidáš binaurální vlny a zvuky přírody, a časovač spánku nakonec vše sám ztlumí.</p>
 </div>
 
 </div>
@@ -2868,60 +2891,33 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     }
   }
 
-  // Platforms panel toggle - shows/hides the "Listen & Follow" links grid
+  // Platforms panel toggle - shows/hides the "Listen & Follow" links grid.
+  // Height is handled entirely by the fixed, generous CSS max-height on
+  // .platforms-panel.open (see the stylesheet comment) - no inline pixel
+  // math needed here anymore.
   function togglePlatforms() {
     const panel = document.getElementById('platforms-panel');
     const btn = document.getElementById('platforms-toggle-btn');
     const isOpen = panel.classList.toggle('open');
     btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     if (isOpen) {
-      panel.style.maxHeight = panel.scrollHeight + 'px';
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
-    } else {
-      panel.style.maxHeight = '';
     }
   }
 
   // App descriptions panel toggle - shows/hides all app-card blurbs together
-  // as a single collapsible section (same mechanic as togglePlatforms).
-  // It's nested inside the outer "Apps / Follow" panel, so opening or
-  // closing it also has to resize that outer panel's max-height, or it
-  // would clip (or leave a gap under) this panel's new size.
-  //
-  // Both target heights are worked out by hand, from measurements taken
-  // BEFORE anything changes. The previous version re-measured the outer
-  // panel's scrollHeight right after starting this panel's own transition,
-  // but a synchronous read at that point still sees this panel at its
-  // pre-transition size (the animation hasn't started interpolating yet),
-  // so the outer panel's target came out too small and stayed clipped for
-  // the first ~0.5s. It only caught up once a transitionend listener fired
-  // a second resize — which is exactly the delayed "jump" that was reported.
-  // Computing both target heights up front lets them animate in step.
+  // as a single collapsible section, nested inside the outer "Apps / Follow"
+  // panel. Both panels use the fixed CSS max-height described above, so
+  // opening/closing this one doesn't need to also resize the outer one by
+  // hand: the outer panel just grows or shrinks to fit its own content,
+  // including this panel, automatically.
   function toggleAppDescriptions() {
     const panel = document.getElementById('app-descriptions-panel');
     const btn = document.getElementById('app-descriptions-toggle-btn');
-    const outer = document.getElementById('platforms-panel');
-    const opening = !panel.classList.contains('open');
-
-    const innerHeight = panel.scrollHeight; // full content height, regardless of current clipping
-    const innerSpacing = 16; // matches .app-descriptions-panel.open's margin-top
-    const outerWasOpen = !!(outer && outer.classList.contains('open'));
-    const outerHeight = outerWasOpen ? outer.scrollHeight : 0;
-
-    panel.classList.toggle('open', opening);
+    const opening = panel.classList.toggle('open');
     btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-
     if (opening) {
-      panel.style.maxHeight = innerHeight + 'px';
-      if (outerWasOpen) {
-        outer.style.maxHeight = (outerHeight + innerHeight + innerSpacing) + 'px';
-      }
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
-    } else {
-      panel.style.maxHeight = '';
-      if (outerWasOpen) {
-        outer.style.maxHeight = Math.max(0, outerHeight - innerHeight - innerSpacing) + 'px';
-      }
     }
   }
 
@@ -2932,10 +2928,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     const isOpen = panel.classList.toggle('open');
     btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     if (isOpen) {
-      panel.style.maxHeight = panel.scrollHeight + 'px';
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
-    } else {
-      panel.style.maxHeight = '';
     }
   }
 
@@ -3475,7 +3468,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     'platforms-group-services': 'Services & Links',
     'platforms-support': '<h3>☕ SYNTHLUCIDA SUPPORT</h3><p>All SYNTHLUCIDA tools and apps are, and will always remain, free and ad-free. If you enjoy them and want to support the project, we\'d really appreciate it. Thank you!</p><a class="support-link" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener noreferrer">☕ Support the project</a>',
     'platforms-beyond': '<span class="platforms-beyond-kicker">Beyond the music</span><h3>Why SYNTHLUCIDA builds tools too</h3><p>Alongside the music, SYNTHLUCIDA is also home to a handful of practical tools and small web apps that have nothing to do with sound. They all came from the same everyday itch — whenever I needed a simple tool for my own work, I kept running into the same result: nothing but ads, bloated extra features, or a forced sign-up just to do one quick thing. None of that worked for me, so I built my own version instead — shaped exactly the way I needed it, free of ads and clutter, and easy to tweak or extend whenever a new need came up. After using them privately for a while, I decided to make them available online in case they\'re useful to someone else too.</p><p>🎧 Even among these tools, there\'s a clear order of priority: <strong>the heart of SYNTHLUCIDA remains <a class="relax-live-link" href="https://relaxplayer.eu" target="_blank" rel="noopener noreferrer">RELAXPLAYER</a></strong> — its main, primary tool, and the one everything else grew around. Music and sound always were, and always will be, the priority.</p>',
-    'platforms-seo': '<p>What you\'ll find here:</p><ul><li>Streaming and downloadable music on BANDCAMP, SUPRAPHONLINE and SPOTIFY</li><li>News and videos on FACEBOOK and YOUTUBE</li><li>Licensed sounds and music on AUDIOJUNGLE and POND5</li><li>Reviews and community on SYNTH REVIEWS</li><li>Relaxation and wellness apps UKLIDNITO, RELAXPLAYER and NOCTUARY TAROT</li><li>Handy tools WEATHER, TRIPCOST, PAYDAY, SYNTHLUCIDA WEBZENith, PROGRESE, MIXING LAB., VEHICLE LOGBOOK, SPIRIT LEVEL and VAPETRACK</li><li>A free fairy tale generator for kids, POHÁDKOVNÍK</li><li>A free work-shift and wage tracker for piecework jobs, DĚLŇAS</li></ul>',
+    'platforms-seo': '<p>What you\'ll find here:</p><ul><li>Streaming and downloadable music on BANDCAMP, SUPRAPHONLINE and SPOTIFY</li><li>News and videos on FACEBOOK and YOUTUBE</li><li>Licensed sounds and music on AUDIOJUNGLE and POND5</li><li>Reviews and community on SYNTH REVIEWS</li><li>Relaxation and wellness apps UKLIDNITO, RELAXPLAYER, AMBIENT FLOW and NOCTUARY TAROT</li><li>Handy tools WEATHER, TRIPCOST, PAYDAY, SYNTHLUCIDA WEBZENith, PROGRESE, MIXING LAB., VEHICLE LOGBOOK, SPIRIT LEVEL and VAPETRACK</li><li>A free fairy tale generator for kids, POHÁDKOVNÍK</li><li>A free work-shift and wage tracker for piecework jobs, DĚLŇAS</li></ul>',
     'webzen-desc': '<h3>SYNTHLUCIDA WEBZENith</h3><p>A SYNTHLUCIDA tool for quick and easy website building right in the browser, no coding required.</p>',
     'uklidnito-desc': '<h3>UKLIDNITO</h3><p>A free online breathing exercise, no sign-up or install needed. Eight science-based techniques (4-7-8, Box, Coherent, Calm and more) with a pulsing visual orb guiding your inhale, hold and exhale, plus optional progress tracking — calendar, mood, energy and sleep.</p>',
     'tripcost-desc': '<h3>TRIP COST</h3><p>A free car trip cost calculator. Enter distance, fuel consumption and fuel price and instantly see how much your trip will cost — in total and per person.</p>',
@@ -3490,6 +3483,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     'vapetrack-desc': '<h3>VAPETRACK</h3><p>A free e-cigarette puff tracker right in your browser. Log puffs with one tap, see daily counts, trend charts and a 365-day heatmap, set a daily goal, and back up your data as PDF, CSV or JSON.</p>',
     'pohadkovnik-desc': '<h3>POHÁDKOVNÍK</h3><p>A free fairy tale generator for kids. Combine heroes, magical places and adventures into thousands of unique bedtime stories — no AI, no bad words, save favorites to your library and export any story as a PDF.</p>',
     'delnas-desc': '<h3>DĚLŇAS</h3><p>A free work-shift and wage tracker for piecework/norm-based jobs. Set up your own tasks and wage tiers, log your shifts, and the app estimates your pay, hourly wage and XP/level, with trend charts and a yearly heatmap.</p>',
+    'ambientflow-desc': '<h3>AMBIENT FLOW</h3><p>A free ambient synth right in your browser. Tap the night sky to play tones and build a sequence, layer in binaural waves and nature sounds, and set a sleep timer to fade everything out automatically.</p>',
     'privacy-link': 'Privacy Policy',
     'footer': '© 2026 SYNTHLUCIDA www.synthlucida.com • DAZANTE CZECH Electronic Music Producer'
   };
@@ -3523,15 +3517,9 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     const btn = document.getElementById('lang-toggle-btn');
     if (btn) btn.textContent = lang === 'en' ? '🇨🇿 CZ' : '🇬🇧 EN';
     try { localStorage.setItem('synthlucida_lang', lang); } catch (e) {}
-    // Resize the nested app-descriptions-panel first (if open) so the outer
-    // platforms-panel's scrollHeight below picks up its new, translated
-    // content height instead of the pre-switch pixel value.
-    document.querySelectorAll('.app-descriptions-panel.open').forEach(function (p) {
-      p.style.maxHeight = p.scrollHeight + 'px';
-    });
-    document.querySelectorAll('.platforms-panel.open, .contact-form-panel.open').forEach(function (p) {
-      p.style.maxHeight = p.scrollHeight + 'px';
-    });
+    // No panel-height recalculation needed here anymore: .open panels use a
+    // fixed, generous CSS max-height (see the stylesheet), so they simply
+    // fit whatever content is currently in them, translated or not.
   }
 
   function toggleLang() {
@@ -3543,15 +3531,6 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   } else {
     initLang();
   }
-
-  window.addEventListener('resize', function () {
-    document.querySelectorAll('.app-descriptions-panel.open').forEach(function (p) {
-      p.style.maxHeight = p.scrollHeight + 'px';
-    });
-    document.querySelectorAll('.platforms-panel.open, .contact-form-panel.open').forEach(function (p) {
-      p.style.maxHeight = p.scrollHeight + 'px';
-    });
-  }, { passive: true });
 </script>
 
 <script>
