@@ -458,6 +458,11 @@
   }
   .daw-note-pill:hover{border-color:var(--amber);}
   .daw-note-pill.muted{opacity:0.35; text-decoration:line-through;}
+  .daw-note-select{
+    font-family: ui-monospace, monospace; font-size:9.5px; border:1px solid var(--line); background:var(--bg);
+    color:var(--text-dim); border-radius:4px; padding:2px 3px; cursor:pointer; max-width:56px;
+  }
+  .daw-note-select:hover{border-color:var(--amber); color:var(--amber);}
   .daw-drum-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
   .daw-drum-row:last-child{margin-bottom:0;}
   .daw-drum-label{font-size:10.5px; color:var(--text-dim); min-width:52px; flex-shrink:0;}
@@ -472,6 +477,7 @@
   .daw-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;}
   @media (max-width:480px){
     .daw-note-pill{min-width:36px; font-size:10px; padding:5px 6px;}
+    .daw-note-select{max-width:48px; font-size:9px;}
     .daw-step-drum{width:15px; height:15px;}
     .daw-drum-label{min-width:42px; font-size:10px;}
   }
@@ -796,8 +802,9 @@
     <div class="theory-body">
       <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:0 0 16px;">
         Uprav si vygenerovaný postup krok za krokem — vyber si takt, ztlum jednotlivé noty
-        nebo bicí zásahy, posuň notu o oktávu nahoru/dolů, nebo klidně přegeneruj jen tenhle
-        jeden takt. Úpravy se hned promítnou do přehrávání i do MIDI exportu.
+        nebo bicí zásahy, posuň notu o oktávu nahoru/dolů, vyber si u kteréhokoliv kroku
+        úplně jinou notu, nebo klidně přegeneruj jen tenhle jeden takt. Úpravy se hned
+        promítnou do přehrávání i do MIDI exportu.
       </p>
       <div class="daw-empty" id="dawEmpty">Nejdřív vygeneruj postup, pak si ho tady doladíš.</div>
       <div id="dawContent" style="display:none;">
@@ -946,7 +953,7 @@
     </div>
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Dá se po vygenerování postupu upravit jednotlivé noty?</h3>
-      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano, v panelu „Mini DAW“. Vybereš si takt a ztlumíš jednotlivé kroky melodie, basy, arpu nebo bicích, posuneš notu o oktávu, nebo přegeneruješ jen ten jeden takt. Úpravy se hned promítnou do přehrávání i MIDI exportu.</p>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano, v panelu „Mini DAW“. Vybereš si takt a ztlumíš jednotlivé kroky melodie, basy, arpu nebo bicích, posuneš notu o oktávu, vybereš u kteréhokoliv kroku úplně jinou notu, nebo přegeneruješ jen ten jeden takt. Úpravy se hned promítnou do přehrávání i MIDI exportu.</p>
     </div>
   </div>
 
@@ -2353,9 +2360,28 @@ function renderMiniDaw(){
         refreshPlayback(); renderMiniDaw();
       });
 
+      // Přímý výběr úplně jiné noty (ne jen posun o oktávu) — rozsah C1–C8
+      // pokrývá vše rozumně použitelné, aktuální nota se do rozsahu vždy vejde
+      // díky clampNote(0..127), takže se prostě vybere v <select>u.
+      const noteSelect = document.createElement('select');
+      noteSelect.className = 'daw-note-select';
+      noteSelect.title = 'Vybrat jinou notu';
+      for(let m=24; m<=108; m++){
+        const opt = document.createElement('option');
+        opt.value = String(m);
+        opt.textContent = midiToName(m);
+        if(m === note) opt.selected = true;
+        noteSelect.appendChild(opt);
+      }
+      noteSelect.addEventListener('change', ()=>{
+        notesArr[barI][stepI] = clampNote(parseInt(noteSelect.value, 10));
+        refreshPlayback(); renderMiniDaw();
+      });
+
       wrap.appendChild(upBtn);
       wrap.appendChild(pill);
       wrap.appendChild(downBtn);
+      wrap.appendChild(noteSelect);
       stepsEl.appendChild(wrap);
     });
     track.appendChild(stepsEl);
