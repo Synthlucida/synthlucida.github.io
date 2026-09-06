@@ -105,6 +105,24 @@
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<script>
+  // Výchozí nastavení Tone.js ("interactive") cílí na co nejnižší latenci —
+  // ideální pro hraní na virtuální klávesy naživo, ale s malou rezervou
+  // (bufferem) pro plánování zvuku. Na slabším mobilu stačí i krátké zaseknutí
+  // hlavního vlákna (GC, aplikace na pozadí…) a zvuk pak "podteče" — slyšíš to
+  // jako trhání/praskání. Progrese je ale jen přehrávač smyčky, ne nástroj na
+  // hraní naživo, takže si můžeme dovolit mnohem větší (a bezpečnější) buffer
+  // výměnou za pár desetin sekundy navíc latence na úplném startu přehrávání —
+  // to při poslechu smyčky vůbec nepoznáš. Musí se nastavit hned tady, úplně
+  // první, ještě před jakýmkoli dalším použitím Tone.js v aplikaci.
+  // (lookAhead/updateInterval se musí nastavit explicitně vedle latencyHint —
+  // ověřeno testem, že samotné "playback" je bez nich potichu přebité
+  // vnitřním výchozím lookAhead 0.1s.)
+  if(typeof Tone !== 'undefined'){
+    try{ Tone.setContext(new Tone.Context({ latencyHint: 'playback', lookAhead: 0.5, updateInterval: 0.25 })); }
+    catch(e){ console.warn('Tone.setContext(playback) se nezdařilo, pokračuje se s výchozím nastavením', e); }
+  }
+</script>
 <!-- VexFlow (notový zápis) a jsPDF (export do PDF) — použité jen tlačítkem "Noty (PDF)" -->
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -1771,16 +1789,24 @@ function buildSynths(){
   }).toDestination();
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).toDestination();
+  // Zavřený a otevřený hi-hat: filtrovaný šum (NoiseSynth + Filter) místo
+  // MetalSynth. MetalSynth generuje jednu notu pomocí šesti FM oscilátorů,
+  // které se při každém úderu znovu vytváří a ruší — u dvou hi-hatů a husté
+  // šestnáctinové linky to je dohromady až 12 nových zvukových uzlů za úder,
+  // což na slabším mobilním procesoru zvládne zadrhnout i ostatní vrstvy
+  // (akordy, melodii, basu), protože všechny sdílí jedno audio vlákno.
+  // Filtrovaný šum dá podobně sykavý/kovový charakter jen s jedním zdrojem
+  // na úder — mnohem levnější a stabilnější.
+  const hihatFilter = new Tone.Filter({ type:'highpass', frequency:7500, Q:0.7 }).toDestination();
+  hihatSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.06, sustain:0}
+  }).connect(hihatFilter);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).toDestination();
+  const openhatFilter = new Tone.Filter({ type:'highpass', frequency:6500, Q:0.7 }).toDestination();
+  openhatSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.28, sustain:0}
+  }).connect(openhatFilter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
