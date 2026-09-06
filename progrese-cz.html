@@ -1645,7 +1645,7 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Vygenerována nová melodie — ${name}` : 'Vygenerována nová melodie');
@@ -1654,7 +1654,7 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Vygenerována nová basová linka — ${name}` : 'Vygenerována nová basová linka');
@@ -1663,7 +1663,7 @@ document.getElementById('newBassBtn').addEventListener('click', ()=>{
 document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.arp = genArp(current.chords, arpStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Vygenerován nový arp — ${name}` : 'Vygenerován nový arp');
@@ -1672,7 +1672,7 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
 document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.drums = genDrums(current.chords, drumStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Vygenerovány nové bicí — ${name}` : 'Vygenerovány nové bicí');
@@ -1686,7 +1686,7 @@ melodyStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Styl melodie: ${name}` : 'Styl melodie: Auto (mění se v každém taktu)');
@@ -1698,7 +1698,7 @@ bassStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.bass = genBass(current.chords, bassStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Styl basy: ${name}` : 'Styl basy: Auto (mění se v každém taktu)');
@@ -1710,7 +1710,7 @@ arpStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.arp = genArp(current.chords, arpStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Styl arpeggia: ${name}` : 'Styl arpeggia: Auto (mění se v každém taktu)');
@@ -1722,7 +1722,7 @@ drumStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.drums = genDrums(current.chords, drumStyleSelect.value);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Styl bicích: ${name}` : 'Styl bicích: Auto (mění se v každém taktu)');
@@ -1825,9 +1825,13 @@ function disposeAll(){
   try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
 }
 
+let lastLitLed = null, lastLitPad = null;
+
 function clearLeds(){
   document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
+  lastLitLed = null;
+  lastLitPad = null;
 }
 
 async function startPlayback(mode, resumeAt){
@@ -1936,8 +1940,18 @@ async function startPlayback(mode, resumeAt){
         try{
           if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
           else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('32n',time);
-          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('8n',time);
+          // Skutečná nalezená (a ověřená) chyba, ne dohad: MetalSynth.triggerAttackRelease
+          // má signaturu (note, duration, time), ale tady se dřív volalo jen se dvěma
+          // argumenty — (duration, time) jako u NoiseSynth/snare o pár řádků výš. Výsledek:
+          // '32n' skončilo jako NOTA (frekvence se z toho spočítala jako 16 Hz — skoro mimo
+          // slyšitelné pásmo, jen bohaté harmonické z FM syntézy prošly přes vnitřní
+          // highpass filtr), a skutečný čas (proměnná time) skončil jako DURATION. Protože
+          // se tak "time" argument vůbec nepředal, hi-hat se spustil prakticky HNED, jakmile
+          // doběhl JS callback, místo přesně na tu čtvrtinu/osminu, kam patřil — ověřeno
+          // reálným Tone.js. Opraveno na správné pořadí argumentů + rozumná nota namísto
+          // náhodné; samotný nástroj (MetalSynth) i jeho zvuk zůstávají beze změny.
+          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
+          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
         }catch(e){ console.warn('drumPart callback failed', e); }
       });
     }, drumEvents);
@@ -1950,11 +1964,19 @@ async function startPlayback(mode, resumeAt){
   stepEvent = new Tone.Loop((time)=>{
     const s = step % totalSteps;
     Tone.Draw.schedule(()=>{
-      clearLeds();
+      // Přepíná jen dva konkrétní prvky (předchozí zhasnout, nový rozsvítit)
+      // místo clearLeds() přes celý dokument na každou čtvrťovou notu —
+      // menší práce pro hlavní vlákno na každý úder, ať víc prostoru
+      // zbývá na plánování zvuku.
+      if(lastLitLed) lastLitLed.classList.remove('lit');
       const led = document.getElementById('led'+s);
-      if(led) led.classList.add('lit');
-      const pad = document.getElementById('pad'+Math.floor(s/4));
-      if(pad) pad.classList.add('on');
+      if(led){ led.classList.add('lit'); lastLitLed = led; }
+      const padIdx = Math.floor(s/4);
+      if(!lastLitPad || lastLitPad.id !== 'pad'+padIdx){
+        if(lastLitPad) lastLitPad.classList.remove('on');
+        const pad = document.getElementById('pad'+padIdx);
+        if(pad){ pad.classList.add('on'); lastLitPad = pad; }
+      }
     }, time);
     step++;
   }, '4n');
@@ -2556,7 +2578,7 @@ function rerollBar(barI){
   current.melodyMute[barI] = current.melodyMute[barI].map(()=>false);
   current.bassMute[barI] = current.bassMute[barI].map(()=>false);
   current.arpMute[barI] = current.arpMute[barI].map(()=>false);
-  refreshPlayback();
+  refreshPlaybackDebounced();
   renderMiniDaw();
   showStatus(`Takt ${barI+1} přegenerován`);
 }
