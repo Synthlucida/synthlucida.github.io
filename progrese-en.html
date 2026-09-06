@@ -1646,7 +1646,7 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `New melody generated — ${name}` : 'New melody generated');
@@ -1655,7 +1655,7 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `New bass line generated — ${name}` : 'New bass line generated');
@@ -1664,7 +1664,7 @@ document.getElementById('newBassBtn').addEventListener('click', ()=>{
 document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.arp = genArp(current.chords, arpStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `New arp generated — ${name}` : 'New arp generated');
@@ -1673,7 +1673,7 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
 document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.drums = genDrums(current.chords, drumStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `New drums generated — ${name}` : 'New drums generated');
@@ -1687,7 +1687,7 @@ melodyStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Melody style: ${name}` : 'Melody style: Auto (varies per bar)');
@@ -1699,7 +1699,7 @@ bassStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.bass = genBass(current.chords, bassStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Bass style: ${name}` : 'Bass style: Auto (varies per bar)');
@@ -1711,7 +1711,7 @@ arpStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.arp = genArp(current.chords, arpStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Arp style: ${name}` : 'Arp style: Auto (varies per bar)');
@@ -1723,7 +1723,7 @@ drumStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.drums = genDrums(current.chords, drumStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Drum style: ${name}` : 'Drum style: Auto (varies per bar)');
@@ -1740,74 +1740,48 @@ function buildSynths(){
   // Built once and kept alive for the whole page session — see disposeAll()
   // below for why we never dispose+recreate these on regenerate/stop.
   if(chordSynth) return;
-
-  // Bigger scheduling lookahead than the last attempt — still just mutates
-  // the context Tone.js already created for itself, no new Tone.Context
-  // (that broke playback entirely once). Progrese never plays live, so
-  // extra latency costs nothing here — just a slightly later start of sound
-  // after clicking Play.
-  if(toneAvailable()){
-    try{
-      Tone.getContext().lookAhead = 2.0;
-      Tone.getContext().updateInterval = 1.0;
-    }catch(e){ console.warn('Failed to increase context lookAhead', e); }
-  }
-
-  // Master limiter: all eight sources (chords/melody/bass/arp/kick/snare/
-  // hi-hats) now go through one limiter at -1 dB instead of straight to the
-  // output — if enough loud hits/chords land together, this prevents
-  // clipping (crackle/distortion) above 0 dB. Hi-hats are left unchanged
-  // (still MetalSynth, as originally) — only where all eight sources are
-  // routed changes.
-  const masterLimiter = new Tone.Limiter(-1).toDestination();
-
   chordSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
-  }).connect(masterLimiter);
+  }).toDestination();
   chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
 
   melodySynth = new Tone.Synth({
     oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
-  }).connect(masterLimiter);
+  }).toDestination();
   melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
 
   bassSynth = new Tone.Synth({
     oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
-  }).connect(masterLimiter);
+  }).toDestination();
   bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
 
   arpSynth = new Tone.Synth({
     oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
-  }).connect(masterLimiter);
+  }).toDestination();
   arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
 
   // drums: a synthesized kit built from four separate sources (no samples needed)
   kickSynth = new Tone.MembraneSynth({
     pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
     envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
-  }).connect(masterLimiter);
+  }).toDestination();
   kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
 
   snareSynth = new Tone.NoiseSynth({
     noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
-  }).connect(masterLimiter);
+  }).toDestination();
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  // Simplified hi-hats: a plain square-wave oscillator (the same safe
-  // architecture as melody/bass/arp — one continuously-running oscillator
-  // gated by an envelope) instead of MetalSynth (6 FM oscillators per note,
-  // 12 total across both hi-hats). Progrese is just a rough audio preview —
-  // the user exports MIDI and drops it into their own DAW anyway — so sound
-  // fidelity doesn't matter here nearly as much as not stuttering on a
-  // weaker device when everything plays at once.
-  hihatSynth = new Tone.Synth({
-    oscillator:{type:'square'}, envelope:{attack:0.001, decay:0.03, sustain:0, release:0.01}
-  }).connect(masterLimiter);
+  hihatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  openhatSynth = new Tone.Synth({
-    oscillator:{type:'square'}, envelope:{attack:0.001, decay:0.15, sustain:0, release:0.05}
-  }).connect(masterLimiter);
+  openhatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
@@ -1852,13 +1826,9 @@ function disposeAll(){
   try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
 }
 
-let lastLitLed = null, lastLitPad = null;
-
 function clearLeds(){
   document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
-  lastLitLed = null;
-  lastLitPad = null;
 }
 
 async function startPlayback(mode, resumeAt){
@@ -1968,20 +1938,8 @@ async function startPlayback(mode, resumeAt){
         try{
           if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
           else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-          // A real, verified bug, not a guess: MetalSynth.triggerAttackRelease has the
-          // signature (note, duration, time), but this was called with only two
-          // arguments — (duration, time) — as if it were NoiseSynth/snare a few lines up.
-          // Result: '32n' ended up as the NOTE (its frequency computes to 16 Hz — almost
-          // below hearing range; only the FM synthesis's rich harmonics made it through the
-          // internal highpass filter), and the real schedule time (the `time` variable)
-          // ended up as the DURATION. Since no real time argument was ever passed, the
-          // hi-hat fired essentially IMMEDIATELY when the JS callback ran (i.e. up to
-          // lookAhead seconds BEFORE its actual beat), instead of exactly on the intended
-          // 16th note — confirmed with real Tone.js (captured the actual time passed to
-          // triggerAttack: 0.14s instead of the intended 5.04s). Fixed to the correct
-          // argument order plus a sensible note instead of an accidental one.
-          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
-          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
+          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('32n',time);
+          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('8n',time);
         }catch(e){ console.warn('drumPart callback failed', e); }
       });
     }, drumEvents);
@@ -1994,19 +1952,11 @@ async function startPlayback(mode, resumeAt){
   stepEvent = new Tone.Loop((time)=>{
     const s = step % totalSteps;
     Tone.Draw.schedule(()=>{
-      // Toggle just the two specific elements involved (previous off, new
-      // on) instead of clearLeds() over the whole document on every
-      // quarter note — less main-thread work per beat, leaving more room
-      // for audio scheduling.
-      if(lastLitLed) lastLitLed.classList.remove('lit');
+      clearLeds();
       const led = document.getElementById('led'+s);
-      if(led){ led.classList.add('lit'); lastLitLed = led; }
-      const padIdx = Math.floor(s/4);
-      if(!lastLitPad || lastLitPad.id !== 'pad'+padIdx){
-        if(lastLitPad) lastLitPad.classList.remove('on');
-        const pad = document.getElementById('pad'+padIdx);
-        if(pad){ pad.classList.add('on'); lastLitPad = pad; }
-      }
+      if(led) led.classList.add('lit');
+      const pad = document.getElementById('pad'+Math.floor(s/4));
+      if(pad) pad.classList.add('on');
     }, time);
     step++;
   }, '4n');
@@ -2599,7 +2549,7 @@ function rerollBar(barI){
   current.melodyMute[barI] = current.melodyMute[barI].map(()=>false);
   current.bassMute[barI] = current.bassMute[barI].map(()=>false);
   current.arpMute[barI] = current.arpMute[barI].map(()=>false);
-  refreshPlaybackDebounced();
+  refreshPlayback();
   renderMiniDaw();
   showStatus(`Bar ${barI+1} re-rolled`);
 }
