@@ -104,7 +104,9 @@
 }
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<!-- Playback now runs on the native Web Audio API (see the PLAYBACK section
+     below) — the Tone.js library is no longer loaded, so playback no longer
+     depends on a CDN. -->
 <!-- VexFlow (music notation) and jsPDF (PDF export) — only used by the "Sheet music (PDF)" button -->
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -1495,32 +1497,43 @@ tempoSlider.addEventListener('input', ()=>{
   const bpm = parseInt(tempoSlider.value,10);
   tempoVal.textContent = bpm + ' BPM';
   if(current) current.tempo = bpm;
-  // rampTo instead of a direct .value = bpm assignment: an instant tempo
-  // jump on the audio param while transport is running can cause a brief
-  // stutter/glitch in Firefox, since already-scheduled transport events have
-  // to be reconciled immediately. A short ramp (even 80ms) avoids that and
-  // is inaudible.
-  if(isPlaying) Tone.Transport.bpm.rampTo(bpm, 0.08);
+  // The engine recomputes the 16th-note duration and uses it starting on the
+  // NEXT not-yet-scheduled step — since nothing already sent to the audio
+  // graph gets recalculated retroactively (unlike Tone.Transport.bpm), there's
+  // no risk of a glitch and no ramp is needed.
+  if(isPlaying){
+    currentBpm = bpm;
+    secondsPer16th = secondsFromBpm(bpm);
+  }
 });
 tempoVal.textContent = VIBES[selectedVibe].tempo + ' BPM';
 tempoSlider.value = VIBES[selectedVibe].tempo;
 
 const volumeSlider = document.getElementById('volumeSlider');
 const volumeVal = document.getElementById('volumeVal');
-function toneAvailable(){
-  return typeof Tone !== "undefined";
+function audioAvailable(){
+  return typeof (window.AudioContext || window.webkitAudioContext) !== "undefined";
 }
 function applyVolume(percent){
-  // 0% = silence, 100% = full volume (0 dB); linear dB scale in between
-  if(!toneAvailable()) return;
-  Tone.Destination.volume.value = percent <= 0 ? -Infinity : (percent - 100) * 0.4;
+  // 0% = silence, 100% = full volume (0 dB); linear dB scale in between.
+  // masterVolumeGain only exists once playback has started (ensureAudioCtx) —
+  // until then the value is simply dropped, same as before with Tone prior
+  // to Tone.start().
+  if(!audioCtx || !masterVolumeGain) return;
+  const gain = percent <= 0 ? 0 : dbToGain((percent - 100) * 0.4);
+  masterVolumeGain.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.01);
 }
 volumeSlider.addEventListener('input', ()=>{
   const percent = parseInt(volumeSlider.value,10);
   volumeVal.textContent = percent + ' %';
   applyVolume(percent);
 });
-applyVolume(parseInt(volumeSlider.value,10));
+// Note: this used to call applyVolume() right away at page load (that worked
+// with Tone.js because Tone creates its own context as soon as it's
+// imported). The native audioCtx is created lazily in ensureAudioCtx()
+// instead (on first Play) — that function already re-applies the slider's
+// current value once the gain nodes actually exist, so no extra call is
+// needed here.
 
 /* ================= PER-INSTRUMENT MIXER =================
    Independently of the overall volume above, each layer's volume can be
@@ -1544,16 +1557,24 @@ function volFromPercent(baseDb, percent){
   return percent <= 0 ? -Infinity : baseDb + (percent - 100) * 0.4;
 }
 
+function dbToGain(db){
+  return db === -Infinity ? 0 : Math.pow(10, db/20);
+}
 function applyMixerVolume(part){
-  if(part === 'chords' && chordSynth) chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
-  if(part === 'melody' && melodySynth) melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
-  if(part === 'bass' && bassSynth) bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
-  if(part === 'arp' && arpSynth) arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
+  // Before playback has ever started the gain nodes don't exist yet — the
+  // slider can be moved freely, there's just nothing to apply it to yet,
+  // same as before with Tone prior to the first Play.
+  if(!audioCtx) return;
+  const now = audioCtx.currentTime;
+  if(part === 'chords' && chordGain) chordGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.chords, mixerVol.chords)), now, 0.01);
+  if(part === 'melody' && melodyGain) melodyGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.melody, mixerVol.melody)), now, 0.01);
+  if(part === 'bass' && bassGain) bassGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.bass, mixerVol.bass)), now, 0.01);
+  if(part === 'arp' && arpGain) arpGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.arp, mixerVol.arp)), now, 0.01);
   if(part === 'drums'){
-    if(kickSynth) kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
-    if(snareSynth) snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
-    if(hihatSynth) hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
-    if(openhatSynth) openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
+    if(kickGain) kickGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.kick, mixerVol.drums)), now, 0.01);
+    if(snareGain) snareGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.snare, mixerVol.drums)), now, 0.01);
+    if(hihatGain) hihatGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.hh, mixerVol.drums)), now, 0.01);
+    if(openhatGain) openhatGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.oh, mixerVol.drums)), now, 0.01);
   }
 }
 
@@ -1744,221 +1765,340 @@ drumStyleSelect.addEventListener('change', ()=>{
   showStatus(name ? `Drum style: ${name}` : 'Drum style: Auto (varies per bar)');
 });
 
-/* ================= PLAYBACK (Tone.js) ================= */
-let chordSynth=null, melodySynth=null, bassSynth=null, arpSynth=null, chordPart=null, melSeq=null, bassSeq=null, arpSeq=null, stepEvent=null;
-let kickSynth=null, snareSynth=null, hihatSynth=null, openhatSynth=null, drumPart=null;
-let masterLimiter=null;
+/* ================= PLAYBACK (native Web Audio API) =================
+   Playback used to run entirely on Tone.js — a library that builds its own
+   Transport/Part/Sequence/Draw layer on top of the Web Audio API. Tone is
+   convenient, but with 5 layers scheduled simultaneously (chords, melody,
+   bass, arp, drums) and its own scheduler, that was noticeable extra
+   overhead on weaker phones, on top of whatever five instruments actually
+   require to play.
+
+   This version talks to the Web Audio API directly, the same way
+   relax.html does:
+   - no external library loads — playback no longer depends on a CDN and
+     can't "fail to work" because Tone.js didn't download;
+   - the AudioContext is created with latencyHint:'playback' (a bigger,
+     more stable buffer) — the same trick that got rid of Android crackling
+     in relax.html;
+   - the scheduler is the classic "lookahead" pattern (a setInterval every
+     25ms schedules ~120ms ahead using accurate AudioContext times) — one
+     small function instead of a whole Tone Transport;
+   - the key simplification: notes are read straight from
+     `current.melody/.bass/.arp/.drums/...Mute` right before each step is
+     scheduled, instead of pre-building a separate Tone.Part/Sequence object
+     per layer. That means "New melody"/"New bass"/switching a style/editing
+     in the Mini DAW just take effect on the next note by themselves —
+     nothing needs to be thrown away and rebuilt, which was exactly what hit
+     the main thread hardest during frequent live edits (the old
+     refreshLayers). */
+let audioCtx = null;
+let masterLimiter = null, masterVolumeGain = null;
+let chordGain=null, melodyGain=null, bassGain=null, arpGain=null;
+let kickGain=null, snareGain=null, hihatGain=null, openhatGain=null;
+let noiseBuffer = null; // shared 2s white-noise buffer for snare/hi-hat/open hi-hat
 let isPlaying = false;
-let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
-let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
+let playMode = null; // null | 'full' | 'chords' | 'melody' | 'bass' | 'arp' | 'drums'
+let playToken = 0; // invalidates an in-flight startPlayback() if a newer stop/start arrives
 
-function buildSynths(){
-  // Built once and kept alive for the whole page session — see disposeAll()
-  // below for why we never dispose+recreate these on regenerate/stop.
-  if(chordSynth) return;
+// scheduler state
+let schedulerTimer = null;
+let currentBpm = 120;
+let secondsPer16th = 0.125;
+let totalSteps16 = 16;       // current.chords.length * 16 (16 sixteenth-notes per bar)
+let currentStep16 = 0;       // position in the sixteenth-note grid (0..totalSteps16-1)
+let nextStepTime = 0;        // audioCtx.currentTime at which the next unscheduled step should sound
+const SCHEDULE_AHEAD_TIME = 0.12; // s — how far ahead the scheduler plans
+const SCHEDULER_INTERVAL_MS = 25; // how often the scheduler wakes up to top up the queue
 
-  // Output-clipping safety net only — nothing else (lookAhead/updateInterval,
-  // instrument choice) changed here. The chords (up to 4-voice whole-note
-  // polyphony, near-continuous duty cycle) and bass (near-continuous
-  // quarter-note drone) are the only layers that stay "on" almost the whole
-  // time; arp/drums are short transient hits with mostly silence between
-  // them. Reported mobile choppiness was specific to chords+bass, which
-  // matches output clipping/crackling under sustained combined level more
-  // than a scheduling problem (same class of fix already used in relax.html
-  // for Android crackling). All sources route through this instead of
-  // straight to Destination.
-  masterLimiter = new Tone.Limiter(-1).toDestination();
+// one "active note" per monophonic layer (melody/bass/arp) — used only to
+// gently cut off a stale note on things like "New melody" (see cutActiveVoice)
+let activeVoiceEnv = { melody:null, bass:null, arp:null };
 
-  chordSynth = new Tone.PolySynth(Tone.Synth, {
-    oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
-  }).connect(masterLimiter);
-  chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
-
-  melodySynth = new Tone.Synth({
-    oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
-  }).connect(masterLimiter);
-  melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
-
-  bassSynth = new Tone.Synth({
-    oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
-  }).connect(masterLimiter);
-  bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
-
-  arpSynth = new Tone.Synth({
-    oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
-  }).connect(masterLimiter);
-  arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
-
-  // drums: a synthesized kit built from four separate sources (no samples needed)
-  kickSynth = new Tone.MembraneSynth({
-    pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
-    envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
-  }).connect(masterLimiter);
-  kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
-
-  snareSynth = new Tone.NoiseSynth({
-    noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
-  }).connect(masterLimiter);
-  snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
-
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(masterLimiter);
-  hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
-
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(masterLimiter);
-  openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
-}
-
-/* ---- Building individual playback layers (Part/Sequence) ----
-   Pulled out of startPlayback() into standalone functions so refreshLayers()
-   below can reuse the same code — when only ONE layer changes (a new melody,
-   switching the bass style, editing a step in the Mini DAW…) it now throws
-   away and rebuilds JUST that one layer, instead of (as before) stopping the
-   whole transport and rebuilding literally everything — chords, melody,
-   bass, arp, drums, and the LED loop — on every single edit. Each function
-   only CREATES and starts the given layer (at transport time 0) — cleaning
-   up the old instance (stop+dispose) and releasing its old sound is the
-   caller's job (either disposeAll(), or refreshLayers() for that one layer).
-   .start(0) works correctly even while the transport is already running
-   somewhere in the middle of the piece — Tone.js figures out which step of
-   the loop the new layer should be on, so it drops in exactly on the beat
-   with no audible glitch. */
-function buildChordPartLayer(){
-  const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
-  chordPart = new Tone.Part((time, ev)=>{
-    if(!chordSynth) return;
-    try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
-  }, chordEvents);
-  chordPart.loop = true;
-  chordPart.loopEnd = `${current.chords.length}m`;
-  chordPart.start(0);
-}
-
-function buildMelodySeqLayer(){
-  // muted steps (Mini DAW) come through to the sequence as null — Tone.Sequence
-  // skips such "empty" steps, so the note simply doesn't sound
-  const melFlat = current.melody.flat().map((n,i)=> isMutedFlat(current.melodyMute, i, 4) ? null : n);
-  melSeq = new Tone.Sequence((time, note)=>{
-    if(note==null || !melodySynth) return;
-    try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
-  }, melFlat, '4n');
-  melSeq.loop = true;
-  melSeq.start(0);
-}
-
-function buildBassSeqLayer(){
-  const bassFlat = current.bass.flat().map((n,i)=> isMutedFlat(current.bassMute, i, 4) ? null : n);
-  bassSeq = new Tone.Sequence((time, note)=>{
-    if(note==null || !bassSynth) return;
-    try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
-  }, bassFlat, '4n');
-  bassSeq.loop = true;
-  bassSeq.start(0);
-}
-
-function buildArpSeqLayer(){
-  // arp: 8 eighth-note steps per bar — twice as fine a grid as melody/bass
-  const arpFlat = current.arp.flat().map((n,i)=> isMutedFlat(current.arpMute, i, 8) ? null : n);
-  arpSeq = new Tone.Sequence((time, note)=>{
-    if(note==null || !arpSynth) return;
-    try{ arpSynth.triggerAttackRelease(midiToName(note), '8n', time); }catch(e){ console.warn('arpSeq callback failed', e); }
-  }, arpFlat, '8n');
-  arpSeq.loop = true;
-  arpSeq.start(0);
-}
-
-function buildDrumPartLayer(){
-  // drums: 16 sixteenth-note steps per bar, Tone.Part instead of Tone.Sequence
-  // (see the explanation further down at the original call site) — any one
-  // step can fire any combination of kick/snare/hi-hat/open hi-hat.
-  const drumEvents = [];
-  current.drums.forEach((pat, barI)=>{
-    for(let s=0;s<16;s++){
-      const hits = [];
-      if(pat.kick[s]) hits.push('kick');
-      if(pat.snare[s]) hits.push('snare');
-      if(pat.hh[s]) hits.push('hh');
-      if(pat.oh[s]) hits.push('oh');
-      if(hits.length){
-        drumEvents.push({ time: `${barI}:${Math.floor(s/4)}:${s%4}`, hits });
-      }
-    }
-  });
-  drumPart = new Tone.Part((time, ev)=>{
-    ev.hits.forEach(h=>{
-      try{
-        if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
-        else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-        else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
-        else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
-      }catch(e){ console.warn('drumPart callback failed', e); }
-    });
-  }, drumEvents);
-  drumPart.loop = true;
-  drumPart.loopEnd = `${current.drums.length}m`;
-  drumPart.start(0);
-}
-
-function disposeAll(){
-  // Only the scheduling objects (Part/Sequence/Loop) get torn down and
-  // rebuilt on every regenerate/stop — they have no pending internal
-  // "voice reclaim" callbacks, so stop()+dispose() on them is always safe.
-  //
-  // The synths themselves (chordSynth/melodySynth/bassSynth) are deliberately
-  // NEVER disposed here anymore. Root cause of the earlier silent-forever bug:
-  // PolySynth schedules an internal callback to reclaim a voice once its
-  // release tail finishes (release=1.2s on chordSynth). If you dispose the
-  // synth while a note is still ringing/releasing, that internal callback
-  // later fires against a disposed synth and throws "Synth was already
-  // disposed" from inside Tone's own shared clock loop (Context._timeoutLoop).
-  // That loop self-reschedules at the end of its run — an uncaught error
-  // there skips the reschedule and kills Tone.js's entire clock permanently
-  // for the rest of the page's life (only a reload fixes it). releaseAll()
-  // alone doesn't reliably prevent this because it only re-triggers the
-  // release envelope; it doesn't cancel the reclaim callback already queued
-  // internally by PolySynth. The only fully race-free fix is to not dispose
-  // the synth in the first place: build it once and reuse it for the whole
-  // session, and just silence it (releaseAll/triggerRelease) between plays.
-  [chordPart, melSeq, bassSeq, arpSeq, drumPart, stepEvent].forEach(o=>{
-    if(o){
-      try{ o.stop(); }catch(e){ console.warn('disposeAll: stop() failed', e); }
-      try{ o.dispose(); }catch(e){ console.warn('disposeAll: dispose() failed', e); }
-    }
-  });
-  chordPart = melSeq = bassSeq = arpSeq = drumPart = stepEvent = null;
-  if(chordSynth){ try{ chordSynth.releaseAll(); }catch(e){ console.warn('disposeAll: chordSynth.releaseAll() failed', e); } }
-  if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('disposeAll: melodySynth.triggerRelease() failed', e); } }
-  if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: bassSynth.triggerRelease() failed', e); } }
-  if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: arpSynth.triggerRelease() failed', e); } }
-  if(kickSynth){ try{ kickSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: kickSynth.triggerRelease() failed', e); } }
-  if(snareSynth){ try{ snareSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: snareSynth.triggerRelease() failed', e); } }
-  if(hihatSynth){ try{ hihatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: hihatSynth.triggerRelease() failed', e); } }
-  if(openhatSynth){ try{ openhatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: openhatSynth.triggerRelease() failed', e); } }
-  // Hard reset: clear any scheduled events left dangling on the Transport so a
-  // failed stop/dispose above can't leave stale callbacks that block the next
-  // startPlayback() from ever reaching Tone.Transport.start().
-  try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
-}
-
+// queue of LED/pad events waiting for their audio time (mirrors Tone.Draw.schedule)
+let ledQueue = [];
 let lastLitLed = null, lastLitPad = null;
+
+function secondsFromBpm(bpm){
+  return 60 / bpm / 4; // 60/bpm = quarter-note length, /4 = sixteenth-note length
+}
+
+function midiToFreq(m){
+  return 440 * Math.pow(2, (m - 69) / 12);
+}
+
+function buildNoiseBuffer(seconds){
+  const len = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i] = Math.random()*2 - 1;
+  return buf;
+}
+
+function ensureAudioCtx(){
+  if(audioCtx) return;
+  // latencyHint:'playback' instead of the default 'interactive' — a bigger
+  // internal buffer, more headroom for weaker CPUs, at the cost of a bit
+  // more latency (irrelevant here). Exactly the same idea already used in
+  // relax.html.
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
+
+  // Master chain: <one layer's gain> -> masterLimiter -> masterVolumeGain ->
+  // output. A DynamicsCompressor configured as a hard limiter (no knee,
+  // 20:1 ratio) is the native equivalent of the previous Tone.Limiter(-1) —
+  // a safety net against clipping when all five layers play at once.
+  masterLimiter = audioCtx.createDynamicsCompressor();
+  masterLimiter.threshold.setValueAtTime(-1, audioCtx.currentTime);
+  masterLimiter.knee.setValueAtTime(0, audioCtx.currentTime);
+  masterLimiter.ratio.setValueAtTime(20, audioCtx.currentTime);
+  masterLimiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
+  masterLimiter.release.setValueAtTime(0.1, audioCtx.currentTime);
+
+  masterVolumeGain = audioCtx.createGain();
+  masterLimiter.connect(masterVolumeGain);
+  masterVolumeGain.connect(audioCtx.destination);
+
+  chordGain = audioCtx.createGain(); chordGain.connect(masterLimiter);
+  melodyGain = audioCtx.createGain(); melodyGain.connect(masterLimiter);
+  bassGain = audioCtx.createGain(); bassGain.connect(masterLimiter);
+  arpGain = audioCtx.createGain(); arpGain.connect(masterLimiter);
+  kickGain = audioCtx.createGain(); kickGain.connect(masterLimiter);
+  snareGain = audioCtx.createGain(); snareGain.connect(masterLimiter);
+  hihatGain = audioCtx.createGain(); hihatGain.connect(masterLimiter);
+  openhatGain = audioCtx.createGain(); openhatGain.connect(masterLimiter);
+
+  noiseBuffer = buildNoiseBuffer(2);
+
+  // The sliders (overall volume and mixer) may have been touched before the
+  // first Play — now that the gain nodes finally exist, sync them to
+  // whatever the sliders currently show.
+  applyVolume(parseInt(volumeSlider.value,10));
+  ['chords','melody','bass','arp','drums'].forEach(applyMixerVolume);
+}
+
+/* ---- Amplitude envelope (ADSR) for one played note ----
+   time = when the note starts; duration = how long the sustain phase holds
+   before release begins (i.e. matches Tone's "attack+release once the note
+   value elapses"); returns the time it's safe to stop the oscillator/source. */
+function scheduleADSR(gainParam, time, attack, decay, sustain, duration, release){
+  const sustainStart = time + attack + decay;
+  const releaseStart = Math.max(time + duration, sustainStart);
+  gainParam.cancelScheduledValues(time);
+  gainParam.setValueAtTime(0, time);
+  gainParam.linearRampToValueAtTime(1, time + attack);
+  gainParam.linearRampToValueAtTime(sustain, sustainStart);
+  gainParam.setValueAtTime(sustain, releaseStart);
+  gainParam.linearRampToValueAtTime(0, releaseStart + release);
+  return releaseStart + release;
+}
+
+function playOscVoice(destGain, freq, waveType, time, attack, decay, sustain, duration, release, voiceKey){
+  if(!destGain) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = waveType;
+  osc.frequency.setValueAtTime(freq, time);
+  const env = audioCtx.createGain();
+  osc.connect(env);
+  env.connect(destGain);
+  const endTime = scheduleADSR(env.gain, time, attack, decay, sustain, duration, release);
+  osc.start(time);
+  osc.stop(endTime + 0.05);
+  osc.onended = ()=>{ try{ osc.disconnect(); env.disconnect(); }catch(e){} };
+  if(voiceKey) activeVoiceEnv[voiceKey] = env.gain;
+}
+
+// Immediately cuts off whatever note is currently sounding on a monophonic
+// layer (melody/bass/arp) — the native equivalent of the old
+// melodySynth.triggerRelease() call inside refreshLayers(), so that after
+// "New melody"/switching a style/a Mini DAW edit, a bit of the old note
+// doesn't keep ringing over the new one.
+function cutActiveVoice(key){
+  const g = activeVoiceEnv[key];
+  if(!g || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  try{
+    const v = g.value;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(v, now);
+    g.linearRampToValueAtTime(0, now + 0.03);
+  }catch(e){ console.warn('cutActiveVoice failed', e); }
+  activeVoiceEnv[key] = null;
+}
+
+function triggerChord(chord, time){
+  const dur = 240 / currentBpm; // 1 bar (4/4) = 4 beats
+  chord.tones.forEach(m=>{
+    playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
+  });
+}
+function triggerMelodyNote(m, time){
+  playOscVoice(melodyGain, midiToFreq(m), 'sine', time, 0.01, 0.2, 0.3, 60/currentBpm, 0.4, 'melody');
+}
+function triggerBassNote(m, time){
+  playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
+}
+function triggerArpNote(m, time){
+  playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
+}
+
+// Kick: a sine oscillator with a fast pitch drop (mimics Tone.MembraneSynth).
+function triggerKick(time){
+  if(!kickGain) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(45, time + 0.05);
+  const env = audioCtx.createGain();
+  osc.connect(env); env.connect(kickGain);
+  const endTime = scheduleADSR(env.gain, time, 0.001, 0.35, 0.01, 0.35, 0.6);
+  osc.start(time); osc.stop(endTime + 0.05);
+  osc.onended = ()=>{ try{ osc.disconnect(); env.disconnect(); }catch(e){} };
+}
+// Snare: a short slice of white noise (mimics Tone.NoiseSynth).
+function triggerSnare(time){
+  if(!snareGain || !noiseBuffer) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer; src.loop = true;
+  const env = audioCtx.createGain();
+  src.connect(env); env.connect(snareGain);
+  const endTime = scheduleADSR(env.gain, time, 0.001, 0.18, 0.0001, 0.18, 0.02);
+  src.start(time); src.stop(endTime + 0.05);
+  src.onended = ()=>{ try{ src.disconnect(); env.disconnect(); }catch(e){} };
+}
+// Hi-hat/open hi-hat: noise through a high-pass filter (mimics the metallic
+// character of Tone.MetalSynth, but much cheaper — one filter instead of FM
+// synthesis).
+function triggerHihatVoice(destGain, time, decay, release){
+  if(!destGain || !noiseBuffer) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer; src.loop = true;
+  const hp = audioCtx.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.setValueAtTime(7000, time);
+  const env = audioCtx.createGain();
+  src.connect(hp); hp.connect(env); env.connect(destGain);
+  const endTime = scheduleADSR(env.gain, time, 0.001, decay, 0.0001, decay, release);
+  src.start(time); src.stop(endTime + 0.05);
+  src.onended = ()=>{ try{ src.disconnect(); hp.disconnect(); env.disconnect(); }catch(e){} };
+}
+function triggerHihat(time){ triggerHihatVoice(hihatGain, time, 0.06, 0.02); }
+function triggerOpenhat(time){ triggerHihatVoice(openhatGain, time, 0.28, 0.15); }
+
+// Reads a note out of a "per bar" array (current.melody/.bass/.arp look like
+// [ [note,note,...perBar], [note,...], ... ]) at global index i — same
+// bar/position math as isMutedFlat further down this file, just without
+// building a flattened copy of the array on every step.
+function noteAtFlat(barsArr, i, stepsPerBar){
+  if(!barsArr) return undefined;
+  const barI = Math.floor(i/stepsPerBar), s = i % stepsPerBar;
+  const bar = barsArr[barI];
+  return bar ? bar[s] : undefined;
+}
+
+function scheduleLed(step16, time){
+  const qIdx = Math.floor(step16/4);
+  ledQueue.push({ ledStep: qIdx, time });
+}
+function applyLedStep(s){
+  if(lastLitLed) lastLitLed.classList.remove('lit');
+  const led = document.getElementById('led'+s);
+  if(led){ led.classList.add('lit'); lastLitLed = led; }
+  const padIdx = Math.floor(s/4);
+  if(!lastLitPad || lastLitPad.id !== 'pad'+padIdx){
+    if(lastLitPad) lastLitPad.classList.remove('on');
+    const pad = document.getElementById('pad'+padIdx);
+    if(pad){ pad.classList.add('on'); lastLitPad = pad; }
+  }
+}
+// Runs continuously (even outside playback it's just an empty-queue check
+// once per frame) — the equivalent of Tone.Draw: the DOM should update
+// exactly at that step's audio time, not the moment the scheduler queued it
+// (the scheduler is always ~0.1s ahead).
+function ledDrawLoop(){
+  if(audioCtx && ledQueue.length){
+    const now = audioCtx.currentTime;
+    while(ledQueue.length && ledQueue[0].time <= now){
+      applyLedStep(ledQueue.shift().ledStep);
+    }
+  }
+  requestAnimationFrame(ledDrawLoop);
+}
+requestAnimationFrame(ledDrawLoop);
 
 function clearLeds(){
   document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
   lastLitLed = null;
   lastLitPad = null;
+  ledQueue = [];
+}
+
+// Which layers are currently playing in the active playMode.
+let playChords=false, playMelody=false, playBass=false, playArp=false, playDrums=false;
+
+/* Schedules one step of the sixteenth-note grid at time `time`. Notes are
+   read directly from `current.*` right now, right before scheduling — so
+   any change to that data (regenerating, switching a style, a Mini DAW
+   mute/octave/reroll edit) takes effect on the very next step by itself,
+   with no layer "rebuild" of any kind. */
+function scheduleStep(step16, time){
+  const bar = Math.floor(step16 / 16);
+  const posInBar16 = step16 % 16;
+
+  if(playChords && posInBar16 === 0){
+    const chord = current.chords[bar];
+    if(chord) triggerChord(chord, time);
+  }
+  if(step16 % 4 === 0){
+    const qIdx = step16 / 4;
+    if(playMelody){
+      const note = noteAtFlat(current.melody, qIdx, 4);
+      if(note != null && !isMutedFlat(current.melodyMute, qIdx, 4)) triggerMelodyNote(note, time);
+    }
+    if(playBass){
+      const note = noteAtFlat(current.bass, qIdx, 4);
+      if(note != null && !isMutedFlat(current.bassMute, qIdx, 4)) triggerBassNote(note, time);
+    }
+    scheduleLed(step16, time);
+  }
+  if(step16 % 2 === 0 && playArp){
+    const eIdx = step16 / 2;
+    const note = noteAtFlat(current.arp, eIdx, 8);
+    if(note != null && !isMutedFlat(current.arpMute, eIdx, 8)) triggerArpNote(note, time);
+  }
+  if(playDrums){
+    const pat = current.drums[bar];
+    if(pat){
+      if(pat.kick[posInBar16]) triggerKick(time);
+      if(pat.snare[posInBar16]) triggerSnare(time);
+      if(pat.hh[posInBar16]) triggerHihat(time);
+      if(pat.oh[posInBar16]) triggerOpenhat(time);
+    }
+  }
+}
+
+// The classic "lookahead" scheduler (see "A Tale of Two Clocks"): a small
+// interval on the main thread only TOPS UP the queue of scheduled audio
+// events a little ahead of time (SCHEDULE_AHEAD_TIME) — the actual precise
+// timing is held by the Web Audio API itself via exact AudioContext times
+// passed into start()/ramp calls, so setInterval jitter (easily a few ms on
+// mobile) has no effect on the audible timing.
+function schedulerLoop(){
+  while(nextStepTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME){
+    scheduleStep(currentStep16, nextStepTime);
+    nextStepTime += secondsPer16th;
+    currentStep16 = (currentStep16 + 1) % totalSteps16;
+  }
+}
+
+function stopScheduler(){
+  if(schedulerTimer){ clearInterval(schedulerTimer); schedulerTimer = null; }
+  ledQueue = [];
 }
 
 async function startPlayback(mode, resumeAt){
   mode = ['chords','melody','bass','arp','drums'].includes(mode) ? mode : 'full';
   if(!current) return;
-  if(!toneAvailable()){
-    showStatus("Playback isn't available — the audio library failed to load (check your internet connection)");
+  if(!audioAvailable()){
+    showStatus("Playback isn't available — this browser doesn't support the Web Audio API");
     return;
   }
   const myToken = ++playToken;
@@ -1970,94 +2110,38 @@ async function startPlayback(mode, resumeAt){
   const playDrumsBtnEl = document.getElementById('playDrumsBtn');
   const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
   allBtns.forEach(b=>b.disabled = true);
-  await Tone.start();
+
+  ensureAudioCtx();
+  // Mobile browsers (and desktop Safari too) keep a brand-new AudioContext
+  // 'suspended' until a user gesture unlocks it — clicking Play is that
+  // gesture, so resume() always succeeds here.
+  if(audioCtx.state === 'suspended'){
+    try{ await audioCtx.resume(); }catch(e){ console.warn('audioCtx.resume() failed', e); }
+  }
+
   allBtns.forEach(b=>b.disabled = false);
-  if(myToken !== playToken) return; // a stop/newer start happened while we were awaiting Tone.start()
-  disposeAll();
-  buildSynths();
-  Tone.Transport.bpm.value = current.tempo;
+  if(myToken !== playToken) return; // a newer stop/start arrived meanwhile
 
-  // Which parts play in this mode: 'full' plays all four, the other modes
-  // isolate a single part so you can preview it on its own.
-  const playChords = mode === 'full' || mode === 'chords';
-  const playMelody = mode === 'full' || mode === 'melody';
-  const playBass   = mode === 'full' || mode === 'bass';
-  const playArp    = mode === 'full' || mode === 'arp';
-  const playDrums  = mode === 'full' || mode === 'drums';
+  stopScheduler();
 
-  // A real, verified bug, not a guess, on the drums side (see buildDrumPartLayer
-  // above): MetalSynth.triggerAttackRelease has the signature (note, duration,
-  // time), but this used to be called with only two arguments — (duration, time)
-  // — as if it were NoiseSynth/snare. Result: '32n' ended up as the NOTE (its
-  // frequency computes to ~16 Hz, almost below hearing range) and the real
-  // schedule time (`time`) ended up as the DURATION, so the hi-hat fired
-  // essentially immediately when the JS callback ran instead of exactly on the
-  // intended 16th note. Fixed to the correct argument order plus a sensible
-  // note; the instrument and its sound are otherwise unchanged.
-  if(playChords) buildChordPartLayer();
+  const playChordsNow = mode === 'full' || mode === 'chords';
+  const playMelodyNow = mode === 'full' || mode === 'melody';
+  const playBassNow   = mode === 'full' || mode === 'bass';
+  const playArpNow    = mode === 'full' || mode === 'arp';
+  const playDrumsNow  = mode === 'full' || mode === 'drums';
+  playChords = playChordsNow; playMelody = playMelodyNow; playBass = playBassNow;
+  playArp = playArpNow; playDrums = playDrumsNow;
 
-  // The LED grid is always quarter-note steps (4 per bar), regardless of
-  // which layers are playing — keeps it in sync with the visual bar grid.
-  const totalSteps = current.chords.length * 4;
+  currentBpm = current.tempo;
+  secondsPer16th = secondsFromBpm(currentBpm);
+  totalSteps16 = current.chords.length * 16;
+  currentStep16 = 0;
+  nextStepTime = audioCtx.currentTime + 0.05;
+  clearLeds();
 
-  if(playMelody) buildMelodySeqLayer();
-  if(playBass) buildBassSeqLayer();
-  if(playArp) buildArpSeqLayer();
-  if(playDrums) buildDrumPartLayer();
+  schedulerLoop(); // schedule the first batch right away, don't wait for the first interval tick
+  schedulerTimer = setInterval(schedulerLoop, SCHEDULER_INTERVAL_MS);
 
-  // The LED step used to be computed from a local `step` variable that this
-  // function reset to 0 every single time it ran — fine as long as
-  // startPlayback() really did start the whole song from the top. But once
-  // anything happening DURING playback called refreshLayers() (a new melody/
-  // bass/arp/drums, switching a style, editing a step in the Mini DAW), the
-  // actual music kept playing correctly (Parts/Sequences compute their
-  // position from the absolute transport time, not from this variable) — but
-  // the LED grid and the bar dots still snapped back to the start and showed
-  // a completely different step/bar than what was actually playing. That's
-  // exactly the "the display doesn't match the beat" symptom. Fix: the LED
-  // step is now computed straight from the transport's current position (in
-  // ticks), so it's always correct whether stepEvent was created at a fresh
-  // start or (as before) mid-song — and on top of that, after this refactor
-  // refreshLayers() never touches stepEvent at all when editing a single
-  // layer, so the LED grid no longer flickers/resets during normal live
-  // editing in the first place.
-  let step = 0; // fallback counter only for the unlikely case getTicksAtTime() throws
-  stepEvent = new Tone.Loop((time)=>{
-    let s;
-    try{
-      const ticks = Tone.Transport.getTicksAtTime(time);
-      s = Math.round(ticks / Tone.Transport.PPQ) % totalSteps;
-    }catch(e){
-      console.warn('stepEvent: getTicksAtTime failed, using fallback counter', e);
-      s = step % totalSteps;
-    }
-    Tone.Draw.schedule(()=>{
-      // Toggle just the two specific elements involved (previous off, new
-      // on) instead of clearLeds() over the whole document on every
-      // quarter note — less main-thread work per beat, leaving more room
-      // for audio scheduling.
-      if(lastLitLed) lastLitLed.classList.remove('lit');
-      const led = document.getElementById('led'+s);
-      if(led){ led.classList.add('lit'); lastLitLed = led; }
-      const padIdx = Math.floor(s/4);
-      if(!lastLitPad || lastLitPad.id !== 'pad'+padIdx){
-        if(lastLitPad) lastLitPad.classList.remove('on');
-        const pad = document.getElementById('pad'+padIdx);
-        if(pad){ pad.classList.add('on'); lastLitPad = pad; }
-      }
-    }, time);
-    step++;
-  }, '4n');
-  stepEvent.start(0);
-
-  // resumeAt is now just a fallback parameter for a possible future caller —
-  // the Mini DAW and the "New melody/bass/arp/drums" buttons and style
-  // pickers now go through refreshLayers() (below) while playing, which
-  // rebuilds only the one affected layer and never touches the transport.
-  // A genuine fresh start (the Play button, Generate progression, etc.)
-  // doesn't pass resumeAt, so it still normally starts from zero.
-  Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
-  Tone.Transport.start();
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Stop' : '▶ Play';
@@ -2069,12 +2153,9 @@ async function startPlayback(mode, resumeAt){
 }
 
 function stopPlayback(){
-  playToken++; // cancel any startPlayback() still waiting on Tone.start()
-  if(toneAvailable()){
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-  }
-  disposeAll();
+  playToken++;
+  stopScheduler();
+  playChords = playMelody = playBass = playArp = playDrums = false;
   clearLeds();
   isPlaying = false;
   playMode = null;
@@ -2089,61 +2170,27 @@ function stopPlayback(){
 /* Called after regenerating/editing just SOME layers (a new melody, a new
    bass line, switching the arp style, re-rolling a bar, editing a step in
    the Mini DAW…) so the change is heard and seen immediately if a loop is
-   already playing. If nothing is playing, this does nothing — no need to
-   force playback to start.
+   already playing.
 
-   This used to be refreshPlayback(): a full stop+restart of the whole audio
-   engine (stop the transport, throw away all five layers plus the LED loop,
-   rebuild them, jump the transport back to the remembered position, start
-   again). That had two real problems users ran into:
-   1) The LED grid and the bar dots would briefly snap back to the very
-      start every time (see the comment on the `step` counter inside
-      startPlayback) — even though the music itself kept playing correctly,
-      it looked (and briefly was) out of sync with the actual bar/beat.
-   2) Throwing away and rebuilding ALL five layers plus stopping/restarting
-      the transport on EVERY single edit (even when, say, only the bass
-      line actually changed) is unnecessarily heavy work for the main
-      thread. After several such edits in a row, this led to playback
-      crackling/stuttering again on some machines/browsers — the same
-      family of issue as the earlier Firefox stutter, just retriggered by
-      how often that full rebuild ran.
-
-   NOW refreshLayers() throws away and rebuilds ONLY the specific layer(s)
-   that actually changed — it never stops or repositions the transport, and
-   leaves the LED loop (stepEvent) running untouched, so the grid never
-   flickers/resets and the cost of an edit is a fraction of "throw away and
-   rebuild absolutely everything". */
+   With this engine there's nothing to "rebuild": scheduleStep() always
+   reads current.melody/.bass/.arp/...Mute fresh right before scheduling a
+   step, so new data takes effect on its own on the next matching note. All
+   this function actually does now is immediately cut off whatever note of
+   that layer is CURRENTLY sounding (see cutActiveVoice) — otherwise the old
+   note would keep ringing a little over the new one. There's nothing to cut
+   for drums (individual hits are short and don't overlap). The function
+   (and its debounced wrapper) stays in place purely so every existing call
+   to refreshLayersDebounced() elsewhere in this file keeps working
+   unchanged. */
 function refreshLayers(layers){
-  if(!isPlaying || !current || !toneAvailable()) return;
+  if(!isPlaying) return;
   layers.forEach(layer=>{
-    if(layer==='melody'){
-      if(!(playMode==='full' || playMode==='melody')) return; // this layer isn't currently playing
-      if(melSeq){ try{ melSeq.stop(); melSeq.dispose(); }catch(e){ console.warn('refreshLayers: melSeq dispose failed', e); } melSeq=null; }
-      if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: melodySynth.triggerRelease failed', e); } }
-      buildMelodySeqLayer();
-    } else if(layer==='bass'){
-      if(!(playMode==='full' || playMode==='bass')) return;
-      if(bassSeq){ try{ bassSeq.stop(); bassSeq.dispose(); }catch(e){ console.warn('refreshLayers: bassSeq dispose failed', e); } bassSeq=null; }
-      if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: bassSynth.triggerRelease failed', e); } }
-      buildBassSeqLayer();
-    } else if(layer==='arp'){
-      if(!(playMode==='full' || playMode==='arp')) return;
-      if(arpSeq){ try{ arpSeq.stop(); arpSeq.dispose(); }catch(e){ console.warn('refreshLayers: arpSeq dispose failed', e); } arpSeq=null; }
-      if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: arpSynth.triggerRelease failed', e); } }
-      buildArpSeqLayer();
-    } else if(layer==='drums'){
-      if(!(playMode==='full' || playMode==='drums')) return;
-      if(drumPart){ try{ drumPart.stop(); drumPart.dispose(); }catch(e){ console.warn('refreshLayers: drumPart dispose failed', e); } drumPart=null; }
-      [kickSynth, snareSynth, hihatSynth, openhatSynth].forEach(s=>{ if(s){ try{ s.triggerRelease(); }catch(e){ console.warn('refreshLayers: drum synth triggerRelease failed', e); } } });
-      buildDrumPartLayer();
-    }
+    if(layer==='melody' && (playMode==='full'||playMode==='melody')) cutActiveVoice('melody');
+    else if(layer==='bass' && (playMode==='full'||playMode==='bass')) cutActiveVoice('bass');
+    else if(layer==='arp' && (playMode==='full'||playMode==='arp')) cutActiveVoice('arp');
   });
 }
 
-// Collects the layers touched by rapid-fire edits (dragging across several
-// drum cells, trying out several notes in a row…) and only runs the actual
-// rebuild 150ms after the last one — same debounce as before, just now
-// operating on a specific list of layers instead of "rebuild everything".
 let pendingRefreshLayers = new Set();
 let refreshPlaybackDebounceTimer = null;
 function refreshLayersDebounced(layers){
