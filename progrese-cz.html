@@ -1786,7 +1786,7 @@ function clearLeds(){
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
 }
 
-async function startPlayback(mode){
+async function startPlayback(mode, resumeAt){
   mode = ['chords','melody','bass','arp','drums'].includes(mode) ? mode : 'full';
   if(!current) return;
   if(!toneAvailable()){
@@ -1916,7 +1916,13 @@ async function startPlayback(mode){
   }, '4n');
   stepEvent.start(0);
 
-  Tone.Transport.position = 0;
+  // Mini DAW úpravy volají refreshPlayback() a předávají sem aktuální pozici
+  // (resumeAt), aby se smyčka po každé jednotlivé úpravě nevracela pořád na
+  // začátek — bez toho by úprava pozdějšího taktu (např. taktu 5) nebyla
+  // slyšet, dokud smyčka znovu nedoběhne až tam. Skutečný nový/stop start
+  // (tlačítko Přehrát, Vygenerovat postup apod.) nic nepředává, takže tam
+  // se pořád normálně začíná od nuly.
+  Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
   Tone.Transport.start();
   isPlaying = true;
   playMode = mode;
@@ -1952,13 +1958,30 @@ function stopPlayback(){
 function refreshPlayback(){
   if(isPlaying){
     const mode = playMode;
+    // zapamatovat aktuální pozici smyčky, ať se po úpravě nezačíná pořád od
+    // začátku (viz komentář u Tone.Transport.position ve startPlayback)
+    const resumeAt = toneAvailable() ? Tone.Transport.position : 0;
     stopPlayback();
-    startPlayback(mode);
+    startPlayback(mode, resumeAt);
   }
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{
   if(!current) return;
+  if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
+});
+
+// Mezerník přepíná hlavní Přehrát/Stop tlačítko, stejně jako ve většině DAW —
+// ale jen když uživatel zrovna nepíše do pole ani nemá fokus na jiném ovládacím
+// prvku, aby to nekradlo běžné použití mezerníku (psaní mezery, aktivace
+// fokusnutého tlačítka, scrollování v selectu apod).
+document.addEventListener('keydown', (e)=>{
+  if(e.code !== 'Space' && e.key !== ' ') return;
+  const tag = (e.target && e.target.tagName) || '';
+  const isFormField = ['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(tag) || (e.target && e.target.isContentEditable);
+  if(isFormField) return;
+  if(!current) return;
+  e.preventDefault();
   if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
 });
 

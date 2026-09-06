@@ -1786,7 +1786,7 @@ function clearLeds(){
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
 }
 
-async function startPlayback(mode){
+async function startPlayback(mode, resumeAt){
   mode = ['chords','melody','bass','arp','drums'].includes(mode) ? mode : 'full';
   if(!current) return;
   if(!toneAvailable()){
@@ -1917,7 +1917,13 @@ async function startPlayback(mode){
   }, '4n');
   stepEvent.start(0);
 
-  Tone.Transport.position = 0;
+  // Mini DAW edits call refreshPlayback() and pass the current position here
+  // (resumeAt), so the loop doesn't keep jumping back to the start after every
+  // single edit — without this, an edit to a later bar (e.g. bar 5) wouldn't
+  // be audible until the loop cycled all the way back around to it. A genuine
+  // fresh start/stop (the Play button, Generate progression, etc.) doesn't
+  // pass anything, so those still normally start from zero.
+  Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
   Tone.Transport.start();
   isPlaying = true;
   playMode = mode;
@@ -1954,13 +1960,31 @@ function stopPlayback(){
 function refreshPlayback(){
   if(isPlaying){
     const mode = playMode;
+    // Remember the current loop position, so editing a bar doesn't reset
+    // playback back to the very start (see the Tone.Transport.position
+    // comment inside startPlayback()).
+    const resumeAt = toneAvailable() ? Tone.Transport.position : 0;
     stopPlayback();
-    startPlayback(mode);
+    startPlayback(mode, resumeAt);
   }
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{
   if(!current) return;
+  if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
+});
+
+// Spacebar toggles the main Play/Stop button, like most DAWs — but only when
+// the user isn't typing into a field or focused on another control, so it
+// doesn't hijack normal spacebar use (typing a space, activating a focused
+// button, scrolling a select, etc).
+document.addEventListener('keydown', (e)=>{
+  if(e.code !== 'Space' && e.key !== ' ') return;
+  const tag = (e.target && e.target.tagName) || '';
+  const isFormField = ['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(tag) || (e.target && e.target.isContentEditable);
+  if(isFormField) return;
+  if(!current) return;
+  e.preventDefault();
   if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
 });
 
