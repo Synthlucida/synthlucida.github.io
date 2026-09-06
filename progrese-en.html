@@ -1732,6 +1732,7 @@ drumStyleSelect.addEventListener('change', ()=>{
 /* ================= PLAYBACK (Tone.js) ================= */
 let chordSynth=null, melodySynth=null, bassSynth=null, arpSynth=null, chordPart=null, melSeq=null, bassSeq=null, arpSeq=null, stepEvent=null;
 let kickSynth=null, snareSynth=null, hihatSynth=null, openhatSynth=null, drumPart=null;
+let masterLimiter=null;
 let isPlaying = false;
 let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
 let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
@@ -1740,48 +1741,61 @@ function buildSynths(){
   // Built once and kept alive for the whole page session — see disposeAll()
   // below for why we never dispose+recreate these on regenerate/stop.
   if(chordSynth) return;
+
+  // Output-clipping safety net only — nothing else (lookAhead/updateInterval,
+  // instrument choice) changed here. The chords (up to 4-voice whole-note
+  // polyphony, near-continuous duty cycle) and bass (near-continuous
+  // quarter-note drone) are the only layers that stay "on" almost the whole
+  // time; arp/drums are short transient hits with mostly silence between
+  // them. Reported mobile choppiness was specific to chords+bass, which
+  // matches output clipping/crackling under sustained combined level more
+  // than a scheduling problem (same class of fix already used in relax.html
+  // for Android crackling). All sources route through this instead of
+  // straight to Destination.
+  masterLimiter = new Tone.Limiter(-1).toDestination();
+
   chordSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
-  }).toDestination();
+  }).connect(masterLimiter);
   chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
 
   melodySynth = new Tone.Synth({
     oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
-  }).toDestination();
+  }).connect(masterLimiter);
   melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
 
   bassSynth = new Tone.Synth({
     oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
-  }).toDestination();
+  }).connect(masterLimiter);
   bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
 
   arpSynth = new Tone.Synth({
     oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
-  }).toDestination();
+  }).connect(masterLimiter);
   arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
 
   // drums: a synthesized kit built from four separate sources (no samples needed)
   kickSynth = new Tone.MembraneSynth({
     pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
     envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
-  }).toDestination();
+  }).connect(masterLimiter);
   kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
 
   snareSynth = new Tone.NoiseSynth({
     noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
-  }).toDestination();
+  }).connect(masterLimiter);
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
   hihatSynth = new Tone.MetalSynth({
     envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
     modulationIndex:32, resonance:4000, octaves:1.2
-  }).toDestination();
+  }).connect(masterLimiter);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
   openhatSynth = new Tone.MetalSynth({
     envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
     modulationIndex:32, resonance:4000, octaves:1.2
-  }).toDestination();
+  }).connect(masterLimiter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
