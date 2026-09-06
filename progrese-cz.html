@@ -64,9 +64,9 @@
   },
   "featureList": [
     "Generování akordových postupů podle tóniny a nálady",
-    "Automatický návrh melodie, basové linky a arpeggia",
+    "Automatický návrh melodie, basové linky, arpeggia a bicích",
     "Přehrání postupu přímo v prohlížeči, včetně jednotlivých vrstev",
-    "Export do MIDI souboru (.mid) se 4 stopami"
+    "Export do MIDI souboru (.mid) s 5 stopami"
   ]
 }
 </script>
@@ -88,7 +88,7 @@
     {
       "@type": "Question",
       "name": "V jakém formátu je export?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Export je standardní MIDI soubor (.mid, formát 1, 480 tpqn) se třemi stopami — akordy, melodie a basa — kompatibilní se všemi hlavními DAW." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Export je standardní MIDI soubor (.mid, formát 1, 480 tpqn) s pěti stopami — akordy, melodie, basa, arp a bicí — kompatibilní se všemi hlavními DAW." }
     },
     {
       "@type": "Question",
@@ -119,6 +119,7 @@
     --teal:#4dd2c4;
     --violet:#b79cef;
     --rose:#ff6f9c;
+    --sky:#5ec8ff;
     --radius:10px;
   }
   *{box-sizing:border-box;}
@@ -234,6 +235,7 @@
   .dot.violet{background:var(--violet);}
   .dot.teal{background:var(--teal);}
   .dot.rose{background:var(--rose);}
+  .dot.sky{background:var(--sky);}
 
   .transport{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:18px;}
   .tempo-wrap{display:flex; flex-direction:column; align-items:stretch; gap:8px; flex:1; min-width:140px;}
@@ -287,6 +289,42 @@
   .footer-nav a:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
   .footer-nav span{color:var(--line);}
   .footer-copy{color:#5a5245; font-size:10px;}
+
+  /* ===== podpora projektu — periodická připomínka ===== */
+  .support-overlay{
+    position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,9,7,0.72); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); padding:20px;
+  }
+  .support-overlay[hidden]{display:none;}
+  .support-modal{
+    position:relative; max-width:420px; width:100%;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--amber-dim); border-radius:var(--radius); padding:26px 24px 22px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .support-modal h3{font-family:ui-sans-serif, Arial, sans-serif; font-size:16.5px; margin:0 0 12px; color:var(--text);}
+  .support-modal p{font-size:13px; color:var(--text-dim); line-height:1.7; margin:0 0 20px;}
+  .support-modal-close{
+    position:absolute; top:10px; right:10px; background:none; border:none; color:var(--text-dim);
+    font-size:20px; line-height:1; cursor:pointer; padding:6px; border-radius:6px;
+  }
+  .support-modal-close:hover{color:var(--text);}
+  .support-modal-close:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .support-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .support-btn{
+    flex:1; min-width:150px; text-align:center; font-family:inherit; font-size:12.5px; letter-spacing:0.03em;
+    text-transform:uppercase; text-decoration:none; border-radius:7px; padding:12px 14px; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg); color:var(--text); font-weight:700;
+    transition:transform .1s, border-color .15s, filter .15s;
+  }
+  .support-btn:hover{border-color:#5a5040;}
+  .support-btn:active{transform:scale(0.98);}
+  .support-btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .support-btn.primary{background:var(--teal); color:#0d1e1b; border-color:var(--teal);}
+  .support-btn.primary:hover{filter:brightness(1.08);}
+  @media (max-width:480px){
+    .support-actions{flex-direction:column;}
+  }
 
   .info-steps{display:flex; flex-direction:column; gap:16px;}
   .info-step{display:flex; gap:14px; align-items:flex-start;}
@@ -381,6 +419,16 @@
   .article summary:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
   .article p{font-size:12.5px; color:var(--text-dim); margin:10px 0 0; line-height:1.7;}
 
+  /* ===== mixér jednotlivých nástrojů ===== */
+  .mixer-rows{display:flex; flex-direction:column; gap:14px;}
+  .mixer-row{display:flex; align-items:center; gap:12px;}
+  .mixer-row .mixer-label{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-dim); min-width:96px; flex-shrink:0;}
+  .mixer-row input[type=range]{flex:1; min-width:0;}
+  .mixer-row .mixer-val{font-size:12px; color:var(--text-dim); min-width:46px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums;}
+  @media (max-width:480px){
+    .mixer-row .mixer-label{min-width:74px; font-size:11.5px;}
+  }
+
   .promo{
     background:linear-gradient(135deg, #1c2a27, #17201d 60%, var(--panel));
     border:1px solid #2f4b43;
@@ -440,6 +488,25 @@
 </head>
 <body>
 <a class="home-nav-btn" href="https://synthlucida.com/progrese-landing-cz.html" aria-label="Domů — přejít na landing page Progrese" title="Domů">🏠</a>
+
+<div class="support-overlay" id="supportOverlay" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle" hidden>
+  <div class="support-modal">
+    <button class="support-modal-close" id="supportCloseX" aria-label="Zavřít">×</button>
+    <h3 id="supportModalTitle">Díky, že Progresy používáš 🙏</h3>
+    <p>
+      Jsme moc rádi, že ti aplikace pomáhá tvořit. Omlouváme se, že tě na chvilku
+      rušíme při práci — chtěli jsme se jen ozvat. Pokud bys měl/a zájem podpořit
+      další vývoj funkcí a celý projekt SYNTHLUCIDA, budeme moc vděční za jakoukoli
+      podporu. A hlavně doufáme, že jsi našel/našla přesně tu melodii nebo akordy,
+      které jsi hledal/a!
+    </p>
+    <div class="support-actions">
+      <a class="support-btn primary" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">☕ Podpořit projekt</a>
+      <button type="button" class="support-btn" id="supportBackBtn">← Zpět na Progrese</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <div class="top-row">
@@ -459,8 +526,8 @@
   <p style="color:var(--text-dim); font-size:13px; line-height:1.7; max-width:640px; margin:-10px 0 20px;">
     Bezplatný online generátor akordových postupů. Vyber si tóninu a náladu — šťastnou,
     smutnou, snovou, epickou, chill/lo-fi, temnou, romantickou nebo nostalgickou — a nástroj sestaví hudebně smysluplný
-    8taktový postup akordů, ke kterému rovnou navrhne melodii, basovou linku i arpeggio. Vyber si
-    konkrétní styl melodie, basy nebo arpeggia, nebo nech volbu na "auto" pro pestrost. Postup si
+    8taktový postup akordů, ke kterému rovnou navrhne melodii, basovou linku, arpeggio i bicí. Vyber si
+    konkrétní styl melodie, basy, arpeggia nebo bicích, nebo nech volbu na "auto" pro pestrost. Postup si
     přehraj přímo v prohlížeči, nebo si ho stáhni jako standardní MIDI soubor a použij ve
     svém DAW (Ableton, FL Studio, Logic, Reaper a dalších).
   </p>
@@ -617,6 +684,10 @@
         <span class="label">Styl arpeggia</span>
         <select id="arpStyleSelect"></select>
       </div>
+      <div class="field">
+        <span class="label">Styl bicích</span>
+        <select id="drumStyleSelect"></select>
+      </div>
     </div>
 
     <div class="actions">
@@ -625,9 +696,50 @@
       <button class="cta" id="newMelodyBtn" disabled>Nová melodie</button>
       <button class="cta" id="newBassBtn" disabled>Nová basa</button>
       <button class="cta" id="newArpBtn" disabled>Nový arp</button>
+      <button class="cta" id="newDrumsBtn" disabled>Nové bicí</button>
     </div>
     <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
+
+  <details class="panel" id="mixerPanel">
+    <summary class="theory-summary">
+      <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px;">Mixér nástrojů</h2>
+      <span class="theory-caret" aria-hidden="true">+</span>
+    </summary>
+    <div class="theory-body">
+      <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:0 0 16px;">
+        Doladit hlasitost každé vrstvy zvlášť — hodí se, když chceš třeba ztlumit bicí nebo víc
+        vytáhnout melodii dopředu. Nastavení zůstane i po vygenerování nové varianty.
+      </p>
+      <div class="mixer-rows">
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot amber"></span>Akordy</span>
+          <input type="range" id="mixChords" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixChordsVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot violet"></span>Melodie</span>
+          <input type="range" id="mixMelody" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixMelodyVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot teal"></span>Basa</span>
+          <input type="range" id="mixBass" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixBassVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot rose"></span>Arp</span>
+          <input type="range" id="mixArp" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixArpVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot sky"></span>Bicí</span>
+          <input type="range" id="mixDrums" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixDrumsVal">50 %</span>
+        </div>
+      </div>
+    </div>
+  </details>
 
   <div class="panel" id="resultPanel">
     <div class="empty" id="emptyMsg">Vyber tóninu a náladu, pak klikni na „Vygenerovat postup“.</div>
@@ -639,6 +751,7 @@
         <span><span class="dot violet"></span>melodie</span>
         <span><span class="dot teal"></span>basa</span>
         <span><span class="dot rose"></span>arp</span>
+        <span><span class="dot sky"></span>bicí</span>
       </div>
 
       <div class="transport">
@@ -647,6 +760,7 @@
         <button class="cta" id="playMelodyBtn">♪ Jen melodie</button>
         <button class="cta" id="playBassBtn">♪ Jen basa</button>
         <button class="cta" id="playArpBtn">♪ Jen arp</button>
+        <button class="cta" id="playDrumsBtn">♪ Jen bicí</button>
         <button class="cta" id="exportBtn">⇩ Export MIDI (vše)</button>
       </div>
       <div class="actions" style="margin-top:10px;">
@@ -654,6 +768,7 @@
         <button class="cta" id="exportMelodyBtn">⇩ Melodie</button>
         <button class="cta" id="exportBassBtn">⇩ Basa</button>
         <button class="cta" id="exportArpBtn">⇩ Arp</button>
+        <button class="cta" id="exportDrumsBtn">⇩ Bicí</button>
       </div>
     </div>
   </div>
@@ -691,11 +806,12 @@
       <div class="info-step">
         <div class="info-num">03</div>
         <div>
-          <h3>K akordům se dopočítá melodie, basa a arpeggio</h3>
+          <h3>K akordům se dopočítá melodie, basa, arpeggio a bicí</h3>
           <p>Melodie vychází z tónů aktuálního akordu (kvintakord/septakord) v rytmických vzorech,
           basová linka hraje kořen, kvintu a oktávu, arpeggio rozehrává tóny akordu v osminových
-          krocích podle zvoleného vzoru — všechny tři jsou proto vždy v souzvuku s akordy nahoře.
-          V rozbalovacích nabídkách si můžeš vybrat konkrétní styl melodie, basy nebo arpeggia,
+          krocích podle zvoleného vzoru a bicí přidávají kopák, virblík a hi-hat v šestnáctinovém
+          groove podle zvoleného stylu — všechny čtyři vrstvy jsou proto vždy v souzvuku s akordy nahoře.
+          V rozbalovacích nabídkách si můžeš vybrat konkrétní styl melodie, basy, arpeggia nebo bicích,
           nebo nechat volbu na „Auto“ a dostat pokaždé jiný vzor.</p>
         </div>
       </div>
@@ -704,8 +820,8 @@
         <div>
           <h3>Přehraj, nebo exportuj</h3>
           <p>Tlačítko Přehrát pustí 8taktovou smyčku přímo v prohlížeči — buď celou, nebo jen
-          vybranou vrstvu (jen akordy / jen melodie / jen basa / jen arp). Export MIDI stáhne .mid
-          soubor se čtyřmi stopami (akordy / melodie / basa / arp), který otevřeš v jakémkoli DAW
+          vybranou vrstvu (jen akordy / jen melodie / jen basa / jen arp / jen bicí). Export MIDI stáhne .mid
+          soubor s pěti stopami (akordy / melodie / basa / arp / bicí), který otevřeš v jakémkoli DAW
           a stavíš na něm dál — nebo si stáhni jen jednu vrstvu zvlášť. Vše, co si zde vygeneruješ,
           je tvoje k použití bez omezení — v osobní i komerční hudbě, bez nutnosti uvádět zdroj.</p>
         </div>
@@ -733,7 +849,7 @@
     </div>
     <div style="margin-bottom:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">V jakém formátu je export?</h3>
-      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Export je standardní MIDI soubor (.mid, formát 1, 480 tpqn) se čtyřmi stopami — akordy, melodie, basa a arp — kompatibilní se všemi hlavními DAW.</p>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Export je standardní MIDI soubor (.mid, formát 1, 480 tpqn) s pěti stopami — akordy, melodie, basa, arp a bicí — kompatibilní se všemi hlavními DAW.</p>
     </div>
     <div>
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Jaké nálady si můžu vybrat?</h3>
@@ -809,8 +925,8 @@
     <details class="article">
       <summary>Proč stahovat akordy, melodii a basu zvlášť</summary>
       <p>
-        Vedle exportu celého postupu najednou (čtyři stopy v jednom .mid souboru) jde stáhnout i
-        jen jedna vrstva — samostatně akordy, melodie, basa nebo arpeggio. Hodí se to hlavně ve
+        Vedle exportu celého postupu najednou (pět stop v jednom .mid souboru) jde stáhnout i
+        jen jedna vrstva — samostatně akordy, melodie, basa, arpeggio nebo bicí. Hodí se to hlavně ve
         chvíli, kdy chceš použít jen část vygenerovaného nápadu: třeba basovou linku podložit pod
         vlastní akordy, nebo naopak nechat akordy a melodii i basu si napsat úplně po svém.
         Samostatné stopy se také snáz posílají mezi nástroji nebo lidmi, se kterými na skladbě
@@ -823,7 +939,7 @@
   </div>
 
   <footer>
-    <p>8taktová smyčka · akordy + melodie + basová linka + arpeggio · export jako standardní .mid soubor (4 stopy, 480 tpqn)</p>
+    <p>8taktová smyčka · akordy + melodie + basová linka + arpeggio + bicí · export jako standardní .mid soubor (5 stop, 480 tpqn)</p>
     <nav class="footer-nav">
       <a href="https://synthlucida.com/">SYNTHLUCIDA</a>
       <span aria-hidden="true">·</span>
@@ -1004,6 +1120,46 @@ const ARP_PATTERNS = [
   { name:'Synkopa',        pat:[0,0,1,2,0,0,2,3] }
 ];
 
+/* bicí vzory: 16 kroků na takt (šestnáctinové noty). Každý vzor definuje
+   čtyři samostatné stopy — kopák (kick), virblík (snare), zavřený hi-hat
+   (hh) a otevřený hi-hat (oh) — jako pole 16 příznaků 0/1. Vzor je stejný
+   pro celý takt bez ohledu na akord, přesně jako u ostatních vrstev je
+   možné vybrat konkrétní vzor nebo nechat "Auto" pro střídání po taktech. */
+const DRUM_PATTERNS = [
+  { name:'Pop groove',        kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                               snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                               hh:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Čtyři na zemi',     kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+                               snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                               hh:[1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+                               oh:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0] },
+  { name:'Lo-fi / Boom bap',  kick:[1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+                               snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                               hh:[1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Polovinové tempo',  kick:[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                               snare:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                               hh:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Rockový groove',    kick:[1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0],
+                               snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                               hh:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Řídký / Minimal',   kick:[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                               snare:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                               hh:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Trapové hi-haty',   kick:[1,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0],
+                               snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                               hh:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1] },
+  { name:'Baladický / jemný', kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                               snare:[0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0],
+                               hh:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+];
+
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
 /* styleVal je buď řetězec 'auto' (náhodný vzor pro každý takt) nebo
@@ -1044,12 +1200,19 @@ function genArp(chords, style){
   });
 }
 
+/* bicí nejsou odvozené z akordů (rytmus, ne výška), takže genDrums jen
+   vybere vzor pro každý takt postupu — buď pevný (konkrétní styl), nebo
+   náhodný pokaždé znovu (Auto), stejně jako u ostatních vrstev. */
+function genDrums(chords, style){
+  return chords.map(()=> pickPattern(DRUM_PATTERNS, style));
+}
+
 /* Prvek postupu je buď jednoduché číslo (stupeň stupnice, použije se výchozí
    akord dané nálady) nebo dvojice [stupeň, ext], která pro tento jeden akord
    přepíše typ akordu — takto se do postupu vplétají příležitostné barevné
    akordy sus2/sus4/9, zatímco ostatní akordy zůstávají na obvyklém
    triádovém/septakordovém zvuku dané nálady. */
-function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle){
+function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle, drumStyle){
   const vibe = VIBES[vibeKey];
   const scaleArr = SCALES[vibe.mode];
   const romanArr = ROMAN[vibe.mode];
@@ -1075,8 +1238,9 @@ function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle)
   const melody = genMelody(chords, melodyStyle);
   const bass = genBass(chords, bassStyle);
   const arp = genArp(chords, arpStyle);
+  const drums = genDrums(chords, drumStyle);
 
-  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp };
+  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp, drums };
 }
 
 /* ================= UI SETUP ================= */
@@ -1109,6 +1273,7 @@ Object.keys(VIBES).forEach(key=>{
 const melodyStyleSelect = document.getElementById('melodyStyleSelect');
 const bassStyleSelect = document.getElementById('bassStyleSelect');
 const arpStyleSelect = document.getElementById('arpStyleSelect');
+const drumStyleSelect = document.getElementById('drumStyleSelect');
 
 function populateStyleSelect(sel, list, autoLabel){
   const optAuto = document.createElement('option');
@@ -1123,6 +1288,7 @@ function populateStyleSelect(sel, list, autoLabel){
 populateStyleSelect(melodyStyleSelect, MELODY_PATTERNS, 'Auto (mění se v každém taktu)');
 populateStyleSelect(bassStyleSelect, BASS_PATTERNS, 'Auto (mění se v každém taktu)');
 populateStyleSelect(arpStyleSelect, ARP_PATTERNS, 'Auto (mění se v každém taktu)');
+populateStyleSelect(drumStyleSelect, DRUM_PATTERNS, 'Auto (mění se v každém taktu)');
 
 /* ================= TEORIE: přepínač funkcí + kvintový kruh ================= */
 const theoryModeToggle = document.getElementById('theoryModeToggle');
@@ -1215,6 +1381,50 @@ volumeSlider.addEventListener('input', ()=>{
 });
 applyVolume(parseInt(volumeSlider.value,10));
 
+/* ================= MIXÉR JEDNOTLIVÝCH NÁSTROJŮ =================
+   Nezávisle na celkové hlasitosti (výše) jde doladit hlasitost každé
+   vrstvy zvlášť. mixerVol drží procenta (0–100) pro každou vrstvu,
+   BASE_VOL je "výchozí" dB hodnota daného syntetizátoru (viz buildSynths
+   níže) — výsledná hlasitost je base + posun podle procenta, stejně
+   jako u celkové hlasitosti. Bicí mají jeden společný fader, který
+   škáluje všechny čtyři bicí syntetizátory najednou. */
+const BASE_VOL = { chords:-10, melody:-6, bass:-8, arp:-14, kick:-4, snare:-10, hh:-22, oh:-24 };
+const mixerVol = { chords:50, melody:50, bass:50, arp:50, drums:50 };
+
+function volFromPercent(baseDb, percent){
+  return percent <= 0 ? -Infinity : baseDb + (percent - 100) * 0.4;
+}
+
+function applyMixerVolume(part){
+  if(part === 'chords' && chordSynth) chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
+  if(part === 'melody' && melodySynth) melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
+  if(part === 'bass' && bassSynth) bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
+  if(part === 'arp' && arpSynth) arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
+  if(part === 'drums'){
+    if(kickSynth) kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
+    if(snareSynth) snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
+    if(hihatSynth) hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
+    if(openhatSynth) openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
+  }
+}
+
+function setupMixerSlider(sliderId, valId, part){
+  const slider = document.getElementById(sliderId);
+  const val = document.getElementById(valId);
+  if(!slider || !val) return;
+  slider.addEventListener('input', ()=>{
+    const percent = parseInt(slider.value, 10);
+    mixerVol[part] = percent;
+    val.textContent = percent + ' %';
+    applyMixerVolume(part);
+  });
+}
+setupMixerSlider('mixChords', 'mixChordsVal', 'chords');
+setupMixerSlider('mixMelody', 'mixMelodyVal', 'melody');
+setupMixerSlider('mixBass', 'mixBassVal', 'bass');
+setupMixerSlider('mixArp', 'mixArpVal', 'arp');
+setupMixerSlider('mixDrums', 'mixDrumsVal', 'drums');
+
 let current = null;
 
 function renderProgression(data){
@@ -1247,6 +1457,7 @@ function setResultButtonsEnabled(enabled){
   document.getElementById('newMelodyBtn').disabled = !enabled;
   document.getElementById('newBassBtn').disabled = !enabled;
   document.getElementById('newArpBtn').disabled = !enabled;
+  document.getElementById('newDrumsBtn').disabled = !enabled;
 }
 
 const statusMsg = document.getElementById('statusMsg');
@@ -1267,7 +1478,7 @@ function styleName(select, list){
 
 document.getElementById('genBtn').addEventListener('click', ()=>{
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
   setResultButtonsEnabled(true);
@@ -1278,7 +1489,7 @@ document.getElementById('genBtn').addEventListener('click', ()=>{
 document.getElementById('regenBtn').addEventListener('click', ()=>{
   if(!current) return;
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
   stopPlayback();
@@ -1307,6 +1518,14 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
   refreshPlayback();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Vygenerován nový arp — ${name}` : 'Vygenerován nový arp');
+});
+
+document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(drumStyleSelect, DRUM_PATTERNS);
+  showStatus(name ? `Vygenerovány nové bicí — ${name}` : 'Vygenerovány nové bicí');
 });
 
 /* Výběr jiného stylu v rozbalovací nabídce se rovnou promítne do aktuálního
@@ -1344,8 +1563,20 @@ arpStyleSelect.addEventListener('change', ()=>{
   showStatus(name ? `Styl arpeggia: ${name}` : 'Styl arpeggia: Auto (mění se v každém taktu)');
 });
 
+drumStyleSelect.addEventListener('change', ()=>{
+  if(!current){
+    showStatus('Nejdřív vygeneruj postup, pak vyber styl bicích');
+    return;
+  }
+  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(drumStyleSelect, DRUM_PATTERNS);
+  showStatus(name ? `Styl bicích: ${name}` : 'Styl bicích: Auto (mění se v každém taktu)');
+});
+
 /* ================= PLAYBACK (Tone.js) ================= */
 let chordSynth=null, melodySynth=null, bassSynth=null, arpSynth=null, chordPart=null, melSeq=null, bassSeq=null, arpSeq=null, stepEvent=null;
+let kickSynth=null, snareSynth=null, hihatSynth=null, openhatSynth=null, drumPart=null;
 let isPlaying = false;
 let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
 let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
@@ -1357,22 +1588,46 @@ function buildSynths(){
   chordSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
   }).toDestination();
-  chordSynth.volume.value = -10;
+  chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
 
   melodySynth = new Tone.Synth({
     oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
   }).toDestination();
-  melodySynth.volume.value = -6;
+  melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
 
   bassSynth = new Tone.Synth({
     oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
   }).toDestination();
-  bassSynth.volume.value = -8;
+  bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
 
   arpSynth = new Tone.Synth({
     oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
   }).toDestination();
-  arpSynth.volume.value = -14;
+  arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
+
+  // bicí: syntetizovaný kit ze čtyř samostatných zdrojů (bez potřeby vzorků)
+  kickSynth = new Tone.MembraneSynth({
+    pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
+    envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
+  }).toDestination();
+  kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
+
+  snareSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
+  }).toDestination();
+  snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
+
+  hihatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
+  hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
+
+  openhatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
+  openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
 function disposeAll(){
@@ -1395,17 +1650,21 @@ function disposeAll(){
   // internally by PolySynth. The only fully race-free fix is to not dispose
   // the synth in the first place: build it once and reuse it for the whole
   // session, and just silence it (releaseAll/triggerRelease) between plays.
-  [chordPart, melSeq, bassSeq, arpSeq, stepEvent].forEach(o=>{
+  [chordPart, melSeq, bassSeq, arpSeq, drumPart, stepEvent].forEach(o=>{
     if(o){
       try{ o.stop(); }catch(e){ console.warn('disposeAll: stop() failed', e); }
       try{ o.dispose(); }catch(e){ console.warn('disposeAll: dispose() failed', e); }
     }
   });
-  chordPart = melSeq = bassSeq = arpSeq = stepEvent = null;
+  chordPart = melSeq = bassSeq = arpSeq = drumPart = stepEvent = null;
   if(chordSynth){ try{ chordSynth.releaseAll(); }catch(e){ console.warn('disposeAll: chordSynth.releaseAll() failed', e); } }
   if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('disposeAll: melodySynth.triggerRelease() failed', e); } }
   if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: bassSynth.triggerRelease() failed', e); } }
   if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: arpSynth.triggerRelease() failed', e); } }
+  if(kickSynth){ try{ kickSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: kickSynth.triggerRelease() failed', e); } }
+  if(snareSynth){ try{ snareSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: snareSynth.triggerRelease() failed', e); } }
+  if(hihatSynth){ try{ hihatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: hihatSynth.triggerRelease() failed', e); } }
+  if(openhatSynth){ try{ openhatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: openhatSynth.triggerRelease() failed', e); } }
   // Hard reset: clear any scheduled events left dangling on the Transport so a
   // failed stop/dispose above can't leave stale callbacks that block the next
   // startPlayback() from ever reaching Tone.Transport.start().
@@ -1418,7 +1677,7 @@ function clearLeds(){
 }
 
 async function startPlayback(mode){
-  mode = ['chords','melody','bass','arp'].includes(mode) ? mode : 'full';
+  mode = ['chords','melody','bass','arp','drums'].includes(mode) ? mode : 'full';
   if(!current) return;
   if(!toneAvailable()){
     showStatus('Přehrávání není dostupné — nepodařilo se načíst zvukovou knihovnu (zkontroluj připojení k internetu)');
@@ -1430,7 +1689,8 @@ async function startPlayback(mode){
   const playMelodyBtnEl = document.getElementById('playMelodyBtn');
   const playBassBtnEl = document.getElementById('playBassBtn');
   const playArpBtnEl = document.getElementById('playArpBtn');
-  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl];
+  const playDrumsBtnEl = document.getElementById('playDrumsBtn');
+  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
   allBtns.forEach(b=>b.disabled = true);
   await Tone.start();
   allBtns.forEach(b=>b.disabled = false);
@@ -1445,6 +1705,7 @@ async function startPlayback(mode){
   const playMelody = mode === 'full' || mode === 'melody';
   const playBass   = mode === 'full' || mode === 'bass';
   const playArp    = mode === 'full' || mode === 'arp';
+  const playDrums  = mode === 'full' || mode === 'drums';
 
   if(playChords){
     // akordy: jeden na takt, držený jako celá nota
@@ -1493,6 +1754,42 @@ async function startPlayback(mode){
     arpSeq.start(0);
   }
 
+  if(playDrums){
+    // bicí: 16 kroků šestnáctinových not na takt — čtyřikrát jemnější mřížka než melodie/basa,
+    // každý krok může spustit libovolnou kombinaci kopák/virblík/hi-hat/otevřený hi-hat.
+    // Použito Tone.Part (stejně jako u akordů výše) místo Tone.Sequence: Sequence bere
+    // vnořené pole jako "subdivision" daného kroku, ne jako jednu hodnotu — proto by
+    // pole zásahů (např. ['kick','hh']) do callbacku dorazilo rozbalené na jednotlivé
+    // řetězce, a hits.forEach by spadlo na "hits.forEach is not a function" (tichá chyba
+    // v konzoli, bicí by prostě nehrály). Part žádnou takovou magii s hodnotami nedělá.
+    const drumEvents = [];
+    current.drums.forEach((pat, barI)=>{
+      for(let s=0;s<16;s++){
+        const hits = [];
+        if(pat.kick[s]) hits.push('kick');
+        if(pat.snare[s]) hits.push('snare');
+        if(pat.hh[s]) hits.push('hh');
+        if(pat.oh[s]) hits.push('oh');
+        if(hits.length){
+          drumEvents.push({ time: `${barI}:${Math.floor(s/4)}:${s%4}`, hits });
+        }
+      }
+    });
+    drumPart = new Tone.Part((time, ev)=>{
+      ev.hits.forEach(h=>{
+        try{
+          if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
+          else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
+          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('32n',time);
+          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('8n',time);
+        }catch(e){ console.warn('drumPart callback failed', e); }
+      });
+    }, drumEvents);
+    drumPart.loop = true;
+    drumPart.loopEnd = `${current.drums.length}m`;
+    drumPart.start(0);
+  }
+
   let step = 0;
   stepEvent = new Tone.Loop((time)=>{
     const s = step % totalSteps;
@@ -1516,6 +1813,7 @@ async function startPlayback(mode){
   playMelodyBtnEl.textContent = mode === 'melody' ? '■ Zastavit' : '♪ Jen melodie';
   playBassBtnEl.textContent = mode === 'bass' ? '■ Zastavit' : '♪ Jen basa';
   playArpBtnEl.textContent = mode === 'arp' ? '■ Zastavit' : '♪ Jen arp';
+  playDrumsBtnEl.textContent = mode === 'drums' ? '■ Zastavit' : '♪ Jen bicí';
 }
 
 function stopPlayback(){
@@ -1533,6 +1831,7 @@ function stopPlayback(){
   document.getElementById('playMelodyBtn').textContent = '♪ Jen melodie';
   document.getElementById('playBassBtn').textContent = '♪ Jen basa';
   document.getElementById('playArpBtn').textContent = '♪ Jen arp';
+  document.getElementById('playDrumsBtn').textContent = '♪ Jen bicí';
 }
 
 /* Použije se po přegenerování jen melodie/basy: pokud už smyčka hraje,
@@ -1569,6 +1868,11 @@ document.getElementById('playBassBtn').addEventListener('click', ()=>{
 document.getElementById('playArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'arp') stopPlayback(); else startPlayback('arp');
+});
+
+document.getElementById('playDrumsBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying && playMode === 'drums') stopPlayback(); else startPlayback('drums');
 });
 
 /* ================= MIDI EXPORT ================= */
@@ -1654,14 +1958,34 @@ function exportMidi(){
     arpEvents.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:3});
   });
 
-  const header = [...strBytes('MThd'), ...u32(6), ...u16(1), ...u16(5), ...u16(TPQN)];
+  // bicí: šestnáctinové kroky, GM bicí mapování (kanál 10 / index 9)
+  const drumEvents = [];
+  const sixteenthTicks = TPQN / 4;
+  const GM_DRUM_NOTE = { kick:36, snare:38, hh:42, oh:46 };
+  const GM_DRUM_VEL = { kick:105, snare:100, hh:70, oh:80 };
+  current.drums.forEach((pat,barI)=>{
+    const barStart = barI * barTicks;
+    for(let s=0;s<16;s++){
+      const stepStart = barStart + s * sixteenthTicks;
+      ['kick','snare','hh','oh'].forEach(part=>{
+        if(pat[part][s]){
+          const note = GM_DRUM_NOTE[part];
+          drumEvents.push({tick:stepStart, type:'on', note, vel:GM_DRUM_VEL[part], channel:9});
+          drumEvents.push({tick:stepStart+sixteenthTicks, type:'off', note, vel:0, channel:9});
+        }
+      });
+    }
+  });
+
+  const header = [...strBytes('MThd'), ...u32(6), ...u16(1), ...u16(6), ...u16(TPQN)];
   const tempoTrack = buildTempoTrack(current.tempo, totalTicks);
   const chordTrack = buildTrackChunk(chordEvents, totalTicks);
   const melodyTrack = buildTrackChunk(melodyEvents, totalTicks);
   const bassTrack = buildTrackChunk(bassEvents, totalTicks);
   const arpTrack = buildTrackChunk(arpEvents, totalTicks);
+  const drumTrack = buildTrackChunk(drumEvents, totalTicks);
 
-  const fileBytes = new Uint8Array([...header, ...tempoTrack, ...chordTrack, ...melodyTrack, ...bassTrack, ...arpTrack]);
+  const fileBytes = new Uint8Array([...header, ...tempoTrack, ...chordTrack, ...melodyTrack, ...bassTrack, ...arpTrack, ...drumTrack]);
   const blob = new Blob([fileBytes], {type:'audio/midi'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1678,7 +2002,7 @@ function exportMidi(){
 document.getElementById('exportBtn').addEventListener('click', exportMidi);
 
 /* ---- export jednotlivých částí (akordy / melodie / basa) ---- */
-const PART_LABELS = { chords:'Akordy', melody:'Melodie', bass:'Basa', arp:'Arp' };
+const PART_LABELS = { chords:'Akordy', melody:'Melodie', bass:'Basa', arp:'Arp', drums:'Bicí' };
 
 function buildPartEvents(part){
   const barTicks = TPQN * 4;
@@ -1709,6 +2033,25 @@ function buildPartEvents(part){
       const start = i * eighthTicks;
       events.push({tick:start, type:'on', note:n, vel:85, channel:0});
       events.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:0});
+    });
+  } else if(part === 'drums'){
+    // samostatný export bicích drží GM bicí mapování, ale na kanálu 0 (formát
+    // se dvěma stopami zde nepotřebuje vyhrazený kanál 10 jako export "vše")
+    const sixteenthTicks = TPQN / 4;
+    const GM_DRUM_NOTE = { kick:36, snare:38, hh:42, oh:46 };
+    const GM_DRUM_VEL = { kick:105, snare:100, hh:70, oh:80 };
+    current.drums.forEach((pat,barI)=>{
+      const barStart = barI * barTicks;
+      for(let s=0;s<16;s++){
+        const stepStart = barStart + s * sixteenthTicks;
+        ['kick','snare','hh','oh'].forEach(p=>{
+          if(pat[p][s]){
+            const note = GM_DRUM_NOTE[p];
+            events.push({tick:stepStart, type:'on', note, vel:GM_DRUM_VEL[p], channel:0});
+            events.push({tick:stepStart+sixteenthTicks, type:'off', note, vel:0, channel:0});
+          }
+        });
+      }
     });
   }
   return events;
@@ -1741,6 +2084,77 @@ document.getElementById('exportChordsBtn').addEventListener('click', ()=>exportM
 document.getElementById('exportMelodyBtn').addEventListener('click', ()=>exportMidiPart('melody'));
 document.getElementById('exportBassBtn').addEventListener('click', ()=>exportMidiPart('bass'));
 document.getElementById('exportArpBtn').addEventListener('click', ()=>exportMidiPart('arp'));
+document.getElementById('exportDrumsBtn').addEventListener('click', ()=>exportMidiPart('drums'));
+
+/* ================= PŘIPOMÍNKA PODPORY (každých 5 minut) ================= */
+(function(){
+  const overlay = document.getElementById('supportOverlay');
+  if(!overlay) return;
+  const closeBtn = document.getElementById('supportCloseX');
+  const backBtn = document.getElementById('supportBackBtn');
+  // hodnota je timestamp (ms), do kterého zůstává připomínka vypnutá;
+  // chybějící nebo prošlá hodnota = připomínka je zapnutá (výchozí stav)
+  const STORAGE_KEY = 'progreseSupportReminderOffUntil';
+  const ADMIN_OFF_MINUTES = 30;
+
+  function isReminderOff(){
+    try{
+      const until = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+      if(!until || isNaN(until)) return false;
+      if(Date.now() >= until){
+        localStorage.removeItem(STORAGE_KEY); // vypršelo — automaticky se zase zapne
+        return false;
+      }
+      return true;
+    }catch(e){ return false; }
+  }
+  function setReminderOff(minutes){
+    try{
+      if(minutes > 0) localStorage.setItem(STORAGE_KEY, String(Date.now() + minutes*60*1000));
+      else localStorage.removeItem(STORAGE_KEY);
+    }catch(e){}
+  }
+
+  function showSupportModal(){
+    if(document.hidden) return; // nevyskakovat, když karta zrovna není aktivní
+    if(isReminderOff()) return;
+    overlay.hidden = false;
+  }
+  function hideSupportModal(){
+    overlay.hidden = true;
+  }
+
+  closeBtn.addEventListener('click', hideSupportModal);
+  backBtn.addEventListener('click', hideSupportModal);
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) hideSupportModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && !overlay.hidden) hideSupportModal(); });
+
+  setInterval(showSupportModal, 5 * 60 * 1000);
+
+  // skrytý admin přepínač: 5 rychlých kliknutí na název "PROGRESE" v hlavičce
+  // připomínku vypne, 10 rychlých kliknutí za sebou (bez pauzy) ji zase zapne —
+  // beze změny kurzoru nebo jakéhokoli vizuálního náznaku, že jde o "tlačítko"
+  const brandTitle = document.querySelector('.brand h1');
+  if(brandTitle){
+    let clickCount = 0;
+    let clickTimer = null;
+    brandTitle.addEventListener('click', ()=>{
+      clickCount++;
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(()=>{ clickCount = 0; }, 1800);
+      if(clickCount === 5){
+        setReminderOff(ADMIN_OFF_MINUTES);
+        if(!overlay.hidden) hideSupportModal();
+        showStatus(`Připomínka podpory vypnuta na ${ADMIN_OFF_MINUTES} minut`);
+      } else if(clickCount === 10){
+        setReminderOff(0);
+        clickCount = 0;
+        showStatus('Připomínka podpory znovu zapnuta');
+        showSupportModal(); // hned ukázat, ať je vidět, že to zase funguje
+      }
+    });
+  }
+})();
 </script>
 </body>
 </html>

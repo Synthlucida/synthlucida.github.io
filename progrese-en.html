@@ -64,9 +64,9 @@
   },
   "featureList": [
     "Chord progression generation by key and mood",
-    "Automatic melody, bassline and arpeggio suggestions",
+    "Automatic melody, bassline, arpeggio and drum suggestions",
     "Playback directly in the browser, including individual layers",
-    "Export to a MIDI file (.mid) with 4 tracks"
+    "Export to a MIDI file (.mid) with 5 tracks"
   ]
 }
 </script>
@@ -88,7 +88,7 @@
     {
       "@type": "Question",
       "name": "What format is the export?",
-      "acceptedAnswer": { "@type": "Answer", "text": "The export is a standard MIDI file (.mid, format 1, 480 tpqn) with four tracks — chords, melody, bass, and arp — compatible with all major DAWs." }
+      "acceptedAnswer": { "@type": "Answer", "text": "The export is a standard MIDI file (.mid, format 1, 480 tpqn) with five tracks — chords, melody, bass, arp, and drums — compatible with all major DAWs." }
     },
     {
       "@type": "Question",
@@ -119,6 +119,7 @@
     --teal:#4dd2c4;
     --violet:#b79cef;
     --rose:#ff6f9c;
+    --sky:#5ec8ff;
     --radius:10px;
   }
   *{box-sizing:border-box;}
@@ -234,6 +235,7 @@
   .dot.violet{background:var(--violet);}
   .dot.teal{background:var(--teal);}
   .dot.rose{background:var(--rose);}
+  .dot.sky{background:var(--sky);}
 
   .transport{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:18px;}
   .tempo-wrap{display:flex; flex-direction:column; align-items:stretch; gap:8px; flex:1; min-width:140px;}
@@ -287,6 +289,42 @@
   .footer-nav a:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
   .footer-nav span{color:var(--line);}
   .footer-copy{color:#5a5245; font-size:10px;}
+
+  /* ===== support reminder — recurring popup ===== */
+  .support-overlay{
+    position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,9,7,0.72); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); padding:20px;
+  }
+  .support-overlay[hidden]{display:none;}
+  .support-modal{
+    position:relative; max-width:420px; width:100%;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--amber-dim); border-radius:var(--radius); padding:26px 24px 22px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .support-modal h3{font-family:ui-sans-serif, Arial, sans-serif; font-size:16.5px; margin:0 0 12px; color:var(--text);}
+  .support-modal p{font-size:13px; color:var(--text-dim); line-height:1.7; margin:0 0 20px;}
+  .support-modal-close{
+    position:absolute; top:10px; right:10px; background:none; border:none; color:var(--text-dim);
+    font-size:20px; line-height:1; cursor:pointer; padding:6px; border-radius:6px;
+  }
+  .support-modal-close:hover{color:var(--text);}
+  .support-modal-close:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .support-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .support-btn{
+    flex:1; min-width:150px; text-align:center; font-family:inherit; font-size:12.5px; letter-spacing:0.03em;
+    text-transform:uppercase; text-decoration:none; border-radius:7px; padding:12px 14px; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg); color:var(--text); font-weight:700;
+    transition:transform .1s, border-color .15s, filter .15s;
+  }
+  .support-btn:hover{border-color:#5a5040;}
+  .support-btn:active{transform:scale(0.98);}
+  .support-btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .support-btn.primary{background:var(--teal); color:#0d1e1b; border-color:var(--teal);}
+  .support-btn.primary:hover{filter:brightness(1.08);}
+  @media (max-width:480px){
+    .support-actions{flex-direction:column;}
+  }
 
   .info-steps{display:flex; flex-direction:column; gap:16px;}
   .info-step{display:flex; gap:14px; align-items:flex-start;}
@@ -381,6 +419,16 @@
   .article summary:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
   .article p{font-size:12.5px; color:var(--text-dim); margin:10px 0 0; line-height:1.7;}
 
+  /* ===== per-instrument mixer ===== */
+  .mixer-rows{display:flex; flex-direction:column; gap:14px;}
+  .mixer-row{display:flex; align-items:center; gap:12px;}
+  .mixer-row .mixer-label{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-dim); min-width:96px; flex-shrink:0;}
+  .mixer-row input[type=range]{flex:1; min-width:0;}
+  .mixer-row .mixer-val{font-size:12px; color:var(--text-dim); min-width:46px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums;}
+  @media (max-width:480px){
+    .mixer-row .mixer-label{min-width:74px; font-size:11.5px;}
+  }
+
   .promo{
     background:linear-gradient(135deg, #1c2a27, #17201d 60%, var(--panel));
     border:1px solid #2f4b43;
@@ -440,6 +488,25 @@
 </head>
 <body>
 <a class="home-nav-btn" href="https://synthlucida.com/progrese-landing.html" aria-label="Home — go to the Progrese landing page" title="Home">🏠</a>
+
+<div class="support-overlay" id="supportOverlay" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle" hidden>
+  <div class="support-modal">
+    <button class="support-modal-close" id="supportCloseX" aria-label="Close">×</button>
+    <h3 id="supportModalTitle">Thanks for using Progrese 🙏</h3>
+    <p>
+      We're really glad the app is helping you make music. Sorry for interrupting
+      your work for a moment — we just wanted to say hi. If you'd like to support
+      further development of new features and the whole SYNTHLUCIDA project,
+      we'd really appreciate any support. And most of all, we hope you found
+      exactly the melody or chords you were looking for!
+    </p>
+    <div class="support-actions">
+      <a class="support-btn primary" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">☕ Support the project</a>
+      <button type="button" class="support-btn" id="supportBackBtn">← Back to Progrese</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <div class="top-row">
@@ -459,8 +526,8 @@
   <p style="color:var(--text-dim); font-size:13px; line-height:1.7; max-width:640px; margin:-10px 0 20px;">
     A free online chord progression generator. Pick a key and mood — happy, sad,
     dreamy, epic, chill/lo-fi, dark, romantic, or nostalgic — and the tool builds a musically coherent
-    8-bar chord progression, complete with a matching melody, bassline, and arpeggio. Choose
-    a specific melody, bass, or arp style, or leave it on auto for variety. Play it
+    8-bar chord progression, complete with a matching melody, bassline, arpeggio, and drums. Choose
+    a specific melody, bass, arp, or drum style, or leave it on auto for variety. Play it
     right in your browser, or download it as a standard MIDI file to use in your
     DAW (Ableton, FL Studio, Logic, Reaper, and more).
   </p>
@@ -617,6 +684,10 @@
         <span class="label">Arp style</span>
         <select id="arpStyleSelect"></select>
       </div>
+      <div class="field">
+        <span class="label">Drum style</span>
+        <select id="drumStyleSelect"></select>
+      </div>
     </div>
 
     <div class="actions">
@@ -625,9 +696,50 @@
       <button class="cta" id="newMelodyBtn" disabled>New melody</button>
       <button class="cta" id="newBassBtn" disabled>New bass</button>
       <button class="cta" id="newArpBtn" disabled>New arp</button>
+      <button class="cta" id="newDrumsBtn" disabled>New drums</button>
     </div>
     <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
+
+  <details class="panel" id="mixerPanel">
+    <summary class="theory-summary">
+      <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px;">Instrument mixer</h2>
+      <span class="theory-caret" aria-hidden="true">+</span>
+    </summary>
+    <div class="theory-body">
+      <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:0 0 16px;">
+        Fine-tune the volume of each layer on its own — handy if you want to tuck the drums back
+        or bring the melody forward. Settings stay put across new variations.
+      </p>
+      <div class="mixer-rows">
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot amber"></span>Chords</span>
+          <input type="range" id="mixChords" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixChordsVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot violet"></span>Melody</span>
+          <input type="range" id="mixMelody" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixMelodyVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot teal"></span>Bass</span>
+          <input type="range" id="mixBass" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixBassVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot rose"></span>Arp</span>
+          <input type="range" id="mixArp" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixArpVal">50 %</span>
+        </div>
+        <div class="mixer-row">
+          <span class="mixer-label"><span class="dot sky"></span>Drums</span>
+          <input type="range" id="mixDrums" min="0" max="100" value="50">
+          <span class="mixer-val" id="mixDrumsVal">50 %</span>
+        </div>
+      </div>
+    </div>
+  </details>
 
   <div class="panel" id="resultPanel">
     <div class="empty" id="emptyMsg">Pick a key and mood, then click “Generate progression”.</div>
@@ -639,6 +751,7 @@
         <span><span class="dot violet"></span>melody</span>
         <span><span class="dot teal"></span>bass</span>
         <span><span class="dot rose"></span>arp</span>
+        <span><span class="dot sky"></span>drums</span>
       </div>
 
       <div class="transport">
@@ -647,6 +760,7 @@
         <button class="cta" id="playMelodyBtn">♪ Melody only</button>
         <button class="cta" id="playBassBtn">♪ Bass only</button>
         <button class="cta" id="playArpBtn">♪ Arp only</button>
+        <button class="cta" id="playDrumsBtn">♪ Drums only</button>
         <button class="cta" id="exportBtn">⇩ Export MIDI (all)</button>
       </div>
       <div class="actions" style="margin-top:10px;">
@@ -654,6 +768,7 @@
         <button class="cta" id="exportMelodyBtn">⇩ Melody</button>
         <button class="cta" id="exportBassBtn">⇩ Bass</button>
         <button class="cta" id="exportArpBtn">⇩ Arp</button>
+        <button class="cta" id="exportDrumsBtn">⇩ Drums</button>
       </div>
     </div>
   </div>
@@ -691,11 +806,12 @@
       <div class="info-step">
         <div class="info-num">03</div>
         <div>
-          <h3>Melody, bass, and arp are derived from the chords</h3>
+          <h3>Melody, bass, arp, and drums are derived from the chords</h3>
           <p>The melody draws on the tones of the current chord (triad/seventh chord) in rhythmic patterns,
-          the bassline plays the root, fifth, and octave, and the arp cycles through the chord's tones in
-          eighth-note steps following the chosen pattern — all three always stay in harmony with the chords
-          above. Pick a specific melody, bass, or arp style from the dropdowns, or leave them on "Auto" to
+          the bassline plays the root, fifth, and octave, the arp cycles through the chord's tones in
+          eighth-note steps following the chosen pattern, and the drums add kick, snare, and hi-hat in a
+          sixteenth-note groove following the chosen style — all four always stay in sync with the chords
+          above. Pick a specific melody, bass, arp, or drum style from the dropdowns, or leave them on "Auto" to
           get a different pattern on every bar.</p>
         </div>
       </div>
@@ -704,8 +820,8 @@
         <div>
           <h3>Play it, or export it</h3>
           <p>The Play button starts an 8-bar loop right in your browser — the whole mix, or just one
-          layer at a time (chords only / melody only / bass only / arp only). MIDI export downloads a
-          .mid file with four tracks (chords / melody / bass / arp) that you can open in any DAW and
+          layer at a time (chords only / melody only / bass only / arp only / drums only). MIDI export downloads a
+          .mid file with five tracks (chords / melody / bass / arp / drums) that you can open in any DAW and
           build on — or download a single layer on its own. Everything you generate here is yours to
           use without restriction — in personal or commercial tracks, with no attribution required.</p>
         </div>
@@ -733,7 +849,7 @@
     </div>
     <div style="margin-bottom:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">What format is the export?</h3>
-      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">The export is a standard MIDI file (.mid, format 1, 480 tpqn) with four tracks — chords, melody, bass, and arp — compatible with all major DAWs.</p>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">The export is a standard MIDI file (.mid, format 1, 480 tpqn) with five tracks — chords, melody, bass, arp, and drums — compatible with all major DAWs.</p>
     </div>
     <div>
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Which moods can I choose from?</h3>
@@ -809,8 +925,8 @@
     <details class="article">
       <summary>Why export chords, melody, and bass separately</summary>
       <p>
-        Alongside exporting the whole progression at once (four tracks in a single .mid file), you
-        can also download just one layer — chords, melody, bass, or arpeggio on its own. That's
+        Alongside exporting the whole progression at once (five tracks in a single .mid file), you
+        can also download just one layer — chords, melody, bass, arpeggio, or drums on its own. That's
         useful when you only want part of the generated idea: laying the bassline under your own
         chords, for example, or keeping the chords while writing your own melody and bass from
         scratch. Separate tracks are also easier to hand off between instruments or collaborators,
@@ -822,7 +938,7 @@
   </div>
 
   <footer>
-    <p>8-bar loop · chords + melody + bassline + arpeggio · export as a standard .mid file (4 tracks, 480 tpqn)</p>
+    <p>8-bar loop · chords + melody + bassline + arpeggio + drums · export as a standard .mid file (5 tracks, 480 tpqn)</p>
     <nav class="footer-nav">
       <a href="https://synthlucida.com/">SYNTHLUCIDA</a>
       <span aria-hidden="true">·</span>
@@ -1004,6 +1120,46 @@ const ARP_PATTERNS = [
   { name:'Syncopated',   pat:[0,0,1,2,0,0,2,3] }
 ];
 
+/* drum patterns: 16 steps per bar (sixteenth notes). Each pattern defines
+   four separate lanes — kick, snare, closed hi-hat (hh), and open hi-hat
+   (oh) — as an array of 16 hit/no-hit flags. A pattern applies to a whole
+   bar regardless of the chord, exactly like the other layers: pick a
+   specific pattern, or leave it on "Auto" to vary it bar by bar. */
+const DRUM_PATTERNS = [
+  { name:'Pop groove',       kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                              snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                              hh:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Four on the floor',kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+                              snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                              hh:[1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+                              oh:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0] },
+  { name:'Lo-fi / Boom bap', kick:[1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+                              snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                              hh:[1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Half-time',        kick:[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                              snare:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                              hh:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Rock groove',      kick:[1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0],
+                              snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                              hh:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Sparse / Minimal', kick:[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                              snare:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                              hh:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+  { name:'Trap hi-hats',     kick:[1,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0],
+                              snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+                              hh:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1] },
+  { name:'Ballad / soft',    kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                              snare:[0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0],
+                              hh:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+                              oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+];
+
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
 /* styleVal is either the string 'auto' (random pattern each call) or a
@@ -1044,12 +1200,19 @@ function genArp(chords, style){
   });
 }
 
+/* Drums aren't derived from the chords (rhythm, not pitch), so genDrums just
+   picks a pattern for every bar of the progression — either a fixed one (a
+   specific style) or a fresh random one each time (Auto), same as the other layers. */
+function genDrums(chords, style){
+  return chords.map(()=> pickPattern(DRUM_PATTERNS, style));
+}
+
 /* A progression entry is either a plain scale degree (number, using the
    vibe's default chord extension) or a [degree, ext] pair that overrides
    the extension for just that one chord — this is how the occasional
    sus2/sus4/9th color chords get woven into a progression while every
    other chord stays on the vibe's usual triad/7th sound. */
-function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle){
+function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle, drumStyle){
   const vibe = VIBES[vibeKey];
   const scaleArr = SCALES[vibe.mode];
   const romanArr = ROMAN[vibe.mode];
@@ -1075,8 +1238,9 @@ function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle)
   const melody = genMelody(chords, melodyStyle);
   const bass = genBass(chords, bassStyle);
   const arp = genArp(chords, arpStyle);
+  const drums = genDrums(chords, drumStyle);
 
-  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp };
+  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp, drums };
 }
 
 /* ================= UI SETUP ================= */
@@ -1109,6 +1273,7 @@ Object.keys(VIBES).forEach(key=>{
 const melodyStyleSelect = document.getElementById('melodyStyleSelect');
 const bassStyleSelect = document.getElementById('bassStyleSelect');
 const arpStyleSelect = document.getElementById('arpStyleSelect');
+const drumStyleSelect = document.getElementById('drumStyleSelect');
 
 function populateStyleSelect(sel, list, autoLabel){
   const optAuto = document.createElement('option');
@@ -1123,6 +1288,7 @@ function populateStyleSelect(sel, list, autoLabel){
 populateStyleSelect(melodyStyleSelect, MELODY_PATTERNS, 'Auto (varies per bar)');
 populateStyleSelect(bassStyleSelect, BASS_PATTERNS, 'Auto (varies per bar)');
 populateStyleSelect(arpStyleSelect, ARP_PATTERNS, 'Auto (varies per bar)');
+populateStyleSelect(drumStyleSelect, DRUM_PATTERNS, 'Auto (varies per bar)');
 
 /* ================= THEORY: mode toggle + circle of fifths ================= */
 const theoryModeToggle = document.getElementById('theoryModeToggle');
@@ -1215,6 +1381,50 @@ volumeSlider.addEventListener('input', ()=>{
 });
 applyVolume(parseInt(volumeSlider.value,10));
 
+/* ================= PER-INSTRUMENT MIXER =================
+   Independently of the overall volume above, each layer's volume can be
+   tuned on its own. mixerVol holds a percentage (0–100) per layer, BASE_VOL
+   is the "default" dB level for that synth (see buildSynths below) — the
+   resulting volume is base + an offset from the percentage, same idea as
+   the overall volume slider. Drums share one fader that scales all four
+   drum synths together. */
+const BASE_VOL = { chords:-10, melody:-6, bass:-8, arp:-14, kick:-4, snare:-10, hh:-22, oh:-24 };
+const mixerVol = { chords:50, melody:50, bass:50, arp:50, drums:50 };
+
+function volFromPercent(baseDb, percent){
+  return percent <= 0 ? -Infinity : baseDb + (percent - 100) * 0.4;
+}
+
+function applyMixerVolume(part){
+  if(part === 'chords' && chordSynth) chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
+  if(part === 'melody' && melodySynth) melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
+  if(part === 'bass' && bassSynth) bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
+  if(part === 'arp' && arpSynth) arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
+  if(part === 'drums'){
+    if(kickSynth) kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
+    if(snareSynth) snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
+    if(hihatSynth) hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
+    if(openhatSynth) openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
+  }
+}
+
+function setupMixerSlider(sliderId, valId, part){
+  const slider = document.getElementById(sliderId);
+  const val = document.getElementById(valId);
+  if(!slider || !val) return;
+  slider.addEventListener('input', ()=>{
+    const percent = parseInt(slider.value, 10);
+    mixerVol[part] = percent;
+    val.textContent = percent + ' %';
+    applyMixerVolume(part);
+  });
+}
+setupMixerSlider('mixChords', 'mixChordsVal', 'chords');
+setupMixerSlider('mixMelody', 'mixMelodyVal', 'melody');
+setupMixerSlider('mixBass', 'mixBassVal', 'bass');
+setupMixerSlider('mixArp', 'mixArpVal', 'arp');
+setupMixerSlider('mixDrums', 'mixDrumsVal', 'drums');
+
 let current = null;
 
 function renderProgression(data){
@@ -1247,6 +1457,7 @@ function setResultButtonsEnabled(enabled){
   document.getElementById('newMelodyBtn').disabled = !enabled;
   document.getElementById('newBassBtn').disabled = !enabled;
   document.getElementById('newArpBtn').disabled = !enabled;
+  document.getElementById('newDrumsBtn').disabled = !enabled;
 }
 
 const statusMsg = document.getElementById('statusMsg');
@@ -1267,7 +1478,7 @@ function styleName(select, list){
 
 document.getElementById('genBtn').addEventListener('click', ()=>{
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
   setResultButtonsEnabled(true);
@@ -1278,7 +1489,7 @@ document.getElementById('genBtn').addEventListener('click', ()=>{
 document.getElementById('regenBtn').addEventListener('click', ()=>{
   if(!current) return;
   const rootIdx = parseInt(rootSelect.value,10);
-  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value);
+  current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value);
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
   stopPlayback();
@@ -1307,6 +1518,14 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
   refreshPlayback();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `New arp generated — ${name}` : 'New arp generated');
+});
+
+document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(drumStyleSelect, DRUM_PATTERNS);
+  showStatus(name ? `New drums generated — ${name}` : 'New drums generated');
 });
 
 /* Picking a different style from the dropdown applies it to the current
@@ -1344,8 +1563,20 @@ arpStyleSelect.addEventListener('change', ()=>{
   showStatus(name ? `Arp style: ${name}` : 'Arp style: Auto (varies per bar)');
 });
 
+drumStyleSelect.addEventListener('change', ()=>{
+  if(!current){
+    showStatus('Generate a progression first, then pick a drum style');
+    return;
+  }
+  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  refreshPlayback();
+  const name = styleName(drumStyleSelect, DRUM_PATTERNS);
+  showStatus(name ? `Drum style: ${name}` : 'Drum style: Auto (varies per bar)');
+});
+
 /* ================= PLAYBACK (Tone.js) ================= */
 let chordSynth=null, melodySynth=null, bassSynth=null, arpSynth=null, chordPart=null, melSeq=null, bassSeq=null, arpSeq=null, stepEvent=null;
+let kickSynth=null, snareSynth=null, hihatSynth=null, openhatSynth=null, drumPart=null;
 let isPlaying = false;
 let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
 let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
@@ -1357,22 +1588,46 @@ function buildSynths(){
   chordSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
   }).toDestination();
-  chordSynth.volume.value = -10;
+  chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
 
   melodySynth = new Tone.Synth({
     oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
   }).toDestination();
-  melodySynth.volume.value = -6;
+  melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
 
   bassSynth = new Tone.Synth({
     oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
   }).toDestination();
-  bassSynth.volume.value = -8;
+  bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
 
   arpSynth = new Tone.Synth({
     oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
   }).toDestination();
-  arpSynth.volume.value = -14;
+  arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
+
+  // drums: a synthesized kit built from four separate sources (no samples needed)
+  kickSynth = new Tone.MembraneSynth({
+    pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
+    envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
+  }).toDestination();
+  kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
+
+  snareSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
+  }).toDestination();
+  snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
+
+  hihatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
+  hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
+
+  openhatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
+  openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
 function disposeAll(){
@@ -1395,17 +1650,21 @@ function disposeAll(){
   // internally by PolySynth. The only fully race-free fix is to not dispose
   // the synth in the first place: build it once and reuse it for the whole
   // session, and just silence it (releaseAll/triggerRelease) between plays.
-  [chordPart, melSeq, bassSeq, arpSeq, stepEvent].forEach(o=>{
+  [chordPart, melSeq, bassSeq, arpSeq, drumPart, stepEvent].forEach(o=>{
     if(o){
       try{ o.stop(); }catch(e){ console.warn('disposeAll: stop() failed', e); }
       try{ o.dispose(); }catch(e){ console.warn('disposeAll: dispose() failed', e); }
     }
   });
-  chordPart = melSeq = bassSeq = arpSeq = stepEvent = null;
+  chordPart = melSeq = bassSeq = arpSeq = drumPart = stepEvent = null;
   if(chordSynth){ try{ chordSynth.releaseAll(); }catch(e){ console.warn('disposeAll: chordSynth.releaseAll() failed', e); } }
   if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('disposeAll: melodySynth.triggerRelease() failed', e); } }
   if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: bassSynth.triggerRelease() failed', e); } }
   if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: arpSynth.triggerRelease() failed', e); } }
+  if(kickSynth){ try{ kickSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: kickSynth.triggerRelease() failed', e); } }
+  if(snareSynth){ try{ snareSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: snareSynth.triggerRelease() failed', e); } }
+  if(hihatSynth){ try{ hihatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: hihatSynth.triggerRelease() failed', e); } }
+  if(openhatSynth){ try{ openhatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: openhatSynth.triggerRelease() failed', e); } }
   // Hard reset: clear any scheduled events left dangling on the Transport so a
   // failed stop/dispose above can't leave stale callbacks that block the next
   // startPlayback() from ever reaching Tone.Transport.start().
@@ -1418,7 +1677,7 @@ function clearLeds(){
 }
 
 async function startPlayback(mode){
-  mode = ['chords','melody','bass','arp'].includes(mode) ? mode : 'full';
+  mode = ['chords','melody','bass','arp','drums'].includes(mode) ? mode : 'full';
   if(!current) return;
   if(!toneAvailable()){
     showStatus("Playback isn't available — the audio library failed to load (check your internet connection)");
@@ -1430,7 +1689,8 @@ async function startPlayback(mode){
   const playMelodyBtnEl = document.getElementById('playMelodyBtn');
   const playBassBtnEl = document.getElementById('playBassBtn');
   const playArpBtnEl = document.getElementById('playArpBtn');
-  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl];
+  const playDrumsBtnEl = document.getElementById('playDrumsBtn');
+  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
   allBtns.forEach(b=>b.disabled = true);
   await Tone.start();
   allBtns.forEach(b=>b.disabled = false);
@@ -1445,6 +1705,7 @@ async function startPlayback(mode){
   const playMelody = mode === 'full' || mode === 'melody';
   const playBass   = mode === 'full' || mode === 'bass';
   const playArp    = mode === 'full' || mode === 'arp';
+  const playDrums  = mode === 'full' || mode === 'drums';
 
   if(playChords){
     // chords: one per bar, held for a whole note
@@ -1493,6 +1754,43 @@ async function startPlayback(mode){
     arpSeq.start(0);
   }
 
+  if(playDrums){
+    // drums: 16 sixteenth-note steps per bar — four times as fine a grid as melody/bass,
+    // each step can fire any combination of kick/snare/closed hi-hat/open hi-hat.
+    // Uses Tone.Part (same as the chords above) instead of Tone.Sequence: Sequence
+    // treats a nested array as a "subdivision" of that step rather than a single
+    // value — so an array of hits (e.g. ['kick','hh']) would arrive unpacked as
+    // separate string callbacks, and hits.forEach would throw "hits.forEach is not
+    // a function" (a silent console error — the drums just wouldn't play). Part
+    // doesn't do any of that value-unpacking magic.
+    const drumEvents = [];
+    current.drums.forEach((pat, barI)=>{
+      for(let s=0;s<16;s++){
+        const hits = [];
+        if(pat.kick[s]) hits.push('kick');
+        if(pat.snare[s]) hits.push('snare');
+        if(pat.hh[s]) hits.push('hh');
+        if(pat.oh[s]) hits.push('oh');
+        if(hits.length){
+          drumEvents.push({ time: `${barI}:${Math.floor(s/4)}:${s%4}`, hits });
+        }
+      }
+    });
+    drumPart = new Tone.Part((time, ev)=>{
+      ev.hits.forEach(h=>{
+        try{
+          if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
+          else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
+          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('32n',time);
+          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('8n',time);
+        }catch(e){ console.warn('drumPart callback failed', e); }
+      });
+    }, drumEvents);
+    drumPart.loop = true;
+    drumPart.loopEnd = `${current.drums.length}m`;
+    drumPart.start(0);
+  }
+
   let step = 0;
   stepEvent = new Tone.Loop((time)=>{
     const s = step % totalSteps;
@@ -1516,6 +1814,7 @@ async function startPlayback(mode){
   playMelodyBtnEl.textContent = mode === 'melody' ? '■ Stop' : '♪ Melody only';
   playBassBtnEl.textContent = mode === 'bass' ? '■ Stop' : '♪ Bass only';
   playArpBtnEl.textContent = mode === 'arp' ? '■ Stop' : '♪ Arp only';
+  playDrumsBtnEl.textContent = mode === 'drums' ? '■ Stop' : '♪ Drums only';
 }
 
 function stopPlayback(){
@@ -1533,6 +1832,7 @@ function stopPlayback(){
   document.getElementById('playMelodyBtn').textContent = '♪ Melody only';
   document.getElementById('playBassBtn').textContent = '♪ Bass only';
   document.getElementById('playArpBtn').textContent = '♪ Arp only';
+  document.getElementById('playDrumsBtn').textContent = '♪ Drums only';
 }
 
 /* Used after a melody/bass-only regeneration: if a loop is already playing,
@@ -1570,6 +1870,11 @@ document.getElementById('playBassBtn').addEventListener('click', ()=>{
 document.getElementById('playArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'arp') stopPlayback(); else startPlayback('arp');
+});
+
+document.getElementById('playDrumsBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying && playMode === 'drums') stopPlayback(); else startPlayback('drums');
 });
 
 /* ================= MIDI EXPORT ================= */
@@ -1655,14 +1960,34 @@ function exportMidi(){
     arpEvents.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:3});
   });
 
-  const header = [...strBytes('MThd'), ...u32(6), ...u16(1), ...u16(5), ...u16(TPQN)];
+  // drums: sixteenth-note steps, GM drum mapping (channel 10 / index 9)
+  const drumEvents = [];
+  const sixteenthTicks = TPQN / 4;
+  const GM_DRUM_NOTE = { kick:36, snare:38, hh:42, oh:46 };
+  const GM_DRUM_VEL = { kick:105, snare:100, hh:70, oh:80 };
+  current.drums.forEach((pat,barI)=>{
+    const barStart = barI * barTicks;
+    for(let s=0;s<16;s++){
+      const stepStart = barStart + s * sixteenthTicks;
+      ['kick','snare','hh','oh'].forEach(part=>{
+        if(pat[part][s]){
+          const note = GM_DRUM_NOTE[part];
+          drumEvents.push({tick:stepStart, type:'on', note, vel:GM_DRUM_VEL[part], channel:9});
+          drumEvents.push({tick:stepStart+sixteenthTicks, type:'off', note, vel:0, channel:9});
+        }
+      });
+    }
+  });
+
+  const header = [...strBytes('MThd'), ...u32(6), ...u16(1), ...u16(6), ...u16(TPQN)];
   const tempoTrack = buildTempoTrack(current.tempo, totalTicks);
   const chordTrack = buildTrackChunk(chordEvents, totalTicks);
   const melodyTrack = buildTrackChunk(melodyEvents, totalTicks);
   const bassTrack = buildTrackChunk(bassEvents, totalTicks);
   const arpTrack = buildTrackChunk(arpEvents, totalTicks);
+  const drumTrack = buildTrackChunk(drumEvents, totalTicks);
 
-  const fileBytes = new Uint8Array([...header, ...tempoTrack, ...chordTrack, ...melodyTrack, ...bassTrack, ...arpTrack]);
+  const fileBytes = new Uint8Array([...header, ...tempoTrack, ...chordTrack, ...melodyTrack, ...bassTrack, ...arpTrack, ...drumTrack]);
   const blob = new Blob([fileBytes], {type:'audio/midi'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1679,7 +2004,7 @@ function exportMidi(){
 document.getElementById('exportBtn').addEventListener('click', exportMidi);
 
 /* ---- single-part exports (chords / melody / bass) ---- */
-const PART_LABELS = { chords:'Chords', melody:'Melody', bass:'Bass', arp:'Arp' };
+const PART_LABELS = { chords:'Chords', melody:'Melody', bass:'Bass', arp:'Arp', drums:'Drums' };
 
 function buildPartEvents(part){
   const barTicks = TPQN * 4;
@@ -1710,6 +2035,26 @@ function buildPartEvents(part){
       const start = i * eighthTicks;
       events.push({tick:start, type:'on', note:n, vel:85, channel:0});
       events.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:0});
+    });
+  } else if(part === 'drums'){
+    // a standalone drum export keeps the GM drum note numbers, but on
+    // channel 0 (this two-track format doesn't need the reserved channel 10
+    // that the "export all" file uses)
+    const sixteenthTicks = TPQN / 4;
+    const GM_DRUM_NOTE = { kick:36, snare:38, hh:42, oh:46 };
+    const GM_DRUM_VEL = { kick:105, snare:100, hh:70, oh:80 };
+    current.drums.forEach((pat,barI)=>{
+      const barStart = barI * barTicks;
+      for(let s=0;s<16;s++){
+        const stepStart = barStart + s * sixteenthTicks;
+        ['kick','snare','hh','oh'].forEach(p=>{
+          if(pat[p][s]){
+            const note = GM_DRUM_NOTE[p];
+            events.push({tick:stepStart, type:'on', note, vel:GM_DRUM_VEL[p], channel:0});
+            events.push({tick:stepStart+sixteenthTicks, type:'off', note, vel:0, channel:0});
+          }
+        });
+      }
     });
   }
   return events;
@@ -1742,6 +2087,77 @@ document.getElementById('exportChordsBtn').addEventListener('click', ()=>exportM
 document.getElementById('exportMelodyBtn').addEventListener('click', ()=>exportMidiPart('melody'));
 document.getElementById('exportBassBtn').addEventListener('click', ()=>exportMidiPart('bass'));
 document.getElementById('exportArpBtn').addEventListener('click', ()=>exportMidiPart('arp'));
+document.getElementById('exportDrumsBtn').addEventListener('click', ()=>exportMidiPart('drums'));
+
+/* ================= SUPPORT REMINDER (every 5 minutes) ================= */
+(function(){
+  const overlay = document.getElementById('supportOverlay');
+  if(!overlay) return;
+  const closeBtn = document.getElementById('supportCloseX');
+  const backBtn = document.getElementById('supportBackBtn');
+  // value is a timestamp (ms) up to which the reminder stays off; a missing
+  // or expired value means the reminder is on (the default state)
+  const STORAGE_KEY = 'progreseSupportReminderOffUntil';
+  const ADMIN_OFF_MINUTES = 30;
+
+  function isReminderOff(){
+    try{
+      const until = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+      if(!until || isNaN(until)) return false;
+      if(Date.now() >= until){
+        localStorage.removeItem(STORAGE_KEY); // expired — turns itself back on automatically
+        return false;
+      }
+      return true;
+    }catch(e){ return false; }
+  }
+  function setReminderOff(minutes){
+    try{
+      if(minutes > 0) localStorage.setItem(STORAGE_KEY, String(Date.now() + minutes*60*1000));
+      else localStorage.removeItem(STORAGE_KEY);
+    }catch(e){}
+  }
+
+  function showSupportModal(){
+    if(document.hidden) return; // don't pop up while the tab isn't active
+    if(isReminderOff()) return;
+    overlay.hidden = false;
+  }
+  function hideSupportModal(){
+    overlay.hidden = true;
+  }
+
+  closeBtn.addEventListener('click', hideSupportModal);
+  backBtn.addEventListener('click', hideSupportModal);
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) hideSupportModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && !overlay.hidden) hideSupportModal(); });
+
+  setInterval(showSupportModal, 5 * 60 * 1000);
+
+  // hidden admin toggle: 5 rapid clicks on the "PROGRESE" title in the header
+  // turns the reminder off, 10 rapid clicks in a row (no pause) turns it back
+  // on — no cursor change or any visual hint that it's a "button"
+  const brandTitle = document.querySelector('.brand h1');
+  if(brandTitle){
+    let clickCount = 0;
+    let clickTimer = null;
+    brandTitle.addEventListener('click', ()=>{
+      clickCount++;
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(()=>{ clickCount = 0; }, 1800);
+      if(clickCount === 5){
+        setReminderOff(ADMIN_OFF_MINUTES);
+        if(!overlay.hidden) hideSupportModal();
+        showStatus(`Support reminder turned off for ${ADMIN_OFF_MINUTES} minutes`);
+      } else if(clickCount === 10){
+        setReminderOff(0);
+        clickCount = 0;
+        showStatus('Support reminder turned back on');
+        showSupportModal(); // show it right away, so it's visible that it's working again
+      }
+    });
+  }
+})();
 </script>
 </body>
 </html>
