@@ -961,7 +961,7 @@
     </div>
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I export the progression as sheet music?</h3>
-      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Sheet music (PDF)" button exports the current progression as standard music notation (treble and bass clef, chord symbols above the staff) into a PDF you can print or send along. It reflects any edits made in the Mini DAW too.</p>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Sheet music (PDF)" button exports the current progression as standard music notation (treble and bass clef, chord symbols above the staff) into a PDF you can print or send along. Below the notation, each bar also gets a piano key diagram with the keys marked, so it works even if you can't read notes. It reflects any edits made in the Mini DAW too.</p>
     </div>
   </div>
 
@@ -2164,6 +2164,54 @@ function midiToVexKey(m){
   return letters[((m%12)+12)%12] + '/' + oct;
 }
 
+/* Piano key diagram for each chord — for people who can't read notes but can
+   see which keys to press. Drawn as vector rectangles via jsPDF, not an
+   image, so it stays crisp at any zoom level or when printed. */
+const PIANO_WHITE_PC = [0,2,4,5,7,9,11];
+const PIANO_BLACK_PC = [1,3,6,8,10];
+function drawPianoChordDiagram(doc, x, y, w, h, tones, label){
+  const minT = Math.min(...tones);
+  const maxT = Math.max(...tones);
+  const startMidi = minT - (((minT%12)+12)%12); // nearest C at/below the lowest tone
+  const octaves = Math.max(1, Math.ceil((maxT - startMidi + 1) / 12));
+  const endMidiExcl = startMidi + octaves*12;
+
+  const whiteMidis = [];
+  for(let m=startMidi; m<endMidiExcl; m++){
+    if(PIANO_WHITE_PC.includes(((m%12)+12)%12)) whiteMidis.push(m);
+  }
+  const keyW = w / whiteMidis.length;
+  const highlightSet = new Set(tones);
+
+  doc.setLineWidth(0.6);
+  doc.setDrawColor(60,60,60);
+  const whiteIndexByMidi = new Map();
+  whiteMidis.forEach((m,i)=>{
+    whiteIndexByMidi.set(m, i);
+    const kx = x + i*keyW;
+    if(highlightSet.has(m)) doc.setFillColor(255,138,61); else doc.setFillColor(255,255,255);
+    doc.rect(kx, y, keyW, h, 'FD');
+  });
+
+  const blackW = keyW*0.62, blackH = h*0.62;
+  for(let m=startMidi; m<endMidiExcl; m++){
+    const pc = ((m%12)+12)%12;
+    if(!PIANO_BLACK_PC.includes(pc)) continue;
+    const prevWhiteIdx = whiteIndexByMidi.get(m-1);
+    if(prevWhiteIdx === undefined) continue;
+    const kx = x + (prevWhiteIdx+1)*keyW - blackW/2;
+    if(highlightSet.has(m)) doc.setFillColor(255,138,61); else doc.setFillColor(25,25,25);
+    doc.setDrawColor(25,25,25);
+    doc.rect(kx, y, blackW, blackH, 'FD');
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(90);
+  const noteLetters = [...new Set(tones.map(t=>NOTE_NAMES[((t%12)+12)%12]))];
+  doc.text(`${label}: ${noteLetters.join(' – ')}`, x, y + h + 12, { maxWidth: w + 20 });
+}
+
 function exportPdfSheet(){
   if(!current) return;
   if(typeof Vex === 'undefined' || typeof window.jspdf === 'undefined'){
@@ -2277,7 +2325,28 @@ function exportPdfSheet(){
     const imgWidth = pageWidth - 80;
     const imgHeight = imgWidth * (canvasHeight / canvasWidth);
     doc.addImage(imgData, 'PNG', 40, cursorY, imgWidth, imgHeight);
+    cursorY += imgHeight + 30;
 
+    // Piano key diagrams — what to play on the keys, bar by bar (for people
+    // who can't read notes too). Lined up in the same 4-bar grid as the notation.
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+    doc.text('What to play on the keys', 40, cursorY);
+    cursorY += 18;
+    const kbPerRow = 4;
+    const kbGap = 14;
+    const kbWidth = (imgWidth - kbGap*(kbPerRow-1)) / kbPerRow;
+    const kbHeight = 46;
+    const kbRowStep = kbHeight + 26;
+    current.chords.forEach((chord, i)=>{
+      const col = i % kbPerRow;
+      const row = Math.floor(i / kbPerRow);
+      const kx = 40 + col*(kbWidth + kbGap);
+      const ky = cursorY + row*kbRowStep;
+      drawPianoChordDiagram(doc, kx, ky, kbWidth, kbHeight, chord.tones, `Bar ${i+1} · ${chord.symbol}`);
+    });
+    cursorY += Math.ceil(current.chords.length / kbPerRow) * kbRowStep + 10;
+
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(150);
     doc.text('Made with Progrese — synthlucida.com/progrese-en.html', 40, doc.internal.pageSize.getHeight() - 24);
