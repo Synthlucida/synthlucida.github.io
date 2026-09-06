@@ -325,8 +325,23 @@
   .support-btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
   .support-btn.primary{background:var(--teal); color:#0d1e1b; border-color:var(--teal);}
   .support-btn.primary:hover{filter:brightness(1.08);}
+  .support-code{margin-top:18px; padding-top:16px; border-top:1px solid var(--line);}
+  .support-code[hidden]{display:none;}
+  .support-code p{margin:0 0 10px; font-size:12px; line-height:1.6;}
+  .support-code-row{display:flex; gap:8px; margin-bottom:10px;}
+  .support-code-input{
+    flex:1; min-width:0; font-family:inherit; font-size:13px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--text);
+  }
+  .support-code-input:focus-visible{outline:2px solid var(--amber); outline-offset:1px;}
+  .support-code-hint{font-size:12px; color:var(--text-dim); margin:0;}
+  .support-code-value{
+    display:inline-block; font-family:ui-monospace, monospace; font-size:13px; font-weight:700;
+    color:var(--amber); background:var(--amber-dim); border-radius:5px; padding:3px 8px; letter-spacing:0.03em;
+  }
   @media (max-width:480px){
     .support-actions{flex-direction:column;}
+    .support-code-row{flex-direction:column;}
   }
 
   .info-steps{display:flex; flex-direction:column; gap:16px;}
@@ -559,6 +574,14 @@
     <div class="support-actions">
       <a class="support-btn primary" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">☕ Podpořit projekt</a>
       <button type="button" class="support-btn" id="supportBackBtn">← Zpět na Progrese</button>
+    </div>
+    <div class="support-code" id="supportCodeSection" hidden>
+      <p>Vidíš tuhle připomínku už poněkolikáté — pokud ti to zrovna nevyhovuje, zadej kód níže a na 180 minut si dáme pauzu.</p>
+      <div class="support-code-row">
+        <input type="text" class="support-code-input" id="supportCodeInput" placeholder="Zadej kód" autocomplete="off">
+        <button type="button" class="support-btn" id="supportCodeBtn">Potvrdit</button>
+      </div>
+      <p class="support-code-hint">Kód: <span class="support-code-value">Progrese2026</span></p>
     </div>
   </div>
 </div>
@@ -2676,6 +2699,23 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   const STORAGE_KEY = 'progreseSupportReminderOffUntil';
   const ADMIN_OFF_MINUTES = 30;
 
+  // počítadlo, kolikrát se okno reálně zobrazilo (napříč návštěvami) — od 5.
+  // zobrazení se v okně objeví políčko s kódem pro vlastní 180minutové ztišení
+  const SHOWN_COUNT_KEY = 'progreseSupportShownCount';
+  const CODE_UNLOCK_AFTER = 5;
+  const CODE_VALUE = 'Progrese2026';
+  const CODE_OFF_MINUTES = 180;
+  const codeSection = document.getElementById('supportCodeSection');
+  const codeInput = document.getElementById('supportCodeInput');
+  const codeBtn = document.getElementById('supportCodeBtn');
+
+  function getShownCount(){
+    try{ return parseInt(localStorage.getItem(SHOWN_COUNT_KEY), 10) || 0; }catch(e){ return 0; }
+  }
+  function bumpShownCount(){
+    try{ localStorage.setItem(SHOWN_COUNT_KEY, String(getShownCount() + 1)); }catch(e){}
+  }
+
   function isReminderOff(){
     try{
       const until = parseInt(localStorage.getItem(STORAGE_KEY), 10);
@@ -2697,11 +2737,33 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   function showSupportModal(){
     if(document.hidden) return; // nevyskakovat, když karta zrovna není aktivní
     if(isReminderOff()) return;
+    bumpShownCount();
+    if(codeSection){
+      codeSection.hidden = getShownCount() < CODE_UNLOCK_AFTER;
+      if(codeInput) codeInput.value = '';
+    }
     overlay.hidden = false;
   }
   function hideSupportModal(){
     overlay.hidden = true;
   }
+
+  function trySubmitCode(){
+    if(!codeInput) return;
+    const val = codeInput.value.trim();
+    if(!val) return;
+    if(val.toLowerCase() === CODE_VALUE.toLowerCase()){
+      setReminderOff(CODE_OFF_MINUTES);
+      hideSupportModal();
+      showStatus(`Díky! Připomínka bude ${CODE_OFF_MINUTES} minut potichu`);
+    }else{
+      showStatus('Kód nesedí, zkus to prosím znovu');
+      codeInput.focus();
+      codeInput.select();
+    }
+  }
+  if(codeBtn) codeBtn.addEventListener('click', trySubmitCode);
+  if(codeInput) codeInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); trySubmitCode(); } });
 
   closeBtn.addEventListener('click', hideSupportModal);
   backBtn.addEventListener('click', hideSupportModal);
