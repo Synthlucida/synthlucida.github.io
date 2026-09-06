@@ -1098,17 +1098,6 @@
 </div>
 
 <script>
-// Zvětšení audio bufferu hned na začátku, dřív než se vytvoří jakýkoli
-// syntetizátor. Výchozí Tone.js kontext jede na 'interactive' (nejmenší
-// možný buffer = nejnižší latence, ale nejmíň odolné proti zaškobrtnutí).
-// Na slabším mobilu (typicky Android Chrome) to při souběhu víc
-// syntetizátorů (akordy+melodie+basa+arp+bicí) snadno vede k podtečení
-// bufferu = praskání. 'playback' dá o dost větší buffer — o pár desítek
-// milisekund vyšší latenci mezi zmáčknutím Přehrát a prvním tónem, ale
-// mnohem větší odolnost proti zaškobrtnutí zvuku při přehrávání.
-if(typeof Tone !== "undefined"){
-  try{ Tone.setContext(new Tone.Context({ latencyHint: 'playback' })); }catch(e){ console.warn('setContext(playback) failed', e); }
-}
 /* ================= MUSIC THEORY CORE ================= */
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const SCALES = { major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
@@ -1522,7 +1511,6 @@ const volumeVal = document.getElementById('volumeVal');
 function toneAvailable(){
   return typeof Tone !== "undefined";
 }
-
 function applyVolume(percent){
   // 0% = ticho, 100% = plná hlasitost (0 dB); mezi tím lineární škála v dB
   if(!toneAvailable()) return;
@@ -1604,10 +1592,6 @@ function renderProgression(data){
     led.id = 'led'+i;
     steps.appendChild(led);
   }
-  // LEDy a pady jsou teď nové DOM uzly — zahoď starou cache, ať se
-  // v clearLeds() při přehrávání nesahá na odpojené/staré elementy.
-  ledCache = null;
-  padCache = null;
 }
 
 function setResultButtonsEnabled(enabled){
@@ -1751,69 +1735,52 @@ let isPlaying = false;
 let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
 let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
 
-// Sdílený master limiter: když hraje víc stop najednou (akordy+melodie+basa+arp+bicí),
-// jejich součet může na výstupu přetéct přes 0dB a digitálně "prasknout" — na
-// mobilu je to slyšet nápadněji než na PC. Všechny syntetizátory se místo přímo
-// na .toDestination() připojují sem, takže je špička vždy ořezána měkce
-// (limiter), ne tvrdě (surové digitální ořezání).
-let masterLimiter = null;
-function getMasterBus(){
-  if(!masterLimiter) masterLimiter = new Tone.Limiter(-1).toDestination();
-  return masterLimiter;
-}
-
 function buildSynths(){
   // Built once and kept alive for the whole page session — see disposeAll()
   // below for why we never dispose+recreate these on regenerate/stop.
   if(chordSynth) return;
-  const bus = getMasterBus();
   chordSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
-  }).connect(bus);
+  }).toDestination();
   chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
 
   melodySynth = new Tone.Synth({
     oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
-  }).connect(bus);
+  }).toDestination();
   melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
 
   bassSynth = new Tone.Synth({
     oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
-  }).connect(bus);
+  }).toDestination();
   bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
 
   arpSynth = new Tone.Synth({
     oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
-  }).connect(bus);
+  }).toDestination();
   arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
 
   // bicí: syntetizovaný kit ze čtyř samostatných zdrojů (bez potřeby vzorků)
   kickSynth = new Tone.MembraneSynth({
     pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
     envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
-  }).connect(bus);
+  }).toDestination();
   kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
 
   snareSynth = new Tone.NoiseSynth({
     noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
-  }).connect(bus);
+  }).toDestination();
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  // Hi-hat/open hi-hat: MetalSynth (FM syntéza s víc operátory) je zdaleka
-  // nejnáročnější věc v celém patchi a na slabším mobilním CPU (typicky
-  // Android) snadno vytíží audio vlákno natolik, že to způsobí praskání
-  // napříč celým mixem — ne jen u bicích. Filtrovaný šum zní na hi-hat
-  // pořád dost věrohodně a je o řád levnější na výpočet.
-  const hihatFilter = new Tone.Filter({ type:'highpass', frequency:7000 }).connect(bus);
-  hihatSynth = new Tone.NoiseSynth({
-    noise:{type:'white'}, envelope:{attack:0.001, decay:0.05, sustain:0, release:0.02}
-  }).connect(hihatFilter);
+  hihatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  const openhatFilter = new Tone.Filter({ type:'highpass', frequency:6000 }).connect(bus);
-  openhatSynth = new Tone.NoiseSynth({
-    noise:{type:'white'}, envelope:{attack:0.001, decay:0.25, sustain:0, release:0.1}
-  }).connect(openhatFilter);
+  openhatSynth = new Tone.MetalSynth({
+    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
+    modulationIndex:32, resonance:4000, octaves:1.2
+  }).toDestination();
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
@@ -1858,20 +1825,9 @@ function disposeAll(){
   try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
 }
 
-// Zakešováno místo document.querySelectorAll() volaného znovu při každém kroku —
-// při přehrávání se to spouští z Tone.Draw v audio-scheduleru, takže cokoliv
-// zbytečně náročného tady navíc riskuje zaseknutí hlavního vlákna a "prasknutí"
-// zvuku (hlavně na slabším mobilním CPU). Cache se obnoví, jen když se DOM
-// skutečně změní (viz refreshLedCache níže).
-let ledCache = null, padCache = null;
-function refreshLedCache(){
-  ledCache = Array.from(document.querySelectorAll('.step-led'));
-  padCache = Array.from(document.querySelectorAll('.pad'));
-}
 function clearLeds(){
-  if(!ledCache || !padCache) refreshLedCache();
-  ledCache.forEach(el=>el.classList.remove('lit'));
-  padCache.forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
+  document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
 }
 
 async function startPlayback(mode, resumeAt){
