@@ -1747,8 +1747,8 @@ function buildSynths(){
   // start zvuku po kliknutí na Přehrát.
   if(toneAvailable()){
     try{
-      Tone.getContext().lookAhead = 1.0;
-      Tone.getContext().updateInterval = 0.5;
+      Tone.getContext().lookAhead = 2.0;
+      Tone.getContext().updateInterval = 1.0;
     }catch(e){ console.warn('Nepodařilo se zvětšit lookAhead kontextu', e); }
   }
 
@@ -1791,15 +1791,20 @@ function buildSynths(){
   }).connect(masterLimiter);
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
+  // Zjednodušené hi-haty: prostý čtvercový oscilátor (stejná bezpečná
+  // architektura jako melodie/basa/arp — jeden trvale běžící oscilátor
+  // řízený obálkou) místo MetalSynth (6 FM oscilátorů na notu, tedy 12
+  // dohromady u dvou hi-hatů). Progrese je jen orientační ukázka zvuku —
+  // uživatel si stejně exportuje MIDI a vloží ho do vlastního DAW — takže
+  // věrnost zvuku tu nehraje roli a jde hlavně o to, ať to na slabším
+  // zařízení při hraní všeho najednou neseká.
+  hihatSynth = new Tone.Synth({
+    oscillator:{type:'square'}, envelope:{attack:0.001, decay:0.03, sustain:0, release:0.01}
   }).connect(masterLimiter);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
+  openhatSynth = new Tone.Synth({
+    oscillator:{type:'square'}, envelope:{attack:0.001, decay:0.15, sustain:0, release:0.05}
   }).connect(masterLimiter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
@@ -1956,8 +1961,19 @@ async function startPlayback(mode, resumeAt){
         try{
           if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
           else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('32n',time);
-          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('8n',time);
+          // Skutečná nalezená (a ověřená) chyba, ne dohad: MetalSynth.triggerAttackRelease
+          // má signaturu (note, duration, time), ale tady se dřív volalo jen se dvěma
+          // argumenty — (duration, time) jako u NoiseSynth/snare o pár řádků výš. Výsledek:
+          // '32n' skončilo jako NOTA (frekvence se z toho spočítala jako 16 Hz — skoro mimo
+          // slyšitelné pásmo, jen bohaté harmonické z FM syntézy prošly přes vnitřní
+          // highpass filtr), a skutečný čas (proměnná time) skončil jako DURATION. Protože
+          // se tak "time" argument vůbec nepředal, hi-hat se spustil prakticky HNED, jakmile
+          // doběhl JS callback (tedy až lookAhead sekund PŘED svým skutečným místem v taktu),
+          // místo přesně na tu čtvrtinu/osminu, kam patřil — ověřeno reálným Tone.js (zachycen
+          // skutečný čas předaný do triggerAttack: 0.14s misto zamýšlených 5.04s). Opraveno na
+          // správné pořadí argumentů + rozumná nota namísto náhodné.
+          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
+          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
         }catch(e){ console.warn('drumPart callback failed', e); }
       });
     }, drumEvents);

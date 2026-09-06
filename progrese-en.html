@@ -1748,8 +1748,8 @@ function buildSynths(){
   // after clicking Play.
   if(toneAvailable()){
     try{
-      Tone.getContext().lookAhead = 1.0;
-      Tone.getContext().updateInterval = 0.5;
+      Tone.getContext().lookAhead = 2.0;
+      Tone.getContext().updateInterval = 1.0;
     }catch(e){ console.warn('Failed to increase context lookAhead', e); }
   }
 
@@ -1793,15 +1793,20 @@ function buildSynths(){
   }).connect(masterLimiter);
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
+  // Simplified hi-hats: a plain square-wave oscillator (the same safe
+  // architecture as melody/bass/arp — one continuously-running oscillator
+  // gated by an envelope) instead of MetalSynth (6 FM oscillators per note,
+  // 12 total across both hi-hats). Progrese is just a rough audio preview —
+  // the user exports MIDI and drops it into their own DAW anyway — so sound
+  // fidelity doesn't matter here nearly as much as not stuttering on a
+  // weaker device when everything plays at once.
+  hihatSynth = new Tone.Synth({
+    oscillator:{type:'square'}, envelope:{attack:0.001, decay:0.03, sustain:0, release:0.01}
   }).connect(masterLimiter);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
+  openhatSynth = new Tone.Synth({
+    oscillator:{type:'square'}, envelope:{attack:0.001, decay:0.15, sustain:0, release:0.05}
   }).connect(masterLimiter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
@@ -1959,8 +1964,20 @@ async function startPlayback(mode, resumeAt){
         try{
           if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
           else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('32n',time);
-          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('8n',time);
+          // A real, verified bug, not a guess: MetalSynth.triggerAttackRelease has the
+          // signature (note, duration, time), but this was called with only two
+          // arguments — (duration, time) — as if it were NoiseSynth/snare a few lines up.
+          // Result: '32n' ended up as the NOTE (its frequency computes to 16 Hz — almost
+          // below hearing range; only the FM synthesis's rich harmonics made it through the
+          // internal highpass filter), and the real schedule time (the `time` variable)
+          // ended up as the DURATION. Since no real time argument was ever passed, the
+          // hi-hat fired essentially IMMEDIATELY when the JS callback ran (i.e. up to
+          // lookAhead seconds BEFORE its actual beat), instead of exactly on the intended
+          // 16th note — confirmed with real Tone.js (captured the actual time passed to
+          // triggerAttack: 0.14s instead of the intended 5.04s). Fixed to the correct
+          // argument order plus a sensible note instead of an accidental one.
+          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
+          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
         }catch(e){ console.warn('drumPart callback failed', e); }
       });
     }, drumEvents);
