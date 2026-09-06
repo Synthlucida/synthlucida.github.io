@@ -104,7 +104,8 @@
 }
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<!-- Přehrávání jede na nativním Web Audio API (viz sekce PLAYBACK níže) —
+     Tone.js knihovna už se nenačítá, takže přehrávání nezávisí na CDN. -->
 <!-- VexFlow (notový zápis) a jsPDF (export do PDF) — použité jen tlačítkem "Noty (PDF)" -->
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -1495,31 +1496,41 @@ tempoSlider.addEventListener('input', ()=>{
   const bpm = parseInt(tempoSlider.value,10);
   tempoVal.textContent = bpm + ' BPM';
   if(current) current.tempo = bpm;
-  // rampTo místo přímého .value = bpm: skoková změna tempa audio parametru
-  // za běhu umí ve Firefoxu vyvolat krátké zaseknutí/praskání zvuku, protože
-  // se musí okamžitě přepočítat už rozeschedulované eventy na transportu.
-  // Plynulý ramp (i jen 80ms) tomu předejde a sluchem není znát.
-  if(isPlaying) Tone.Transport.bpm.rampTo(bpm, 0.08);
+  // Engine si nový tempo přepočítá na délku 16tinové noty a použije ho hned
+  // na PŘÍŠTÍ ještě nenaplánovaný krok — protože se nic z už odeslaného
+  // audia nepřepočítává zpětně (na rozdíl od Tone.Transport.bpm), nehrozí
+  // tu žádné zaseknutí/praskání a není potřeba žádný ramp.
+  if(isPlaying){
+    currentBpm = bpm;
+    secondsPer16th = secondsFromBpm(bpm);
+  }
 });
 tempoVal.textContent = VIBES[selectedVibe].tempo + ' BPM';
 tempoSlider.value = VIBES[selectedVibe].tempo;
 
 const volumeSlider = document.getElementById('volumeSlider');
 const volumeVal = document.getElementById('volumeVal');
-function toneAvailable(){
-  return typeof Tone !== "undefined";
+function audioAvailable(){
+  return typeof (window.AudioContext || window.webkitAudioContext) !== "undefined";
 }
 function applyVolume(percent){
-  // 0% = ticho, 100% = plná hlasitost (0 dB); mezi tím lineární škála v dB
-  if(!toneAvailable()) return;
-  Tone.Destination.volume.value = percent <= 0 ? -Infinity : (percent - 100) * 0.4;
+  // 0% = ticho, 100% = plná hlasitost (0 dB); mezi tím lineární škála v dB.
+  // masterVolumeGain vzniká až s prvním přehráním (ensureAudioCtx) — do
+  // té doby se hodnota jen zahodí, stejně jako dřív s Tone před Tone.start().
+  if(!audioCtx || !masterVolumeGain) return;
+  const gain = percent <= 0 ? 0 : dbToGain((percent - 100) * 0.4);
+  masterVolumeGain.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.01);
 }
 volumeSlider.addEventListener('input', ()=>{
   const percent = parseInt(volumeSlider.value,10);
   volumeVal.textContent = percent + ' %';
   applyVolume(percent);
 });
-applyVolume(parseInt(volumeSlider.value,10));
+// Poznámka: dřív se tu volalo applyVolume() rovnou při načtení stránky (u
+// Tone.js to fungovalo, protože Tone si svůj kontext vytváří sám hned při
+// prvním importu). Nativní audioCtx ale vzniká líně až v ensureAudioCtx()
+// (při prvním Play) — ta si aktuální hodnotu posuvníku sama dotáhne, jakmile
+// gain uzly konečně existují, takže tady žádné volání navíc není potřeba.
 
 /* ================= MIXÉR JEDNOTLIVÝCH NÁSTROJŮ =================
    Nezávisle na celkové hlasitosti (výše) jde doladit hlasitost každé
@@ -1542,16 +1553,24 @@ function volFromPercent(baseDb, percent){
   return percent <= 0 ? -Infinity : baseDb + (percent - 100) * 0.4;
 }
 
+function dbToGain(db){
+  return db === -Infinity ? 0 : Math.pow(10, db/20);
+}
 function applyMixerVolume(part){
-  if(part === 'chords' && chordSynth) chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
-  if(part === 'melody' && melodySynth) melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
-  if(part === 'bass' && bassSynth) bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
-  if(part === 'arp' && arpSynth) arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
+  // Dokud nebylo spuštěno přehrávání, gain uzly ještě neexistují (vznikají
+  // v ensureAudioCtx) — posuvníkem lze v klidu hýbat, jen se to zatím
+  // nemá na čem projevit, stejně jako dřív s Tone před prvním Play.
+  if(!audioCtx) return;
+  const now = audioCtx.currentTime;
+  if(part === 'chords' && chordGain) chordGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.chords, mixerVol.chords)), now, 0.01);
+  if(part === 'melody' && melodyGain) melodyGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.melody, mixerVol.melody)), now, 0.01);
+  if(part === 'bass' && bassGain) bassGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.bass, mixerVol.bass)), now, 0.01);
+  if(part === 'arp' && arpGain) arpGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.arp, mixerVol.arp)), now, 0.01);
   if(part === 'drums'){
-    if(kickSynth) kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
-    if(snareSynth) snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
-    if(hihatSynth) hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
-    if(openhatSynth) openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
+    if(kickGain) kickGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.kick, mixerVol.drums)), now, 0.01);
+    if(snareGain) snareGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.snare, mixerVol.drums)), now, 0.01);
+    if(hihatGain) hihatGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.hh, mixerVol.drums)), now, 0.01);
+    if(openhatGain) openhatGain.gain.setTargetAtTime(dbToGain(volFromPercent(BASE_VOL.oh, mixerVol.drums)), now, 0.01);
   }
 }
 
@@ -1743,220 +1762,337 @@ drumStyleSelect.addEventListener('change', ()=>{
   showStatus(name ? `Styl bicích: ${name}` : 'Styl bicích: Auto (mění se v každém taktu)');
 });
 
-/* ================= PLAYBACK (Tone.js) ================= */
-let chordSynth=null, melodySynth=null, bassSynth=null, arpSynth=null, chordPart=null, melSeq=null, bassSeq=null, arpSeq=null, stepEvent=null;
-let kickSynth=null, snareSynth=null, hihatSynth=null, openhatSynth=null, drumPart=null;
-let masterLimiter=null;
+/* ================= PLAYBACK (nativní Web Audio API) =================
+   Dřív celé přehrávání jelo přes Tone.js — knihovnu, která nad Web Audio
+   API staví vlastní Transport/Part/Sequence/Draw vrstvu. Tone je pohodlný,
+   ale s 5 souběžně plánovanými vrstvami (akordy, melodie, basa, arp, bicí)
+   a vlastním schedulerem na to byla na slabším mobilu znatelná režie navíc
+   nad rámec toho, co samotné přehrávání pěti nástrojů vyžaduje.
+
+   Tahle verze mluví přímo na Web Audio API, stejně jako relax.html:
+   - žádná externí knihovna se nenačítá (script tag na Tone.js byl úplně
+     odstraněný) —
+     přehrávání teď nezávisí na CDN a nemůže "nejet", protože se
+     nepodařilo stáhnout Tone.js;
+   - AudioContext vzniká s latencyHint:'playback' (větší, stabilnější
+     buffer) — stejně jako u relax.html, které se stejným trikem zbavilo
+     praskání na Androidu;
+   - scheduler je klasický "lookahead" vzor (setInterval co 25ms plánuje
+     dopředu o ~120ms přes accurate AudioContext časy) — jedna malá funkce
+     místo celého Tone Transportu;
+   - klíčové zjednodušení: noty se čtou přímo z `current.melody/.bass/
+     .arp/.drums/...Mute` těsně před naplánováním KAŽDÉHO kroku, místo
+     aby se pro každou vrstvu předem postavil samostatný Tone.Part/
+     Sequence objekt. Díky tomu se "Nová melodie"/"Nová basa"/přepnutí
+     stylu/Mini DAW úprava projeví samy od sebe na příští notě — není
+     potřeba nic zahazovat a znovu stavět (dřívější refreshLayers), což
+     bylo přesně to, co při častých úpravách za běhu nejvíc zatěžovalo
+     hlavní vlákno. */
+let audioCtx = null;
+let masterLimiter = null, masterVolumeGain = null;
+let chordGain=null, melodyGain=null, bassGain=null, arpGain=null;
+let kickGain=null, snareGain=null, hihatGain=null, openhatGain=null;
+let noiseBuffer = null; // sdílený 2s buffer bílého šumu pro virblík/hi-hat/otevřený hi-hat
 let isPlaying = false;
-let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
-let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
+let playMode = null; // null | 'full' | 'chords' | 'melody' | 'bass' | 'arp' | 'drums'
+let playToken = 0; // invaliduje běžící startPlayback(), pokud mezitím přišel novější stop/start
 
-function buildSynths(){
-  // Built once and kept alive for the whole page session — see disposeAll()
-  // below for why we never dispose+recreate these on regenerate/stop.
-  if(chordSynth) return;
+// stav scheduleru
+let schedulerTimer = null;
+let currentBpm = 120;
+let secondsPer16th = 0.125;
+let totalSteps16 = 16;       // current.chords.length * 16 (16 šestnáctin na takt)
+let currentStep16 = 0;       // pozice v mřížce šestnáctin (0..totalSteps16-1)
+let nextStepTime = 0;        // audioCtx.currentTime, kdy má znít další nenaplánovaný krok
+const SCHEDULE_AHEAD_TIME = 0.12; // s — jak daleko dopředu scheduler plánuje
+const SCHEDULER_INTERVAL_MS = 25; // jak často se scheduler probouzí a doplňuje frontu
 
-  // Jen pojistka proti ořezání (clippingu) na výstupu — nic jiného (lookAhead/
-  // updateInterval, výběr nástrojů) se tady neměnilo. Akordy (až 4hlasá
-  // polyfonie, držené jako celá nota) a basa (skoro nepřetržitě znějící
-  // čtvrťové noty) jsou jediné vrstvy, co hrají prakticky pořád; arp a bicí
-  // jsou krátká, ostrá bodnutí s tichem mezi nimi. Hlášené sekání na mobilu
-  // se týkalo právě jen akordů a basy, což víc odpovídá ořezání/praskání
-  // výstupu při souvislé kombinované hlasitosti než problému s
-  // časováním/scheduling — stejný typ opravy, jaký už jednou vyřešil
-  // praskání na Androidu u relax.html. Všechny zdroje teď jedou přes tenhle
-  // limiter místo přímo do Destination.
-  masterLimiter = new Tone.Limiter(-1).toDestination();
+// jedna "aktivní nota" na monofonní vrstvu (melodie/basa/arp) — používá se
+// jen k jemnému dořezání staré noty při "Nová melodie" apod. (viz cutActiveVoice)
+let activeVoiceEnv = { melody:null, bass:null, arp:null };
 
-  chordSynth = new Tone.PolySynth(Tone.Synth, {
-    oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
-  }).connect(masterLimiter);
-  chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
-
-  melodySynth = new Tone.Synth({
-    oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
-  }).connect(masterLimiter);
-  melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
-
-  bassSynth = new Tone.Synth({
-    oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
-  }).connect(masterLimiter);
-  bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
-
-  arpSynth = new Tone.Synth({
-    oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
-  }).connect(masterLimiter);
-  arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
-
-  // bicí: syntetizovaný kit ze čtyř samostatných zdrojů (bez potřeby vzorků)
-  kickSynth = new Tone.MembraneSynth({
-    pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
-    envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
-  }).connect(masterLimiter);
-  kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
-
-  snareSynth = new Tone.NoiseSynth({
-    noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
-  }).connect(masterLimiter);
-  snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
-
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(masterLimiter);
-  hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
-
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(masterLimiter);
-  openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
-}
-
-/* ---- Stavba jednotlivých vrstev přehrávání (Part/Sequence) ----
-   Vytaženo ze startPlayback() do samostatných funkcí, aby stejný kód mohla
-   použít i refreshLayers() níže — ta při úpravě jen JEDNÉ vrstvy (nová
-   melodie, přepnutí stylu basy, úprava kroku v Mini DAW…) zahodí a znovu
-   postaví JEN tu jednu vrstvu, místo aby (jako dřív) zastavovala celý
-   transport a přestavovala úplně všechno (akordy, melodii, basu, arp, bicí
-   i LED smyčku) při každé jednotlivé změně. Každá funkce jen VYTVOŘÍ a
-   nastartuje danou vrstvu (na transportovém čase 0) — o úklid staré
-   instance (stop+dispose) i o releaseAll/triggerRelease starého zvuku se
-   stará volající (buď disposeAll(), nebo refreshLayers() pro tu jednu
-   vrstvu). .start(0) funguje správně, i když transport už běží někde
-   uprostřed skladby — Tone.js si dopočítá, na kterém kroku smyčky se má
-   nová vrstva zrovna nacházet, takže naskočí přesně v rytmu bez cvaknutí. */
-function buildChordPartLayer(){
-  const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
-  chordPart = new Tone.Part((time, ev)=>{
-    if(!chordSynth) return;
-    try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
-  }, chordEvents);
-  chordPart.loop = true;
-  chordPart.loopEnd = `${current.chords.length}m`;
-  chordPart.start(0);
-}
-
-function buildMelodySeqLayer(){
-  // ztlumené kroky (Mini DAW) se do sekvence promítnou jako null — Tone.Sequence
-  // takové "prázdné" kroky přeskočí, nota tedy vůbec nezazní
-  const melFlat = current.melody.flat().map((n,i)=> isMutedFlat(current.melodyMute, i, 4) ? null : n);
-  melSeq = new Tone.Sequence((time, note)=>{
-    if(note==null || !melodySynth) return;
-    try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
-  }, melFlat, '4n');
-  melSeq.loop = true;
-  melSeq.start(0);
-}
-
-function buildBassSeqLayer(){
-  const bassFlat = current.bass.flat().map((n,i)=> isMutedFlat(current.bassMute, i, 4) ? null : n);
-  bassSeq = new Tone.Sequence((time, note)=>{
-    if(note==null || !bassSynth) return;
-    try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
-  }, bassFlat, '4n');
-  bassSeq.loop = true;
-  bassSeq.start(0);
-}
-
-function buildArpSeqLayer(){
-  // arp: 8 kroků osminových not na takt — dvakrát jemnější mřížka než melodie/basa
-  const arpFlat = current.arp.flat().map((n,i)=> isMutedFlat(current.arpMute, i, 8) ? null : n);
-  arpSeq = new Tone.Sequence((time, note)=>{
-    if(note==null || !arpSynth) return;
-    try{ arpSynth.triggerAttackRelease(midiToName(note), '8n', time); }catch(e){ console.warn('arpSeq callback failed', e); }
-  }, arpFlat, '8n');
-  arpSeq.loop = true;
-  arpSeq.start(0);
-}
-
-function buildDrumPartLayer(){
-  // bicí: 16 kroků šestnáctinových not na takt, Tone.Part místo Tone.Sequence
-  // (viz vysvětlení dole u původního volání) — jeden krok může spustit
-  // libovolnou kombinaci kopák/virblík/hi-hat/otevřený hi-hat.
-  const drumEvents = [];
-  current.drums.forEach((pat, barI)=>{
-    for(let s=0;s<16;s++){
-      const hits = [];
-      if(pat.kick[s]) hits.push('kick');
-      if(pat.snare[s]) hits.push('snare');
-      if(pat.hh[s]) hits.push('hh');
-      if(pat.oh[s]) hits.push('oh');
-      if(hits.length){
-        drumEvents.push({ time: `${barI}:${Math.floor(s/4)}:${s%4}`, hits });
-      }
-    }
-  });
-  drumPart = new Tone.Part((time, ev)=>{
-    ev.hits.forEach(h=>{
-      try{
-        if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
-        else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-        else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
-        else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
-      }catch(e){ console.warn('drumPart callback failed', e); }
-    });
-  }, drumEvents);
-  drumPart.loop = true;
-  drumPart.loopEnd = `${current.drums.length}m`;
-  drumPart.start(0);
-}
-
-function disposeAll(){
-  // Only the scheduling objects (Part/Sequence/Loop) get torn down and
-  // rebuilt on every regenerate/stop — they have no pending internal
-  // "voice reclaim" callbacks, so stop()+dispose() on them is always safe.
-  //
-  // The synths themselves (chordSynth/melodySynth/bassSynth) are deliberately
-  // NEVER disposed here anymore. Root cause of the earlier silent-forever bug:
-  // PolySynth schedules an internal callback to reclaim a voice once its
-  // release tail finishes (release=1.2s on chordSynth). If you dispose the
-  // synth while a note is still ringing/releasing, that internal callback
-  // later fires against a disposed synth and throws "Synth was already
-  // disposed" from inside Tone's own shared clock loop (Context._timeoutLoop).
-  // That loop self-reschedules at the end of its run — an uncaught error
-  // there skips the reschedule and kills Tone.js's entire clock permanently
-  // for the rest of the page's life (only a reload fixes it). releaseAll()
-  // alone doesn't reliably prevent this because it only re-triggers the
-  // release envelope; it doesn't cancel the reclaim callback already queued
-  // internally by PolySynth. The only fully race-free fix is to not dispose
-  // the synth in the first place: build it once and reuse it for the whole
-  // session, and just silence it (releaseAll/triggerRelease) between plays.
-  [chordPart, melSeq, bassSeq, arpSeq, drumPart, stepEvent].forEach(o=>{
-    if(o){
-      try{ o.stop(); }catch(e){ console.warn('disposeAll: stop() failed', e); }
-      try{ o.dispose(); }catch(e){ console.warn('disposeAll: dispose() failed', e); }
-    }
-  });
-  chordPart = melSeq = bassSeq = arpSeq = drumPart = stepEvent = null;
-  if(chordSynth){ try{ chordSynth.releaseAll(); }catch(e){ console.warn('disposeAll: chordSynth.releaseAll() failed', e); } }
-  if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('disposeAll: melodySynth.triggerRelease() failed', e); } }
-  if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: bassSynth.triggerRelease() failed', e); } }
-  if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: arpSynth.triggerRelease() failed', e); } }
-  if(kickSynth){ try{ kickSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: kickSynth.triggerRelease() failed', e); } }
-  if(snareSynth){ try{ snareSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: snareSynth.triggerRelease() failed', e); } }
-  if(hihatSynth){ try{ hihatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: hihatSynth.triggerRelease() failed', e); } }
-  if(openhatSynth){ try{ openhatSynth.triggerRelease(); }catch(e){ console.warn('disposeAll: openhatSynth.triggerRelease() failed', e); } }
-  // Hard reset: clear any scheduled events left dangling on the Transport so a
-  // failed stop/dispose above can't leave stale callbacks that block the next
-  // startPlayback() from ever reaching Tone.Transport.start().
-  try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
-}
-
+// fronta LED/pad událostí čekajících na svůj audio-čas (obdoba Tone.Draw.schedule)
+let ledQueue = [];
 let lastLitLed = null, lastLitPad = null;
+
+function secondsFromBpm(bpm){
+  return 60 / bpm / 4; // 60/bpm = délka čtvrťové noty, /4 = délka šestnáctinové
+}
+
+function midiToFreq(m){
+  return 440 * Math.pow(2, (m - 69) / 12);
+}
+
+function buildNoiseBuffer(seconds){
+  const len = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i] = Math.random()*2 - 1;
+  return buf;
+}
+
+function ensureAudioCtx(){
+  if(audioCtx) return;
+  // latencyHint:'playback' místo defaultního 'interactive' — větší interní
+  // buffer, víc rezervy pro slabší CPU, za cenu trochu vyšší (ale tady
+  // nepodstatné) latence. Přesně stejný princip jako u relax.html.
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
+
+  // Master řetěz: <gain jedné vrstvy> -> masterLimiter -> masterVolumeGain -> výstup.
+  // DynamicsCompressor nastavený jako tvrdý limiter (bez kolena, poměr 20:1)
+  // je nativní obdoba dřívějšího Tone.Limiter(-1) — pojistka proti ořezání
+  // při souběhu všech pěti vrstev najednou.
+  masterLimiter = audioCtx.createDynamicsCompressor();
+  masterLimiter.threshold.setValueAtTime(-1, audioCtx.currentTime);
+  masterLimiter.knee.setValueAtTime(0, audioCtx.currentTime);
+  masterLimiter.ratio.setValueAtTime(20, audioCtx.currentTime);
+  masterLimiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
+  masterLimiter.release.setValueAtTime(0.1, audioCtx.currentTime);
+
+  masterVolumeGain = audioCtx.createGain();
+  masterLimiter.connect(masterVolumeGain);
+  masterVolumeGain.connect(audioCtx.destination);
+
+  chordGain = audioCtx.createGain(); chordGain.connect(masterLimiter);
+  melodyGain = audioCtx.createGain(); melodyGain.connect(masterLimiter);
+  bassGain = audioCtx.createGain(); bassGain.connect(masterLimiter);
+  arpGain = audioCtx.createGain(); arpGain.connect(masterLimiter);
+  kickGain = audioCtx.createGain(); kickGain.connect(masterLimiter);
+  snareGain = audioCtx.createGain(); snareGain.connect(masterLimiter);
+  hihatGain = audioCtx.createGain(); hihatGain.connect(masterLimiter);
+  openhatGain = audioCtx.createGain(); openhatGain.connect(masterLimiter);
+
+  noiseBuffer = buildNoiseBuffer(2);
+
+  // Posuvníky (celková hlasitost i mixér) mohly být použité ještě před prvním
+  // Play — teď, když gain uzly konečně existují, na ně dotáhneme jejich
+  // aktuální hodnotu.
+  applyVolume(parseInt(volumeSlider.value,10));
+  ['chords','melody','bass','arp','drums'].forEach(applyMixerVolume);
+}
+
+/* ---- Obálka hlasitosti (ADSR) pro jeden hraný tón ----
+   time = kdy nota začíná; duration = jak dlouho se drží sustain, než
+   začne release (tzn. u Tone odpovídá "attack+release po uplynutí notové
+   hodnoty"); vrací čas, kdy je bezpečné oscilátor/zdroj zastavit. */
+function scheduleADSR(gainParam, time, attack, decay, sustain, duration, release){
+  const sustainStart = time + attack + decay;
+  const releaseStart = Math.max(time + duration, sustainStart);
+  gainParam.cancelScheduledValues(time);
+  gainParam.setValueAtTime(0, time);
+  gainParam.linearRampToValueAtTime(1, time + attack);
+  gainParam.linearRampToValueAtTime(sustain, sustainStart);
+  gainParam.setValueAtTime(sustain, releaseStart);
+  gainParam.linearRampToValueAtTime(0, releaseStart + release);
+  return releaseStart + release;
+}
+
+function playOscVoice(destGain, freq, waveType, time, attack, decay, sustain, duration, release, voiceKey){
+  if(!destGain) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = waveType;
+  osc.frequency.setValueAtTime(freq, time);
+  const env = audioCtx.createGain();
+  osc.connect(env);
+  env.connect(destGain);
+  const endTime = scheduleADSR(env.gain, time, attack, decay, sustain, duration, release);
+  osc.start(time);
+  osc.stop(endTime + 0.05);
+  osc.onended = ()=>{ try{ osc.disconnect(); env.disconnect(); }catch(e){} };
+  if(voiceKey) activeVoiceEnv[voiceKey] = env.gain;
+}
+
+// Okamžitě "podřízne" právě znějící notu monofonní vrstvy (melodie/basa/arp) —
+// obdoba dřívějšího melodySynth.triggerRelease() při refreshLayers(), aby po
+// "Nová melodie"/přepnutí stylu/úpravě v Mini DAW nedozníval kousek staré
+// noty přes tu novou.
+function cutActiveVoice(key){
+  const g = activeVoiceEnv[key];
+  if(!g || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  try{
+    const v = g.value;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(v, now);
+    g.linearRampToValueAtTime(0, now + 0.03);
+  }catch(e){ console.warn('cutActiveVoice selhalo', e); }
+  activeVoiceEnv[key] = null;
+}
+
+function triggerChord(chord, time){
+  const dur = 240 / currentBpm; // 1 takt (4/4) = 4 doby
+  chord.tones.forEach(m=>{
+    playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
+  });
+}
+function triggerMelodyNote(m, time){
+  playOscVoice(melodyGain, midiToFreq(m), 'sine', time, 0.01, 0.2, 0.3, 60/currentBpm, 0.4, 'melody');
+}
+function triggerBassNote(m, time){
+  playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
+}
+function triggerArpNote(m, time){
+  playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
+}
+
+// Kopák: sinusovka s rychlým poklesem výšky (napodobuje Tone.MembraneSynth).
+function triggerKick(time){
+  if(!kickGain) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(45, time + 0.05);
+  const env = audioCtx.createGain();
+  osc.connect(env); env.connect(kickGain);
+  const endTime = scheduleADSR(env.gain, time, 0.001, 0.35, 0.01, 0.35, 0.6);
+  osc.start(time); osc.stop(endTime + 0.05);
+  osc.onended = ()=>{ try{ osc.disconnect(); env.disconnect(); }catch(e){} };
+}
+// Virblík: krátký výsek bílého šumu (napodobuje Tone.NoiseSynth).
+function triggerSnare(time){
+  if(!snareGain || !noiseBuffer) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer; src.loop = true;
+  const env = audioCtx.createGain();
+  src.connect(env); env.connect(snareGain);
+  const endTime = scheduleADSR(env.gain, time, 0.001, 0.18, 0.0001, 0.18, 0.02);
+  src.start(time); src.stop(endTime + 0.05);
+  src.onended = ()=>{ try{ src.disconnect(); env.disconnect(); }catch(e){} };
+}
+// Hi-hat/otevřený hi-hat: šum přes horní propust (napodobuje kovový charakter
+// Tone.MetalSynth, ale mnohem levnějším způsobem — jeden filtr místo FM syntézy).
+function triggerHihatVoice(destGain, time, decay, release){
+  if(!destGain || !noiseBuffer) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer; src.loop = true;
+  const hp = audioCtx.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.setValueAtTime(7000, time);
+  const env = audioCtx.createGain();
+  src.connect(hp); hp.connect(env); env.connect(destGain);
+  const endTime = scheduleADSR(env.gain, time, 0.001, decay, 0.0001, decay, release);
+  src.start(time); src.stop(endTime + 0.05);
+  src.onended = ()=>{ try{ src.disconnect(); hp.disconnect(); env.disconnect(); }catch(e){} };
+}
+function triggerHihat(time){ triggerHihatVoice(hihatGain, time, 0.06, 0.02); }
+function triggerOpenhat(time){ triggerHihatVoice(openhatGain, time, 0.28, 0.15); }
+
+// Čte notu z pole "po taktech" (current.melody/.bass/.arp mají tvar
+// [ [nota,nota,...perBar], [nota,...], ... ]) na globálním indexu i —
+// stejná bar/pozice logika jako isMutedFlat níže v souboru, jen bez
+// vytváření zploštělé kopie pole na každý krok.
+function noteAtFlat(barsArr, i, stepsPerBar){
+  if(!barsArr) return undefined;
+  const barI = Math.floor(i/stepsPerBar), s = i % stepsPerBar;
+  const bar = barsArr[barI];
+  return bar ? bar[s] : undefined;
+}
+
+function scheduleLed(step16, time){
+  const qIdx = Math.floor(step16/4);
+  ledQueue.push({ ledStep: qIdx, time });
+}
+function applyLedStep(s){
+  if(lastLitLed) lastLitLed.classList.remove('lit');
+  const led = document.getElementById('led'+s);
+  if(led){ led.classList.add('lit'); lastLitLed = led; }
+  const padIdx = Math.floor(s/4);
+  if(!lastLitPad || lastLitPad.id !== 'pad'+padIdx){
+    if(lastLitPad) lastLitPad.classList.remove('on');
+    const pad = document.getElementById('pad'+padIdx);
+    if(pad){ pad.classList.add('on'); lastLitPad = pad; }
+  }
+}
+// Běží pořád (i mimo přehrávání je to jen kontrola prázdné fronty jednou za
+// snímek) — obdoba Tone.Draw: DOM se má update-ovat přesně v audio-čase
+// daného kroku, ne hned ve chvíli, kdy scheduler ten krok naplánoval
+// (scheduler je vždy ~0,1s napřed).
+function ledDrawLoop(){
+  if(audioCtx && ledQueue.length){
+    const now = audioCtx.currentTime;
+    while(ledQueue.length && ledQueue[0].time <= now){
+      applyLedStep(ledQueue.shift().ledStep);
+    }
+  }
+  requestAnimationFrame(ledDrawLoop);
+}
+requestAnimationFrame(ledDrawLoop);
 
 function clearLeds(){
   document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
   document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
   lastLitLed = null;
   lastLitPad = null;
+  ledQueue = [];
+}
+
+// Které vrstvy zrovna hrají v aktuálním playMode.
+let playChords=false, playMelody=false, playBass=false, playArp=false, playDrums=false;
+
+/* Naplánuje jeden krok šestnáctinové mřížky v čase `time`. Noty se čtou
+   přímo z `current.*` TEĎ, těsně před naplánováním — díky tomu se každá
+   změna dat (regenerace, přepnutí stylu, Mini DAW mute/octave/reroll)
+   projeví sama od sebe na nejbližším dalším kroku, bez jakéhokoli
+   "rebuildu" vrstvy. */
+function scheduleStep(step16, time){
+  const bar = Math.floor(step16 / 16);
+  const posInBar16 = step16 % 16;
+
+  if(playChords && posInBar16 === 0){
+    const chord = current.chords[bar];
+    if(chord) triggerChord(chord, time);
+  }
+  if(step16 % 4 === 0){
+    const qIdx = step16 / 4;
+    if(playMelody){
+      const note = noteAtFlat(current.melody, qIdx, 4);
+      if(note != null && !isMutedFlat(current.melodyMute, qIdx, 4)) triggerMelodyNote(note, time);
+    }
+    if(playBass){
+      const note = noteAtFlat(current.bass, qIdx, 4);
+      if(note != null && !isMutedFlat(current.bassMute, qIdx, 4)) triggerBassNote(note, time);
+    }
+    scheduleLed(step16, time);
+  }
+  if(step16 % 2 === 0 && playArp){
+    const eIdx = step16 / 2;
+    const note = noteAtFlat(current.arp, eIdx, 8);
+    if(note != null && !isMutedFlat(current.arpMute, eIdx, 8)) triggerArpNote(note, time);
+  }
+  if(playDrums){
+    const pat = current.drums[bar];
+    if(pat){
+      if(pat.kick[posInBar16]) triggerKick(time);
+      if(pat.snare[posInBar16]) triggerSnare(time);
+      if(pat.hh[posInBar16]) triggerHihat(time);
+      if(pat.oh[posInBar16]) triggerOpenhat(time);
+    }
+  }
+}
+
+// Klasický "lookahead" scheduler (viz "A Tale of Two Clocks"): malý interval
+// na hlavním vlákně jen DOPLŇUJE frontu naplánovaných audio-eventů o kousek
+// dopředu (SCHEDULE_AHEAD_TIME), samotné přesné časování ale drží Web Audio
+// API přes přesné AudioContext časy předané do start()/ramp funkcí — jitter
+// setInterval-u (na mobilu klidně několik ms) proto na hörbar (slyšitelné)
+// časování nemá vliv.
+function schedulerLoop(){
+  while(nextStepTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME){
+    scheduleStep(currentStep16, nextStepTime);
+    nextStepTime += secondsPer16th;
+    currentStep16 = (currentStep16 + 1) % totalSteps16;
+  }
+}
+
+function stopScheduler(){
+  if(schedulerTimer){ clearInterval(schedulerTimer); schedulerTimer = null; }
+  ledQueue = [];
 }
 
 async function startPlayback(mode, resumeAt){
   mode = ['chords','melody','bass','arp','drums'].includes(mode) ? mode : 'full';
   if(!current) return;
-  if(!toneAvailable()){
-    showStatus('Přehrávání není dostupné — nepodařilo se načíst zvukovou knihovnu (zkontroluj připojení k internetu)');
+  if(!audioAvailable()){
+    showStatus('Přehrávání není dostupné — tenhle prohlížeč nepodporuje Web Audio API');
     return;
   }
   const myToken = ++playToken;
@@ -1968,90 +2104,38 @@ async function startPlayback(mode, resumeAt){
   const playDrumsBtnEl = document.getElementById('playDrumsBtn');
   const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
   allBtns.forEach(b=>b.disabled = true);
-  await Tone.start();
+
+  ensureAudioCtx();
+  // Mobilní prohlížeče (a i Safari na desktopu) drží nový AudioContext v
+  // 'suspended' stavu, dokud ho nepustí gesto uživatele — kliknutí na Play
+  // gestem je, takže resume() tu vždy uspěje.
+  if(audioCtx.state === 'suspended'){
+    try{ await audioCtx.resume(); }catch(e){ console.warn('audioCtx.resume() selhalo', e); }
+  }
+
   allBtns.forEach(b=>b.disabled = false);
-  if(myToken !== playToken) return; // a stop/newer start happened while we were awaiting Tone.start()
-  disposeAll();
-  buildSynths();
-  Tone.Transport.bpm.value = current.tempo;
+  if(myToken !== playToken) return; // mezitím přišel novější stop/start
 
-  // Které části hrají v daném režimu: 'full' přehraje všechny tři,
-  // ostatní režimy izolují jen jednu část pro samostatné poslechnutí.
-  const playChords = mode === 'full' || mode === 'chords';
-  const playMelody = mode === 'full' || mode === 'melody';
-  const playBass   = mode === 'full' || mode === 'bass';
-  const playArp    = mode === 'full' || mode === 'arp';
-  const playDrums  = mode === 'full' || mode === 'drums';
+  stopScheduler();
 
-  // Skutečná nalezená (a ověřená) chyba, ne dohad, u bicích (viz buildDrumPartLayer
-  // výše): MetalSynth.triggerAttackRelease má signaturu (note, duration, time), ale
-  // dřív se volalo jen se dvěma argumenty — (duration, time) jako u NoiseSynth/snare.
-  // Výsledek: '32n' skončilo jako NOTA (frekvence ~16 Hz, skoro mimo slyšitelné pásmo)
-  // a skutečný čas (time) skončil jako DURATION, takže se hi-hat spustil prakticky
-  // HNED po doběhnutí JS callbacku místo přesně na tu čtvrtinu/osminu. Opraveno na
-  // správné pořadí argumentů + rozumná nota; nástroj i zvuk zůstávají beze změny.
-  if(playChords) buildChordPartLayer();
+  const playChordsNow = mode === 'full' || mode === 'chords';
+  const playMelodyNow = mode === 'full' || mode === 'melody';
+  const playBassNow   = mode === 'full' || mode === 'bass';
+  const playArpNow    = mode === 'full' || mode === 'arp';
+  const playDrumsNow  = mode === 'full' || mode === 'drums';
+  playChords = playChordsNow; playMelody = playMelodyNow; playBass = playBassNow;
+  playArp = playArpNow; playDrums = playDrumsNow;
 
-  // LED mřížka je vždy na čtvrťových krocích (4 na takt), bez ohledu na to,
-  // které vrstvy zrovna hrají — pro synchronizaci s vizuální mřížkou taktů.
-  const totalSteps = current.chords.length * 4;
+  currentBpm = current.tempo;
+  secondsPer16th = secondsFromBpm(currentBpm);
+  totalSteps16 = current.chords.length * 16;
+  currentStep16 = 0;
+  nextStepTime = audioCtx.currentTime + 0.05;
+  clearLeds();
 
-  if(playMelody) buildMelodySeqLayer();
-  if(playBass) buildBassSeqLayer();
-  if(playArp) buildArpSeqLayer();
-  if(playDrums) buildDrumPartLayer();
+  schedulerLoop(); // naplánuj hned první dávku, ať se nečeká na první tick intervalu
+  schedulerTimer = setInterval(schedulerLoop, SCHEDULER_INTERVAL_MS);
 
-  // LED krok se dřív počítal z lokální proměnné `step`, kterou tahle funkce
-  // pokaždé nastavila zpátky na 0 — což bylo v pořádku jen dokud startPlayback()
-  // opravdu spouštěla celou skladbu od začátku. Jakmile ale cokoliv za běhu
-  // přehrávání zavolalo refreshLayers() (nová melodie/basa/arp/bicí, změna stylu,
-  // úprava kroku v Mini DAW), reálná hudba pokračovala správně dál (Part/Sequence
-  // objekty počítají svou pozici z absolutního transportového času, ne z týhle
-  // proměnné) — ale LED mřížka a tečky nad takty se přesto vrátily na začátek a
-  // ukazovaly úplně jiný krok/takt, než který právě hrál. Přesně tohle je to
-  // "na monitoru to nesedí, co je za takt" hlášení. Řešení: LED krok se teď
-  // dopočítává přímo z aktuální pozice transportu (v tikách), takže je vždy
-  // správně, ať už stepEvent vznikl při startu od nuly, nebo (dřív) uprostřed
-  // skladby — a navíc po tomhle refaktoru refreshLayers() stepEvent při úpravě
-  // jedné vrstvy vůbec nezahazuje, takže LED mřížka teď při běžné editaci za
-  // chodu vůbec neproblikne/neresetuje.
-  let step = 0; // záložní počítadlo jen pro nepravděpodobný případ, že by getTicksAtTime() selhalo
-  stepEvent = new Tone.Loop((time)=>{
-    let s;
-    try{
-      const ticks = Tone.Transport.getTicksAtTime(time);
-      s = Math.round(ticks / Tone.Transport.PPQ) % totalSteps;
-    }catch(e){
-      console.warn('stepEvent: getTicksAtTime selhalo, používám záložní počítadlo', e);
-      s = step % totalSteps;
-    }
-    Tone.Draw.schedule(()=>{
-      // Přepíná jen dva konkrétní prvky (předchozí zhasnout, nový rozsvítit)
-      // místo clearLeds() přes celý dokument na každou čtvrťovou notu —
-      // menší práce pro hlavní vlákno na každý úder, ať víc prostoru
-      // zbývá na plánování zvuku.
-      if(lastLitLed) lastLitLed.classList.remove('lit');
-      const led = document.getElementById('led'+s);
-      if(led){ led.classList.add('lit'); lastLitLed = led; }
-      const padIdx = Math.floor(s/4);
-      if(!lastLitPad || lastLitPad.id !== 'pad'+padIdx){
-        if(lastLitPad) lastLitPad.classList.remove('on');
-        const pad = document.getElementById('pad'+padIdx);
-        if(pad){ pad.classList.add('on'); lastLitPad = pad; }
-      }
-    }, time);
-    step++;
-  }, '4n');
-  stepEvent.start(0);
-
-  // resumeAt je dnes už jen záložní parametr pro případný budoucí volající —
-  // Mini DAW i tlačítka "Nová melodie/basa/arp/bicí" a výběr stylu teď za
-  // běhu jedou přes refreshLayers() (viz níže), která přestaví jen tu jednu
-  // dotčenou vrstvu a transportem vůbec nehýbe. Skutečný nový start (tlačítko
-  // Přehrát, Vygenerovat postup apod.) resumeAt nepředává, takže se pořád
-  // normálně začíná od nuly.
-  Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
-  Tone.Transport.start();
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Zastavit' : '▶ Přehrát';
@@ -2063,12 +2147,9 @@ async function startPlayback(mode, resumeAt){
 }
 
 function stopPlayback(){
-  playToken++; // cancel any startPlayback() still waiting on Tone.start()
-  if(toneAvailable()){
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-  }
-  disposeAll();
+  playToken++;
+  stopScheduler();
+  playChords = playMelody = playBass = playArp = playDrums = false;
   clearLeds();
   isPlaying = false;
   playMode = null;
@@ -2083,60 +2164,25 @@ function stopPlayback(){
 /* Zavolá se po přegenerování/úpravě jen NĚKTERÝCH vrstev (nová melodie,
    nová basa, přepnutí stylu arpeggia, reroll taktu, úprava kroku v Mini
    DAW…), aby byla změna za běhu slyšet i vidět okamžitě.
-   Pokud právě nic nehraje, nedělá se nic — netřeba přehrávání spouštět násilím.
 
-   DŘÍVE tohle dělal refreshPlayback(): úplný stop+restart celého audio
-   enginu (zastavit transport, zahodit VŠECH pět vrstev + LED smyčku,
-   postavit je znovu, přeskočit transport zpátky na zapamatovanou pozici,
-   znovu spustit). To mělo dva reálné problémy, na které uživatel narazil:
-   1) LED mřížka a tečky nad takty se při tom pokaždé na okamžik vrátily na
-      úplný začátek (viz komentář u počítadla `step` ve startPlayback) —
-      i když hudba samotná pokračovala správně dál, vypadalo to (a chvilku
-      i bylo), že se vizuálně "rozjelo" a neodpovídá aktuálnímu taktu.
-   2) Kompletní zahození a znovupostavení VŠECH pěti vrstev + zastavení a
-      restart transportu na KAŽDOU jednotlivou úpravu (i když se ve
-      skutečnosti změnila třeba jen basová linka) je zbytečně těžká operace
-      pro hlavní vlákno. Po několika takových úpravách za sebou to na
-      některých počítačích/prohlížečích vedlo k tomu, že přehrávání zase
-      začalo praskat/sekat — stejná rodina problémů jako dřívější sekání
-      v Firefoxu, jen znovu vyvolaná četností těch kompletních přestaveb.
-
-   NOVĚ refreshLayers() zahodí a znovu postaví JEN tu konkrétní vrstvu
-   (nebo vrstvy), které se opravdu změnily — transport přitom vůbec
-   nezastavuje ani nepřesouvá a LED smyčku (stepEvent) nechává běžet dál
-   beze změny, takže mřížka nikdy neproblikne/neresetuje a zátěž na úpravu
-   je zlomková oproti dřívějšímu "zahoď a postav znovu úplně všechno". */
+   S tímhle enginem není co "přestavět" — scheduleStep() čte current.melody/
+   .bass/.arp/...Mute vždy čerstvě těsně před naplánováním kroku, takže
+   nová data se sama od sebe uplatní na nejbližší další notě. Jediné, co
+   tahle funkce reálně dělá, je okamžitě podříznout PRÁVĚ znějící notu dané
+   vrstvy (viz cutActiveVoice) — jinak by starý tón ještě chvíli dozníval
+   přes ten nový. U bicích není co podřezávat (jednotlivé rány jsou krátké
+   a nepřekrývají se). Funkce zůstává zachovaná (i s debounce variantou)
+   jen proto, aby všechna volání refreshLayersDebounced() po celém souboru
+   fungovala beze změny. */
 function refreshLayers(layers){
-  if(!isPlaying || !current || !toneAvailable()) return;
+  if(!isPlaying) return;
   layers.forEach(layer=>{
-    if(layer==='melody'){
-      if(!(playMode==='full' || playMode==='melody')) return; // tahle vrstva teď vůbec nehraje
-      if(melSeq){ try{ melSeq.stop(); melSeq.dispose(); }catch(e){ console.warn('refreshLayers: melSeq dispose selhal', e); } melSeq=null; }
-      if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: melodySynth.triggerRelease selhal', e); } }
-      buildMelodySeqLayer();
-    } else if(layer==='bass'){
-      if(!(playMode==='full' || playMode==='bass')) return;
-      if(bassSeq){ try{ bassSeq.stop(); bassSeq.dispose(); }catch(e){ console.warn('refreshLayers: bassSeq dispose selhal', e); } bassSeq=null; }
-      if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: bassSynth.triggerRelease selhal', e); } }
-      buildBassSeqLayer();
-    } else if(layer==='arp'){
-      if(!(playMode==='full' || playMode==='arp')) return;
-      if(arpSeq){ try{ arpSeq.stop(); arpSeq.dispose(); }catch(e){ console.warn('refreshLayers: arpSeq dispose selhal', e); } arpSeq=null; }
-      if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: arpSynth.triggerRelease selhal', e); } }
-      buildArpSeqLayer();
-    } else if(layer==='drums'){
-      if(!(playMode==='full' || playMode==='drums')) return;
-      if(drumPart){ try{ drumPart.stop(); drumPart.dispose(); }catch(e){ console.warn('refreshLayers: drumPart dispose selhal', e); } drumPart=null; }
-      [kickSynth, snareSynth, hihatSynth, openhatSynth].forEach(s=>{ if(s){ try{ s.triggerRelease(); }catch(e){ console.warn('refreshLayers: drum synth triggerRelease selhal', e); } } });
-      buildDrumPartLayer();
-    }
+    if(layer==='melody' && (playMode==='full'||playMode==='melody')) cutActiveVoice('melody');
+    else if(layer==='bass' && (playMode==='full'||playMode==='bass')) cutActiveVoice('bass');
+    else if(layer==='arp' && (playMode==='full'||playMode==='arp')) cutActiveVoice('arp');
   });
 }
 
-// Sbírá vrstvy dotčené rychle po sobě jdoucími úpravami (tažení přes víc
-// bubnových buněk, zkoušení víc not v řadě…) a skutečnou přestavbu spustí
-// až 150 ms po poslední z nich — stejný debounce jako dřív, jen teď
-// pracuje nad konkrétním seznamem vrstev místo nad "přestav úplně vše".
 let pendingRefreshLayers = new Set();
 let refreshPlaybackDebounceTimer = null;
 function refreshLayersDebounced(layers){
