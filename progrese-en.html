@@ -1512,6 +1512,21 @@ const volumeVal = document.getElementById('volumeVal');
 function toneAvailable(){
   return typeof Tone !== "undefined";
 }
+
+// Warm up the audio context on the very first touch/click anywhere on the
+// page — before the user even reaches the Play button. Mobile (especially
+// PWA) browsers can have a brief spin-up period right after an AudioContext
+// first "wakes up"; getting that wake-up out of the way here quietly (no
+// sound) means the real first playback lands on an already-warm context and
+// shouldn't crackle.
+function primeAudioContext(){
+  if(!toneAvailable()) return;
+  try{ Tone.start().catch(()=>{}); }catch(e){}
+}
+['touchstart','pointerdown','click'].forEach(evt=>{
+  document.addEventListener(evt, primeAudioContext, { once:true, passive:true });
+});
+
 function applyVolume(percent){
   // 0% = silence, 100% = full volume (0 dB); linear dB scale in between
   if(!toneAvailable()) return;
@@ -2001,7 +2016,12 @@ async function startPlayback(mode, resumeAt){
   // fresh start/stop (the Play button, Generate progression, etc.) doesn't
   // pass anything, so those still normally start from zero.
   Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
-  Tone.Transport.start();
+  // Start a few tens of ms in the future instead of "right now" — on mobile
+  // (especially in a PWA) the audio context can still be spinning up briefly
+  // after Tone.start(), and the very first scheduled render can crackle.
+  // This margin gives the hardware a moment to settle before it has to
+  // produce real audio.
+  Tone.Transport.start('+0.15');
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Stop' : '▶ Play';

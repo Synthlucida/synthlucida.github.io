@@ -1511,6 +1511,21 @@ const volumeVal = document.getElementById('volumeVal');
 function toneAvailable(){
   return typeof Tone !== "undefined";
 }
+
+// Zahřátí audio kontextu na úplně první dotyk/kliknutí kdekoliv na stránce —
+// dřív, než uživatel vůbec stihne najet na tlačítko Přehrát. Mobilní (hlavně
+// PWA) prohlížeče mívají po prvním "probuzení" AudioContextu krátkou chvíli,
+// kdy hardware teprve najíždí na plný výkon; když se toto probuzení odbyde
+// tady potichu (bez hraní), skutečné první spuštění hudby už dopadne na
+// zahřátý kontext a nemělo by prasknout.
+function primeAudioContext(){
+  if(!toneAvailable()) return;
+  try{ Tone.start().catch(()=>{}); }catch(e){}
+}
+['touchstart','pointerdown','click'].forEach(evt=>{
+  document.addEventListener(evt, primeAudioContext, { once:true, passive:true });
+});
+
 function applyVolume(percent){
   // 0% = ticho, 100% = plná hlasitost (0 dB); mezi tím lineární škála v dB
   if(!toneAvailable()) return;
@@ -1999,7 +2014,11 @@ async function startPlayback(mode, resumeAt){
   // (tlačítko Přehrát, Vygenerovat postup apod.) nic nepředává, takže tam
   // se pořád normálně začíná od nuly.
   Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
-  Tone.Transport.start();
+  // Start pár desítek ms v budoucnu místo "hned teď" — audio kontext se na
+  // mobilu (hlavně v PWA) může chvíli po Tone.start() ještě "rozjíždět" a
+  // úplně první naplánovaný render může zapraskat. Tahle rezerva dá
+  // hardwaru čas se ustálit dřív, než potřebuje vydat první reálný zvuk.
+  Tone.Transport.start('+0.15');
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Zastavit' : '▶ Přehrát';
