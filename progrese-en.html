@@ -429,6 +429,53 @@
     .mixer-row .mixer-label{min-width:74px; font-size:11.5px;}
   }
 
+  /* ===== Mini DAW ===== */
+  .daw-empty{color:var(--text-dim); font-size:12.5px; padding:4px 0;}
+  .daw-bartabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;}
+  .daw-bartab{
+    font-family:inherit; font-size:11.5px; border-radius:6px; padding:6px 11px; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg); color:var(--text-dim);
+  }
+  .daw-bartab:hover{border-color:#5a5040;}
+  .daw-bartab.active{background:var(--amber); color:#1c1208; border-color:var(--amber); font-weight:700;}
+  .daw-track{margin-bottom:18px;}
+  .daw-track:last-child{margin-bottom:0;}
+  .daw-track-label{
+    display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--text-dim);
+    margin-bottom:9px; text-transform:uppercase; letter-spacing:0.05em;
+  }
+  .daw-steps{display:flex; gap:6px; flex-wrap:wrap;}
+  .daw-note-step{display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .daw-oct-btn{
+    font-family:inherit; font-size:9px; line-height:1; border:1px solid var(--line); background:var(--bg);
+    color:var(--text-dim); border-radius:4px; padding:2px 6px; cursor:pointer;
+  }
+  .daw-oct-btn:hover{border-color:var(--amber); color:var(--amber);}
+  .daw-note-pill{
+    font-family: ui-monospace, monospace; font-size:11px; border:1px solid var(--line); background:var(--panel-2);
+    color:var(--text); border-radius:6px; padding:6px 8px; cursor:pointer; min-width:44px; text-align:center;
+    transition:opacity .12s, border-color .12s;
+  }
+  .daw-note-pill:hover{border-color:var(--amber);}
+  .daw-note-pill.muted{opacity:0.35; text-decoration:line-through;}
+  .daw-drum-row{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .daw-drum-row:last-child{margin-bottom:0;}
+  .daw-drum-label{font-size:10.5px; color:var(--text-dim); min-width:52px; flex-shrink:0;}
+  .daw-drum-cells{display:flex; gap:4px; flex-wrap:wrap;}
+  .daw-step-drum{
+    width:18px; height:18px; border-radius:4px; border:1px solid var(--line); background:var(--bg);
+    cursor:pointer; padding:0;
+  }
+  .daw-step-drum:hover{border-color:#5a5040;}
+  .daw-step-drum.on{background:var(--sky); border-color:var(--sky);}
+  .daw-step-drum.bar4{margin-left:6px;}
+  .daw-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;}
+  @media (max-width:480px){
+    .daw-note-pill{min-width:36px; font-size:10px; padding:5px 6px;}
+    .daw-step-drum{width:15px; height:15px;}
+    .daw-drum-label{min-width:42px; font-size:10px;}
+  }
+
   .promo{
     background:linear-gradient(135deg, #1c2a27, #17201d 60%, var(--panel));
     border:1px solid #2f4b43;
@@ -741,6 +788,29 @@
     </div>
   </details>
 
+  <details class="panel" id="miniDawPanel">
+    <summary class="theory-summary">
+      <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px;">Mini DAW</h2>
+      <span class="theory-caret" aria-hidden="true">+</span>
+    </summary>
+    <div class="theory-body">
+      <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:0 0 16px;">
+        Fine-tune the generated progression step by step — pick a bar, mute individual notes
+        or drum hits, shift a note up or down an octave, or just re-roll this one bar. Edits
+        show up in playback and MIDI export right away.
+      </p>
+      <div class="daw-empty" id="dawEmpty">Generate a progression first, then fine-tune it here.</div>
+      <div id="dawContent" style="display:none;">
+        <div class="daw-bartabs" id="dawBarTabs"></div>
+        <div class="daw-tracks" id="dawTracks"></div>
+        <div class="daw-actions">
+          <button type="button" class="cta" id="dawRerollBtn">🎲 Re-roll this bar</button>
+          <button type="button" class="cta primary" id="dawExportBtn">⇩ Export edited version</button>
+        </div>
+      </div>
+    </div>
+  </details>
+
   <div class="panel" id="resultPanel">
     <div class="empty" id="emptyMsg">Pick a key and mood, then click “Generate progression”.</div>
     <div id="resultContent" style="display:none;">
@@ -818,6 +888,17 @@
       <div class="info-step">
         <div class="info-num">04</div>
         <div>
+          <h3>Fine-tune the volume and the notes</h3>
+          <p>The "Instrument mixer" panel balances the volume of chords, melody, bass, arp and drums
+          independently. The "Mini DAW" panel then lets you pick any bar and mute individual melody,
+          bass, arp or drum steps, shift a note up or down an octave, or just re-roll that one bar if
+          it isn't working — the rest of the progression stays untouched. Every edit updates playback
+          and the MIDI export immediately.</p>
+        </div>
+      </div>
+      <div class="info-step">
+        <div class="info-num">05</div>
+        <div>
           <h3>Play it, or export it</h3>
           <p>The Play button starts an 8-bar loop right in your browser — the whole mix, or just one
           layer at a time (chords only / melody only / bass only / arp only / drums only). MIDI export downloads a
@@ -858,6 +939,14 @@
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I use the exported MIDI files without restriction?</h3>
       <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes. Any MIDI file you generate and download here is yours to use freely — in personal or commercial music, with no license fees, credit, or attribution required.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I set the volume of each instrument separately?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Instrument mixer" panel lets you set the volume of chords, melody, bass, arp and drums independently, so you can tuck a layer back or bring it forward before you play or export.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I edit individual notes after generating a progression?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes, in the "Mini DAW" panel. Pick a bar and mute individual melody, bass, arp or drum steps, shift a note up or down an octave, or re-roll just that one bar. Edits show up in playback and the MIDI export right away.</p>
     </div>
   </div>
 
@@ -951,6 +1040,8 @@
       <a href="https://synthlucida.com/webzen.html">Webzenith</a>
       <span aria-hidden="true">·</span>
       <a href="https://relaxplayer.eu">Relax Player</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://synthlucida.com/relax-landing.html">Ambient Flow</a>
       <span aria-hidden="true">·</span>
       <a href="https://noctuarytarot.com">Tarot</a>
       <span aria-hidden="true">·</span>
@@ -1204,7 +1295,14 @@ function genArp(chords, style){
    picks a pattern for every bar of the progression — either a fixed one (a
    specific style) or a fresh random one each time (Auto), same as the other layers. */
 function genDrums(chords, style){
-  return chords.map(()=> pickPattern(DRUM_PATTERNS, style));
+  // Clone the pattern's arrays (kick/snare/hh/oh) — pickPattern returns a
+  // direct reference into DRUM_PATTERNS, and without this two bars (or the
+  // Mini DAW editor) could silently end up sharing the same array, so
+  // editing one bar would leak into the other (and into the template itself).
+  return chords.map(()=>{
+    const p = pickPattern(DRUM_PATTERNS, style);
+    return { name:p.name, kick:p.kick.slice(), snare:p.snare.slice(), hh:p.hh.slice(), oh:p.oh.slice() };
+  });
 }
 
 /* A progression entry is either a plain scale degree (number, using the
@@ -1483,6 +1581,8 @@ document.getElementById('genBtn').addEventListener('click', ()=>{
   renderProgression(current);
   setResultButtonsEnabled(true);
   stopPlayback();
+  dawBarIndex = 0;
+  refreshDawIfOpen();
   showStatus(`Generated ${current.rootName} ${VIBES[selectedVibe].name} progression`);
 });
 
@@ -1493,6 +1593,8 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
   current.tempo = parseInt(tempoSlider.value,10) || current.tempo;
   renderProgression(current);
   stopPlayback();
+  dawBarIndex = 0;
+  refreshDawIfOpen();
   showStatus('New variation generated');
 });
 
@@ -1500,6 +1602,7 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `New melody generated — ${name}` : 'New melody generated');
 });
@@ -1508,6 +1611,7 @@ document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `New bass line generated — ${name}` : 'New bass line generated');
 });
@@ -1516,6 +1620,7 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.arp = genArp(current.chords, arpStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `New arp generated — ${name}` : 'New arp generated');
 });
@@ -1524,6 +1629,7 @@ document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.drums = genDrums(current.chords, drumStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `New drums generated — ${name}` : 'New drums generated');
 });
@@ -1537,6 +1643,7 @@ melodyStyleSelect.addEventListener('change', ()=>{
   }
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Melody style: ${name}` : 'Melody style: Auto (varies per bar)');
 });
@@ -1548,6 +1655,7 @@ bassStyleSelect.addEventListener('change', ()=>{
   }
   current.bass = genBass(current.chords, bassStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Bass style: ${name}` : 'Bass style: Auto (varies per bar)');
 });
@@ -1559,6 +1667,7 @@ arpStyleSelect.addEventListener('change', ()=>{
   }
   current.arp = genArp(current.chords, arpStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Arp style: ${name}` : 'Arp style: Auto (varies per bar)');
 });
@@ -1570,6 +1679,7 @@ drumStyleSelect.addEventListener('change', ()=>{
   }
   current.drums = genDrums(current.chords, drumStyleSelect.value);
   refreshPlayback();
+  refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Drum style: ${name}` : 'Drum style: Auto (varies per bar)');
 });
@@ -1724,9 +1834,11 @@ async function startPlayback(mode){
   const totalSteps = current.chords.length * 4;
 
   if(playMelody){
-    const melFlat = current.melody.flat();
+    // steps muted in the Mini DAW are passed through as null — Tone.Sequence
+    // skips a null step entirely, so the note simply doesn't sound
+    const melFlat = current.melody.flat().map((n,i)=> isMutedFlat(current.melodyMute, i, 4) ? null : n);
     melSeq = new Tone.Sequence((time, note)=>{
-      if(!melodySynth) return;
+      if(note==null || !melodySynth) return;
       try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
     }, melFlat, '4n');
     melSeq.loop = true;
@@ -1734,9 +1846,9 @@ async function startPlayback(mode){
   }
 
   if(playBass){
-    const bassFlat = current.bass.flat();
+    const bassFlat = current.bass.flat().map((n,i)=> isMutedFlat(current.bassMute, i, 4) ? null : n);
     bassSeq = new Tone.Sequence((time, note)=>{
-      if(!bassSynth) return;
+      if(note==null || !bassSynth) return;
       try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
     }, bassFlat, '4n');
     bassSeq.loop = true;
@@ -1745,9 +1857,9 @@ async function startPlayback(mode){
 
   if(playArp){
     // arp: 8 eighth-note steps per bar — twice as fine a grid as melody/bass
-    const arpFlat = current.arp.flat();
+    const arpFlat = current.arp.flat().map((n,i)=> isMutedFlat(current.arpMute, i, 8) ? null : n);
     arpSeq = new Tone.Sequence((time, note)=>{
-      if(!arpSynth) return;
+      if(note==null || !arpSynth) return;
       try{ arpSynth.triggerAttackRelease(midiToName(note), '8n', time); }catch(e){ console.warn('arpSeq callback failed', e); }
     }, arpFlat, '8n');
     arpSeq.loop = true;
@@ -1936,9 +2048,10 @@ function exportMidi(){
     });
   });
 
-  // melody + bass: quarter notes, 16 steps
+  // melody + bass: quarter notes, 16 steps (steps muted in the Mini DAW are skipped)
   const melodyEvents = [];
   current.melody.flat().forEach((n,i)=>{
+    if(isMutedFlat(current.melodyMute, i, 4)) return;
     const start = i * TPQN;
     melodyEvents.push({tick:start, type:'on', note:n, vel:95, channel:1});
     melodyEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:1});
@@ -1946,6 +2059,7 @@ function exportMidi(){
 
   const bassEvents = [];
   current.bass.flat().forEach((n,i)=>{
+    if(isMutedFlat(current.bassMute, i, 4)) return;
     const start = i * TPQN;
     bassEvents.push({tick:start, type:'on', note:n, vel:100, channel:2});
     bassEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:2});
@@ -1955,6 +2069,7 @@ function exportMidi(){
   const arpEvents = [];
   const eighthTicks = TPQN / 2;
   current.arp.flat().forEach((n,i)=>{
+    if(isMutedFlat(current.arpMute, i, 8)) return;
     const start = i * eighthTicks;
     arpEvents.push({tick:start, type:'on', note:n, vel:85, channel:3});
     arpEvents.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:3});
@@ -2019,12 +2134,14 @@ function buildPartEvents(part){
     });
   } else if(part === 'melody'){
     current.melody.flat().forEach((n,i)=>{
+      if(isMutedFlat(current.melodyMute, i, 4)) return;
       const start = i * TPQN;
       events.push({tick:start, type:'on', note:n, vel:95, channel:0});
       events.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:0});
     });
   } else if(part === 'bass'){
     current.bass.flat().forEach((n,i)=>{
+      if(isMutedFlat(current.bassMute, i, 4)) return;
       const start = i * TPQN;
       events.push({tick:start, type:'on', note:n, vel:100, channel:0});
       events.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:0});
@@ -2032,6 +2149,7 @@ function buildPartEvents(part){
   } else if(part === 'arp'){
     const eighthTicks = TPQN / 2;
     current.arp.flat().forEach((n,i)=>{
+      if(isMutedFlat(current.arpMute, i, 8)) return;
       const start = i * eighthTicks;
       events.push({tick:start, type:'on', note:n, vel:85, channel:0});
       events.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:0});
@@ -2088,6 +2206,193 @@ document.getElementById('exportMelodyBtn').addEventListener('click', ()=>exportM
 document.getElementById('exportBassBtn').addEventListener('click', ()=>exportMidiPart('bass'));
 document.getElementById('exportArpBtn').addEventListener('click', ()=>exportMidiPart('arp'));
 document.getElementById('exportDrumsBtn').addEventListener('click', ()=>exportMidiPart('drums'));
+
+/* ================= MINI DAW ================= */
+/* Lets you fine-tune a generated progression step by step: mute individual
+   melody/bass/arp notes or drum hits, shift a note up or down an octave, or
+   re-roll just one selected bar. Everything is stored directly on `current`
+   (mute masks live alongside it as current.melodyMute/bassMute/arpMute — same
+   shape as current.melody/bass/arp), so playback and the MIDI export above
+   automatically work off the edited version with no extra wiring needed. */
+let dawBarIndex = 0;
+
+function clampNote(n){ return Math.max(0, Math.min(127, n)); }
+
+/* Fills in the mute masks if they're missing or don't match the current bar
+   count (a freshly generated progression) — called every time the editor
+   is (re)rendered. */
+function ensureDawState(cur){
+  if(!cur) return;
+  if(!cur.melodyMute || cur.melodyMute.length !== cur.melody.length){
+    cur.melodyMute = cur.melody.map(bar=>bar.map(()=>false));
+  }
+  if(!cur.bassMute || cur.bassMute.length !== cur.bass.length){
+    cur.bassMute = cur.bass.map(bar=>bar.map(()=>false));
+  }
+  if(!cur.arpMute || cur.arpMute.length !== cur.arp.length){
+    cur.arpMute = cur.arp.map(bar=>bar.map(()=>false));
+  }
+}
+
+/* i = flat index across every bar (same order as current.melody.flat());
+   stepsPerBar = 4 for melody/bass, 8 for arp. */
+function isMutedFlat(muteArr, i, stepsPerBar){
+  if(!muteArr) return false;
+  const barI = Math.floor(i/stepsPerBar), s = i % stepsPerBar;
+  return !!(muteArr[barI] && muteArr[barI][s]);
+}
+
+function refreshDawIfOpen(){
+  const panel = document.getElementById('miniDawPanel');
+  if(panel && panel.open) renderMiniDaw();
+}
+
+/* Re-rolls just one selected bar (melody, bass, arp and drums together),
+   using whichever style is currently picked in the dropdowns — and clears
+   any muted steps in that bar, so a re-roll behaves like a clean fresh start. */
+function rerollBar(barI){
+  if(!current) return;
+  ensureDawState(current);
+  const oneChord = [current.chords[barI]];
+  current.melody[barI] = genMelody(oneChord, melodyStyleSelect.value)[0];
+  current.bass[barI] = genBass(oneChord, bassStyleSelect.value)[0];
+  current.arp[barI] = genArp(oneChord, arpStyleSelect.value)[0];
+  current.drums[barI] = genDrums(oneChord, drumStyleSelect.value)[0];
+  current.melodyMute[barI] = current.melodyMute[barI].map(()=>false);
+  current.bassMute[barI] = current.bassMute[barI].map(()=>false);
+  current.arpMute[barI] = current.arpMute[barI].map(()=>false);
+  refreshPlayback();
+  renderMiniDaw();
+  showStatus(`Bar ${barI+1} re-rolled`);
+}
+
+function renderMiniDaw(){
+  const emptyEl = document.getElementById('dawEmpty');
+  const contentEl = document.getElementById('dawContent');
+  if(!current){
+    emptyEl.style.display = 'block';
+    contentEl.style.display = 'none';
+    return;
+  }
+  ensureDawState(current);
+  if(dawBarIndex >= current.chords.length) dawBarIndex = 0;
+  emptyEl.style.display = 'none';
+  contentEl.style.display = 'block';
+
+  const tabsEl = document.getElementById('dawBarTabs');
+  tabsEl.innerHTML = '';
+  current.chords.forEach((c,i)=>{
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'daw-bartab' + (i===dawBarIndex ? ' active' : '');
+    btn.textContent = `${i+1} · ${c.symbol}`;
+    btn.addEventListener('click', ()=>{ dawBarIndex = i; renderMiniDaw(); });
+    tabsEl.appendChild(btn);
+  });
+
+  const tracksEl = document.getElementById('dawTracks');
+  tracksEl.innerHTML = '';
+
+  function noteTrack(label, dotClass, notesArr, muteArr, barI){
+    const track = document.createElement('div');
+    track.className = 'daw-track';
+    const labelEl = document.createElement('div');
+    labelEl.className = 'daw-track-label';
+    labelEl.innerHTML = `<span class="dot ${dotClass}"></span>${label}`;
+    track.appendChild(labelEl);
+    const stepsEl = document.createElement('div');
+    stepsEl.className = 'daw-steps';
+    notesArr[barI].forEach((note, stepI)=>{
+      const wrap = document.createElement('div');
+      wrap.className = 'daw-note-step';
+
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button'; upBtn.className = 'daw-oct-btn'; upBtn.textContent = '▲';
+      upBtn.title = 'Octave up';
+      upBtn.addEventListener('click', ()=>{
+        notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] + 12);
+        refreshPlayback(); renderMiniDaw();
+      });
+
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      const muted = !!(muteArr[barI] && muteArr[barI][stepI]);
+      pill.className = 'daw-note-pill' + (muted ? ' muted' : '');
+      pill.textContent = midiToName(note);
+      pill.title = muted ? 'Click to unmute this step' : 'Click to mute this step';
+      pill.addEventListener('click', ()=>{
+        muteArr[barI][stepI] = !muteArr[barI][stepI];
+        refreshPlayback(); renderMiniDaw();
+      });
+
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button'; downBtn.className = 'daw-oct-btn'; downBtn.textContent = '▼';
+      downBtn.title = 'Octave down';
+      downBtn.addEventListener('click', ()=>{
+        notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] - 12);
+        refreshPlayback(); renderMiniDaw();
+      });
+
+      wrap.appendChild(upBtn);
+      wrap.appendChild(pill);
+      wrap.appendChild(downBtn);
+      stepsEl.appendChild(wrap);
+    });
+    track.appendChild(stepsEl);
+    tracksEl.appendChild(track);
+  }
+
+  noteTrack('Melody', 'violet', current.melody, current.melodyMute, dawBarIndex);
+  noteTrack('Bass', 'teal', current.bass, current.bassMute, dawBarIndex);
+  noteTrack('Arp', 'rose', current.arp, current.arpMute, dawBarIndex);
+
+  const drumTrack = document.createElement('div');
+  drumTrack.className = 'daw-track';
+  const drumLabel = document.createElement('div');
+  drumLabel.className = 'daw-track-label';
+  drumLabel.innerHTML = `<span class="dot sky"></span>Drums`;
+  drumTrack.appendChild(drumLabel);
+  const DRUM_ROWS = [['kick','Kick'], ['snare','Snare'], ['hh','Hi-hat'], ['oh','Open HH']];
+  const pat = current.drums[dawBarIndex];
+  DRUM_ROWS.forEach(([key,label])=>{
+    const row = document.createElement('div');
+    row.className = 'daw-drum-row';
+    const rl = document.createElement('span');
+    rl.className = 'daw-drum-label';
+    rl.textContent = label;
+    row.appendChild(rl);
+    const cells = document.createElement('div');
+    cells.className = 'daw-drum-cells';
+    pat[key].forEach((v, s)=>{
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'daw-step-drum' + (v ? ' on' : '') + (s%4===0 ? ' bar4' : '');
+      cell.title = label + ' — step ' + (s+1);
+      cell.addEventListener('click', ()=>{
+        pat[key][s] = pat[key][s] ? 0 : 1;
+        refreshPlayback(); renderMiniDaw();
+      });
+      cells.appendChild(cell);
+    });
+    row.appendChild(cells);
+    drumTrack.appendChild(row);
+  });
+  tracksEl.appendChild(drumTrack);
+}
+
+document.getElementById('miniDawPanel').addEventListener('toggle', function(){
+  if(this.open) renderMiniDaw();
+});
+
+document.getElementById('dawRerollBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  rerollBar(dawBarIndex);
+});
+
+document.getElementById('dawExportBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  exportMidi();
+});
 
 /* ================= SUPPORT REMINDER (every 5 minutes) ================= */
 (function(){
