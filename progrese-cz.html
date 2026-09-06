@@ -1098,6 +1098,17 @@
 </div>
 
 <script>
+// Zvětšení audio bufferu hned na začátku, dřív než se vytvoří jakýkoli
+// syntetizátor. Výchozí Tone.js kontext jede na 'interactive' (nejmenší
+// možný buffer = nejnižší latence, ale nejmíň odolné proti zaškobrtnutí).
+// Na slabším mobilu (typicky Android Chrome) to při souběhu víc
+// syntetizátorů (akordy+melodie+basa+arp+bicí) snadno vede k podtečení
+// bufferu = praskání. 'playback' dá o dost větší buffer — o pár desítek
+// milisekund vyšší latenci mezi zmáčknutím Přehrát a prvním tónem, ale
+// mnohem větší odolnost proti zaškobrtnutí zvuku při přehrávání.
+if(typeof Tone !== "undefined"){
+  try{ Tone.setContext(new Tone.Context({ latencyHint: 'playback' })); }catch(e){ console.warn('setContext(playback) failed', e); }
+}
 /* ================= MUSIC THEORY CORE ================= */
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const SCALES = { major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
@@ -1512,20 +1523,6 @@ function toneAvailable(){
   return typeof Tone !== "undefined";
 }
 
-// Zahřátí audio kontextu na úplně první dotyk/kliknutí kdekoliv na stránce —
-// dřív, než uživatel vůbec stihne najet na tlačítko Přehrát. Mobilní (hlavně
-// PWA) prohlížeče mívají po prvním "probuzení" AudioContextu krátkou chvíli,
-// kdy hardware teprve najíždí na plný výkon; když se toto probuzení odbyde
-// tady potichu (bez hraní), skutečné první spuštění hudby už dopadne na
-// zahřátý kontext a nemělo by prasknout.
-function primeAudioContext(){
-  if(!toneAvailable()) return;
-  try{ Tone.start().catch(()=>{}); }catch(e){}
-}
-['touchstart','pointerdown','click'].forEach(evt=>{
-  document.addEventListener(evt, primeAudioContext, { once:true, passive:true });
-});
-
 function applyVolume(percent){
   // 0% = ticho, 100% = plná hlasitost (0 dB); mezi tím lineární škála v dB
   if(!toneAvailable()) return;
@@ -1802,16 +1799,21 @@ function buildSynths(){
   }).connect(bus);
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(bus);
+  // Hi-hat/open hi-hat: MetalSynth (FM syntéza s víc operátory) je zdaleka
+  // nejnáročnější věc v celém patchi a na slabším mobilním CPU (typicky
+  // Android) snadno vytíží audio vlákno natolik, že to způsobí praskání
+  // napříč celým mixem — ne jen u bicích. Filtrovaný šum zní na hi-hat
+  // pořád dost věrohodně a je o řád levnější na výpočet.
+  const hihatFilter = new Tone.Filter({ type:'highpass', frequency:7000 }).connect(bus);
+  hihatSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.05, sustain:0, release:0.02}
+  }).connect(hihatFilter);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(bus);
+  const openhatFilter = new Tone.Filter({ type:'highpass', frequency:6000 }).connect(bus);
+  openhatSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.25, sustain:0, release:0.1}
+  }).connect(openhatFilter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
@@ -1879,11 +1881,6 @@ async function startPlayback(mode, resumeAt){
     showStatus('Přehrávání není dostupné — nepodařilo se načíst zvukovou knihovnu (zkontroluj připojení k internetu)');
     return;
   }
-  // Větší lookAhead = scheduler plánuje noty s větším předstihem, takže krátké
-  // zaseknutí hlavního vlákna (např. GC pauza) na mobilu s větší pravděpodobností
-  // nezpůsobí výpadek/prasknutí zvuku. Stojí to trochu vyšší latenci při
-  // spouštění/zastavování, což je na mobilu dobrý kompromis.
-  if(toneAvailable()) Tone.getContext().lookAhead = 0.25;
   const myToken = ++playToken;
   const playBtnEl = document.getElementById('playBtn');
   const playChordsBtnEl = document.getElementById('playChordsBtn');
@@ -2014,11 +2011,7 @@ async function startPlayback(mode, resumeAt){
   // (tlačítko Přehrát, Vygenerovat postup apod.) nic nepředává, takže tam
   // se pořád normálně začíná od nuly.
   Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
-  // Start pár desítek ms v budoucnu místo "hned teď" — audio kontext se na
-  // mobilu (hlavně v PWA) může chvíli po Tone.start() ještě "rozjíždět" a
-  // úplně první naplánovaný render může zapraskat. Tahle rezerva dá
-  // hardwaru čas se ustálit dřív, než potřebuje vydat první reálný zvuk.
-  Tone.Transport.start('+0.15');
+  Tone.Transport.start();
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Zastavit' : '▶ Přehrát';

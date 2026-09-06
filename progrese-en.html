@@ -1097,6 +1097,17 @@
 </div>
 
 <script>
+// Switch to a bigger audio buffer as early as possible, before any synth
+// gets created. Tone.js defaults to 'interactive' (smallest possible
+// buffer = lowest latency, least resistant to hiccups). On a weaker mobile
+// device (typically Android Chrome), several synths running at once
+// (chords+melody+bass+arp+drums) can easily underrun that buffer, which is
+// heard as crackling. 'playback' uses a noticeably bigger buffer — a bit
+// more latency between pressing Play and the first note, but much more
+// resistant to audio glitching during playback.
+if(typeof Tone !== "undefined"){
+  try{ Tone.setContext(new Tone.Context({ latencyHint: 'playback' })); }catch(e){ console.warn('setContext(playback) failed', e); }
+}
 /* ================= MUSIC THEORY CORE ================= */
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const SCALES = { major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
@@ -1513,20 +1524,6 @@ function toneAvailable(){
   return typeof Tone !== "undefined";
 }
 
-// Warm up the audio context on the very first touch/click anywhere on the
-// page — before the user even reaches the Play button. Mobile (especially
-// PWA) browsers can have a brief spin-up period right after an AudioContext
-// first "wakes up"; getting that wake-up out of the way here quietly (no
-// sound) means the real first playback lands on an already-warm context and
-// shouldn't crackle.
-function primeAudioContext(){
-  if(!toneAvailable()) return;
-  try{ Tone.start().catch(()=>{}); }catch(e){}
-}
-['touchstart','pointerdown','click'].forEach(evt=>{
-  document.addEventListener(evt, primeAudioContext, { once:true, passive:true });
-});
-
 function applyVolume(percent){
   // 0% = silence, 100% = full volume (0 dB); linear dB scale in between
   if(!toneAvailable()) return;
@@ -1803,16 +1800,21 @@ function buildSynths(){
   }).connect(bus);
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
-  hihatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(bus);
+  // Hi-hat/open hi-hat: MetalSynth (multi-operator FM synthesis) is by far
+  // the most CPU-expensive thing in this whole patch, and on a weaker mobile
+  // CPU (typically Android) it can load the audio thread enough to cause
+  // crackling across the whole mix — not just the drums. Filtered noise
+  // still sounds convincing for a hi-hat and is far cheaper to compute.
+  const hihatFilter = new Tone.Filter({ type:'highpass', frequency:7000 }).connect(bus);
+  hihatSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.05, sustain:0, release:0.02}
+  }).connect(hihatFilter);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
-  openhatSynth = new Tone.MetalSynth({
-    envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
-    modulationIndex:32, resonance:4000, octaves:1.2
-  }).connect(bus);
+  const openhatFilter = new Tone.Filter({ type:'highpass', frequency:6000 }).connect(bus);
+  openhatSynth = new Tone.NoiseSynth({
+    noise:{type:'white'}, envelope:{attack:0.001, decay:0.25, sustain:0, release:0.1}
+  }).connect(openhatFilter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
@@ -1880,11 +1882,6 @@ async function startPlayback(mode, resumeAt){
     showStatus("Playback isn't available — the audio library failed to load (check your internet connection)");
     return;
   }
-  // Bigger lookAhead = the scheduler plans notes further in advance, so a
-  // brief main-thread stall (e.g. a GC pause) on mobile is much less likely
-  // to cause an audio dropout/crackle. Costs a bit more start/stop latency,
-  // which is a good trade-off on mobile.
-  if(toneAvailable()) Tone.getContext().lookAhead = 0.25;
   const myToken = ++playToken;
   const playBtnEl = document.getElementById('playBtn');
   const playChordsBtnEl = document.getElementById('playChordsBtn');
@@ -2016,12 +2013,7 @@ async function startPlayback(mode, resumeAt){
   // fresh start/stop (the Play button, Generate progression, etc.) doesn't
   // pass anything, so those still normally start from zero.
   Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
-  // Start a few tens of ms in the future instead of "right now" — on mobile
-  // (especially in a PWA) the audio context can still be spinning up briefly
-  // after Tone.start(), and the very first scheduled render can crackle.
-  // This margin gives the hardware a moment to settle before it has to
-  // produce real audio.
-  Tone.Transport.start('+0.15');
+  Tone.Transport.start();
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Stop' : '▶ Play';
