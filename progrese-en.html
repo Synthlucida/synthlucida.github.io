@@ -1656,7 +1656,7 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   // clear any leftover muted steps so they don't silently swallow notes in
   // the new melody (exportPdfSheet/exportMidi read this same mute mask).
   if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['melody']);
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `New melody generated — ${name}` : 'New melody generated');
@@ -1666,7 +1666,7 @@ document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
   if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['bass']);
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `New bass line generated — ${name}` : 'New bass line generated');
@@ -1676,7 +1676,7 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.arp = genArp(current.chords, arpStyleSelect.value);
   if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['arp']);
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `New arp generated — ${name}` : 'New arp generated');
@@ -1685,7 +1685,7 @@ document.getElementById('newArpBtn').addEventListener('click', ()=>{
 document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.drums = genDrums(current.chords, drumStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['drums']);
   refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `New drums generated — ${name}` : 'New drums generated');
@@ -1700,7 +1700,7 @@ melodyStyleSelect.addEventListener('change', ()=>{
   }
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
   if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['melody']);
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Melody style: ${name}` : 'Melody style: Auto (varies per bar)');
@@ -1713,7 +1713,7 @@ bassStyleSelect.addEventListener('change', ()=>{
   }
   current.bass = genBass(current.chords, bassStyleSelect.value);
   if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['bass']);
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Bass style: ${name}` : 'Bass style: Auto (varies per bar)');
@@ -1726,7 +1726,7 @@ arpStyleSelect.addEventListener('change', ()=>{
   }
   current.arp = genArp(current.chords, arpStyleSelect.value);
   if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['arp']);
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Arp style: ${name}` : 'Arp style: Auto (varies per bar)');
@@ -1738,7 +1738,7 @@ drumStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.drums = genDrums(current.chords, drumStyleSelect.value);
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['drums']);
   refreshDawIfOpen();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Drum style: ${name}` : 'Drum style: Auto (varies per bar)');
@@ -1812,6 +1812,96 @@ function buildSynths(){
     modulationIndex:32, resonance:4000, octaves:1.2
   }).connect(masterLimiter);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
+}
+
+/* ---- Building individual playback layers (Part/Sequence) ----
+   Pulled out of startPlayback() into standalone functions so refreshLayers()
+   below can reuse the same code — when only ONE layer changes (a new melody,
+   switching the bass style, editing a step in the Mini DAW…) it now throws
+   away and rebuilds JUST that one layer, instead of (as before) stopping the
+   whole transport and rebuilding literally everything — chords, melody,
+   bass, arp, drums, and the LED loop — on every single edit. Each function
+   only CREATES and starts the given layer (at transport time 0) — cleaning
+   up the old instance (stop+dispose) and releasing its old sound is the
+   caller's job (either disposeAll(), or refreshLayers() for that one layer).
+   .start(0) works correctly even while the transport is already running
+   somewhere in the middle of the piece — Tone.js figures out which step of
+   the loop the new layer should be on, so it drops in exactly on the beat
+   with no audible glitch. */
+function buildChordPartLayer(){
+  const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
+  chordPart = new Tone.Part((time, ev)=>{
+    if(!chordSynth) return;
+    try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
+  }, chordEvents);
+  chordPart.loop = true;
+  chordPart.loopEnd = `${current.chords.length}m`;
+  chordPart.start(0);
+}
+
+function buildMelodySeqLayer(){
+  // muted steps (Mini DAW) come through to the sequence as null — Tone.Sequence
+  // skips such "empty" steps, so the note simply doesn't sound
+  const melFlat = current.melody.flat().map((n,i)=> isMutedFlat(current.melodyMute, i, 4) ? null : n);
+  melSeq = new Tone.Sequence((time, note)=>{
+    if(note==null || !melodySynth) return;
+    try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
+  }, melFlat, '4n');
+  melSeq.loop = true;
+  melSeq.start(0);
+}
+
+function buildBassSeqLayer(){
+  const bassFlat = current.bass.flat().map((n,i)=> isMutedFlat(current.bassMute, i, 4) ? null : n);
+  bassSeq = new Tone.Sequence((time, note)=>{
+    if(note==null || !bassSynth) return;
+    try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
+  }, bassFlat, '4n');
+  bassSeq.loop = true;
+  bassSeq.start(0);
+}
+
+function buildArpSeqLayer(){
+  // arp: 8 eighth-note steps per bar — twice as fine a grid as melody/bass
+  const arpFlat = current.arp.flat().map((n,i)=> isMutedFlat(current.arpMute, i, 8) ? null : n);
+  arpSeq = new Tone.Sequence((time, note)=>{
+    if(note==null || !arpSynth) return;
+    try{ arpSynth.triggerAttackRelease(midiToName(note), '8n', time); }catch(e){ console.warn('arpSeq callback failed', e); }
+  }, arpFlat, '8n');
+  arpSeq.loop = true;
+  arpSeq.start(0);
+}
+
+function buildDrumPartLayer(){
+  // drums: 16 sixteenth-note steps per bar, Tone.Part instead of Tone.Sequence
+  // (see the explanation further down at the original call site) — any one
+  // step can fire any combination of kick/snare/hi-hat/open hi-hat.
+  const drumEvents = [];
+  current.drums.forEach((pat, barI)=>{
+    for(let s=0;s<16;s++){
+      const hits = [];
+      if(pat.kick[s]) hits.push('kick');
+      if(pat.snare[s]) hits.push('snare');
+      if(pat.hh[s]) hits.push('hh');
+      if(pat.oh[s]) hits.push('oh');
+      if(hits.length){
+        drumEvents.push({ time: `${barI}:${Math.floor(s/4)}:${s%4}`, hits });
+      }
+    }
+  });
+  drumPart = new Tone.Part((time, ev)=>{
+    ev.hits.forEach(h=>{
+      try{
+        if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
+        else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
+        else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
+        else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
+      }catch(e){ console.warn('drumPart callback failed', e); }
+    });
+  }, drumEvents);
+  drumPart.loop = true;
+  drumPart.loopEnd = `${current.drums.length}m`;
+  drumPart.start(0);
 }
 
 function disposeAll(){
@@ -1895,106 +1985,52 @@ async function startPlayback(mode, resumeAt){
   const playArp    = mode === 'full' || mode === 'arp';
   const playDrums  = mode === 'full' || mode === 'drums';
 
-  if(playChords){
-    // chords: one per bar, held for a whole note
-    const chordEvents = current.chords.map((c,i)=>({ time:`${i}:0:0`, notes:c.tones.map(midiToName) }));
-    chordPart = new Tone.Part((time, ev)=>{
-      if(!chordSynth) return;
-      try{ chordSynth.triggerAttackRelease(ev.notes, '1n', time); }catch(e){ console.warn('chordPart callback failed', e); }
-    }, chordEvents);
-    chordPart.loop = true;
-    chordPart.loopEnd = `${current.chords.length}m`;
-    chordPart.start(0);
-  }
+  // A real, verified bug, not a guess, on the drums side (see buildDrumPartLayer
+  // above): MetalSynth.triggerAttackRelease has the signature (note, duration,
+  // time), but this used to be called with only two arguments — (duration, time)
+  // — as if it were NoiseSynth/snare. Result: '32n' ended up as the NOTE (its
+  // frequency computes to ~16 Hz, almost below hearing range) and the real
+  // schedule time (`time`) ended up as the DURATION, so the hi-hat fired
+  // essentially immediately when the JS callback ran instead of exactly on the
+  // intended 16th note. Fixed to the correct argument order plus a sensible
+  // note; the instrument and its sound are otherwise unchanged.
+  if(playChords) buildChordPartLayer();
 
   // The LED grid is always quarter-note steps (4 per bar), regardless of
   // which layers are playing — keeps it in sync with the visual bar grid.
   const totalSteps = current.chords.length * 4;
 
-  if(playMelody){
-    // steps muted in the Mini DAW are passed through as null — Tone.Sequence
-    // skips a null step entirely, so the note simply doesn't sound
-    const melFlat = current.melody.flat().map((n,i)=> isMutedFlat(current.melodyMute, i, 4) ? null : n);
-    melSeq = new Tone.Sequence((time, note)=>{
-      if(note==null || !melodySynth) return;
-      try{ melodySynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('melSeq callback failed', e); }
-    }, melFlat, '4n');
-    melSeq.loop = true;
-    melSeq.start(0);
-  }
+  if(playMelody) buildMelodySeqLayer();
+  if(playBass) buildBassSeqLayer();
+  if(playArp) buildArpSeqLayer();
+  if(playDrums) buildDrumPartLayer();
 
-  if(playBass){
-    const bassFlat = current.bass.flat().map((n,i)=> isMutedFlat(current.bassMute, i, 4) ? null : n);
-    bassSeq = new Tone.Sequence((time, note)=>{
-      if(note==null || !bassSynth) return;
-      try{ bassSynth.triggerAttackRelease(midiToName(note), '4n', time); }catch(e){ console.warn('bassSeq callback failed', e); }
-    }, bassFlat, '4n');
-    bassSeq.loop = true;
-    bassSeq.start(0);
-  }
-
-  if(playArp){
-    // arp: 8 eighth-note steps per bar — twice as fine a grid as melody/bass
-    const arpFlat = current.arp.flat().map((n,i)=> isMutedFlat(current.arpMute, i, 8) ? null : n);
-    arpSeq = new Tone.Sequence((time, note)=>{
-      if(note==null || !arpSynth) return;
-      try{ arpSynth.triggerAttackRelease(midiToName(note), '8n', time); }catch(e){ console.warn('arpSeq callback failed', e); }
-    }, arpFlat, '8n');
-    arpSeq.loop = true;
-    arpSeq.start(0);
-  }
-
-  if(playDrums){
-    // drums: 16 sixteenth-note steps per bar — four times as fine a grid as melody/bass,
-    // each step can fire any combination of kick/snare/closed hi-hat/open hi-hat.
-    // Uses Tone.Part (same as the chords above) instead of Tone.Sequence: Sequence
-    // treats a nested array as a "subdivision" of that step rather than a single
-    // value — so an array of hits (e.g. ['kick','hh']) would arrive unpacked as
-    // separate string callbacks, and hits.forEach would throw "hits.forEach is not
-    // a function" (a silent console error — the drums just wouldn't play). Part
-    // doesn't do any of that value-unpacking magic.
-    const drumEvents = [];
-    current.drums.forEach((pat, barI)=>{
-      for(let s=0;s<16;s++){
-        const hits = [];
-        if(pat.kick[s]) hits.push('kick');
-        if(pat.snare[s]) hits.push('snare');
-        if(pat.hh[s]) hits.push('hh');
-        if(pat.oh[s]) hits.push('oh');
-        if(hits.length){
-          drumEvents.push({ time: `${barI}:${Math.floor(s/4)}:${s%4}`, hits });
-        }
-      }
-    });
-    drumPart = new Tone.Part((time, ev)=>{
-      ev.hits.forEach(h=>{
-        try{
-          if(h==='kick' && kickSynth) kickSynth.triggerAttackRelease('C2','8n',time);
-          else if(h==='snare' && snareSynth) snareSynth.triggerAttackRelease('16n',time);
-          // A real, verified bug, not a guess: MetalSynth.triggerAttackRelease has the
-          // signature (note, duration, time), but this was called with only two
-          // arguments — (duration, time) — as if it were NoiseSynth/snare a few lines up.
-          // Result: '32n' ended up as the NOTE (its frequency computes to 16 Hz — almost
-          // below hearing range; only the FM synthesis's rich harmonics made it through the
-          // internal highpass filter), and the real schedule time (the `time` variable)
-          // ended up as the DURATION. Since no real time argument was ever passed, the
-          // hi-hat fired essentially immediately when the JS callback ran instead of
-          // exactly on the intended 16th note — confirmed with real Tone.js. Fixed to the
-          // correct argument order plus a sensible note instead of an accidental one; the
-          // instrument itself (MetalSynth) and its sound are otherwise unchanged.
-          else if(h==='hh' && hihatSynth) hihatSynth.triggerAttackRelease('C6','32n',time);
-          else if(h==='oh' && openhatSynth) openhatSynth.triggerAttackRelease('C6','8n',time);
-        }catch(e){ console.warn('drumPart callback failed', e); }
-      });
-    }, drumEvents);
-    drumPart.loop = true;
-    drumPart.loopEnd = `${current.drums.length}m`;
-    drumPart.start(0);
-  }
-
-  let step = 0;
+  // The LED step used to be computed from a local `step` variable that this
+  // function reset to 0 every single time it ran — fine as long as
+  // startPlayback() really did start the whole song from the top. But once
+  // anything happening DURING playback called refreshLayers() (a new melody/
+  // bass/arp/drums, switching a style, editing a step in the Mini DAW), the
+  // actual music kept playing correctly (Parts/Sequences compute their
+  // position from the absolute transport time, not from this variable) — but
+  // the LED grid and the bar dots still snapped back to the start and showed
+  // a completely different step/bar than what was actually playing. That's
+  // exactly the "the display doesn't match the beat" symptom. Fix: the LED
+  // step is now computed straight from the transport's current position (in
+  // ticks), so it's always correct whether stepEvent was created at a fresh
+  // start or (as before) mid-song — and on top of that, after this refactor
+  // refreshLayers() never touches stepEvent at all when editing a single
+  // layer, so the LED grid no longer flickers/resets during normal live
+  // editing in the first place.
+  let step = 0; // fallback counter only for the unlikely case getTicksAtTime() throws
   stepEvent = new Tone.Loop((time)=>{
-    const s = step % totalSteps;
+    let s;
+    try{
+      const ticks = Tone.Transport.getTicksAtTime(time);
+      s = Math.round(ticks / Tone.Transport.PPQ) % totalSteps;
+    }catch(e){
+      console.warn('stepEvent: getTicksAtTime failed, using fallback counter', e);
+      s = step % totalSteps;
+    }
     Tone.Draw.schedule(()=>{
       // Toggle just the two specific elements involved (previous off, new
       // on) instead of clearLeds() over the whole document on every
@@ -2014,12 +2050,12 @@ async function startPlayback(mode, resumeAt){
   }, '4n');
   stepEvent.start(0);
 
-  // Mini DAW edits call refreshPlayback() and pass the current position here
-  // (resumeAt), so the loop doesn't keep jumping back to the start after every
-  // single edit — without this, an edit to a later bar (e.g. bar 5) wouldn't
-  // be audible until the loop cycled all the way back around to it. A genuine
-  // fresh start/stop (the Play button, Generate progression, etc.) doesn't
-  // pass anything, so those still normally start from zero.
+  // resumeAt is now just a fallback parameter for a possible future caller —
+  // the Mini DAW and the "New melody/bass/arp/drums" buttons and style
+  // pickers now go through refreshLayers() (below) while playing, which
+  // rebuilds only the one affected layer and never touches the transport.
+  // A genuine fresh start (the Play button, Generate progression, etc.)
+  // doesn't pass resumeAt, so it still normally starts from zero.
   Tone.Transport.position = (resumeAt !== undefined && resumeAt !== null) ? resumeAt : 0;
   Tone.Transport.start();
   isPlaying = true;
@@ -2050,34 +2086,74 @@ function stopPlayback(){
   document.getElementById('playDrumsBtn').textContent = '♪ Drums only';
 }
 
-/* Used after a melody/bass-only regeneration: if a loop is already playing,
-   restart it (in whichever mode was active) so the new pattern is heard
-   immediately. If nothing is playing, just leave things stopped — no need
-   to force playback to start. */
-function refreshPlayback(){
-  if(isPlaying){
-    const mode = playMode;
-    // Remember the current loop position, so editing a bar doesn't reset
-    // playback back to the very start (see the Tone.Transport.position
-    // comment inside startPlayback()).
-    const resumeAt = toneAvailable() ? Tone.Transport.position : 0;
-    stopPlayback();
-    startPlayback(mode, resumeAt);
-  }
+/* Called after regenerating/editing just SOME layers (a new melody, a new
+   bass line, switching the arp style, re-rolling a bar, editing a step in
+   the Mini DAW…) so the change is heard and seen immediately if a loop is
+   already playing. If nothing is playing, this does nothing — no need to
+   force playback to start.
+
+   This used to be refreshPlayback(): a full stop+restart of the whole audio
+   engine (stop the transport, throw away all five layers plus the LED loop,
+   rebuild them, jump the transport back to the remembered position, start
+   again). That had two real problems users ran into:
+   1) The LED grid and the bar dots would briefly snap back to the very
+      start every time (see the comment on the `step` counter inside
+      startPlayback) — even though the music itself kept playing correctly,
+      it looked (and briefly was) out of sync with the actual bar/beat.
+   2) Throwing away and rebuilding ALL five layers plus stopping/restarting
+      the transport on EVERY single edit (even when, say, only the bass
+      line actually changed) is unnecessarily heavy work for the main
+      thread. After several such edits in a row, this led to playback
+      crackling/stuttering again on some machines/browsers — the same
+      family of issue as the earlier Firefox stutter, just retriggered by
+      how often that full rebuild ran.
+
+   NOW refreshLayers() throws away and rebuilds ONLY the specific layer(s)
+   that actually changed — it never stops or repositions the transport, and
+   leaves the LED loop (stepEvent) running untouched, so the grid never
+   flickers/resets and the cost of an edit is a fraction of "throw away and
+   rebuild absolutely everything". */
+function refreshLayers(layers){
+  if(!isPlaying || !current || !toneAvailable()) return;
+  layers.forEach(layer=>{
+    if(layer==='melody'){
+      if(!(playMode==='full' || playMode==='melody')) return; // this layer isn't currently playing
+      if(melSeq){ try{ melSeq.stop(); melSeq.dispose(); }catch(e){ console.warn('refreshLayers: melSeq dispose failed', e); } melSeq=null; }
+      if(melodySynth){ try{ melodySynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: melodySynth.triggerRelease failed', e); } }
+      buildMelodySeqLayer();
+    } else if(layer==='bass'){
+      if(!(playMode==='full' || playMode==='bass')) return;
+      if(bassSeq){ try{ bassSeq.stop(); bassSeq.dispose(); }catch(e){ console.warn('refreshLayers: bassSeq dispose failed', e); } bassSeq=null; }
+      if(bassSynth){ try{ bassSynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: bassSynth.triggerRelease failed', e); } }
+      buildBassSeqLayer();
+    } else if(layer==='arp'){
+      if(!(playMode==='full' || playMode==='arp')) return;
+      if(arpSeq){ try{ arpSeq.stop(); arpSeq.dispose(); }catch(e){ console.warn('refreshLayers: arpSeq dispose failed', e); } arpSeq=null; }
+      if(arpSynth){ try{ arpSynth.triggerRelease(); }catch(e){ console.warn('refreshLayers: arpSynth.triggerRelease failed', e); } }
+      buildArpSeqLayer();
+    } else if(layer==='drums'){
+      if(!(playMode==='full' || playMode==='drums')) return;
+      if(drumPart){ try{ drumPart.stop(); drumPart.dispose(); }catch(e){ console.warn('refreshLayers: drumPart dispose failed', e); } drumPart=null; }
+      [kickSynth, snareSynth, hihatSynth, openhatSynth].forEach(s=>{ if(s){ try{ s.triggerRelease(); }catch(e){ console.warn('refreshLayers: drum synth triggerRelease failed', e); } } });
+      buildDrumPartLayer();
+    }
+  });
 }
 
-// Mini DAW calls refreshPlayback() (a full stop+start of the whole audio
-// engine — brand new Tone.Sequence/Part objects for melody/bass/arp/drums)
-// on EVERY single step edit. Rapid-fire edits (dragging across several drum
-// cells, or trying out several notes in a row) would retrigger that whole
-// rebuild again and again within tens of milliseconds — unnecessary main
-// thread work that, over a longer editing session, was reported to cause
-// playback to stutter in Firefox. Debouncing delays the actual rebuild until
-// 150ms after the last edit.
+// Collects the layers touched by rapid-fire edits (dragging across several
+// drum cells, trying out several notes in a row…) and only runs the actual
+// rebuild 150ms after the last one — same debounce as before, just now
+// operating on a specific list of layers instead of "rebuild everything".
+let pendingRefreshLayers = new Set();
 let refreshPlaybackDebounceTimer = null;
-function refreshPlaybackDebounced(){
+function refreshLayersDebounced(layers){
+  (layers || []).forEach(l=>pendingRefreshLayers.add(l));
   clearTimeout(refreshPlaybackDebounceTimer);
-  refreshPlaybackDebounceTimer = setTimeout(refreshPlayback, 150);
+  refreshPlaybackDebounceTimer = setTimeout(()=>{
+    const toRefresh = Array.from(pendingRefreshLayers);
+    pendingRefreshLayers.clear();
+    refreshLayers(toRefresh);
+  }, 150);
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{
@@ -2617,7 +2693,7 @@ function rerollBar(barI){
   current.melodyMute[barI] = current.melodyMute[barI].map(()=>false);
   current.bassMute[barI] = current.bassMute[barI].map(()=>false);
   current.arpMute[barI] = current.arpMute[barI].map(()=>false);
-  refreshPlaybackDebounced();
+  refreshLayersDebounced(['melody','bass','arp','drums']);
   renderMiniDaw();
   showStatus(`Bar ${barI+1} re-rolled`);
 }
@@ -2649,7 +2725,7 @@ function renderMiniDaw(){
   const tracksEl = document.getElementById('dawTracks');
   tracksEl.innerHTML = '';
 
-  function noteTrack(label, dotClass, notesArr, muteArr, barI){
+  function noteTrack(label, dotClass, notesArr, muteArr, barI, layer){
     const track = document.createElement('div');
     track.className = 'daw-track';
     const labelEl = document.createElement('div');
@@ -2678,7 +2754,7 @@ function renderMiniDaw(){
         notesArr[barI][stepI] = clampDawNote(notesArr[barI][stepI] + 12);
         pill.textContent = midiToName(notesArr[barI][stepI]);
         noteSelect.value = String(notesArr[barI][stepI]);
-        refreshPlaybackDebounced();
+        refreshLayersDebounced([layer]);
       });
 
       const pill = document.createElement('button');
@@ -2692,7 +2768,7 @@ function renderMiniDaw(){
         muteArr[barI][stepI] = isMutedNow;
         pill.classList.toggle('muted', isMutedNow);
         pill.title = isMutedNow ? 'Click to unmute this step' : 'Click to mute this step';
-        refreshPlaybackDebounced();
+        refreshLayersDebounced([layer]);
       });
 
       const downBtn = document.createElement('button');
@@ -2702,7 +2778,7 @@ function renderMiniDaw(){
         notesArr[barI][stepI] = clampDawNote(notesArr[barI][stepI] - 12);
         pill.textContent = midiToName(notesArr[barI][stepI]);
         noteSelect.value = String(notesArr[barI][stepI]);
-        refreshPlaybackDebounced();
+        refreshLayersDebounced([layer]);
       });
 
       // Pick a completely different note (not just an octave shift) — the
@@ -2724,7 +2800,7 @@ function renderMiniDaw(){
       noteSelect.addEventListener('change', ()=>{
         notesArr[barI][stepI] = clampNote(parseInt(noteSelect.value, 10));
         pill.textContent = midiToName(notesArr[barI][stepI]);
-        refreshPlaybackDebounced();
+        refreshLayersDebounced([layer]);
       });
 
       wrap.appendChild(upBtn);
@@ -2737,9 +2813,9 @@ function renderMiniDaw(){
     tracksEl.appendChild(track);
   }
 
-  noteTrack('Melody', 'violet', current.melody, current.melodyMute, dawBarIndex);
-  noteTrack('Bass', 'teal', current.bass, current.bassMute, dawBarIndex);
-  noteTrack('Arp', 'rose', current.arp, current.arpMute, dawBarIndex);
+  noteTrack('Melody', 'violet', current.melody, current.melodyMute, dawBarIndex, 'melody');
+  noteTrack('Bass', 'teal', current.bass, current.bassMute, dawBarIndex, 'bass');
+  noteTrack('Arp', 'rose', current.arp, current.arpMute, dawBarIndex, 'arp');
 
   const drumTrack = document.createElement('div');
   drumTrack.className = 'daw-track';
@@ -2767,7 +2843,7 @@ function renderMiniDaw(){
         const on = pat[key][s] ? 0 : 1;
         pat[key][s] = on;
         cell.classList.toggle('on', !!on);
-        refreshPlaybackDebounced();
+        refreshLayersDebounced(['drums']);
       });
       cells.appendChild(cell);
     });
