@@ -105,6 +105,9 @@
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<!-- VexFlow (notový zápis) a jsPDF (export do PDF) — použité jen tlačítkem "Noty (PDF)" -->
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
   :root{
     color-scheme:dark;
@@ -839,6 +842,7 @@
         <button class="cta" id="playArpBtn">♪ Jen arp</button>
         <button class="cta" id="playDrumsBtn">♪ Jen bicí</button>
         <button class="cta" id="exportBtn">⇩ Export MIDI (vše)</button>
+        <button class="cta" id="exportPdfBtn">📄 Noty (PDF)</button>
       </div>
       <div class="actions" style="margin-top:10px;">
         <button class="cta" id="exportChordsBtn">⇩ Akordy</button>
@@ -954,6 +958,10 @@
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Dá se po vygenerování postupu upravit jednotlivé noty?</h3>
       <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano, v panelu „Mini DAW“. Vybereš si takt a ztlumíš jednotlivé kroky melodie, basy, arpu nebo bicích, posuneš notu o oktávu, vybereš u kteréhokoliv kroku úplně jinou notu, nebo přegeneruješ jen ten jeden takt. Úpravy se hned promítnou do přehrávání i MIDI exportu.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Dá se postup vyexportovat jako noty?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano — tlačítko „Noty (PDF)“ vyexportuje aktuální postup jako klasický notový zápis (houslový a basový klíč, akordové značky nad notami) do PDF, který si můžeš vytisknout nebo poslat dál. Zohledňuje i úpravy z Mini DAW.</p>
     </div>
   </div>
 
@@ -2145,6 +2153,141 @@ function exportMidi(){
 }
 
 document.getElementById('exportBtn').addEventListener('click', exportMidi);
+
+/* ================= EXPORT NOT DO PDF (VexFlow + jsPDF) ================= */
+function midiToVexKey(m){
+  const letters = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+  const oct = Math.floor(m/12) - 1;
+  return letters[((m%12)+12)%12] + '/' + oct;
+}
+
+function exportPdfSheet(){
+  if(!current) return;
+  if(typeof Vex === 'undefined' || typeof window.jspdf === 'undefined'){
+    showStatus('Export do PDF se nepodařilo připravit — nenačetly se potřebné knihovny (zkontroluj připojení k internetu)');
+    return;
+  }
+  try{
+    const VF = Vex.Flow;
+    const barsPerLine = 4;
+    const totalBars = current.chords.length;
+    const lineCount = Math.ceil(totalBars / barsPerLine);
+    const barWidth = 165;
+    const firstBarExtra = 55; // místo navíc na klíč a takt. označení na začátku řádku
+    const lineHeight = 170;
+    const leftMargin = 10;
+    const topMargin = 10;
+    const canvasWidth = leftMargin*2 + barsPerLine*barWidth + firstBarExtra;
+    const canvasHeight = topMargin + lineCount*lineHeight + 20;
+
+    const canvasEl = document.createElement('canvas');
+    canvasEl.width = canvasWidth;
+    canvasEl.height = canvasHeight;
+    const renderer = new VF.Renderer(canvasEl, VF.Renderer.Backends.CANVAS);
+    renderer.resize(canvasWidth, canvasHeight);
+    const ctx = renderer.getContext();
+
+    // Bílé pozadí — Canvas kontext má jinak průhledné pozadí, což v PDF vypadá špatně
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    ctx.restore();
+
+    for(let line=0; line<lineCount; line++){
+      const y = topMargin + line*lineHeight;
+      const barsInLine = Math.min(barsPerLine, totalBars - line*barsPerLine);
+      let x = leftMargin;
+
+      for(let b=0; b<barsInLine; b++){
+        const barIndex = line*barsPerLine + b;
+        const isFirstOfLine = (b === 0);
+        const w = barWidth + (isFirstOfLine ? firstBarExtra : 0);
+
+        const trebleStave = new VF.Stave(x, y, w);
+        const bassStave = new VF.Stave(x, y + 78, w);
+        if(isFirstOfLine){
+          trebleStave.addClef('treble');
+          bassStave.addClef('bass');
+          if(line === 0){
+            trebleStave.addTimeSignature('4/4');
+            bassStave.addTimeSignature('4/4');
+          }
+        }
+        trebleStave.setContext(ctx).draw();
+        bassStave.setContext(ctx).draw();
+        if(isFirstOfLine){
+          new VF.StaveConnector(trebleStave, bassStave).setType(VF.StaveConnector.type.BRACE).setContext(ctx).draw();
+        }
+        new VF.StaveConnector(trebleStave, bassStave).setType(VF.StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
+
+        // melodie (houslový klíč) — noty ostré (#) potřebují výslovný modifikátor
+        // Accidental, jinak by se křížek u noty nezobrazil
+        const melNotes = current.melody[barIndex].map(n=>{
+          const key = midiToVexKey(n);
+          const note = new VF.StaveNote({ clef:'treble', keys:[key], duration:'q' });
+          if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
+          return note;
+        });
+        melNotes[0].addModifier(
+          new VF.Annotation(current.chords[barIndex].symbol)
+            .setFont('Arial', 11, 'bold')
+            .setVerticalJustification(VF.Annotation.VerticalJustify.TOP),
+          0
+        );
+
+        // basa (basový klíč)
+        const bassNotes = current.bass[barIndex].map(n=>{
+          const key = midiToVexKey(n);
+          const note = new VF.StaveNote({ clef:'bass', keys:[key], duration:'q' });
+          if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
+          return note;
+        });
+
+        const trebleVoice = new VF.Voice({ num_beats:4, beat_value:4 }).setStrict(false).addTickables(melNotes);
+        const bassVoice = new VF.Voice({ num_beats:4, beat_value:4 }).setStrict(false).addTickables(bassNotes);
+        new VF.Formatter().joinVoices([trebleVoice]).formatToStave([trebleVoice], trebleStave);
+        new VF.Formatter().joinVoices([bassVoice]).formatToStave([bassVoice], bassStave);
+        trebleVoice.draw(ctx, trebleStave);
+        bassVoice.draw(ctx, bassStave);
+
+        x += w;
+      }
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const vibeName = VIBES[current.vibeKey].name;
+    const modeLabel = VIBES[current.vibeKey].mode === 'major' ? 'dur' : 'moll';
+    let cursorY = 46;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+    doc.text(`Progrese — ${current.rootName} ${modeLabel} · ${vibeName}`, 40, cursorY);
+    cursorY += 20;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+    doc.text(`Tempo: ${current.tempo} BPM`, 40, cursorY);
+    cursorY += 15;
+    doc.text(`Akordy: ${current.chords.map(c=>c.symbol).join('  –  ')}`, 40, cursorY, { maxWidth: pageWidth - 80 });
+    cursorY += 26;
+
+    const imgData = canvasEl.toDataURL('image/png');
+    const imgWidth = pageWidth - 80;
+    const imgHeight = imgWidth * (canvasHeight / canvasWidth);
+    doc.addImage(imgData, 'PNG', 40, cursorY, imgWidth, imgHeight);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(150);
+    doc.text('Vytvořeno v Progrese — synthlucida.com/progrese-cz.html', 40, doc.internal.pageSize.getHeight() - 24);
+
+    const vibeSlug = current.vibeKey.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    doc.save(`progrese_${current.rootName.replace('#','s')}_${vibeSlug}.pdf`);
+    showStatus('Noty vyexportovány jako PDF');
+  }catch(e){
+    console.error('exportPdfSheet failed', e);
+    showStatus('Export do PDF se nepodařil, zkus to prosím znovu');
+  }
+}
+
+document.getElementById('exportPdfBtn').addEventListener('click', exportPdfSheet);
 
 /* ---- export jednotlivých částí (akordy / melodie / basa) ---- */
 const PART_LABELS = { chords:'Akordy', melody:'Melodie', bass:'Basa', arp:'Arp', drums:'Bicí' };
