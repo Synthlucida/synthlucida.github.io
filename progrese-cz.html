@@ -497,7 +497,9 @@
     .daw-note-pill{min-width:36px; font-size:10px; padding:5px 6px;}
     .daw-note-select{max-width:48px; font-size:9px;}
     .daw-step-drum{width:15px; height:15px;}
-    .daw-drum-label{min-width:42px; font-size:10px;}
+    .daw-drum-row{flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:10px;}
+    .daw-drum-label{min-width:0; font-size:10px;}
+    .daw-drum-cells{width:100%;}
   }
 
   .promo{
@@ -1495,7 +1497,11 @@ tempoSlider.addEventListener('input', ()=>{
   const bpm = parseInt(tempoSlider.value,10);
   tempoVal.textContent = bpm + ' BPM';
   if(current) current.tempo = bpm;
-  if(isPlaying) Tone.Transport.bpm.value = bpm;
+  // rampTo místo přímého .value = bpm: skoková změna tempa audio parametru
+  // za běhu umí ve Firefoxu vyvolat krátké zaseknutí/praskání zvuku, protože
+  // se musí okamžitě přepočítat už rozeschedulované eventy na transportu.
+  // Plynulý ramp (i jen 80ms) tomu předejde a sluchem není znát.
+  if(isPlaying) Tone.Transport.bpm.rampTo(bpm, 0.08);
 });
 tempoVal.textContent = VIBES[selectedVibe].tempo + ' BPM';
 tempoSlider.value = VIBES[selectedVibe].tempo;
