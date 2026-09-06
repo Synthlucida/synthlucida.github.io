@@ -1592,6 +1592,10 @@ function renderProgression(data){
     led.id = 'led'+i;
     steps.appendChild(led);
   }
+  // LEDy a pady jsou teď nové DOM uzly — zahoď starou cache, ať se
+  // v clearLeds() při přehrávání nesahá na odpojené/staré elementy.
+  ledCache = null;
+  padCache = null;
 }
 
 function setResultButtonsEnabled(enabled){
@@ -1735,52 +1739,64 @@ let isPlaying = false;
 let playMode = null; // null | 'full' | 'chords' — which playback mode is currently active
 let playToken = 0; // invalidates in-flight startPlayback() calls when a newer stop/start happens
 
+// Sdílený master limiter: když hraje víc stop najednou (akordy+melodie+basa+arp+bicí),
+// jejich součet může na výstupu přetéct přes 0dB a digitálně "prasknout" — na
+// mobilu je to slyšet nápadněji než na PC. Všechny syntetizátory se místo přímo
+// na .toDestination() připojují sem, takže je špička vždy ořezána měkce
+// (limiter), ne tvrdě (surové digitální ořezání).
+let masterLimiter = null;
+function getMasterBus(){
+  if(!masterLimiter) masterLimiter = new Tone.Limiter(-1).toDestination();
+  return masterLimiter;
+}
+
 function buildSynths(){
   // Built once and kept alive for the whole page session — see disposeAll()
   // below for why we never dispose+recreate these on regenerate/stop.
   if(chordSynth) return;
+  const bus = getMasterBus();
   chordSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator:{type:'triangle'}, envelope:{attack:0.05, decay:0.3, sustain:0.6, release:1.2}
-  }).toDestination();
+  }).connect(bus);
   chordSynth.volume.value = volFromPercent(BASE_VOL.chords, mixerVol.chords);
 
   melodySynth = new Tone.Synth({
     oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.3, release:0.4}
-  }).toDestination();
+  }).connect(bus);
   melodySynth.volume.value = volFromPercent(BASE_VOL.melody, mixerVol.melody);
 
   bassSynth = new Tone.Synth({
     oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.5, release:0.3}
-  }).toDestination();
+  }).connect(bus);
   bassSynth.volume.value = volFromPercent(BASE_VOL.bass, mixerVol.bass);
 
   arpSynth = new Tone.Synth({
     oscillator:{type:'square'}, envelope:{attack:0.005, decay:0.1, sustain:0.12, release:0.18}
-  }).toDestination();
+  }).connect(bus);
   arpSynth.volume.value = volFromPercent(BASE_VOL.arp, mixerVol.arp);
 
   // bicí: syntetizovaný kit ze čtyř samostatných zdrojů (bez potřeby vzorků)
   kickSynth = new Tone.MembraneSynth({
     pitchDecay:0.05, octaves:6, oscillator:{type:'sine'},
     envelope:{attack:0.001, decay:0.35, sustain:0.01, release:0.6}
-  }).toDestination();
+  }).connect(bus);
   kickSynth.volume.value = volFromPercent(BASE_VOL.kick, mixerVol.drums);
 
   snareSynth = new Tone.NoiseSynth({
     noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}
-  }).toDestination();
+  }).connect(bus);
   snareSynth.volume.value = volFromPercent(BASE_VOL.snare, mixerVol.drums);
 
   hihatSynth = new Tone.MetalSynth({
     envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1,
     modulationIndex:32, resonance:4000, octaves:1.2
-  }).toDestination();
+  }).connect(bus);
   hihatSynth.volume.value = volFromPercent(BASE_VOL.hh, mixerVol.drums);
 
   openhatSynth = new Tone.MetalSynth({
     envelope:{attack:0.001, decay:0.28, release:0.15}, harmonicity:5.1,
     modulationIndex:32, resonance:4000, octaves:1.2
-  }).toDestination();
+  }).connect(bus);
   openhatSynth.volume.value = volFromPercent(BASE_VOL.oh, mixerVol.drums);
 }
 
@@ -1825,9 +1841,20 @@ function disposeAll(){
   try{ Tone.Transport.cancel(); }catch(e){ console.warn('disposeAll: Transport.cancel() failed', e); }
 }
 
+// Zakešováno místo document.querySelectorAll() volaného znovu při každém kroku —
+// při přehrávání se to spouští z Tone.Draw v audio-scheduleru, takže cokoliv
+// zbytečně náročného tady navíc riskuje zaseknutí hlavního vlákna a "prasknutí"
+// zvuku (hlavně na slabším mobilním CPU). Cache se obnoví, jen když se DOM
+// skutečně změní (viz refreshLedCache níže).
+let ledCache = null, padCache = null;
+function refreshLedCache(){
+  ledCache = Array.from(document.querySelectorAll('.step-led'));
+  padCache = Array.from(document.querySelectorAll('.pad'));
+}
 function clearLeds(){
-  document.querySelectorAll('.step-led').forEach(el=>el.classList.remove('lit'));
-  document.querySelectorAll('.pad').forEach(p=>p.classList.remove('on'));
+  if(!ledCache || !padCache) refreshLedCache();
+  ledCache.forEach(el=>el.classList.remove('lit'));
+  padCache.forEach(p=>p.classList.remove('on'));
 }
 
 async function startPlayback(mode, resumeAt){
@@ -1837,6 +1864,11 @@ async function startPlayback(mode, resumeAt){
     showStatus('Přehrávání není dostupné — nepodařilo se načíst zvukovou knihovnu (zkontroluj připojení k internetu)');
     return;
   }
+  // Větší lookAhead = scheduler plánuje noty s větším předstihem, takže krátké
+  // zaseknutí hlavního vlákna (např. GC pauza) na mobilu s větší pravděpodobností
+  // nezpůsobí výpadek/prasknutí zvuku. Stojí to trochu vyšší latenci při
+  // spouštění/zastavování, což je na mobilu dobrý kompromis.
+  if(toneAvailable()) Tone.getContext().lookAhead = 0.25;
   const myToken = ++playToken;
   const playBtnEl = document.getElementById('playBtn');
   const playChordsBtnEl = document.getElementById('playChordsBtn');
