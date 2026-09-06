@@ -2004,6 +2004,20 @@ function refreshPlayback(){
   }
 }
 
+// Mini DAW volá refreshPlayback() (kompletní stop+start celého audio enginu —
+// nové Tone.Sequence/Part objekty pro melodii/basu/arp/bicí) při KAŽDÉ jediné
+// úpravě kroku. Při rychlém přeťukávání víc kroků za sebou (např. tažení přes
+// víc bubnových buněk, nebo zkoušení víc not v řadě) by to bez zpoždění
+// spustilo celou tuhle přestavbu znovu a znovu během pár desítek milisekund —
+// zbytečná zátěž hlavního vlákna, která v delší editační session (podle
+// hlášení uživatele cca po 10 minutách) vedla k sekání přehrávání ve
+// Firefoxu. Debounce spustí skutečnou přestavbu až 150 ms po poslední úpravě.
+let refreshPlaybackDebounceTimer = null;
+function refreshPlaybackDebounced(){
+  clearTimeout(refreshPlaybackDebounceTimer);
+  refreshPlaybackDebounceTimer = setTimeout(refreshPlayback, 150);
+}
+
 document.getElementById('playBtn').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
@@ -2581,12 +2595,22 @@ function renderMiniDaw(){
       const wrap = document.createElement('div');
       wrap.className = 'daw-note-step';
 
+      // Poznámka k výkonu: dřív každý klik (oktáva/mute/výběr noty) volal
+      // renderMiniDaw(), který kompletně zahazuje a znovu staví CELÝ panel
+      // (u výběru noty to je 3 stopy × 4 kroky × 85 <option> prvků = přes
+      // 1000 nových DOM uzlů) — při delší editaci to zbytečně zatěžovalo
+      // hlavní vlákno a přispívalo k sekání přehrávání. Úprava jednoho kroku
+      // nemá vliv na vzhled ostatních kroků, takže si teď každý ovladač
+      // upravuje jen svůj vlastní pilulek/select přímo (closure níž má na ně
+      // referenci), místo přestavby celého panelu.
       const upBtn = document.createElement('button');
       upBtn.type = 'button'; upBtn.className = 'daw-oct-btn'; upBtn.textContent = '▲';
       upBtn.title = 'O oktávu výš';
       upBtn.addEventListener('click', ()=>{
         notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] + 12);
-        refreshPlayback(); renderMiniDaw();
+        pill.textContent = midiToName(notesArr[barI][stepI]);
+        noteSelect.value = String(notesArr[barI][stepI]);
+        refreshPlaybackDebounced();
       });
 
       const pill = document.createElement('button');
@@ -2596,8 +2620,11 @@ function renderMiniDaw(){
       pill.textContent = midiToName(note);
       pill.title = muted ? 'Kliknutím krok zase zapneš' : 'Kliknutím krok ztlumíš';
       pill.addEventListener('click', ()=>{
-        muteArr[barI][stepI] = !muteArr[barI][stepI];
-        refreshPlayback(); renderMiniDaw();
+        const isMutedNow = !muteArr[barI][stepI];
+        muteArr[barI][stepI] = isMutedNow;
+        pill.classList.toggle('muted', isMutedNow);
+        pill.title = isMutedNow ? 'Kliknutím krok zase zapneš' : 'Kliknutím krok ztlumíš';
+        refreshPlaybackDebounced();
       });
 
       const downBtn = document.createElement('button');
@@ -2605,7 +2632,9 @@ function renderMiniDaw(){
       downBtn.title = 'O oktávu níž';
       downBtn.addEventListener('click', ()=>{
         notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] - 12);
-        refreshPlayback(); renderMiniDaw();
+        pill.textContent = midiToName(notesArr[barI][stepI]);
+        noteSelect.value = String(notesArr[barI][stepI]);
+        refreshPlaybackDebounced();
       });
 
       // Přímý výběr úplně jiné noty (ne jen posun o oktávu) — rozsah C1–C8
@@ -2623,7 +2652,8 @@ function renderMiniDaw(){
       }
       noteSelect.addEventListener('change', ()=>{
         notesArr[barI][stepI] = clampNote(parseInt(noteSelect.value, 10));
-        refreshPlayback(); renderMiniDaw();
+        pill.textContent = midiToName(notesArr[barI][stepI]);
+        refreshPlaybackDebounced();
       });
 
       wrap.appendChild(upBtn);
@@ -2663,8 +2693,10 @@ function renderMiniDaw(){
       cell.className = 'daw-step-drum' + (v ? ' on' : '') + (s%4===0 ? ' bar4' : '');
       cell.title = label + ' — krok ' + (s+1);
       cell.addEventListener('click', ()=>{
-        pat[key][s] = pat[key][s] ? 0 : 1;
-        refreshPlayback(); renderMiniDaw();
+        const on = pat[key][s] ? 0 : 1;
+        pat[key][s] = on;
+        cell.classList.toggle('on', !!on);
+        refreshPlaybackDebounced();
       });
       cells.appendChild(cell);
     });

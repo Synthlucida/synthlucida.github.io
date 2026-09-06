@@ -2007,6 +2007,20 @@ function refreshPlayback(){
   }
 }
 
+// Mini DAW calls refreshPlayback() (a full stop+start of the whole audio
+// engine — brand new Tone.Sequence/Part objects for melody/bass/arp/drums)
+// on EVERY single step edit. Rapid-fire edits (dragging across several drum
+// cells, or trying out several notes in a row) would retrigger that whole
+// rebuild again and again within tens of milliseconds — unnecessary main
+// thread work that, over a longer editing session, was reported to cause
+// playback to stutter in Firefox. Debouncing delays the actual rebuild until
+// 150ms after the last edit.
+let refreshPlaybackDebounceTimer = null;
+function refreshPlaybackDebounced(){
+  clearTimeout(refreshPlaybackDebounceTimer);
+  refreshPlaybackDebounceTimer = setTimeout(refreshPlayback, 150);
+}
+
 document.getElementById('playBtn').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
@@ -2573,12 +2587,23 @@ function renderMiniDaw(){
       const wrap = document.createElement('div');
       wrap.className = 'daw-note-step';
 
+      // Performance note: each click (octave/mute/note pick) used to call
+      // renderMiniDaw(), which throws away and rebuilds the ENTIRE panel (the
+      // note-select alone is 3 tracks × 4 steps × 85 <option> elements — over
+      // 1000 fresh DOM nodes) — during a longer editing session that put
+      // needless load on the main thread and contributed to playback
+      // stuttering. Editing one step doesn't change how any other step looks,
+      // so each control now just updates its own pill/select in place (the
+      // closure below already has a reference to them) instead of rebuilding
+      // the whole panel.
       const upBtn = document.createElement('button');
       upBtn.type = 'button'; upBtn.className = 'daw-oct-btn'; upBtn.textContent = '▲';
       upBtn.title = 'Octave up';
       upBtn.addEventListener('click', ()=>{
         notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] + 12);
-        refreshPlayback(); renderMiniDaw();
+        pill.textContent = midiToName(notesArr[barI][stepI]);
+        noteSelect.value = String(notesArr[barI][stepI]);
+        refreshPlaybackDebounced();
       });
 
       const pill = document.createElement('button');
@@ -2588,8 +2613,11 @@ function renderMiniDaw(){
       pill.textContent = midiToName(note);
       pill.title = muted ? 'Click to unmute this step' : 'Click to mute this step';
       pill.addEventListener('click', ()=>{
-        muteArr[barI][stepI] = !muteArr[barI][stepI];
-        refreshPlayback(); renderMiniDaw();
+        const isMutedNow = !muteArr[barI][stepI];
+        muteArr[barI][stepI] = isMutedNow;
+        pill.classList.toggle('muted', isMutedNow);
+        pill.title = isMutedNow ? 'Click to unmute this step' : 'Click to mute this step';
+        refreshPlaybackDebounced();
       });
 
       const downBtn = document.createElement('button');
@@ -2597,7 +2625,9 @@ function renderMiniDaw(){
       downBtn.title = 'Octave down';
       downBtn.addEventListener('click', ()=>{
         notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] - 12);
-        refreshPlayback(); renderMiniDaw();
+        pill.textContent = midiToName(notesArr[barI][stepI]);
+        noteSelect.value = String(notesArr[barI][stepI]);
+        refreshPlaybackDebounced();
       });
 
       // Pick a completely different note (not just an octave shift) — the
@@ -2616,7 +2646,8 @@ function renderMiniDaw(){
       }
       noteSelect.addEventListener('change', ()=>{
         notesArr[barI][stepI] = clampNote(parseInt(noteSelect.value, 10));
-        refreshPlayback(); renderMiniDaw();
+        pill.textContent = midiToName(notesArr[barI][stepI]);
+        refreshPlaybackDebounced();
       });
 
       wrap.appendChild(upBtn);
@@ -2656,8 +2687,10 @@ function renderMiniDaw(){
       cell.className = 'daw-step-drum' + (v ? ' on' : '') + (s%4===0 ? ' bar4' : '');
       cell.title = label + ' — step ' + (s+1);
       cell.addEventListener('click', ()=>{
-        pat[key][s] = pat[key][s] ? 0 : 1;
-        refreshPlayback(); renderMiniDaw();
+        const on = pat[key][s] ? 0 : 1;
+        pat[key][s] = on;
+        cell.classList.toggle('on', !!on);
+        refreshPlaybackDebounced();
       });
       cells.appendChild(cell);
     });
