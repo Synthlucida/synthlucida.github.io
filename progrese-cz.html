@@ -1088,8 +1088,6 @@
       <span aria-hidden="true">·</span>
       <a href="https://uklidnito.eu">Uklidni To</a>
       <span aria-hidden="true">·</span>
-      <a href="https://synthlucida.com/pohadkovnik.html">Pohádkovník</a>
-      <span aria-hidden="true">·</span>
       <a href="https://synthlucida.com/progrese-privacy-cz.html">Zásady ochrany osobních údajů</a>
     </nav>
     <p style="opacity:0.8;">Pokud tě aplikace baví a chceš podpořit projekt, budeme moc rádi. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Kup nám kávu</a>. Díky!</p>
@@ -1652,6 +1650,11 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  // Nová melodie má být čistý nový začátek — stejně jako u rerollBar() dole
+  // zrušíme staré ztlumené kroky, ať si tichem po staré melodii nezavírá
+  // místa v té úplně nové (viz i exportPdfSheet/exportMidi, které mute
+  // masku čtou stejně).
+  if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
@@ -1661,6 +1664,7 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
+  if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
@@ -1670,6 +1674,7 @@ document.getElementById('newBassBtn').addEventListener('click', ()=>{
 document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.arp = genArp(current.chords, arpStyleSelect.value);
+  if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
@@ -1693,6 +1698,7 @@ melodyStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
@@ -1705,6 +1711,7 @@ bassStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.bass = genBass(current.chords, bassStyleSelect.value);
+  if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
@@ -1717,6 +1724,7 @@ arpStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.arp = genArp(current.chords, arpStyleSelect.value);
+  if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
@@ -2367,8 +2375,14 @@ function exportPdfSheet(){
         new VF.StaveConnector(trebleStave, bassStave).setType(VF.StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
 
         // melodie (houslový klíč) — noty ostré (#) potřebují výslovný modifikátor
-        // Accidental, jinak by se křížek u noty nezobrazil
-        const melNotes = current.melody[barIndex].map(n=>{
+        // Accidental, jinak by se křížek u noty nezobrazil. Krok ztlumený v
+        // Mini DAW (stejná mute-maska jako u přehrávání/MIDI exportu výše) se
+        // vykreslí jako pomlka, ať noty v PDF odpovídají tomu, co se doopravdy
+        // ozve/exportuje, a ne původní (třeba už dávno ztlumené) notě.
+        const melNotes = current.melody[barIndex].map((n,stepIdx)=>{
+          if(isMutedFlat(current.melodyMute, barIndex*4+stepIdx, 4)){
+            return new VF.StaveNote({ clef:'treble', keys:['b/4'], duration:'qr' });
+          }
           const key = midiToVexKey(n);
           const note = new VF.StaveNote({ clef:'treble', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
@@ -2381,8 +2395,11 @@ function exportPdfSheet(){
           0
         );
 
-        // basa (basový klíč)
-        const bassNotes = current.bass[barIndex].map(n=>{
+        // basa (basový klíč) — stejné ošetření ztlumených kroků jako u melodie výše
+        const bassNotes = current.bass[barIndex].map((n,stepIdx)=>{
+          if(isMutedFlat(current.bassMute, barIndex*4+stepIdx, 4)){
+            return new VF.StaveNote({ clef:'bass', keys:['d/3'], duration:'qr' });
+          }
           const key = midiToVexKey(n);
           const note = new VF.StaveNote({ clef:'bass', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
@@ -2555,6 +2572,12 @@ document.getElementById('exportDrumsBtn').addEventListener('click', ()=>exportMi
 let dawBarIndex = 0;
 
 function clampNote(n){ return Math.max(0, Math.min(127, n)); }
+// Mini DAW ▲/▼ (posun o oktávu) musí zůstat ve stejném rozsahu C1–C8 (MIDI
+// 24–108), jaký nabízí vedlejší <select> (viz renderMiniDaw) — jinak se dá
+// tlačítkem dostat na notu, kterou <select> vůbec nenabízí, a ten pak
+// zůstane prázdný/zobrazí špatnou hodnotu, i když pilulka i skutečná
+// nota jsou v pořádku.
+function clampDawNote(n){ return Math.max(24, Math.min(108, n)); }
 
 /* Doplní mute-masky, pokud chybí nebo neodpovídají počtu taktů (nová
    generace celého postupu) — volá se při každém (znovu)vykreslení editoru. */
@@ -2656,7 +2679,7 @@ function renderMiniDaw(){
       upBtn.type = 'button'; upBtn.className = 'daw-oct-btn'; upBtn.textContent = '▲';
       upBtn.title = 'O oktávu výš';
       upBtn.addEventListener('click', ()=>{
-        notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] + 12);
+        notesArr[barI][stepI] = clampDawNote(notesArr[barI][stepI] + 12);
         pill.textContent = midiToName(notesArr[barI][stepI]);
         noteSelect.value = String(notesArr[barI][stepI]);
         refreshPlaybackDebounced();
@@ -2680,15 +2703,17 @@ function renderMiniDaw(){
       downBtn.type = 'button'; downBtn.className = 'daw-oct-btn'; downBtn.textContent = '▼';
       downBtn.title = 'O oktávu níž';
       downBtn.addEventListener('click', ()=>{
-        notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] - 12);
+        notesArr[barI][stepI] = clampDawNote(notesArr[barI][stepI] - 12);
         pill.textContent = midiToName(notesArr[barI][stepI]);
         noteSelect.value = String(notesArr[barI][stepI]);
         refreshPlaybackDebounced();
       });
 
       // Přímý výběr úplně jiné noty (ne jen posun o oktávu) — rozsah C1–C8
-      // pokrývá vše rozumně použitelné, aktuální nota se do rozsahu vždy vejde
-      // díky clampNote(0..127), takže se prostě vybere v <select>u.
+      // pokrývá vše rozumně použitelné; ▲/▼ výše teď taky drží notu v tomhle
+      // rozsahu (clampDawNote), ať vždy odpovídá nějaké skutečné položce
+      // v tomhle <select>u (dřív šlo tlačítkem dostat notu mimo C1–C8, kde
+      // <select> zůstal prázdný/ukazoval jinou notu než pilulka).
       const noteSelect = document.createElement('select');
       noteSelect.className = 'daw-note-select';
       noteSelect.title = 'Vybrat jinou notu';

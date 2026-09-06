@@ -1087,8 +1087,6 @@
       <span aria-hidden="true">·</span>
       <a href="https://uklidnito.eu">Uklidni To</a>
       <span aria-hidden="true">·</span>
-      <a href="https://synthlucida.com/pohadkovnik.html">Pohádkovník</a>
-      <span aria-hidden="true">·</span>
       <a href="https://synthlucida.com/progrese-privacy.html">Privacy Policy</a>
     </nav>
     <p style="opacity:0.8;">If you enjoy the app and want to support the project, we'd really appreciate it. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Buy us a coffee</a>. Thank you!</p>
@@ -1654,6 +1652,10 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  // A brand-new melody should be a clean slate — same as rerollBar() below,
+  // clear any leftover muted steps so they don't silently swallow notes in
+  // the new melody (exportPdfSheet/exportMidi read this same mute mask).
+  if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
@@ -1663,6 +1665,7 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.bass = genBass(current.chords, bassStyleSelect.value);
+  if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
@@ -1672,6 +1675,7 @@ document.getElementById('newBassBtn').addEventListener('click', ()=>{
 document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
   current.arp = genArp(current.chords, arpStyleSelect.value);
+  if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
@@ -1695,6 +1699,7 @@ melodyStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
@@ -1707,6 +1712,7 @@ bassStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.bass = genBass(current.chords, bassStyleSelect.value);
+  if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
@@ -1719,6 +1725,7 @@ arpStyleSelect.addEventListener('change', ()=>{
     return;
   }
   current.arp = genArp(current.chords, arpStyleSelect.value);
+  if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshPlaybackDebounced();
   refreshDawIfOpen();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
@@ -2362,8 +2369,15 @@ function exportPdfSheet(){
         new VF.StaveConnector(trebleStave, bassStave).setType(VF.StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
 
         // melody (treble clef) — sharp notes need an explicit Accidental
-        // modifier, otherwise the sharp sign wouldn't actually be drawn
-        const melNotes = current.melody[barIndex].map(n=>{
+        // modifier, otherwise the sharp sign wouldn't actually be drawn.
+        // A step muted in the Mini DAW (same mute mask playback/MIDI export
+        // use above) is drawn as a rest, so the PDF matches what actually
+        // plays/exports instead of the note's original, possibly long-since
+        // muted, pitch.
+        const melNotes = current.melody[barIndex].map((n,stepIdx)=>{
+          if(isMutedFlat(current.melodyMute, barIndex*4+stepIdx, 4)){
+            return new VF.StaveNote({ clef:'treble', keys:['b/4'], duration:'qr' });
+          }
           const key = midiToVexKey(n);
           const note = new VF.StaveNote({ clef:'treble', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
@@ -2376,8 +2390,11 @@ function exportPdfSheet(){
           0
         );
 
-        // bass (bass clef)
-        const bassNotes = current.bass[barIndex].map(n=>{
+        // bass (bass clef) — same muted-step handling as melody above
+        const bassNotes = current.bass[barIndex].map((n,stepIdx)=>{
+          if(isMutedFlat(current.bassMute, barIndex*4+stepIdx, 4)){
+            return new VF.StaveNote({ clef:'bass', keys:['d/3'], duration:'qr' });
+          }
           const key = midiToVexKey(n);
           const note = new VF.StaveNote({ clef:'bass', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
@@ -2550,6 +2567,12 @@ document.getElementById('exportDrumsBtn').addEventListener('click', ()=>exportMi
 let dawBarIndex = 0;
 
 function clampNote(n){ return Math.max(0, Math.min(127, n)); }
+// The Mini DAW's ▲/▼ octave-shift buttons must stay within the same C1-C8
+// (MIDI 24-108) range the adjacent <select> offers (see renderMiniDaw) —
+// otherwise a button press can land on a note the <select> has no option
+// for, leaving it blank/showing the wrong value even though the pill and
+// the actual note are fine.
+function clampDawNote(n){ return Math.max(24, Math.min(108, n)); }
 
 /* Fills in the mute masks if they're missing or don't match the current bar
    count (a freshly generated progression) — called every time the editor
@@ -2652,7 +2675,7 @@ function renderMiniDaw(){
       upBtn.type = 'button'; upBtn.className = 'daw-oct-btn'; upBtn.textContent = '▲';
       upBtn.title = 'Octave up';
       upBtn.addEventListener('click', ()=>{
-        notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] + 12);
+        notesArr[barI][stepI] = clampDawNote(notesArr[barI][stepI] + 12);
         pill.textContent = midiToName(notesArr[barI][stepI]);
         noteSelect.value = String(notesArr[barI][stepI]);
         refreshPlaybackDebounced();
@@ -2676,16 +2699,18 @@ function renderMiniDaw(){
       downBtn.type = 'button'; downBtn.className = 'daw-oct-btn'; downBtn.textContent = '▼';
       downBtn.title = 'Octave down';
       downBtn.addEventListener('click', ()=>{
-        notesArr[barI][stepI] = clampNote(notesArr[barI][stepI] - 12);
+        notesArr[barI][stepI] = clampDawNote(notesArr[barI][stepI] - 12);
         pill.textContent = midiToName(notesArr[barI][stepI]);
         noteSelect.value = String(notesArr[barI][stepI]);
         refreshPlaybackDebounced();
       });
 
       // Pick a completely different note (not just an octave shift) — the
-      // C1-C8 range covers everything practically useful, and the current
-      // note always fits in it thanks to clampNote(0..127), so it just shows
-      // up selected in the <select>.
+      // C1-C8 range covers everything practically useful; ▲/▼ above now keep
+      // the note within this same range too (clampDawNote), so it always
+      // matches a real option in this <select> (previously the buttons could
+      // push a note outside C1-C8, leaving the <select> blank/showing a
+      // different note than the pill).
       const noteSelect = document.createElement('select');
       noteSelect.className = 'daw-note-select';
       noteSelect.title = 'Pick a different note';
