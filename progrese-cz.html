@@ -582,7 +582,7 @@
       které jsi hledal/a!
     </p>
     <div class="support-actions">
-      <a class="support-btn primary" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">☕ Podpořit projekt</a>
+      <a class="support-btn primary" href="https://uklidnito.gumroad.com/l/progrese" target="_blank" rel="noopener">☕ Podpořit projekt</a>
       <button type="button" class="support-btn" id="supportBackBtn">← Zpět na Progrese</button>
     </div>
     <div class="support-code" id="supportCodeSection" hidden>
@@ -2938,9 +2938,38 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   const CODE_UNLOCK_AFTER = 5;
   const CODE_VALUE = 'Progrese2026';
   const CODE_OFF_MINUTES = 180;
+  // druhý, "plný" kód — narozdíl od CODE_VALUE výše (který je v okně otevřeně
+  // napsaný jako nápověda) se nikde v souboru neobjevuje ani jako čitelný
+  // text v komentáři, jen jeho hash (FULL_CODE_HASH níže). Kdo ho zadá, má
+  // připomínku vypnutou natrvalo (žádná časová expirace jako u CODE_VALUE).
+  // Pozor: nejde o skutečné zabezpečení — je to čistě klientský JS bez
+  // backendu, takže kód nejde schovat opravdu neprolomitelně (kdokoli se
+  // zdrojákem po ruce a trochou snahy si to může hrubou silou rozlousknout).
+  // Hash jen zabrání tomu, aby ho někdo omylem našel prostým prohlédnutím
+  // zdroje / hledáním (Ctrl+F) přes stránku.
+  function simpleHash(str){
+    let h = 0x811c9dc5;
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16);
+  }
+  const FULL_CODE_HASH = '8891ce27';
+  const PERMANENT_UNLOCK_KEY = 'progreseSupportUnlockedForever';
   const codeSection = document.getElementById('supportCodeSection');
   const codeInput = document.getElementById('supportCodeInput');
   const codeBtn = document.getElementById('supportCodeBtn');
+
+  function isPermanentlyUnlocked(){
+    try{ return localStorage.getItem(PERMANENT_UNLOCK_KEY) === '1'; }catch(e){ return false; }
+  }
+  function setPermanentlyUnlocked(on){
+    try{
+      if(on) localStorage.setItem(PERMANENT_UNLOCK_KEY, '1');
+      else localStorage.removeItem(PERMANENT_UNLOCK_KEY);
+    }catch(e){}
+  }
 
   function getShownCount(){
     try{ return parseInt(localStorage.getItem(SHOWN_COUNT_KEY), 10) || 0; }catch(e){ return 0; }
@@ -2950,6 +2979,7 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   }
 
   function isReminderOff(){
+    if(isPermanentlyUnlocked()) return true;
     try{
       const until = parseInt(localStorage.getItem(STORAGE_KEY), 10);
       if(!until || isNaN(until)) return false;
@@ -2985,7 +3015,11 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
     if(!codeInput) return;
     const val = codeInput.value.trim();
     if(!val) return;
-    if(val.toLowerCase() === CODE_VALUE.toLowerCase()){
+    if(simpleHash(val.toLowerCase()) === FULL_CODE_HASH){
+      setPermanentlyUnlocked(true);
+      hideSupportModal();
+      showStatus('Díky! Připomínka se už nebude zobrazovat');
+    }else if(val.toLowerCase() === CODE_VALUE.toLowerCase()){
       setReminderOff(CODE_OFF_MINUTES);
       hideSupportModal();
       showStatus(`Díky! Připomínka bude ${CODE_OFF_MINUTES} minut potichu`);
@@ -3022,6 +3056,7 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
         showStatus(`Připomínka podpory vypnuta na ${ADMIN_OFF_MINUTES} minut`);
       } else if(clickCount === 10){
         setReminderOff(0);
+        setPermanentlyUnlocked(false);
         clickCount = 0;
         showStatus('Připomínka podpory znovu zapnuta');
         showSupportModal(); // hned ukázat, ať je vidět, že to zase funguje

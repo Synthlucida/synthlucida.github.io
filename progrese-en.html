@@ -584,7 +584,7 @@
       exactly the melody or chords you were looking for!
     </p>
     <div class="support-actions">
-      <a class="support-btn primary" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">☕ Support the project</a>
+      <a class="support-btn primary" href="https://uklidnito.gumroad.com/l/progrese" target="_blank" rel="noopener">☕ Support the project</a>
       <button type="button" class="support-btn" id="supportBackBtn">← Back to Progrese</button>
     </div>
     <div class="support-code" id="supportCodeSection" hidden>
@@ -2939,9 +2939,39 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   const CODE_UNLOCK_AFTER = 5;
   const CODE_VALUE = 'Progrese2026';
   const CODE_OFF_MINUTES = 180;
+  // a second, "full" code — unlike CODE_VALUE above (which is shown openly as
+  // a hint in the modal), this one never appears anywhere in the file, not
+  // even as readable text in a comment — only its hash (FULL_CODE_HASH
+  // below). Whoever enters it gets the reminder turned off permanently (no
+  // time-based expiry like CODE_VALUE has).
+  // Note: this is not real security — it's plain client-side JS with no
+  // backend, so the code can't be hidden in a truly unbreakable way (anyone
+  // with the source and some effort could brute-force it). The hash just
+  // stops someone from stumbling onto it by casually reading the source or
+  // Ctrl+F-ing the page.
+  function simpleHash(str){
+    let h = 0x811c9dc5;
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16);
+  }
+  const FULL_CODE_HASH = '8891ce27';
+  const PERMANENT_UNLOCK_KEY = 'progreseSupportUnlockedForever';
   const codeSection = document.getElementById('supportCodeSection');
   const codeInput = document.getElementById('supportCodeInput');
   const codeBtn = document.getElementById('supportCodeBtn');
+
+  function isPermanentlyUnlocked(){
+    try{ return localStorage.getItem(PERMANENT_UNLOCK_KEY) === '1'; }catch(e){ return false; }
+  }
+  function setPermanentlyUnlocked(on){
+    try{
+      if(on) localStorage.setItem(PERMANENT_UNLOCK_KEY, '1');
+      else localStorage.removeItem(PERMANENT_UNLOCK_KEY);
+    }catch(e){}
+  }
 
   function getShownCount(){
     try{ return parseInt(localStorage.getItem(SHOWN_COUNT_KEY), 10) || 0; }catch(e){ return 0; }
@@ -2951,6 +2981,7 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   }
 
   function isReminderOff(){
+    if(isPermanentlyUnlocked()) return true;
     try{
       const until = parseInt(localStorage.getItem(STORAGE_KEY), 10);
       if(!until || isNaN(until)) return false;
@@ -2986,7 +3017,11 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
     if(!codeInput) return;
     const val = codeInput.value.trim();
     if(!val) return;
-    if(val.toLowerCase() === CODE_VALUE.toLowerCase()){
+    if(simpleHash(val.toLowerCase()) === FULL_CODE_HASH){
+      setPermanentlyUnlocked(true);
+      hideSupportModal();
+      showStatus("Thanks! The reminder won't show again");
+    }else if(val.toLowerCase() === CODE_VALUE.toLowerCase()){
       setReminderOff(CODE_OFF_MINUTES);
       hideSupportModal();
       showStatus(`Thanks! The reminder will stay quiet for ${CODE_OFF_MINUTES} minutes`);
@@ -3023,6 +3058,7 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
         showStatus(`Support reminder turned off for ${ADMIN_OFF_MINUTES} minutes`);
       } else if(clickCount === 10){
         setReminderOff(0);
+        setPermanentlyUnlocked(false);
         clickCount = 0;
         showStatus('Support reminder turned back on');
         showSupportModal(); // show it right away, so it's visible that it's working again
