@@ -585,13 +585,13 @@
       <a class="support-btn primary" href="https://uklidnito.gumroad.com/l/progrese" target="_blank" rel="noopener">☕ Podpořit projekt</a>
       <button type="button" class="support-btn" id="supportBackBtn">← Zpět na Progrese</button>
     </div>
-    <div class="support-code" id="supportCodeSection" hidden>
-      <p>Vidíš tuhle připomínku už poněkolikáté — pokud ti to zrovna nevyhovuje, zadej kód níže a na 180 minut si dáme pauzu.</p>
+    <div class="support-code" id="supportCodeSection">
+      <p id="supportCodeHintIntro" hidden>Vidíš tuhle připomínku už poněkolikáté — pokud ti to zrovna nevyhovuje, zadej kód níže a na 30 minut si dáme pauzu.</p>
       <div class="support-code-row">
         <input type="text" class="support-code-input" id="supportCodeInput" placeholder="Zadej kód" autocomplete="off">
         <button type="button" class="support-btn" id="supportCodeBtn">Potvrdit</button>
       </div>
-      <p class="support-code-hint">Kód: <span class="support-code-value">Progrese2026</span></p>
+      <p class="support-code-hint" id="supportCodeHintValue" hidden>Kód: <span class="support-code-value">Progrese2026</span></p>
     </div>
   </div>
 </div>
@@ -2933,11 +2933,11 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   const ADMIN_OFF_MINUTES = 30;
 
   // počítadlo, kolikrát se okno reálně zobrazilo (napříč návštěvami) — od 5.
-  // zobrazení se v okně objeví políčko s kódem pro vlastní 180minutové ztišení
+  // zobrazení se v okně objeví políčko s kódem pro vlastní 30minutové ztišení
   const SHOWN_COUNT_KEY = 'progreseSupportShownCount';
   const CODE_UNLOCK_AFTER = 5;
   const CODE_VALUE = 'Progrese2026';
-  const CODE_OFF_MINUTES = 180;
+  const CODE_OFF_MINUTES = 30;
   // druhý, "plný" kód — narozdíl od CODE_VALUE výše (který je v okně otevřeně
   // napsaný jako nápověda) se nikde v souboru neobjevuje ani jako čitelný
   // text v komentáři, jen jeho hash (FULL_CODE_HASH níže). Kdo ho zadá, má
@@ -2957,7 +2957,8 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   }
   const FULL_CODE_HASH = '8891ce27';
   const PERMANENT_UNLOCK_KEY = 'progreseSupportUnlockedForever';
-  const codeSection = document.getElementById('supportCodeSection');
+  const codeHintIntro = document.getElementById('supportCodeHintIntro');
+  const codeHintValue = document.getElementById('supportCodeHintValue');
   const codeInput = document.getElementById('supportCodeInput');
   const codeBtn = document.getElementById('supportCodeBtn');
 
@@ -3001,10 +3002,15 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
     if(document.hidden) return; // nevyskakovat, když karta zrovna není aktivní
     if(isReminderOff()) return;
     bumpShownCount();
-    if(codeSection){
-      codeSection.hidden = getShownCount() < CODE_UNLOCK_AFTER;
-      if(codeInput) codeInput.value = '';
-    }
+    // pole na zadání kódu je vidět hned od prvního zobrazení — kdyby si
+    // někdo přinesl kód z Gumroadu (ProgreseFull2026), nemusí čekat, až se
+    // okno objeví pětkrát. Odemčené "tipni si kód" vysvětlení a otevřeně
+    // napsaný Progrese2026 zůstávají skryté až do 5. reálného zobrazení,
+    // stejně jako dřív.
+    if(codeInput) codeInput.value = '';
+    const hintUnlocked = getShownCount() >= CODE_UNLOCK_AFTER;
+    if(codeHintIntro) codeHintIntro.hidden = !hintUnlocked;
+    if(codeHintValue) codeHintValue.hidden = !hintUnlocked;
     overlay.hidden = false;
   }
   function hideSupportModal(){

@@ -587,13 +587,13 @@
       <a class="support-btn primary" href="https://uklidnito.gumroad.com/l/progrese" target="_blank" rel="noopener">☕ Support the project</a>
       <button type="button" class="support-btn" id="supportBackBtn">← Back to Progrese</button>
     </div>
-    <div class="support-code" id="supportCodeSection" hidden>
-      <p>You've seen this reminder a few times now — if the timing isn't great, enter the code below and we'll stay quiet for 180 minutes.</p>
+    <div class="support-code" id="supportCodeSection">
+      <p id="supportCodeHintIntro" hidden>You've seen this reminder a few times now — if the timing isn't great, enter the code below and we'll stay quiet for 30 minutes.</p>
       <div class="support-code-row">
         <input type="text" class="support-code-input" id="supportCodeInput" placeholder="Enter code" autocomplete="off">
         <button type="button" class="support-btn" id="supportCodeBtn">Confirm</button>
       </div>
-      <p class="support-code-hint">Code: <span class="support-code-value">Progrese2026</span></p>
+      <p class="support-code-hint" id="supportCodeHintValue" hidden>Code: <span class="support-code-value">Progrese2026</span></p>
     </div>
   </div>
 </div>
@@ -2934,11 +2934,11 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   const ADMIN_OFF_MINUTES = 30;
 
   // counts how many times the modal has actually been shown (across visits) —
-  // from the 5th time onward, a code field appears for a self-serve 180-minute snooze
+  // from the 5th time onward, a code field appears for a self-serve 30-minute snooze
   const SHOWN_COUNT_KEY = 'progreseSupportShownCount';
   const CODE_UNLOCK_AFTER = 5;
   const CODE_VALUE = 'Progrese2026';
-  const CODE_OFF_MINUTES = 180;
+  const CODE_OFF_MINUTES = 30;
   // a second, "full" code — unlike CODE_VALUE above (which is shown openly as
   // a hint in the modal), this one never appears anywhere in the file, not
   // even as readable text in a comment — only its hash (FULL_CODE_HASH
@@ -2959,7 +2959,8 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   }
   const FULL_CODE_HASH = '8891ce27';
   const PERMANENT_UNLOCK_KEY = 'progreseSupportUnlockedForever';
-  const codeSection = document.getElementById('supportCodeSection');
+  const codeHintIntro = document.getElementById('supportCodeHintIntro');
+  const codeHintValue = document.getElementById('supportCodeHintValue');
   const codeInput = document.getElementById('supportCodeInput');
   const codeBtn = document.getElementById('supportCodeBtn');
 
@@ -3003,10 +3004,15 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
     if(document.hidden) return; // don't pop up while the tab isn't active
     if(isReminderOff()) return;
     bumpShownCount();
-    if(codeSection){
-      codeSection.hidden = getShownCount() < CODE_UNLOCK_AFTER;
-      if(codeInput) codeInput.value = '';
-    }
+    // the code field itself is visible from the very first showing — someone
+    // arriving with a code from Gumroad (ProgreseFull2026) shouldn't have to
+    // wait for the popup to show 5 times. The "in case you're wondering"
+    // explanation and the openly-printed Progrese2026 hint stay hidden until
+    // the 5th real showing, same as before.
+    if(codeInput) codeInput.value = '';
+    const hintUnlocked = getShownCount() >= CODE_UNLOCK_AFTER;
+    if(codeHintIntro) codeHintIntro.hidden = !hintUnlocked;
+    if(codeHintValue) codeHintValue.hidden = !hintUnlocked;
     overlay.hidden = false;
   }
   function hideSupportModal(){
