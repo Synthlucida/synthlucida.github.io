@@ -501,6 +501,31 @@
   .daw-step-drum.on{background:var(--sky); border-color:var(--sky);}
   .daw-step-drum.bar4{margin-left:6px;}
   .daw-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;}
+
+  .daw-piano-wrap{margin-bottom:22px;}
+  .daw-piano-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px;}
+  .daw-piano-title{font-size:11.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em;}
+  .daw-piano-toggle{
+    font-family:inherit; font-size:10.5px; border-radius:5px; padding:4px 9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg); color:var(--text-dim);
+  }
+  .daw-piano-toggle:hover{border-color:#5a5040;}
+  .daw-piano-toggle.on{border-color:var(--amber); color:var(--amber);}
+  .daw-piano{
+    overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:#0f0d0b; padding:8px 0 0;
+  }
+  .piano-inner{position:relative;}
+  .pkey{position:absolute; top:0; box-sizing:border-box; border-radius:0 0 3px 3px; padding:0;}
+  .pkey.white{background:#ece4d6; border:1px solid #3a332a; border-top:none; z-index:1;}
+  .pkey.black{background:#141210; border:1px solid #000; z-index:2;}
+  .pkey.active.white{background:#fff7ea;}
+  .pkey.active.black{background:#2a231a;}
+  .pkey-bar{position:absolute; left:0; right:0; bottom:3px; height:4px; border-radius:2px; background:transparent;}
+  .daw-piano-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--text-dim); margin-top:8px;}
+  .daw-piano-legend span{display:inline-flex; align-items:center; gap:5px;}
+  @media (max-width:480px){
+    .daw-piano{padding-top:6px;}
+  }
   @media (max-width:480px){
     .daw-note-pill{min-width:36px; font-size:10px; padding:5px 6px;}
     .daw-note-select{max-width:48px; font-size:9px;}
@@ -781,6 +806,7 @@
 
     <div class="actions">
       <button class="cta primary" id="genBtn">Vygenerovat postup</button>
+      <button class="cta primary" id="playBtnTop" disabled>▶ Přehrát</button>
       <button class="cta" id="regenBtn" disabled>Nová varianta</button>
       <button class="cta" id="newMelodyBtn" disabled>Nová melodie</button>
       <button class="cta" id="newBassBtn" disabled>Nová basa</button>
@@ -845,6 +871,18 @@
       <div class="daw-empty" id="dawEmpty">Nejdřív vygeneruj postup, pak si ho tady doladíš.</div>
       <div id="dawContent" style="display:none;">
         <div class="daw-bartabs" id="dawBarTabs"></div>
+        <div class="daw-piano-wrap" id="dawPianoWrap">
+          <div class="daw-piano-head">
+            <span class="daw-piano-title">Klaviatura — co zrovna hraje</span>
+            <button type="button" class="daw-piano-toggle on" id="dawPianoToggle" aria-pressed="true">Zapnuto</button>
+          </div>
+          <div class="daw-piano" id="dawPiano"></div>
+          <div class="daw-piano-legend">
+            <span><span class="dot amber"></span>akordy</span>
+            <span><span class="dot teal"></span>basa</span>
+            <span><span class="dot rose"></span>arp</span>
+          </div>
+        </div>
         <div class="daw-tracks" id="dawTracks"></div>
         <div class="daw-actions">
           <button type="button" class="cta" id="dawRerollBtn">🎲 Přegenerovat tento takt</button>
@@ -1626,6 +1664,7 @@ function renderProgression(data){
 }
 
 function setResultButtonsEnabled(enabled){
+  document.getElementById('playBtnTop').disabled = !enabled;
   document.getElementById('regenBtn').disabled = !enabled;
   document.getElementById('newMelodyBtn').disabled = !enabled;
   document.getElementById('newBassBtn').disabled = !enabled;
@@ -1930,6 +1969,7 @@ function triggerChord(chord, time){
   const dur = 240 / currentBpm; // 1 takt (4/4) = 4 doby
   chord.tones.forEach(m=>{
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
+    schedulePianoNote(m, 'chords', time, dur);
   });
 }
 function triggerMelodyNote(m, time){
@@ -1937,9 +1977,11 @@ function triggerMelodyNote(m, time){
 }
 function triggerBassNote(m, time){
   playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
+  schedulePianoNote(m, 'bass', time, 60/currentBpm);
 }
 function triggerArpNote(m, time){
   playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
+  schedulePianoNote(m, 'arp', time, 30/currentBpm);
 }
 
 // Kopák: sinusovka s rychlým poklesem výšky (napodobuje Tone.MembraneSynth).
@@ -2009,15 +2051,91 @@ function applyLedStep(s){
     if(pad){ pad.classList.add('on'); lastLitPad = pad; }
   }
 }
+
+/* ---- Klaviatura v Mini DAW (živý náhled znějících not) ----
+   Stejný princip jako LED pásek výše: eventy se plánují dopředu (spolu se
+   samotným zvukem), ale do DOM se promítnou až přesně v audio-čase, kdy
+   nota skutečně zazní — ne ve chvíli, kdy je scheduler naplánoval (ten je
+   vždy ~0,1s napřed). pianoQueue drží čekající "note-on" eventy (seřazené
+   podle času, protože se do fronty přidávají ve stejném pořadí, v jakém
+   scheduler postupuje), pianoActive drží momentálně znějící noty čekající
+   na svůj "note-off" čas. */
+let pianoQueue = [];   // {midi, layer, on, off}
+let pianoActive = [];  // právě znějící: {midi, layer, off}
+let pianoEnabled = true;
+let pianoKeyEls = {};  // midi -> {el, bar, layers:Set}
+const PIANO_LOW = 36;  // C2
+const PIANO_HIGH = 95; // B6 (5 oktáv, dost i na nejširší arp vzor "Široká")
+const PIANO_LAYER_COLOR = { chords:'#ff8a3d', bass:'#4dd2c4', arp:'#ff6f9c' };
+
+function schedulePianoNote(midi, layer, onTime, duration){
+  if(!pianoEnabled) return;
+  const panel = document.getElementById('miniDawPanel');
+  if(!panel || !panel.open) return; // není vidět, není co animovat
+  if(midi < PIANO_LOW || midi > PIANO_HIGH) return; // mimo zobrazený rozsah — v pořádku vynechat
+  pianoQueue.push({ midi, layer, on: onTime, off: onTime + duration });
+}
+
+function updateKeyVisual(entry){
+  const layers = Array.from(entry.layers);
+  if(layers.length === 0){
+    entry.bar.style.background = 'transparent';
+    entry.el.classList.remove('active');
+    return;
+  }
+  entry.el.classList.add('active');
+  if(layers.length === 1){
+    entry.bar.style.background = PIANO_LAYER_COLOR[layers[0]];
+  }else{
+    // víc vrstev najednou na stejné klávese: pruh se rozdělí na stejné díly,
+    // ať je hned vidět, které konkrétní vrstvy se tam potkaly
+    const step = 100/layers.length;
+    const stops = layers.map((l,i)=> `${PIANO_LAYER_COLOR[l]} ${i*step}%, ${PIANO_LAYER_COLOR[l]} ${(i+1)*step}%`).join(', ');
+    entry.bar.style.background = `linear-gradient(to right, ${stops})`;
+  }
+}
+
+function setKeyLayerOn(midi, layer, on){
+  const entry = pianoKeyEls[midi];
+  if(!entry) return;
+  if(on) entry.layers.add(layer); else entry.layers.delete(layer);
+  updateKeyVisual(entry);
+}
+
+function clearPianoHighlights(){
+  pianoQueue = [];
+  pianoActive = [];
+  Object.values(pianoKeyEls).forEach(entry=>{
+    entry.layers.clear();
+    updateKeyVisual(entry);
+  });
+}
+
 // Běží pořád (i mimo přehrávání je to jen kontrola prázdné fronty jednou za
 // snímek) — obdoba Tone.Draw: DOM se má update-ovat přesně v audio-čase
 // daného kroku, ne hned ve chvíli, kdy scheduler ten krok naplánoval
 // (scheduler je vždy ~0,1s napřed).
 function ledDrawLoop(){
-  if(audioCtx && ledQueue.length){
+  if(audioCtx){
     const now = audioCtx.currentTime;
-    while(ledQueue.length && ledQueue[0].time <= now){
-      applyLedStep(ledQueue.shift().ledStep);
+    if(ledQueue.length){
+      while(ledQueue.length && ledQueue[0].time <= now){
+        applyLedStep(ledQueue.shift().ledStep);
+      }
+    }
+    if(pianoQueue.length || pianoActive.length){
+      while(pianoQueue.length && pianoQueue[0].on <= now){
+        const ev = pianoQueue.shift();
+        pianoActive.push(ev);
+        setKeyLayerOn(ev.midi, ev.layer, true);
+      }
+      for(let i=pianoActive.length-1; i>=0; i--){
+        if(pianoActive[i].off <= now){
+          const ev = pianoActive[i];
+          pianoActive.splice(i,1);
+          setKeyLayerOn(ev.midi, ev.layer, false);
+        }
+      }
     }
   }
   requestAnimationFrame(ledDrawLoop);
@@ -2030,6 +2148,67 @@ function clearLeds(){
   lastLitLed = null;
   lastLitPad = null;
   ledQueue = [];
+  clearPianoHighlights();
+}
+
+/* Vykreslí klaviaturu (bíle/černé klávesy) jednou při prvním otevření Mini
+   DAW — je to statická mřížka, není potřeba ji stavět znovu při každém
+   překreslení panelu. Vrací mapu midi -> element kvůli schedulePianoNote. */
+function buildPianoKeys(container){
+  container.innerHTML = '';
+  pianoKeyEls = {};
+  const WHITE_W = 15, WHITE_H = 68, BLACK_W = 9, BLACK_H = 42;
+  const WHITE_PC = [0,2,4,5,7,9,11]; // C D E F G A B (půltóny od C)
+  const BLACK_PC = {1:0, 3:1, 6:3, 8:4, 10:5}; // půltón -> index bílé klávesy PŘED kterou černá sedí
+
+  let whiteIndex = 0;
+  const inner = document.createElement('div');
+  inner.className = 'piano-inner';
+
+  // 1. průchod: spočítat kolik bílých kláves rozsah má, ať víme celkovou šířku
+  let whiteCount = 0;
+  for(let m=PIANO_LOW; m<=PIANO_HIGH; m++){ if(WHITE_PC.includes(m%12)) whiteCount++; }
+  inner.style.width = (whiteCount*WHITE_W) + 'px';
+  inner.style.height = WHITE_H + 'px';
+
+  whiteIndex = 0;
+  for(let m=PIANO_LOW; m<=PIANO_HIGH; m++){
+    const pc = m%12;
+    if(WHITE_PC.includes(pc)){
+      const key = document.createElement('div');
+      key.className = 'pkey white';
+      key.style.left = (whiteIndex*WHITE_W) + 'px';
+      key.style.width = WHITE_W + 'px';
+      key.style.height = WHITE_H + 'px';
+      const bar = document.createElement('div');
+      bar.className = 'pkey-bar';
+      key.appendChild(bar);
+      inner.appendChild(key);
+      pianoKeyEls[m] = { el:key, bar, layers:new Set() };
+      whiteIndex++;
+    }
+  }
+  whiteIndex = 0;
+  for(let m=PIANO_LOW; m<=PIANO_HIGH; m++){
+    const pc = m%12;
+    if(WHITE_PC.includes(pc)){ whiteIndex++; continue; }
+    // černá klávesa sedí mezi bílou klávesou (whiteIndex-1) a whiteIndex,
+    // tzn. na hranici mezi nimi, mírně posunutá doleva o půl své šířky
+    const key = document.createElement('div');
+    key.className = 'pkey black';
+    key.style.left = (whiteIndex*WHITE_W - BLACK_W/2) + 'px';
+    key.style.width = BLACK_W + 'px';
+    key.style.height = BLACK_H + 'px';
+    const bar = document.createElement('div');
+    bar.className = 'pkey-bar';
+    key.appendChild(bar);
+    inner.appendChild(key);
+    pianoKeyEls[m] = { el:key, bar, layers:new Set() };
+  }
+
+  container.appendChild(inner);
+  // odscrolluje na střed rozsahu (okolo C4), ať se panel neotvírá úplně na kraji klaviatury
+  container.scrollLeft = Math.max(0, inner.offsetWidth*0.42 - container.clientWidth/2);
 }
 
 // Které vrstvy zrovna hrají v aktuálním playMode.
@@ -2046,7 +2225,7 @@ function scheduleStep(step16, time){
 
   if(playChords && posInBar16 === 0){
     const chord = current.chords[bar];
-    if(chord) triggerChord(chord, time);
+    if(chord && !isMutedFlat(current.chordsMute, bar, 1)) triggerChord(chord, time);
   }
   if(step16 % 4 === 0){
     const qIdx = step16 / 4;
@@ -2104,12 +2283,13 @@ async function startPlayback(mode, resumeAt){
   }
   const myToken = ++playToken;
   const playBtnEl = document.getElementById('playBtn');
+  const playBtnTopEl = document.getElementById('playBtnTop');
   const playChordsBtnEl = document.getElementById('playChordsBtn');
   const playMelodyBtnEl = document.getElementById('playMelodyBtn');
   const playBassBtnEl = document.getElementById('playBassBtn');
   const playArpBtnEl = document.getElementById('playArpBtn');
   const playDrumsBtnEl = document.getElementById('playDrumsBtn');
-  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
+  const allBtns = [playBtnEl, playBtnTopEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
   allBtns.forEach(b=>b.disabled = true);
 
   ensureAudioCtx();
@@ -2146,6 +2326,7 @@ async function startPlayback(mode, resumeAt){
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Zastavit' : '▶ Přehrát';
+  playBtnTopEl.textContent = mode === 'full' ? '■ Zastavit' : '▶ Přehrát';
   playChordsBtnEl.textContent = mode === 'chords' ? '■ Zastavit' : '♪ Jen akordy';
   playMelodyBtnEl.textContent = mode === 'melody' ? '■ Zastavit' : '♪ Jen melodie';
   playBassBtnEl.textContent = mode === 'bass' ? '■ Zastavit' : '♪ Jen basa';
@@ -2161,6 +2342,7 @@ function stopPlayback(){
   isPlaying = false;
   playMode = null;
   document.getElementById('playBtn').textContent = '▶ Přehrát';
+  document.getElementById('playBtnTop').textContent = '▶ Přehrát';
   document.getElementById('playChordsBtn').textContent = '♪ Jen akordy';
   document.getElementById('playMelodyBtn').textContent = '♪ Jen melodie';
   document.getElementById('playBassBtn').textContent = '♪ Jen basa';
@@ -2203,6 +2385,11 @@ function refreshLayersDebounced(layers){
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
+});
+
+document.getElementById('playBtnTop').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
 });
@@ -2295,9 +2482,10 @@ function exportMidi(){
   const barTicks = TPQN * 4;
   const totalTicks = barTicks * current.chords.length;
 
-  // chords: whole note per bar
+  // chords: whole note per bar (takty ztlumené v Mini DAW se do exportu nepromítnou)
   const chordEvents = [];
   current.chords.forEach((c,i)=>{
+    if(isMutedFlat(current.chordsMute, i, 1)) return;
     const start = i * barTicks;
     c.tones.forEach(n=>{
       chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
@@ -2609,6 +2797,7 @@ function buildPartEvents(part){
   const events = [];
   if(part === 'chords'){
     current.chords.forEach((c,i)=>{
+      if(isMutedFlat(current.chordsMute, i, 1)) return;
       const start = i * barTicks;
       c.tones.forEach(n=>{
         events.push({tick:start, type:'on', note:n, vel:80, channel:0});
@@ -2710,6 +2899,12 @@ function clampDawNote(n){ return Math.max(24, Math.min(108, n)); }
    generace celého postupu) — volá se při každém (znovu)vykreslení editoru. */
 function ensureDawState(cur){
   if(!cur) return;
+  if(!cur.chordsMute || cur.chordsMute.length !== cur.chords.length){
+    // akord je jeden event na celý takt (ne 4/8/16 kroků jako ostatní vrstvy),
+    // takže i mute-maska má jen 1 "krok" na takt — isMutedFlat(...,1) funguje
+    // beze změny, jen se stepsPerBar=1.
+    cur.chordsMute = cur.chords.map(()=>[false]);
+  }
   if(!cur.melodyMute || cur.melodyMute.length !== cur.melody.length){
     cur.melodyMute = cur.melody.map(bar=>bar.map(()=>false));
   }
@@ -2749,7 +2944,8 @@ function rerollBar(barI){
   current.melodyMute[barI] = current.melodyMute[barI].map(()=>false);
   current.bassMute[barI] = current.bassMute[barI].map(()=>false);
   current.arpMute[barI] = current.arpMute[barI].map(()=>false);
-  refreshLayersDebounced(['melody','bass','arp','drums']);
+  current.chordsMute[barI] = [false];
+  refreshLayersDebounced(['chords','melody','bass','arp','drums']);
   renderMiniDaw();
   showStatus(`Takt ${barI+1} přegenerován`);
 }
@@ -2766,6 +2962,12 @@ function renderMiniDaw(){
   if(dawBarIndex >= current.chords.length) dawBarIndex = 0;
   emptyEl.style.display = 'none';
   contentEl.style.display = 'block';
+
+  const pianoEl = document.getElementById('dawPiano');
+  if(pianoEl && !pianoEl.dataset.built){
+    buildPianoKeys(pianoEl);
+    pianoEl.dataset.built = '1';
+  }
 
   const tabsEl = document.getElementById('dawBarTabs');
   tabsEl.innerHTML = '';
@@ -2867,6 +3069,43 @@ function renderMiniDaw(){
     tracksEl.appendChild(track);
   }
 
+  // Akordy jsou jeden event na celý takt (ne 4/8/16 kroků jako ostatní
+  // vrstvy) — místo noteTrack (postavené kolem pole kroků) proto jen jedna
+  // pilulka s celým akordem, kterou lze ztlumit stejně jako ostatní kroky.
+  // Bez šipek nahoru/dolů a bez výběru jiné noty — přehození na jiný akord
+  // je "Nová varianta" výše, ne úprava jednotlivého tónu.
+  function chordTrack(barI){
+    const track = document.createElement('div');
+    track.className = 'daw-track';
+    const labelEl = document.createElement('div');
+    labelEl.className = 'daw-track-label';
+    labelEl.innerHTML = `<span class="dot amber"></span>Akordy`;
+    track.appendChild(labelEl);
+    const stepsEl = document.createElement('div');
+    stepsEl.className = 'daw-steps';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'daw-note-step';
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    const muted = !!(current.chordsMute[barI] && current.chordsMute[barI][0]);
+    pill.className = 'daw-note-pill' + (muted ? ' muted' : '');
+    pill.textContent = current.chords[barI].symbol;
+    pill.title = muted ? 'Kliknutím akord v tomhle taktu zase zapneš' : 'Kliknutím akord v tomhle taktu ztlumíš';
+    pill.addEventListener('click', ()=>{
+      const isMutedNow = !current.chordsMute[barI][0];
+      current.chordsMute[barI][0] = isMutedNow;
+      pill.classList.toggle('muted', isMutedNow);
+      pill.title = isMutedNow ? 'Kliknutím akord v tomhle taktu zase zapneš' : 'Kliknutím akord v tomhle taktu ztlumíš';
+      refreshLayersDebounced(['chords']);
+    });
+    wrap.appendChild(pill);
+    stepsEl.appendChild(wrap);
+    track.appendChild(stepsEl);
+    tracksEl.appendChild(track);
+  }
+
+  chordTrack(dawBarIndex);
   noteTrack('Melodie', 'violet', current.melody, current.melodyMute, dawBarIndex, 'melody');
   noteTrack('Basa', 'teal', current.bass, current.bassMute, dawBarIndex, 'bass');
   noteTrack('Arp', 'rose', current.arp, current.arpMute, dawBarIndex, 'arp');
@@ -2909,6 +3148,16 @@ function renderMiniDaw(){
 
 document.getElementById('miniDawPanel').addEventListener('toggle', function(){
   if(this.open) renderMiniDaw();
+});
+
+document.getElementById('dawPianoToggle').addEventListener('click', function(){
+  pianoEnabled = !pianoEnabled;
+  this.textContent = pianoEnabled ? 'Zapnuto' : 'Vypnuto';
+  this.classList.toggle('on', pianoEnabled);
+  this.setAttribute('aria-pressed', String(pianoEnabled));
+  const pianoEl = document.getElementById('dawPiano');
+  if(pianoEl) pianoEl.style.opacity = pianoEnabled ? '1' : '0.35';
+  if(!pianoEnabled) clearPianoHighlights(); // ať nezůstane "zaseknutá" rozsvícená klávesa
 });
 
 document.getElementById('dawRerollBtn').addEventListener('click', ()=>{

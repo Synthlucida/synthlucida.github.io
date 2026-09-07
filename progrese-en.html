@@ -503,6 +503,31 @@
   .daw-step-drum.on{background:var(--sky); border-color:var(--sky);}
   .daw-step-drum.bar4{margin-left:6px;}
   .daw-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;}
+
+  .daw-piano-wrap{margin-bottom:22px;}
+  .daw-piano-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px;}
+  .daw-piano-title{font-size:11.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em;}
+  .daw-piano-toggle{
+    font-family:inherit; font-size:10.5px; border-radius:5px; padding:4px 9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg); color:var(--text-dim);
+  }
+  .daw-piano-toggle:hover{border-color:#5a5040;}
+  .daw-piano-toggle.on{border-color:var(--amber); color:var(--amber);}
+  .daw-piano{
+    overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:#0f0d0b; padding:8px 0 0;
+  }
+  .piano-inner{position:relative;}
+  .pkey{position:absolute; top:0; box-sizing:border-box; border-radius:0 0 3px 3px; padding:0;}
+  .pkey.white{background:#ece4d6; border:1px solid #3a332a; border-top:none; z-index:1;}
+  .pkey.black{background:#141210; border:1px solid #000; z-index:2;}
+  .pkey.active.white{background:#fff7ea;}
+  .pkey.active.black{background:#2a231a;}
+  .pkey-bar{position:absolute; left:0; right:0; bottom:3px; height:4px; border-radius:2px; background:transparent;}
+  .daw-piano-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--text-dim); margin-top:8px;}
+  .daw-piano-legend span{display:inline-flex; align-items:center; gap:5px;}
+  @media (max-width:480px){
+    .daw-piano{padding-top:6px;}
+  }
   @media (max-width:480px){
     .daw-note-pill{min-width:36px; font-size:10px; padding:5px 6px;}
     .daw-note-select{max-width:48px; font-size:9px;}
@@ -783,6 +808,7 @@
 
     <div class="actions">
       <button class="cta primary" id="genBtn">Generate progression</button>
+      <button class="cta primary" id="playBtnTop" disabled>▶ Play</button>
       <button class="cta" id="regenBtn" disabled>New variation</button>
       <button class="cta" id="newMelodyBtn" disabled>New melody</button>
       <button class="cta" id="newBassBtn" disabled>New bass</button>
@@ -847,6 +873,18 @@
       <div class="daw-empty" id="dawEmpty">Generate a progression first, then fine-tune it here.</div>
       <div id="dawContent" style="display:none;">
         <div class="daw-bartabs" id="dawBarTabs"></div>
+        <div class="daw-piano-wrap" id="dawPianoWrap">
+          <div class="daw-piano-head">
+            <span class="daw-piano-title">Keyboard — what's playing right now</span>
+            <button type="button" class="daw-piano-toggle on" id="dawPianoToggle" aria-pressed="true">On</button>
+          </div>
+          <div class="daw-piano" id="dawPiano"></div>
+          <div class="daw-piano-legend">
+            <span><span class="dot amber"></span>chords</span>
+            <span><span class="dot teal"></span>bass</span>
+            <span><span class="dot rose"></span>arp</span>
+          </div>
+        </div>
         <div class="daw-tracks" id="dawTracks"></div>
         <div class="daw-actions">
           <button type="button" class="cta" id="dawRerollBtn">🎲 Re-roll this bar</button>
@@ -1631,6 +1669,7 @@ function renderProgression(data){
 }
 
 function setResultButtonsEnabled(enabled){
+  document.getElementById('playBtnTop').disabled = !enabled;
   document.getElementById('regenBtn').disabled = !enabled;
   document.getElementById('newMelodyBtn').disabled = !enabled;
   document.getElementById('newBassBtn').disabled = !enabled;
@@ -1936,6 +1975,7 @@ function triggerChord(chord, time){
   const dur = 240 / currentBpm; // 1 bar (4/4) = 4 beats
   chord.tones.forEach(m=>{
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
+    schedulePianoNote(m, 'chords', time, dur);
   });
 }
 function triggerMelodyNote(m, time){
@@ -1943,9 +1983,11 @@ function triggerMelodyNote(m, time){
 }
 function triggerBassNote(m, time){
   playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
+  schedulePianoNote(m, 'bass', time, 60/currentBpm);
 }
 function triggerArpNote(m, time){
   playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
+  schedulePianoNote(m, 'arp', time, 30/currentBpm);
 }
 
 // Kick: a sine oscillator with a fast pitch drop (mimics Tone.MembraneSynth).
@@ -2016,15 +2058,91 @@ function applyLedStep(s){
     if(pad){ pad.classList.add('on'); lastLitPad = pad; }
   }
 }
+
+/* ---- Piano keyboard in the Mini DAW (live view of what's sounding) ----
+   Same idea as the LED strip above: events get scheduled ahead of time
+   (together with the sound itself), but only hit the DOM exactly at the
+   audio time the note actually sounds — not the moment the scheduler
+   queued it (the scheduler is always ~0.1s ahead). pianoQueue holds
+   pending "note-on" events (naturally ordered by time, since they're
+   pushed in the same order the scheduler advances), pianoActive holds
+   currently-sounding notes waiting for their "note-off" time. */
+let pianoQueue = [];   // {midi, layer, on, off}
+let pianoActive = [];  // currently sounding: {midi, layer, off}
+let pianoEnabled = true;
+let pianoKeyEls = {};  // midi -> {el, bar, layers:Set}
+const PIANO_LOW = 36;  // C2
+const PIANO_HIGH = 95; // B6 (5 octaves, enough even for the widest arp pattern)
+const PIANO_LAYER_COLOR = { chords:'#ff8a3d', bass:'#4dd2c4', arp:'#ff6f9c' };
+
+function schedulePianoNote(midi, layer, onTime, duration){
+  if(!pianoEnabled) return;
+  const panel = document.getElementById('miniDawPanel');
+  if(!panel || !panel.open) return; // not visible, nothing to animate
+  if(midi < PIANO_LOW || midi > PIANO_HIGH) return; // outside the shown range — fine to skip
+  pianoQueue.push({ midi, layer, on: onTime, off: onTime + duration });
+}
+
+function updateKeyVisual(entry){
+  const layers = Array.from(entry.layers);
+  if(layers.length === 0){
+    entry.bar.style.background = 'transparent';
+    entry.el.classList.remove('active');
+    return;
+  }
+  entry.el.classList.add('active');
+  if(layers.length === 1){
+    entry.bar.style.background = PIANO_LAYER_COLOR[layers[0]];
+  }else{
+    // more than one layer landing on the same key: split the bar evenly so
+    // it's immediately clear which layers overlapped there
+    const step = 100/layers.length;
+    const stops = layers.map((l,i)=> `${PIANO_LAYER_COLOR[l]} ${i*step}%, ${PIANO_LAYER_COLOR[l]} ${(i+1)*step}%`).join(', ');
+    entry.bar.style.background = `linear-gradient(to right, ${stops})`;
+  }
+}
+
+function setKeyLayerOn(midi, layer, on){
+  const entry = pianoKeyEls[midi];
+  if(!entry) return;
+  if(on) entry.layers.add(layer); else entry.layers.delete(layer);
+  updateKeyVisual(entry);
+}
+
+function clearPianoHighlights(){
+  pianoQueue = [];
+  pianoActive = [];
+  Object.values(pianoKeyEls).forEach(entry=>{
+    entry.layers.clear();
+    updateKeyVisual(entry);
+  });
+}
+
 // Runs continuously (even outside playback it's just an empty-queue check
 // once per frame) — the equivalent of Tone.Draw: the DOM should update
 // exactly at that step's audio time, not the moment the scheduler queued it
 // (the scheduler is always ~0.1s ahead).
 function ledDrawLoop(){
-  if(audioCtx && ledQueue.length){
+  if(audioCtx){
     const now = audioCtx.currentTime;
-    while(ledQueue.length && ledQueue[0].time <= now){
-      applyLedStep(ledQueue.shift().ledStep);
+    if(ledQueue.length){
+      while(ledQueue.length && ledQueue[0].time <= now){
+        applyLedStep(ledQueue.shift().ledStep);
+      }
+    }
+    if(pianoQueue.length || pianoActive.length){
+      while(pianoQueue.length && pianoQueue[0].on <= now){
+        const ev = pianoQueue.shift();
+        pianoActive.push(ev);
+        setKeyLayerOn(ev.midi, ev.layer, true);
+      }
+      for(let i=pianoActive.length-1; i>=0; i--){
+        if(pianoActive[i].off <= now){
+          const ev = pianoActive[i];
+          pianoActive.splice(i,1);
+          setKeyLayerOn(ev.midi, ev.layer, false);
+        }
+      }
     }
   }
   requestAnimationFrame(ledDrawLoop);
@@ -2037,6 +2155,68 @@ function clearLeds(){
   lastLitLed = null;
   lastLitPad = null;
   ledQueue = [];
+  clearPianoHighlights();
+}
+
+/* Draws the keyboard (white/black keys) once, the first time the Mini DAW
+   is opened — it's a static grid, no need to rebuild it on every panel
+   re-render. Populates pianoKeyEls (midi -> element) for schedulePianoNote. */
+function buildPianoKeys(container){
+  container.innerHTML = '';
+  pianoKeyEls = {};
+  const WHITE_W = 15, WHITE_H = 68, BLACK_W = 9, BLACK_H = 42;
+  const WHITE_PC = [0,2,4,5,7,9,11]; // C D E F G A B (semitones from C)
+  const BLACK_PC = {1:0, 3:1, 6:3, 8:4, 10:5}; // semitone -> index of the white key it sits in front of
+
+  let whiteIndex = 0;
+  const inner = document.createElement('div');
+  inner.className = 'piano-inner';
+
+  // first pass: count how many white keys the range has, so we know the total width
+  let whiteCount = 0;
+  for(let m=PIANO_LOW; m<=PIANO_HIGH; m++){ if(WHITE_PC.includes(m%12)) whiteCount++; }
+  inner.style.width = (whiteCount*WHITE_W) + 'px';
+  inner.style.height = WHITE_H + 'px';
+
+  whiteIndex = 0;
+  for(let m=PIANO_LOW; m<=PIANO_HIGH; m++){
+    const pc = m%12;
+    if(WHITE_PC.includes(pc)){
+      const key = document.createElement('div');
+      key.className = 'pkey white';
+      key.style.left = (whiteIndex*WHITE_W) + 'px';
+      key.style.width = WHITE_W + 'px';
+      key.style.height = WHITE_H + 'px';
+      const bar = document.createElement('div');
+      bar.className = 'pkey-bar';
+      key.appendChild(bar);
+      inner.appendChild(key);
+      pianoKeyEls[m] = { el:key, bar, layers:new Set() };
+      whiteIndex++;
+    }
+  }
+  whiteIndex = 0;
+  for(let m=PIANO_LOW; m<=PIANO_HIGH; m++){
+    const pc = m%12;
+    if(WHITE_PC.includes(pc)){ whiteIndex++; continue; }
+    // a black key sits between white key (whiteIndex-1) and whiteIndex, i.e.
+    // right on the boundary between them, shifted left by half its own width
+    const key = document.createElement('div');
+    key.className = 'pkey black';
+    key.style.left = (whiteIndex*WHITE_W - BLACK_W/2) + 'px';
+    key.style.width = BLACK_W + 'px';
+    key.style.height = BLACK_H + 'px';
+    const bar = document.createElement('div');
+    bar.className = 'pkey-bar';
+    key.appendChild(bar);
+    inner.appendChild(key);
+    pianoKeyEls[m] = { el:key, bar, layers:new Set() };
+  }
+
+  container.appendChild(inner);
+  // scroll to the middle of the range (around C4), so the panel doesn't open
+  // right at the very edge of the keyboard
+  container.scrollLeft = Math.max(0, inner.offsetWidth*0.42 - container.clientWidth/2);
 }
 
 // Which layers are currently playing in the active playMode.
@@ -2053,7 +2233,7 @@ function scheduleStep(step16, time){
 
   if(playChords && posInBar16 === 0){
     const chord = current.chords[bar];
-    if(chord) triggerChord(chord, time);
+    if(chord && !isMutedFlat(current.chordsMute, bar, 1)) triggerChord(chord, time);
   }
   if(step16 % 4 === 0){
     const qIdx = step16 / 4;
@@ -2111,12 +2291,13 @@ async function startPlayback(mode, resumeAt){
   }
   const myToken = ++playToken;
   const playBtnEl = document.getElementById('playBtn');
+  const playBtnTopEl = document.getElementById('playBtnTop');
   const playChordsBtnEl = document.getElementById('playChordsBtn');
   const playMelodyBtnEl = document.getElementById('playMelodyBtn');
   const playBassBtnEl = document.getElementById('playBassBtn');
   const playArpBtnEl = document.getElementById('playArpBtn');
   const playDrumsBtnEl = document.getElementById('playDrumsBtn');
-  const allBtns = [playBtnEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
+  const allBtns = [playBtnEl, playBtnTopEl, playChordsBtnEl, playMelodyBtnEl, playBassBtnEl, playArpBtnEl, playDrumsBtnEl];
   allBtns.forEach(b=>b.disabled = true);
 
   ensureAudioCtx();
@@ -2153,6 +2334,7 @@ async function startPlayback(mode, resumeAt){
   isPlaying = true;
   playMode = mode;
   playBtnEl.textContent = mode === 'full' ? '■ Stop' : '▶ Play';
+  playBtnTopEl.textContent = mode === 'full' ? '■ Stop' : '▶ Play';
   playChordsBtnEl.textContent = mode === 'chords' ? '■ Stop' : '♪ Chords only';
   playMelodyBtnEl.textContent = mode === 'melody' ? '■ Stop' : '♪ Melody only';
   playBassBtnEl.textContent = mode === 'bass' ? '■ Stop' : '♪ Bass only';
@@ -2168,6 +2350,7 @@ function stopPlayback(){
   isPlaying = false;
   playMode = null;
   document.getElementById('playBtn').textContent = '▶ Play';
+  document.getElementById('playBtnTop').textContent = '▶ Play';
   document.getElementById('playChordsBtn').textContent = '♪ Chords only';
   document.getElementById('playMelodyBtn').textContent = '♪ Melody only';
   document.getElementById('playBassBtn').textContent = '♪ Bass only';
@@ -2212,6 +2395,11 @@ function refreshLayersDebounced(layers){
 }
 
 document.getElementById('playBtn').addEventListener('click', ()=>{
+  if(!current) return;
+  if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
+});
+
+document.getElementById('playBtnTop').addEventListener('click', ()=>{
   if(!current) return;
   if(isPlaying && playMode === 'full') stopPlayback(); else startPlayback('full');
 });
@@ -2304,9 +2492,10 @@ function exportMidi(){
   const barTicks = TPQN * 4;
   const totalTicks = barTicks * current.chords.length;
 
-  // chords: whole note per bar
+  // chords: whole note per bar (bars muted in the Mini DAW are skipped in the export)
   const chordEvents = [];
   current.chords.forEach((c,i)=>{
+    if(isMutedFlat(current.chordsMute, i, 1)) return;
     const start = i * barTicks;
     c.tones.forEach(n=>{
       chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
@@ -2607,6 +2796,7 @@ function buildPartEvents(part){
   const events = [];
   if(part === 'chords'){
     current.chords.forEach((c,i)=>{
+      if(isMutedFlat(current.chordsMute, i, 1)) return;
       const start = i * barTicks;
       c.tones.forEach(n=>{
         events.push({tick:start, type:'on', note:n, vel:80, channel:0});
@@ -2710,6 +2900,12 @@ function clampDawNote(n){ return Math.max(24, Math.min(108, n)); }
    is (re)rendered. */
 function ensureDawState(cur){
   if(!cur) return;
+  if(!cur.chordsMute || cur.chordsMute.length !== cur.chords.length){
+    // a chord is one event for the whole bar (not 4/8/16 steps like the
+    // other layers), so its mute mask has just 1 "step" per bar too —
+    // isMutedFlat(...,1) works unchanged, just with stepsPerBar=1.
+    cur.chordsMute = cur.chords.map(()=>[false]);
+  }
   if(!cur.melodyMute || cur.melodyMute.length !== cur.melody.length){
     cur.melodyMute = cur.melody.map(bar=>bar.map(()=>false));
   }
@@ -2748,7 +2944,8 @@ function rerollBar(barI){
   current.melodyMute[barI] = current.melodyMute[barI].map(()=>false);
   current.bassMute[barI] = current.bassMute[barI].map(()=>false);
   current.arpMute[barI] = current.arpMute[barI].map(()=>false);
-  refreshLayersDebounced(['melody','bass','arp','drums']);
+  current.chordsMute[barI] = [false];
+  refreshLayersDebounced(['chords','melody','bass','arp','drums']);
   renderMiniDaw();
   showStatus(`Bar ${barI+1} re-rolled`);
 }
@@ -2765,6 +2962,12 @@ function renderMiniDaw(){
   if(dawBarIndex >= current.chords.length) dawBarIndex = 0;
   emptyEl.style.display = 'none';
   contentEl.style.display = 'block';
+
+  const pianoEl = document.getElementById('dawPiano');
+  if(pianoEl && !pianoEl.dataset.built){
+    buildPianoKeys(pianoEl);
+    pianoEl.dataset.built = '1';
+  }
 
   const tabsEl = document.getElementById('dawBarTabs');
   tabsEl.innerHTML = '';
@@ -2868,6 +3071,43 @@ function renderMiniDaw(){
     tracksEl.appendChild(track);
   }
 
+  // A chord is one event for the whole bar (not 4/8/16 steps like the other
+  // layers) — so instead of noteTrack (built around a step array) this is
+  // just one pill for the whole chord, which can be muted like any other
+  // step. No up/down arrows or note picker: swapping in a different chord
+  // is "New variation" above, not a per-tone edit here.
+  function chordTrack(barI){
+    const track = document.createElement('div');
+    track.className = 'daw-track';
+    const labelEl = document.createElement('div');
+    labelEl.className = 'daw-track-label';
+    labelEl.innerHTML = `<span class="dot amber"></span>Chords`;
+    track.appendChild(labelEl);
+    const stepsEl = document.createElement('div');
+    stepsEl.className = 'daw-steps';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'daw-note-step';
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    const muted = !!(current.chordsMute[barI] && current.chordsMute[barI][0]);
+    pill.className = 'daw-note-pill' + (muted ? ' muted' : '');
+    pill.textContent = current.chords[barI].symbol;
+    pill.title = muted ? 'Click to unmute the chord in this bar' : 'Click to mute the chord in this bar';
+    pill.addEventListener('click', ()=>{
+      const isMutedNow = !current.chordsMute[barI][0];
+      current.chordsMute[barI][0] = isMutedNow;
+      pill.classList.toggle('muted', isMutedNow);
+      pill.title = isMutedNow ? 'Click to unmute the chord in this bar' : 'Click to mute the chord in this bar';
+      refreshLayersDebounced(['chords']);
+    });
+    wrap.appendChild(pill);
+    stepsEl.appendChild(wrap);
+    track.appendChild(stepsEl);
+    tracksEl.appendChild(track);
+  }
+
+  chordTrack(dawBarIndex);
   noteTrack('Melody', 'violet', current.melody, current.melodyMute, dawBarIndex, 'melody');
   noteTrack('Bass', 'teal', current.bass, current.bassMute, dawBarIndex, 'bass');
   noteTrack('Arp', 'rose', current.arp, current.arpMute, dawBarIndex, 'arp');
@@ -2910,6 +3150,16 @@ function renderMiniDaw(){
 
 document.getElementById('miniDawPanel').addEventListener('toggle', function(){
   if(this.open) renderMiniDaw();
+});
+
+document.getElementById('dawPianoToggle').addEventListener('click', function(){
+  pianoEnabled = !pianoEnabled;
+  this.textContent = pianoEnabled ? 'On' : 'Off';
+  this.classList.toggle('on', pianoEnabled);
+  this.setAttribute('aria-pressed', String(pianoEnabled));
+  const pianoEl = document.getElementById('dawPiano');
+  if(pianoEl) pianoEl.style.opacity = pianoEnabled ? '1' : '0.35';
+  if(!pianoEnabled) clearPianoHighlights(); // don't leave a key "stuck" lit
 });
 
 document.getElementById('dawRerollBtn').addEventListener('click', ()=>{
