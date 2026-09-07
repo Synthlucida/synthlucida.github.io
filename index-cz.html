@@ -7,19 +7,21 @@
 
 <!-- Entry gate "seen before" check — runs as early as possible, before the
      gate markup below even paints, so a returning visitor never sees a
-     flash of the full-screen welcome overlay. Marks itself as seen right
-     away (not only on close), so even someone who bounces immediately
-     still counts as "already welcomed" next time. Wrapped in try/catch
-     since some browsers block localStorage (private mode, disabled
-     storage) — in that case it just fails open and the gate shows every
-     time, same as before. -->
+     flash of the full-screen welcome overlay. Only READS the flag here;
+     it only gets WRITTEN when the visitor actually closes the gate (see
+     the entry-gate script further down) — not immediately on load. That
+     matters because this site's service worker (further down the page)
+     does a one-time window.location.reload() the first time it takes
+     control of a fresh page load, and marking "seen" too early would
+     race against that reload and hide the gate before anyone actually
+     saw it. Wrapped in try/catch since some browsers block localStorage
+     (private mode, disabled storage) — in that case it just fails open
+     and the gate shows every time, same as before. -->
 <script>
 (function () {
   try {
     if (localStorage.getItem('synthlucidaGateSeen') === '1') {
       document.documentElement.classList.add('gate-seen');
-    } else {
-      localStorage.setItem('synthlucidaGateSeen', '1');
     }
   } catch (e) {}
 })();
@@ -2543,6 +2545,7 @@ body.entry-gate-open { overflow: hidden; }
   document.body.classList.add('entry-gate-open');
 
   function closeGate() {
+    try { localStorage.setItem('synthlucidaGateSeen', '1'); } catch (e) {}
     gate.classList.add('entry-gate-closing');
     document.body.classList.remove('entry-gate-open');
     window.setTimeout(function () { gate.style.display = 'none'; }, 500);
