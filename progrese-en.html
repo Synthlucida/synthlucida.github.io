@@ -895,6 +895,36 @@
     </div>
   </details>
 
+  <details class="panel" id="midiLivePanel">
+    <summary class="theory-summary">
+      <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px;">Live to MIDI (your own synth in a DAW)</h2>
+      <span class="theory-caret" aria-hidden="true">+</span>
+    </summary>
+    <div class="theory-body">
+      <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:0 0 16px;">
+        Send playback live to a virtual MIDI port and listen to it through your own synth right inside
+        your DAW — no manual MIDI export/import needed. First set up a virtual MIDI port on your computer
+        (on Windows, <a href="https://www.tobias-erichsen.de/software/loopmidi.html" target="_blank" rel="noopener">loopMIDI</a>
+        is free; on Mac, the built-in IAC Driver in Audio MIDI Setup), then set it as the input on an
+        instrument track in your DAW with any synth loaded. Works in Chrome, Edge, and Firefox —
+        unfortunately Safari doesn't support the Web MIDI API.
+      </p>
+      <div class="row">
+        <div class="field" style="flex:1 1 260px;">
+          <span class="label">MIDI output</span>
+          <select id="midiOutputSelect" disabled>
+            <option>Enable MIDI access first</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:14px;">
+        <button type="button" class="cta" id="midiEnableBtn">Enable MIDI access</button>
+        <button type="button" class="cta" id="midiLiveToggleBtn" disabled>Live sending: Off</button>
+      </div>
+      <div class="status-msg" id="midiStatusMsg" role="status" aria-live="polite"></div>
+    </div>
+  </details>
+
   <div class="panel" id="resultPanel">
     <div class="empty" id="emptyMsg">Pick a key and mood, then click “Generate progression”.</div>
     <div id="resultContent" style="display:none;">
@@ -1036,6 +1066,10 @@
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I export the progression as sheet music?</h3>
       <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Sheet music (PDF)" button exports the current progression as standard music notation (treble and bass clef, chord symbols above the staff) into a PDF you can print or send along. Below the notation, each bar also gets a piano key diagram with the keys marked, so it works even if you can't read notes. It reflects any edits made in the Mini DAW too.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I hear the progression through my own synth in a DAW, without exporting a MIDI file?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Live to MIDI" panel sends playback in real time to a virtual MIDI port. Set up a virtual port on your computer (loopMIDI is free on Windows; the built-in IAC Driver works on Mac), point an instrument track in your DAW at it with any synth loaded, then enable MIDI access in the app and turn on "Live sending". Works in Chrome, Edge, and Firefox — unfortunately Safari doesn't support the Web MIDI API.</p>
     </div>
   </div>
 
@@ -1977,19 +2011,23 @@ function triggerChord(chord, time){
   chord.tones.forEach(m=>{
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
     schedulePianoNote(m, 'chords', time, dur);
+    sendMidiNoteEvent(m, 80, time, dur, MIDI_CHANNEL.chords);
   });
 }
 function triggerMelodyNote(m, time){
   playOscVoice(melodyGain, midiToFreq(m), 'sine', time, 0.01, 0.2, 0.3, 60/currentBpm, 0.4, 'melody');
   schedulePianoNote(m, 'melody', time, 60/currentBpm);
+  sendMidiNoteEvent(m, 95, time, 60/currentBpm, MIDI_CHANNEL.melody);
 }
 function triggerBassNote(m, time){
   playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
   schedulePianoNote(m, 'bass', time, 60/currentBpm);
+  sendMidiNoteEvent(m, 100, time, 60/currentBpm, MIDI_CHANNEL.bass);
 }
 function triggerArpNote(m, time){
   playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
   schedulePianoNote(m, 'arp', time, 30/currentBpm);
+  sendMidiNoteEvent(m, 85, time, 30/currentBpm, MIDI_CHANNEL.arp);
 }
 
 // Kick: a sine oscillator with a fast pitch drop (mimics Tone.MembraneSynth).
@@ -2004,6 +2042,7 @@ function triggerKick(time){
   const endTime = scheduleADSR(env.gain, time, 0.001, 0.35, 0.01, 0.35, 0.6);
   osc.start(time); osc.stop(endTime + 0.05);
   osc.onended = ()=>{ try{ osc.disconnect(); env.disconnect(); }catch(e){} };
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.kick, 105, time, 0.05, MIDI_CHANNEL.drums);
 }
 // Snare: a short slice of white noise (mimics Tone.NoiseSynth).
 function triggerSnare(time){
@@ -2015,6 +2054,7 @@ function triggerSnare(time){
   const endTime = scheduleADSR(env.gain, time, 0.001, 0.18, 0.0001, 0.18, 0.02);
   src.start(time); src.stop(endTime + 0.05);
   src.onended = ()=>{ try{ src.disconnect(); env.disconnect(); }catch(e){} };
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.snare, 100, time, 0.05, MIDI_CHANNEL.drums);
 }
 // Hi-hat/open hi-hat: noise through a high-pass filter (mimics the metallic
 // character of Tone.MetalSynth, but much cheaper — one filter instead of FM
@@ -2031,8 +2071,14 @@ function triggerHihatVoice(destGain, time, decay, release){
   src.start(time); src.stop(endTime + 0.05);
   src.onended = ()=>{ try{ src.disconnect(); hp.disconnect(); env.disconnect(); }catch(e){} };
 }
-function triggerHihat(time){ triggerHihatVoice(hihatGain, time, 0.06, 0.02); }
-function triggerOpenhat(time){ triggerHihatVoice(openhatGain, time, 0.28, 0.15); }
+function triggerHihat(time){
+  triggerHihatVoice(hihatGain, time, 0.06, 0.02);
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.hh, 70, time, 0.05, MIDI_CHANNEL.drums);
+}
+function triggerOpenhat(time){
+  triggerHihatVoice(openhatGain, time, 0.28, 0.15);
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.oh, 80, time, 0.05, MIDI_CHANNEL.drums);
+}
 
 // Reads a note out of a "per bar" array (current.melody/.bass/.arp look like
 // [ [note,note,...perBar], [note,...], ... ]) at global index i — same
@@ -2221,6 +2267,106 @@ function buildPianoKeys(container){
   container.scrollLeft = Math.max(0, inner.offsetWidth*0.42 - container.clientWidth/2);
 }
 
+/* ---- Live to MIDI (Web MIDI API) ----
+   Sends real MIDI note-on/note-off messages to a chosen output port
+   (typically a virtual MIDI cable like loopMIDI/IAC Driver), alongside
+   whatever the app is already playing through Web Audio. That lets you
+   listen to playback live through your own synth in a DAW, with no manual
+   export/import step.
+
+   Key technical detail: MIDIOutput.send(data, timestamp) expects a time in
+   the same clock as performance.now() (milliseconds since the page loaded)
+   — NOT audioCtx.currentTime (seconds since the AudioContext was created).
+   Those are two different clocks. audioCtx.getOutputTimestamp() returns a
+   live {contextTime, performanceTime} pair that lets us compute the exact
+   offset between them and convert a scheduled audio time correctly. */
+let midiAccess = null;
+let midiOutput = null;
+let midiLiveEnabled = false;
+const MIDI_CHANNEL = { chords:0, melody:1, bass:2, arp:3, drums:9 };
+const GM_DRUM_MIDI_NOTE = { kick:36, snare:38, hh:42, oh:46 };
+
+function ctxTimeToMidiTimestamp(ctxTime){
+  const ts = audioCtx.getOutputTimestamp();
+  const offsetMs = ts.performanceTime - ts.contextTime*1000;
+  return offsetMs + ctxTime*1000;
+}
+
+function sendMidiNoteEvent(note, velocity, onCtxTime, durationSec, channel){
+  if(!midiLiveEnabled || !midiOutput || !audioCtx) return;
+  const onTs = ctxTimeToMidiTimestamp(onCtxTime);
+  const offTs = ctxTimeToMidiTimestamp(onCtxTime + durationSec);
+  const ch = channel & 0x0f;
+  try{
+    midiOutput.send([0x90 | ch, note & 0x7f, velocity & 0x7f], onTs);
+    midiOutput.send([0x80 | ch, note & 0x7f, 0], offTs);
+  }catch(e){ console.warn('MIDI send failed', e); }
+}
+
+function midiAllNotesOff(){
+  if(!midiOutput) return;
+  Object.values(MIDI_CHANNEL).forEach(ch=>{
+    try{ midiOutput.send([0xB0 | ch, 123, 0]); }catch(e){}
+  });
+}
+
+function populateMidiOutputs(){
+  const select = document.getElementById('midiOutputSelect');
+  if(!select || !midiAccess) return;
+  const prevId = midiOutput ? midiOutput.id : null;
+  const outputs = Array.from(midiAccess.outputs.values());
+  select.innerHTML = '';
+  if(outputs.length === 0){
+    const opt = document.createElement('option');
+    opt.textContent = 'No MIDI output found — set up a virtual port first';
+    select.appendChild(opt);
+    select.disabled = true;
+    midiOutput = null;
+    return;
+  }
+  select.disabled = false;
+  outputs.forEach(o=>{
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.name;
+    select.appendChild(opt);
+  });
+  midiOutput = outputs.find(o=>o.id === prevId) || outputs[0];
+  select.value = midiOutput.id;
+}
+
+async function enableMidiAccess(){
+  const statusEl = document.getElementById('midiStatusMsg');
+  if(!navigator.requestMIDIAccess){
+    statusEl.textContent = "This browser doesn't support the Web MIDI API — try Chrome, Edge, or Firefox.";
+    return;
+  }
+  try{
+    midiAccess = await navigator.requestMIDIAccess();
+    populateMidiOutputs();
+    midiAccess.onstatechange = populateMidiOutputs;
+    document.getElementById('midiLiveToggleBtn').disabled = false;
+    statusEl.textContent = 'MIDI access enabled.';
+  }catch(e){
+    statusEl.textContent = "Couldn't get MIDI access (denied or unavailable).";
+  }
+}
+
+document.getElementById('midiEnableBtn').addEventListener('click', enableMidiAccess);
+
+document.getElementById('midiOutputSelect').addEventListener('change', function(){
+  if(!midiAccess) return;
+  const outputs = Array.from(midiAccess.outputs.values());
+  midiOutput = outputs.find(o=>o.id === this.value) || null;
+});
+
+document.getElementById('midiLiveToggleBtn').addEventListener('click', function(){
+  midiLiveEnabled = !midiLiveEnabled;
+  this.textContent = midiLiveEnabled ? 'Live sending: On' : 'Live sending: Off';
+  this.classList.toggle('primary', midiLiveEnabled);
+  if(!midiLiveEnabled) midiAllNotesOff();
+});
+
 // Which layers are currently playing in the active playMode.
 let playChords=false, playMelody=false, playBass=false, playArp=false, playDrums=false;
 
@@ -2349,6 +2495,7 @@ function stopPlayback(){
   stopScheduler();
   playChords = playMelody = playBass = playArp = playDrums = false;
   clearLeds();
+  if(midiLiveEnabled) midiAllNotesOff(); // safety net in case a note got left "stuck"
   isPlaying = false;
   playMode = null;
   document.getElementById('playBtn').textContent = '▶ Play';

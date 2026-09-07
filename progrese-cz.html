@@ -893,6 +893,35 @@
     </div>
   </details>
 
+  <details class="panel" id="midiLivePanel">
+    <summary class="theory-summary">
+      <h2 style="font-family:ui-sans-serif, Arial, sans-serif; font-size:16px;">Živě do MIDI (vlastní synth v DAW)</h2>
+      <span class="theory-caret" aria-hidden="true">+</span>
+    </summary>
+    <div class="theory-body">
+      <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:0 0 16px;">
+        Pošli přehrávání živě na virtuální MIDI port a poslouchej ho přes vlastní syntetizér přímo v DAW —
+        bez ručního exportu a importu MIDI souboru. Nejdřív si na počítači vytvoř virtuální MIDI port
+        (na Windows např. <a href="https://www.tobias-erichsen.de/software/loopmidi.html" target="_blank" rel="noopener">loopMIDI</a>
+        zdarma, na Macu vestavěný IAC Driver v Audio MIDI Setup), pak ho v DAW nastav jako vstup nástrojové
+        stopy s libovolným synthem. Funguje v Chrome, Edge a Firefoxu — Safari bohužel Web MIDI API nepodporuje.
+      </p>
+      <div class="row">
+        <div class="field" style="flex:1 1 260px;">
+          <span class="label">MIDI výstup</span>
+          <select id="midiOutputSelect" disabled>
+            <option>Nejdřív povol přístup k MIDI</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:14px;">
+        <button type="button" class="cta" id="midiEnableBtn">Povolit MIDI přístup</button>
+        <button type="button" class="cta" id="midiLiveToggleBtn" disabled>Posílat živě: Vypnuto</button>
+      </div>
+      <div class="status-msg" id="midiStatusMsg" role="status" aria-live="polite"></div>
+    </div>
+  </details>
+
   <div class="panel" id="resultPanel">
     <div class="empty" id="emptyMsg">Vyber tóninu a náladu, pak klikni na „Vygenerovat postup“.</div>
     <div id="resultContent" style="display:none;">
@@ -1034,6 +1063,10 @@
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Dá se postup vyexportovat jako noty?</h3>
       <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano — tlačítko „Noty (PDF)“ vyexportuje aktuální postup jako klasický notový zápis (houslový a basový klíč, akordové značky nad notami) do PDF, který si můžeš vytisknout nebo poslat dál. Pod notami je navíc u každého taktu i klaviaturní diagram s vyznačenými klávesami, takže si poradí i ten, kdo noty nečte. Zohledňuje i úpravy z Mini DAW.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Jde slyšet postup přes vlastní syntetizér v DAW, bez exportu MIDI souboru?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano — panel „Živě do MIDI“ posílá přehrávání v reálném čase na virtuální MIDI port. Stačí si na počítači vytvořit virtuální port (na Windows zdarma loopMIDI, na Macu vestavěný IAC Driver), nastavit ho v DAW jako vstup nástrojové stopy s libovolným synthem, v appce povolit MIDI přístup a zapnout „Posílat živě“. Funguje v Chrome, Edge a Firefoxu — Safari bohužel Web MIDI API nepodporuje.</p>
     </div>
   </div>
 
@@ -1971,19 +2004,23 @@ function triggerChord(chord, time){
   chord.tones.forEach(m=>{
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
     schedulePianoNote(m, 'chords', time, dur);
+    sendMidiNoteEvent(m, 80, time, dur, MIDI_CHANNEL.chords);
   });
 }
 function triggerMelodyNote(m, time){
   playOscVoice(melodyGain, midiToFreq(m), 'sine', time, 0.01, 0.2, 0.3, 60/currentBpm, 0.4, 'melody');
   schedulePianoNote(m, 'melody', time, 60/currentBpm);
+  sendMidiNoteEvent(m, 95, time, 60/currentBpm, MIDI_CHANNEL.melody);
 }
 function triggerBassNote(m, time){
   playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
   schedulePianoNote(m, 'bass', time, 60/currentBpm);
+  sendMidiNoteEvent(m, 100, time, 60/currentBpm, MIDI_CHANNEL.bass);
 }
 function triggerArpNote(m, time){
   playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
   schedulePianoNote(m, 'arp', time, 30/currentBpm);
+  sendMidiNoteEvent(m, 85, time, 30/currentBpm, MIDI_CHANNEL.arp);
 }
 
 // Kopák: sinusovka s rychlým poklesem výšky (napodobuje Tone.MembraneSynth).
@@ -1998,6 +2035,7 @@ function triggerKick(time){
   const endTime = scheduleADSR(env.gain, time, 0.001, 0.35, 0.01, 0.35, 0.6);
   osc.start(time); osc.stop(endTime + 0.05);
   osc.onended = ()=>{ try{ osc.disconnect(); env.disconnect(); }catch(e){} };
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.kick, 105, time, 0.05, MIDI_CHANNEL.drums);
 }
 // Virblík: krátký výsek bílého šumu (napodobuje Tone.NoiseSynth).
 function triggerSnare(time){
@@ -2009,6 +2047,7 @@ function triggerSnare(time){
   const endTime = scheduleADSR(env.gain, time, 0.001, 0.18, 0.0001, 0.18, 0.02);
   src.start(time); src.stop(endTime + 0.05);
   src.onended = ()=>{ try{ src.disconnect(); env.disconnect(); }catch(e){} };
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.snare, 100, time, 0.05, MIDI_CHANNEL.drums);
 }
 // Hi-hat/otevřený hi-hat: šum přes horní propust (napodobuje kovový charakter
 // Tone.MetalSynth, ale mnohem levnějším způsobem — jeden filtr místo FM syntézy).
@@ -2024,8 +2063,14 @@ function triggerHihatVoice(destGain, time, decay, release){
   src.start(time); src.stop(endTime + 0.05);
   src.onended = ()=>{ try{ src.disconnect(); hp.disconnect(); env.disconnect(); }catch(e){} };
 }
-function triggerHihat(time){ triggerHihatVoice(hihatGain, time, 0.06, 0.02); }
-function triggerOpenhat(time){ triggerHihatVoice(openhatGain, time, 0.28, 0.15); }
+function triggerHihat(time){
+  triggerHihatVoice(hihatGain, time, 0.06, 0.02);
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.hh, 70, time, 0.05, MIDI_CHANNEL.drums);
+}
+function triggerOpenhat(time){
+  triggerHihatVoice(openhatGain, time, 0.28, 0.15);
+  sendMidiNoteEvent(GM_DRUM_MIDI_NOTE.oh, 80, time, 0.05, MIDI_CHANNEL.drums);
+}
 
 // Čte notu z pole "po taktech" (current.melody/.bass/.arp mají tvar
 // [ [nota,nota,...perBar], [nota,...], ... ]) na globálním indexu i —
@@ -2213,6 +2258,105 @@ function buildPianoKeys(container){
   container.scrollLeft = Math.max(0, inner.offsetWidth*0.42 - container.clientWidth/2);
 }
 
+/* ---- Živě do MIDI (Web MIDI API) ----
+   Posílá skutečné MIDI note-on/note-off zprávy na vybraný výstupní port
+   (typicky virtuální MIDI kabel jako loopMIDI/IAC Driver), souběžně s tím,
+   co appka hraje sama přes Web Audio. Díky tomu jde v DAW poslouchat
+   přehrávání živě přes vlastní syntetizér, bez ručního exportu/importu.
+
+   Klíčová technická věc: MIDIOutput.send(data, timestamp) očekává čas ve
+   stejné časové ose jako performance.now() (milisekundy od načtení
+   stránky) — NE audioCtx.currentTime (sekundy od vytvoření AudioContextu).
+   To jsou dvě různé hodiny. audioCtx.getOutputTimestamp() vrací aktuální
+   dvojici {contextTime, performanceTime}, ze které jde spočítat přesný
+   posun mezi nimi a naplánovaný audio-čas správně převést. */
+let midiAccess = null;
+let midiOutput = null;
+let midiLiveEnabled = false;
+const MIDI_CHANNEL = { chords:0, melody:1, bass:2, arp:3, drums:9 };
+const GM_DRUM_MIDI_NOTE = { kick:36, snare:38, hh:42, oh:46 };
+
+function ctxTimeToMidiTimestamp(ctxTime){
+  const ts = audioCtx.getOutputTimestamp();
+  const offsetMs = ts.performanceTime - ts.contextTime*1000;
+  return offsetMs + ctxTime*1000;
+}
+
+function sendMidiNoteEvent(note, velocity, onCtxTime, durationSec, channel){
+  if(!midiLiveEnabled || !midiOutput || !audioCtx) return;
+  const onTs = ctxTimeToMidiTimestamp(onCtxTime);
+  const offTs = ctxTimeToMidiTimestamp(onCtxTime + durationSec);
+  const ch = channel & 0x0f;
+  try{
+    midiOutput.send([0x90 | ch, note & 0x7f, velocity & 0x7f], onTs);
+    midiOutput.send([0x80 | ch, note & 0x7f, 0], offTs);
+  }catch(e){ console.warn('MIDI send selhal', e); }
+}
+
+function midiAllNotesOff(){
+  if(!midiOutput) return;
+  Object.values(MIDI_CHANNEL).forEach(ch=>{
+    try{ midiOutput.send([0xB0 | ch, 123, 0]); }catch(e){}
+  });
+}
+
+function populateMidiOutputs(){
+  const select = document.getElementById('midiOutputSelect');
+  if(!select || !midiAccess) return;
+  const prevId = midiOutput ? midiOutput.id : null;
+  const outputs = Array.from(midiAccess.outputs.values());
+  select.innerHTML = '';
+  if(outputs.length === 0){
+    const opt = document.createElement('option');
+    opt.textContent = 'Žádný MIDI výstup nenalezen — vytvoř si virtuální port';
+    select.appendChild(opt);
+    select.disabled = true;
+    midiOutput = null;
+    return;
+  }
+  select.disabled = false;
+  outputs.forEach(o=>{
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.name;
+    select.appendChild(opt);
+  });
+  midiOutput = outputs.find(o=>o.id === prevId) || outputs[0];
+  select.value = midiOutput.id;
+}
+
+async function enableMidiAccess(){
+  const statusEl = document.getElementById('midiStatusMsg');
+  if(!navigator.requestMIDIAccess){
+    statusEl.textContent = 'Tenhle prohlížeč nepodporuje Web MIDI API — zkus Chrome, Edge nebo Firefox.';
+    return;
+  }
+  try{
+    midiAccess = await navigator.requestMIDIAccess();
+    populateMidiOutputs();
+    midiAccess.onstatechange = populateMidiOutputs;
+    document.getElementById('midiLiveToggleBtn').disabled = false;
+    statusEl.textContent = 'MIDI přístup povolen.';
+  }catch(e){
+    statusEl.textContent = 'Přístup k MIDI se nepodařilo získat (zamítnuto nebo nedostupné).';
+  }
+}
+
+document.getElementById('midiEnableBtn').addEventListener('click', enableMidiAccess);
+
+document.getElementById('midiOutputSelect').addEventListener('change', function(){
+  if(!midiAccess) return;
+  const outputs = Array.from(midiAccess.outputs.values());
+  midiOutput = outputs.find(o=>o.id === this.value) || null;
+});
+
+document.getElementById('midiLiveToggleBtn').addEventListener('click', function(){
+  midiLiveEnabled = !midiLiveEnabled;
+  this.textContent = midiLiveEnabled ? 'Posílat živě: Zapnuto' : 'Posílat živě: Vypnuto';
+  this.classList.toggle('primary', midiLiveEnabled);
+  if(!midiLiveEnabled) midiAllNotesOff();
+});
+
 // Které vrstvy zrovna hrají v aktuálním playMode.
 let playChords=false, playMelody=false, playBass=false, playArp=false, playDrums=false;
 
@@ -2341,6 +2485,7 @@ function stopPlayback(){
   stopScheduler();
   playChords = playMelody = playBass = playArp = playDrums = false;
   clearLeds();
+  if(midiLiveEnabled) midiAllNotesOff(); // pojistka, kdyby nějaká nota zůstala "viset"
   isPlaying = false;
   playMode = null;
   document.getElementById('playBtn').textContent = '▶ Přehrát';
