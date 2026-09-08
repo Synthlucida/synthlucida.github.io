@@ -845,6 +845,7 @@
       <button class="cta" id="newBassBtn" disabled>New bass</button>
       <button class="cta" id="newArpBtn" disabled>New arp</button>
       <button class="cta" id="newDrumsBtn" disabled>New drums</button>
+      <button class="cta" id="shareBtn" disabled title="Copies a link to exactly this generated progression (chords, melody, bass, arp, drums). Manual Mini DAW edits are not captured by the link.">🔗 Share link</button>
     </div>
     <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
@@ -1470,7 +1471,31 @@ const DRUM_PATTERNS = [
                               oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
 ];
 
-function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+/* Small seedable PRNG (mulberry32) plus a swappable "current" generator that
+   pick() draws from instead of Math.random() directly. That lets withSeed()
+   briefly switch to a deterministic sequence — the basis for the share link:
+   we only need to store a handful of numbers (one seed for the chords, one
+   for each layer) to exactly reconstruct the same result later, without
+   having to remember every individual random choice. Outside withSeed
+   everything stays exactly as before — purely random (rng === Math.random). */
+let rng = Math.random;
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function randomSeed(){ return Math.floor(Math.random()*4294967296); }
+function withSeed(seed, fn){
+  const prevRng = rng;
+  rng = mulberry32(seed);
+  try { return fn(); } finally { rng = prevRng; }
+}
+
+function pick(arr){ return arr[Math.floor(rng()*arr.length)]; }
 
 /* styleVal is either the string 'auto' (random pattern each call) or a
    stringified index into the given pattern list (fixed pattern, chosen by the user) */
@@ -1524,19 +1549,60 @@ function genDrums(chords, style){
   });
 }
 
+/* Voice leading for the chords layer (just the pad sound + the "chords" MIDI
+   track — the bass, melody, arp and the notation export all keep reading
+   chord.tones unchanged, voice leading is a different concern for those).
+   For each chord after the first, we re-octave its notes (same pitch
+   classes, just a different octave) to sit as close as possible to the
+   previous chord — the classic "smooth voicing" trick from keyboard
+   playing, so the chords layer doesn't jump around needlessly between bars. */
+function voiceLeadChords(chords){
+  const REG_LOW = 36, REG_HIGH = 84; // C2–C6, a sensible range for a pad chord
+  let prevVoiced = null;
+  chords.forEach(c=>{
+    if(!prevVoiced){
+      c.voicedTones = c.tones.slice();
+    } else {
+      c.voicedTones = c.tones.map(t=>{
+        let best = t, bestDist = Infinity;
+        for(let oct=-2; oct<=2; oct++){
+          const cand = t + oct*12;
+          if(cand < REG_LOW || cand > REG_HIGH) continue;
+          const dist = Math.min(...prevVoiced.map(p=>Math.abs(cand-p)));
+          if(dist < bestDist){ bestDist = dist; best = cand; }
+        }
+        return best;
+      });
+    }
+    prevVoiced = c.voicedTones;
+  });
+}
+
 /* A progression entry is either a plain scale degree (number, using the
    vibe's default chord extension) or a [degree, ext] pair that overrides
    the extension for just that one chord — this is how the occasional
    sus2/sus4/9th/6th/6-9/add9 color chords get woven into a progression while
-   every other chord stays on the vibe's usual triad/7th sound. */
-function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle, drumStyle){
+   every other chord stays on the vibe's usual triad/7th sound.
+
+   The optional `seeds` param ({prog, melody, bass, arp, drums}) lets a
+   result be reproduced exactly (see the share link) — when it's missing,
+   every layer gets its own fresh random seed, which is returned on the
+   result so whoever called this has it on hand for later sharing. */
+function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle, drumStyle, seeds){
+  seeds = seeds || {};
+  const progSeed = seeds.prog != null ? seeds.prog : randomSeed();
+  const melodySeed = seeds.melody != null ? seeds.melody : randomSeed();
+  const bassSeed = seeds.bass != null ? seeds.bass : randomSeed();
+  const arpSeed = seeds.arp != null ? seeds.arp : randomSeed();
+  const drumsSeed = seeds.drums != null ? seeds.drums : randomSeed();
+
   const vibe = VIBES[vibeKey];
   const scaleArr = SCALES[vibe.mode];
   const romanArr = ROMAN[vibe.mode];
   const rootName = NOTE_NAMES[rootIdx];
   const chordBase = 48 + rootIdx; // ~C3 register
 
-  const progItem = pick(vibe.progressions);
+  const progItem = withSeed(progSeed, ()=>pick(vibe.progressions));
 
   const chords = progItem.map(item=>{
     const deg = Array.isArray(item) ? item[0] : item;
@@ -1551,13 +1617,17 @@ function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle,
       symbol: chordSymbol(rName, tones, chordExt)
     };
   });
+  voiceLeadChords(chords);
 
-  const melody = genMelody(chords, melodyStyle);
-  const bass = genBass(chords, bassStyle);
-  const arp = genArp(chords, arpStyle);
-  const drums = genDrums(chords, drumStyle);
+  const melody = withSeed(melodySeed, ()=>genMelody(chords, melodyStyle));
+  const bass = withSeed(bassSeed, ()=>genBass(chords, bassStyle));
+  const arp = withSeed(arpSeed, ()=>genArp(chords, arpStyle));
+  const drums = withSeed(drumsSeed, ()=>genDrums(chords, drumStyle));
 
-  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp, drums };
+  return {
+    rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp, drums,
+    seeds: { prog: progSeed, melody: melodySeed, bass: bassSeed, arp: arpSeed, drums: drumsSeed }
+  };
 }
 
 /* ================= UI SETUP ================= */
@@ -1808,6 +1878,7 @@ function setResultButtonsEnabled(enabled){
   document.getElementById('newBassBtn').disabled = !enabled;
   document.getElementById('newArpBtn').disabled = !enabled;
   document.getElementById('newDrumsBtn').disabled = !enabled;
+  document.getElementById('shareBtn').disabled = !enabled;
 }
 
 const statusMsg = document.getElementById('statusMsg');
@@ -1826,6 +1897,88 @@ function styleName(select, list){
   return list[idx] ? list[idx].name : null;
 }
 
+/* ================= SHAREABLE LINK =================
+   Encodes the exact generated result (root, mood, layer styles, tempo and
+   the 5 RNG seeds) into the URL's query string, so pasting the link
+   reproduces the identical progression — chords, melody, bass, arp and
+   drums included. Manual Mini DAW edits (per-step mute, octave shifts,
+   single-bar reroll) are NOT captured — kept out on purpose to keep this
+   simple and robust. */
+function buildShareParams(){
+  if(!current || !current.seeds) return null;
+  const p = new URLSearchParams();
+  p.set('r', current.rootIdx);
+  p.set('v', current.vibeKey);
+  p.set('ms', melodyStyleSelect.value);
+  p.set('bs', bassStyleSelect.value);
+  p.set('as', arpStyleSelect.value);
+  p.set('ds', drumStyleSelect.value);
+  p.set('t', current.tempo);
+  const s = current.seeds;
+  p.set('sp', s.prog.toString(36));
+  p.set('sm', s.melody.toString(36));
+  p.set('sb', s.bass.toString(36));
+  p.set('sa', s.arp.toString(36));
+  p.set('sd', s.drums.toString(36));
+  return p;
+}
+function updateShareUrl(){
+  const p = buildShareParams();
+  if(!p) return;
+  const url = new URL(window.location.href);
+  url.search = p.toString();
+  history.replaceState(null, '', url);
+}
+function tryLoadFromShareUrl(){
+  const params = new URLSearchParams(window.location.search);
+  if(!params.has('r') || !params.has('v')) return false;
+  const rootIdx = parseInt(params.get('r'),10);
+  const vibeKey = params.get('v');
+  if(!(vibeKey in VIBES) || isNaN(rootIdx) || rootIdx<0 || rootIdx>11) return false;
+  const seeds = {
+    prog: parseInt(params.get('sp'),36),
+    melody: parseInt(params.get('sm'),36),
+    bass: parseInt(params.get('sb'),36),
+    arp: parseInt(params.get('sa'),36),
+    drums: parseInt(params.get('sd'),36)
+  };
+  if(Object.values(seeds).some(v=>isNaN(v))) return false;
+  const ms = params.get('ms') || 'auto';
+  const bs = params.get('bs') || 'auto';
+  const as = params.get('as') || 'auto';
+  const ds = params.get('ds') || 'auto';
+  const t = parseInt(params.get('t'),10);
+  rootSelect.value = rootIdx;
+  selectedVibe = vibeKey;
+  document.querySelectorAll('.vibe-btn').forEach(b=>{
+    const active = b.dataset.key === vibeKey;
+    b.classList.toggle('active', active);
+  });
+  if(melodyStyleSelect.querySelector(`option[value="${ms}"]`)) melodyStyleSelect.value = ms;
+  if(bassStyleSelect.querySelector(`option[value="${bs}"]`)) bassStyleSelect.value = bs;
+  if(arpStyleSelect.querySelector(`option[value="${as}"]`)) arpStyleSelect.value = as;
+  if(drumStyleSelect.querySelector(`option[value="${ds}"]`)) drumStyleSelect.value = ds;
+  if(!isNaN(t) && t>=55 && t<=150){ tempoSlider.value = t; tempoVal.textContent = t + ' BPM'; }
+  current = generateProgression(rootIdx, vibeKey, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value, seeds);
+  if(!isNaN(t)) current.tempo = t;
+  renderProgression(current);
+  setResultButtonsEnabled(true);
+  dawBarIndex = 0;
+  refreshDawIfOpen();
+  showStatus('Shared progression loaded');
+  return true;
+}
+document.getElementById('shareBtn').addEventListener('click', async ()=>{
+  if(!current) return;
+  updateShareUrl();
+  try{
+    await navigator.clipboard.writeText(window.location.href);
+    showStatus('Link to this progression copied to clipboard');
+  }catch(e){
+    showStatus("Couldn't copy — copy the address from the browser manually");
+  }
+});
+
 document.getElementById('genBtn').addEventListener('click', ()=>{
   const rootIdx = parseInt(rootSelect.value,10);
   current = generateProgression(rootIdx, selectedVibe, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value);
@@ -1835,6 +1988,7 @@ document.getElementById('genBtn').addEventListener('click', ()=>{
   stopPlayback();
   dawBarIndex = 0;
   refreshDawIfOpen();
+  updateShareUrl();
   showStatus(`Generated ${current.rootName} ${VIBES[selectedVibe].name} progression`);
 });
 
@@ -1847,47 +2001,60 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
   stopPlayback();
   dawBarIndex = 0;
   refreshDawIfOpen();
+  updateShareUrl();
   showStatus('New variation generated');
 });
 
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  const seed = randomSeed();
+  current.melody = withSeed(seed, ()=>genMelody(current.chords, melodyStyleSelect.value));
+  current.seeds.melody = seed;
   // A brand-new melody should be a clean slate — same as rerollBar() below,
   // clear any leftover muted steps so they don't silently swallow notes in
   // the new melody (exportPdfSheet/exportMidi read this same mute mask).
   if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['melody']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `New melody generated — ${name}` : 'New melody generated');
 });
 
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.bass = genBass(current.chords, bassStyleSelect.value);
+  const seed = randomSeed();
+  current.bass = withSeed(seed, ()=>genBass(current.chords, bassStyleSelect.value));
+  current.seeds.bass = seed;
   if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['bass']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `New bass line generated — ${name}` : 'New bass line generated');
 });
 
 document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.arp = genArp(current.chords, arpStyleSelect.value);
+  const seed = randomSeed();
+  current.arp = withSeed(seed, ()=>genArp(current.chords, arpStyleSelect.value));
+  current.seeds.arp = seed;
   if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['arp']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `New arp generated — ${name}` : 'New arp generated');
 });
 
 document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  const seed = randomSeed();
+  current.drums = withSeed(seed, ()=>genDrums(current.chords, drumStyleSelect.value));
+  current.seeds.drums = seed;
   refreshLayersDebounced(['drums']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `New drums generated — ${name}` : 'New drums generated');
 });
@@ -1899,10 +2066,13 @@ melodyStyleSelect.addEventListener('change', ()=>{
     showStatus('Generate a progression first, then pick a melody style');
     return;
   }
-  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  const seed = randomSeed();
+  current.melody = withSeed(seed, ()=>genMelody(current.chords, melodyStyleSelect.value));
+  current.seeds.melody = seed;
   if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['melody']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Melody style: ${name}` : 'Melody style: Auto (varies per bar)');
 });
@@ -1912,10 +2082,13 @@ bassStyleSelect.addEventListener('change', ()=>{
     showStatus('Generate a progression first, then pick a bass style');
     return;
   }
-  current.bass = genBass(current.chords, bassStyleSelect.value);
+  const seed = randomSeed();
+  current.bass = withSeed(seed, ()=>genBass(current.chords, bassStyleSelect.value));
+  current.seeds.bass = seed;
   if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['bass']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Bass style: ${name}` : 'Bass style: Auto (varies per bar)');
 });
@@ -1925,10 +2098,13 @@ arpStyleSelect.addEventListener('change', ()=>{
     showStatus('Generate a progression first, then pick an arp style');
     return;
   }
-  current.arp = genArp(current.chords, arpStyleSelect.value);
+  const seed = randomSeed();
+  current.arp = withSeed(seed, ()=>genArp(current.chords, arpStyleSelect.value));
+  current.seeds.arp = seed;
   if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['arp']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Arp style: ${name}` : 'Arp style: Auto (varies per bar)');
 });
@@ -1938,9 +2114,12 @@ drumStyleSelect.addEventListener('change', ()=>{
     showStatus('Generate a progression first, then pick a drum style');
     return;
   }
-  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  const seed = randomSeed();
+  current.drums = withSeed(seed, ()=>genDrums(current.chords, drumStyleSelect.value));
+  current.seeds.drums = seed;
   refreshLayersDebounced(['drums']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Drum style: ${name}` : 'Drum style: Auto (varies per bar)');
 });
@@ -2106,7 +2285,7 @@ function cutActiveVoice(key){
 
 function triggerChord(chord, time){
   const dur = 240 / currentBpm; // 1 bar (4/4) = 4 beats
-  chord.tones.forEach(m=>{
+  (chord.voicedTones || chord.tones).forEach(m=>{
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
     schedulePianoNote(m, 'chords', time, dur);
     sendMidiNoteEvent(m, 80, time, dur, MIDI_CHANNEL.chords);
@@ -2745,7 +2924,7 @@ function exportMidi(){
   current.chords.forEach((c,i)=>{
     if(isMutedFlat(current.chordsMute, i, 1)) return;
     const start = i * barTicks;
-    c.tones.forEach(n=>{
+    (c.voicedTones || c.tones).forEach(n=>{
       chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
       chordEvents.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
     });
@@ -3046,7 +3225,7 @@ function buildPartEvents(part){
     current.chords.forEach((c,i)=>{
       if(isMutedFlat(current.chordsMute, i, 1)) return;
       const start = i * barTicks;
-      c.tones.forEach(n=>{
+      (c.voicedTones || c.tones).forEach(n=>{
         events.push({tick:start, type:'on', note:n, vel:80, channel:0});
         events.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
       });
@@ -3570,6 +3749,8 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
     });
   }
 })();
+
+tryLoadFromShareUrl();
 </script>
 </body>
 </html>

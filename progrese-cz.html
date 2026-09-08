@@ -843,6 +843,7 @@
       <button class="cta" id="newBassBtn" disabled>Nová basa</button>
       <button class="cta" id="newArpBtn" disabled>Nový arp</button>
       <button class="cta" id="newDrumsBtn" disabled>Nové bicí</button>
+      <button class="cta" id="shareBtn" disabled title="Zkopíruje odkaz na přesně tento vygenerovaný postup (akordy, melodie, basa, arp, bicí). Ruční úpravy v Mini DAW odkaz nezachytí.">🔗 Sdílet odkaz</button>
     </div>
     <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
@@ -1466,7 +1467,31 @@ const DRUM_PATTERNS = [
                                oh:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
 ];
 
-function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+/* Malý seedovatelný PRNG (mulberry32) + přepínatelný "aktuální" generátor,
+   který pick() používá místo přímého Math.random(). Díky tomu jde na chvíli
+   (přes withSeed) přepnout na deterministickou sekvenci — to je základ pro
+   sdílecí odkaz: uložíme jen pár čísel (seed na akordy + na každou vrstvu) a
+   z nich se dá kdykoli přesně zrekonstruovat úplně stejný výsledek, aniž by
+   bylo potřeba pamatovat si každou jednotlivou náhodnou volbu zvlášť. Mimo
+   withSeed zůstává vše jako dřív — čistě náhodné (rng === Math.random). */
+let rng = Math.random;
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function randomSeed(){ return Math.floor(Math.random()*4294967296); }
+function withSeed(seed, fn){
+  const prevRng = rng;
+  rng = mulberry32(seed);
+  try { return fn(); } finally { rng = prevRng; }
+}
+
+function pick(arr){ return arr[Math.floor(rng()*arr.length)]; }
 
 /* styleVal je buď řetězec 'auto' (náhodný vzor pro každý takt) nebo
    stringový index do daného seznamu vzorů (pevný vzor zvolený uživatelem) */
@@ -1520,19 +1545,59 @@ function genDrums(chords, style){
   });
 }
 
+/* Voice leading pro vrstvu akordů (jen zvukový pás + MIDI stopa "akordy" —
+   basa, melodie, arp i notový zápis dál čtou chord.tones beze změny, tam má
+   voice leading co dělat jinou logiku). Pro každý další akord přeoktávujeme
+   jeho tóny (stejné výškové třídy, jen jiná oktáva) tak, aby ležely co
+   nejblíž předchozímu akordu — klasický "smooth voicing" trik z klávesové
+   praxe, díky kterému pás akordů nedělá zbytečně velké skoky mezi takty. */
+function voiceLeadChords(chords){
+  const REG_LOW = 36, REG_HIGH = 84; // C2–C6, rozumný rozsah pro plošný pad
+  let prevVoiced = null;
+  chords.forEach(c=>{
+    if(!prevVoiced){
+      c.voicedTones = c.tones.slice();
+    } else {
+      c.voicedTones = c.tones.map(t=>{
+        let best = t, bestDist = Infinity;
+        for(let oct=-2; oct<=2; oct++){
+          const cand = t + oct*12;
+          if(cand < REG_LOW || cand > REG_HIGH) continue;
+          const dist = Math.min(...prevVoiced.map(p=>Math.abs(cand-p)));
+          if(dist < bestDist){ bestDist = dist; best = cand; }
+        }
+        return best;
+      });
+    }
+    prevVoiced = c.voicedTones;
+  });
+}
+
 /* Prvek postupu je buď jednoduché číslo (stupeň stupnice, použije se výchozí
    akord dané nálady) nebo dvojice [stupeň, ext], která pro tento jeden akord
    přepíše typ akordu — takto se do postupu vplétají příležitostné barevné
    akordy sus2/sus4/9/6/6-9/add9, zatímco ostatní akordy zůstávají na obvyklém
-   triádovém/septakordovém zvuku dané nálady. */
-function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle, drumStyle){
+   triádovém/septakordovém zvuku dané nálady.
+
+   Volitelný parametr `seeds` ({prog, melody, bass, arp, drums}) dovolí
+   výsledek přesně zopakovat (viz sdílecí odkaz) — když chybí, každá vrstva
+   dostane svůj vlastní čerstvý náhodný seed, který se vrátí ve výsledku, ať
+   ho má kdo zavolal k dispozici pro pozdější sdílení. */
+function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle, drumStyle, seeds){
+  seeds = seeds || {};
+  const progSeed = seeds.prog != null ? seeds.prog : randomSeed();
+  const melodySeed = seeds.melody != null ? seeds.melody : randomSeed();
+  const bassSeed = seeds.bass != null ? seeds.bass : randomSeed();
+  const arpSeed = seeds.arp != null ? seeds.arp : randomSeed();
+  const drumsSeed = seeds.drums != null ? seeds.drums : randomSeed();
+
   const vibe = VIBES[vibeKey];
   const scaleArr = SCALES[vibe.mode];
   const romanArr = ROMAN[vibe.mode];
   const rootName = NOTE_NAMES[rootIdx];
   const chordBase = 48 + rootIdx; // ~C3 register
 
-  const progItem = pick(vibe.progressions);
+  const progItem = withSeed(progSeed, ()=>pick(vibe.progressions));
 
   const chords = progItem.map(item=>{
     const deg = Array.isArray(item) ? item[0] : item;
@@ -1547,13 +1612,17 @@ function generateProgression(rootIdx, vibeKey, melodyStyle, bassStyle, arpStyle,
       symbol: chordSymbol(rName, tones, chordExt)
     };
   });
+  voiceLeadChords(chords);
 
-  const melody = genMelody(chords, melodyStyle);
-  const bass = genBass(chords, bassStyle);
-  const arp = genArp(chords, arpStyle);
-  const drums = genDrums(chords, drumStyle);
+  const melody = withSeed(melodySeed, ()=>genMelody(chords, melodyStyle));
+  const bass = withSeed(bassSeed, ()=>genBass(chords, bassStyle));
+  const arp = withSeed(arpSeed, ()=>genArp(chords, arpStyle));
+  const drums = withSeed(drumsSeed, ()=>genDrums(chords, drumStyle));
 
-  return { rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp, drums };
+  return {
+    rootIdx, rootName, vibeKey, tempo: vibe.tempo, chords, melody, bass, arp, drums,
+    seeds: { prog: progSeed, melody: melodySeed, bass: bassSeed, arp: arpSeed, drums: drumsSeed }
+  };
 }
 
 /* ================= UI SETUP ================= */
@@ -1801,7 +1870,97 @@ function setResultButtonsEnabled(enabled){
   document.getElementById('newBassBtn').disabled = !enabled;
   document.getElementById('newArpBtn').disabled = !enabled;
   document.getElementById('newDrumsBtn').disabled = !enabled;
+  document.getElementById('shareBtn').disabled = !enabled;
 }
+
+/* ================= SDÍLECÍ ODKAZ =================
+   Aktuální výsledek (tónina, nálada, styly vrstev a seed každé vrstvy —
+   viz withSeed výš) se po každé (re)generaci zapíše do URL parametrů přes
+   history.replaceState (žádný reload, žádný extra request). Kdokoli tenhle
+   odkaz otevře, dostane funkcí tryLoadFromShareUrl() bit přesně stejný
+   postup — akordy, melodii, basu, arp i bicí — protože seed jednoznačně
+   určuje výstup withSeed(). Ruční úpravy v Mini DAW (mute, posun oktávy,
+   přegenerování jednoho taktu) se do odkazu nepromítají — to je vědomý
+   kompromis kvůli jednoduchosti, viz tooltip u tlačítka. */
+function buildShareParams(){
+  if(!current || !current.seeds) return null;
+  const p = new URLSearchParams();
+  p.set('r', current.rootIdx);
+  p.set('v', current.vibeKey);
+  p.set('ms', melodyStyleSelect.value);
+  p.set('bs', bassStyleSelect.value);
+  p.set('as', arpStyleSelect.value);
+  p.set('ds', drumStyleSelect.value);
+  p.set('t', current.tempo);
+  const s = current.seeds;
+  p.set('sp', s.prog.toString(36));
+  p.set('sm', s.melody.toString(36));
+  p.set('sb', s.bass.toString(36));
+  p.set('sa', s.arp.toString(36));
+  p.set('sd', s.drums.toString(36));
+  return p;
+}
+
+function updateShareUrl(){
+  const p = buildShareParams();
+  if(!p) return;
+  const url = new URL(window.location.href);
+  url.search = p.toString();
+  history.replaceState(null, '', url);
+}
+
+function tryLoadFromShareUrl(){
+  const params = new URLSearchParams(window.location.search);
+  if(!params.has('r') || !params.has('v')) return false;
+  const rootIdx = parseInt(params.get('r'),10);
+  const vibeKey = params.get('v');
+  if(!(vibeKey in VIBES) || isNaN(rootIdx) || rootIdx<0 || rootIdx>11) return false;
+  const seeds = {
+    prog: parseInt(params.get('sp'),36),
+    melody: parseInt(params.get('sm'),36),
+    bass: parseInt(params.get('sb'),36),
+    arp: parseInt(params.get('sa'),36),
+    drums: parseInt(params.get('sd'),36)
+  };
+  if(Object.values(seeds).some(v=>isNaN(v))) return false;
+  const ms = params.get('ms') || 'auto';
+  const bs = params.get('bs') || 'auto';
+  const as = params.get('as') || 'auto';
+  const ds = params.get('ds') || 'auto';
+  const t = parseInt(params.get('t'),10);
+
+  rootSelect.value = rootIdx;
+  selectedVibe = vibeKey;
+  document.querySelectorAll('.vibe-btn').forEach(b=>{
+    const active = b.dataset.key === vibeKey;
+    b.classList.toggle('active', active);
+  });
+  if(melodyStyleSelect.querySelector(`option[value="${ms}"]`)) melodyStyleSelect.value = ms;
+  if(bassStyleSelect.querySelector(`option[value="${bs}"]`)) bassStyleSelect.value = bs;
+  if(arpStyleSelect.querySelector(`option[value="${as}"]`)) arpStyleSelect.value = as;
+  if(drumStyleSelect.querySelector(`option[value="${ds}"]`)) drumStyleSelect.value = ds;
+  if(!isNaN(t) && t>=55 && t<=150){ tempoSlider.value = t; tempoVal.textContent = t + ' BPM'; }
+
+  current = generateProgression(rootIdx, vibeKey, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value, seeds);
+  if(!isNaN(t)) current.tempo = t;
+  renderProgression(current);
+  setResultButtonsEnabled(true);
+  dawBarIndex = 0;
+  refreshDawIfOpen();
+  showStatus('Načten sdílený postup');
+  return true;
+}
+
+document.getElementById('shareBtn').addEventListener('click', async ()=>{
+  if(!current) return;
+  updateShareUrl();
+  try{
+    await navigator.clipboard.writeText(window.location.href);
+    showStatus('Odkaz na tento postup zkopírován do schránky');
+  }catch(e){
+    showStatus('Nepodařilo se zkopírovat — zkopíruj adresu z prohlížeče ručně');
+  }
+});
 
 const statusMsg = document.getElementById('statusMsg');
 let statusTimer = null;
@@ -1828,6 +1987,7 @@ document.getElementById('genBtn').addEventListener('click', ()=>{
   stopPlayback();
   dawBarIndex = 0;
   refreshDawIfOpen();
+  updateShareUrl();
   showStatus(`Vygenerován postup ${current.rootName} ${VIBES[selectedVibe].name}`);
 });
 
@@ -1840,12 +2000,15 @@ document.getElementById('regenBtn').addEventListener('click', ()=>{
   stopPlayback();
   dawBarIndex = 0;
   refreshDawIfOpen();
+  updateShareUrl();
   showStatus('Vygenerována nová varianta');
 });
 
 document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  const seed = randomSeed();
+  current.melody = withSeed(seed, ()=>genMelody(current.chords, melodyStyleSelect.value));
+  current.seeds.melody = seed;
   // Nová melodie má být čistý nový začátek — stejně jako u rerollBar() dole
   // zrušíme staré ztlumené kroky, ať si tichem po staré melodii nezavírá
   // místa v té úplně nové (viz i exportPdfSheet/exportMidi, které mute
@@ -1853,35 +2016,45 @@ document.getElementById('newMelodyBtn').addEventListener('click', ()=>{
   if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['melody']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Vygenerována nová melodie — ${name}` : 'Vygenerována nová melodie');
 });
 
 document.getElementById('newBassBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.bass = genBass(current.chords, bassStyleSelect.value);
+  const seed = randomSeed();
+  current.bass = withSeed(seed, ()=>genBass(current.chords, bassStyleSelect.value));
+  current.seeds.bass = seed;
   if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['bass']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Vygenerována nová basová linka — ${name}` : 'Vygenerována nová basová linka');
 });
 
 document.getElementById('newArpBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.arp = genArp(current.chords, arpStyleSelect.value);
+  const seed = randomSeed();
+  current.arp = withSeed(seed, ()=>genArp(current.chords, arpStyleSelect.value));
+  current.seeds.arp = seed;
   if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['arp']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Vygenerován nový arp — ${name}` : 'Vygenerován nový arp');
 });
 
 document.getElementById('newDrumsBtn').addEventListener('click', ()=>{
   if(!current) return;
-  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  const seed = randomSeed();
+  current.drums = withSeed(seed, ()=>genDrums(current.chords, drumStyleSelect.value));
+  current.seeds.drums = seed;
   refreshLayersDebounced(['drums']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Vygenerovány nové bicí — ${name}` : 'Vygenerovány nové bicí');
 });
@@ -1893,10 +2066,13 @@ melodyStyleSelect.addEventListener('change', ()=>{
     showStatus('Nejdřív vygeneruj postup, pak vyber styl melodie');
     return;
   }
-  current.melody = genMelody(current.chords, melodyStyleSelect.value);
+  const seed = randomSeed();
+  current.melody = withSeed(seed, ()=>genMelody(current.chords, melodyStyleSelect.value));
+  current.seeds.melody = seed;
   if(current.melodyMute) current.melodyMute = current.melodyMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['melody']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(melodyStyleSelect, MELODY_PATTERNS);
   showStatus(name ? `Styl melodie: ${name}` : 'Styl melodie: Auto (mění se v každém taktu)');
 });
@@ -1906,10 +2082,13 @@ bassStyleSelect.addEventListener('change', ()=>{
     showStatus('Nejdřív vygeneruj postup, pak vyber styl basy');
     return;
   }
-  current.bass = genBass(current.chords, bassStyleSelect.value);
+  const seed = randomSeed();
+  current.bass = withSeed(seed, ()=>genBass(current.chords, bassStyleSelect.value));
+  current.seeds.bass = seed;
   if(current.bassMute) current.bassMute = current.bassMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['bass']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(bassStyleSelect, BASS_PATTERNS);
   showStatus(name ? `Styl basy: ${name}` : 'Styl basy: Auto (mění se v každém taktu)');
 });
@@ -1919,10 +2098,13 @@ arpStyleSelect.addEventListener('change', ()=>{
     showStatus('Nejdřív vygeneruj postup, pak vyber styl arpeggia');
     return;
   }
-  current.arp = genArp(current.chords, arpStyleSelect.value);
+  const seed = randomSeed();
+  current.arp = withSeed(seed, ()=>genArp(current.chords, arpStyleSelect.value));
+  current.seeds.arp = seed;
   if(current.arpMute) current.arpMute = current.arpMute.map(bar=>bar.map(()=>false));
   refreshLayersDebounced(['arp']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(arpStyleSelect, ARP_PATTERNS);
   showStatus(name ? `Styl arpeggia: ${name}` : 'Styl arpeggia: Auto (mění se v každém taktu)');
 });
@@ -1932,12 +2114,16 @@ drumStyleSelect.addEventListener('change', ()=>{
     showStatus('Nejdřív vygeneruj postup, pak vyber styl bicích');
     return;
   }
-  current.drums = genDrums(current.chords, drumStyleSelect.value);
+  const seed = randomSeed();
+  current.drums = withSeed(seed, ()=>genDrums(current.chords, drumStyleSelect.value));
+  current.seeds.drums = seed;
   refreshLayersDebounced(['drums']);
   refreshDawIfOpen();
+  updateShareUrl();
   const name = styleName(drumStyleSelect, DRUM_PATTERNS);
   showStatus(name ? `Styl bicích: ${name}` : 'Styl bicích: Auto (mění se v každém taktu)');
 });
+
 
 /* ================= PLAYBACK (nativní Web Audio API) =================
    Dřív celé přehrávání jelo přes Tone.js — knihovnu, která nad Web Audio
@@ -2098,7 +2284,7 @@ function cutActiveVoice(key){
 
 function triggerChord(chord, time){
   const dur = 240 / currentBpm; // 1 takt (4/4) = 4 doby
-  chord.tones.forEach(m=>{
+  (chord.voicedTones || chord.tones).forEach(m=>{
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
     schedulePianoNote(m, 'chords', time, dur);
     sendMidiNoteEvent(m, 80, time, dur, MIDI_CHANNEL.chords);
@@ -2732,7 +2918,7 @@ function exportMidi(){
   current.chords.forEach((c,i)=>{
     if(isMutedFlat(current.chordsMute, i, 1)) return;
     const start = i * barTicks;
-    c.tones.forEach(n=>{
+    (c.voicedTones || c.tones).forEach(n=>{
       chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
       chordEvents.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
     });
@@ -3044,7 +3230,7 @@ function buildPartEvents(part){
     current.chords.forEach((c,i)=>{
       if(isMutedFlat(current.chordsMute, i, 1)) return;
       const start = i * barTicks;
-      c.tones.forEach(n=>{
+      (c.voicedTones || c.tones).forEach(n=>{
         events.push({tick:start, type:'on', note:n, vel:80, channel:0});
         events.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
       });
@@ -3564,6 +3750,14 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
     });
   }
 })();
+
+/* Pokud stránku někdo otevřel přes sdílecí odkaz, rovnou zrekonstruujeme
+   přesně ten samý postup místo prázdného výchozího stavu. Musí se volat až
+   tady na úplném konci skriptu — dřív (hned po UI setupu nahoře) by to
+   spadlo na TDZ chybě, protože `dawBarIndex` a pár dalších proměnných, se
+   kterými se generování a otevření Mini DAW pojí, se deklarují (let) až
+   níž v souboru. */
+tryLoadFromShareUrl();
 </script>
 </body>
 </html>
