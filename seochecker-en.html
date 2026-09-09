@@ -347,6 +347,25 @@
   }
   .export-pdf-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
 
+  /* ---------- install-as-app banner ---------- */
+  .install-banner{background:var(--ui-bg-1);border-bottom:1px solid var(--ui-line);}
+  .install-banner[hidden]{display:none;}
+  .install-banner-inner{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:12px 20px;}
+  .install-banner-text{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--ui-text-dim);}
+  .install-banner-text strong{color:var(--ui-text);font-family:'Space Grotesk',sans-serif;font-size:14px;}
+  .install-banner-actions{display:flex;align-items:center;gap:8px;flex:none;}
+  .install-banner-btn{
+    background:var(--ui-accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .install-banner-btn:hover{background:#6b4ce6;}
+  .install-banner-btn:disabled{background:var(--ui-line);color:var(--ui-text-dim);cursor:default;}
+  .install-banner-dismiss{
+    background:transparent;border:1px solid var(--ui-line);color:var(--ui-text-dim);border-radius:8px;
+    width:30px;height:30px;cursor:pointer;font-size:13px;flex:none;
+  }
+  .install-banner-dismiss:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+
   /* ---------- articles (same accordion pattern as WEBZENith) ---------- */
   .articles-wrap{border-top:1px solid var(--ui-line);padding:44px 0 20px;}
   .articles-wrap h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 6px;}
@@ -411,6 +430,13 @@
   }
   .promo-dismiss:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
 
+  .promo-support{
+    background:transparent;border:1px solid rgba(224,168,63,.4);color:var(--warn);
+    font-family:'Inter',sans-serif;font-weight:600;font-size:14px;padding:11px 16px;border-radius:8px;
+    text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+  }
+  .promo-support:hover{background:rgba(224,168,63,.12);}
+
   .promo-unlock{margin-top:18px;padding-top:16px;border-top:1px solid var(--ui-line);}
   .promo-unlock-label{display:block;font-size:12px;color:var(--ui-text-dim);margin:0 0 8px;}
   .promo-unlock-row{display:flex;gap:8px;}
@@ -436,7 +462,7 @@
   /* ---------- print / PDF export (via the browser's print dialog) ---------- */
   @media print{
     body{background:#fff;color:#111;}
-    .topbar,.hero,.articles-wrap,footer.app-footer,.promo-overlay,#reset-btn,.export-pdf-btn{
+    .topbar,.hero,.articles-wrap,footer.app-footer,.promo-overlay,.install-banner,#reset-btn,.export-pdf-btn{
       display:none !important;
     }
     #results{display:block !important;border-top:none;padding:0;margin-top:0;}
@@ -471,6 +497,19 @@
     <a class="save-btn" href="https://synthlucida.com/webzen-en.html" title="SYNTHLUCIDA WEBZENith">🌐 <span>WEBZENith</span></a>
     <a class="save-btn" href="https://synthlucida.com" title="Back to SYNTHLUCIDA">🏠 <span>SYNTHLUCIDA</span></a>
     <a class="save-btn" href="seochecker.html">CZ</a>
+  </div>
+</div>
+
+<div class="install-banner" id="install-banner" hidden>
+  <div class="wrap install-banner-inner">
+    <div class="install-banner-text">
+      <strong>📲 Install SEOCHECKER</strong>
+      <span id="install-banner-desc">Add it to your home screen for quick, offline-ready access — no app store needed.</span>
+    </div>
+    <div class="install-banner-actions">
+      <button type="button" class="install-banner-btn" id="install-banner-btn" hidden>Install</button>
+      <button type="button" class="install-banner-dismiss" id="install-banner-dismiss" aria-label="Dismiss">✕</button>
+    </div>
   </div>
 </div>
 
@@ -690,6 +729,7 @@
     <p>Sorry for the interruption — just a quick note before you go. If you'd like a break from SEO, check out <strong>Relax Player</strong>: ambient music and sounds for focus or sleep, free right in your browser.</p>
     <div class="promo-actions">
       <a class="promo-cta" href="https://relaxplayer.eu" target="_blank" rel="noopener">🎧 Try Relax Player</a>
+      <a class="promo-support" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener noreferrer">☕ Support the project</a>
       <button type="button" class="promo-dismiss" id="promo-dismiss">Close</button>
     </div>
     <form class="promo-unlock" id="promo-unlock-form">
@@ -714,6 +754,7 @@
     errorReadFailed: "The selected file could not be read, or it isn't a valid HTML file. Try exporting the page from WEBZENith or PAGEZEN again.",
     errorDetailsLabel: "Technical details",
     analyzedFor: "Result for file ",
+    historyNoDetail: "Detailed results for this entry aren't available (it was saved before this feature was added) — run the check again to see it.",
     verdicts: {
       great: "Excellent. Search engines shouldn't have any trouble with this page.",
       good: "A solid foundation, but a few things are worth polishing.",
@@ -1121,10 +1162,28 @@
 
       var entry = document.createElement("div");
       entry.className = "history-item";
+      entry.setAttribute("role", "button");
+      entry.setAttribute("tabindex", "0");
+      entry.title = "View this result";
       entry.innerHTML =
         "<span class=\"history-dot " + scoreTier(item.score) + "\"></span>" +
         "<span class=\"history-host\">" + esc(item.name) + "</span>" +
         "<span class=\"history-score\">" + item.score + "/100</span>";
+
+      function openEntry(){
+        if(item.checks && item.checks.length){
+          renderReport(item.checks, item.name);
+        } else {
+          setStatus(T.historyNoDetail, "error");
+        }
+      }
+      entry.addEventListener("click", openEntry);
+      entry.addEventListener("keydown", function(ev){
+        if(ev.key === "Enter" || ev.key === " "){
+          ev.preventDefault();
+          openEntry();
+        }
+      });
 
       var rm = document.createElement("button");
       rm.type = "button";
@@ -1143,9 +1202,9 @@
     });
   }
 
-  function addToHistory(name, score){
+  function addToHistory(name, score, checks){
     var list = loadHistory();
-    list.unshift({name:name, score:score, ts:Date.now()});
+    list.unshift({name:name, score:score, ts:Date.now(), checks:checks});
     if(list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
     saveHistoryList(list);
     renderHistory();
@@ -1385,7 +1444,7 @@
       setStatus("", "");
       submitBtn.disabled = false;
       renderReport(finalChecks, pageFile.name);
-      addToHistory(pageFile.name, normalizedScoreFromChecks(finalChecks));
+      addToHistory(pageFile.name, normalizedScoreFromChecks(finalChecks), finalChecks);
       var checkN = bumpCheckCount();
       if(checkN % 5 === 0 && !isPromoSnoozed()){
         showPromo();
@@ -1418,6 +1477,78 @@
       window.print();
     });
   }
+
+  // ---------- install-as-app banner ----------
+  (function(){
+    var INSTALL_DISMISS_KEY = "seochecker_install_dismissed_v1";
+    var banner = document.getElementById("install-banner");
+    var descEl = document.getElementById("install-banner-desc");
+    var installBtn = document.getElementById("install-banner-btn");
+    var dismissBtn = document.getElementById("install-banner-dismiss");
+    if(!banner) return;
+
+    function isDismissed(){
+      try{ return window.localStorage.getItem(INSTALL_DISMISS_KEY) === "1"; }
+      catch(e){ return false; }
+    }
+    function setDismissed(){
+      try{ window.localStorage.setItem(INSTALL_DISMISS_KEY, "1"); }catch(e){ /* fail silently */ }
+    }
+    function isStandalone(){
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    if(isStandalone() || isDismissed()) return; // already installed, or previously closed
+
+    function showBanner(){
+      if(isStandalone() || isDismissed()) return;
+      banner.hidden = false;
+    }
+    function hideBanner(){
+      banner.hidden = true;
+    }
+
+    dismissBtn.addEventListener("click", function(){
+      setDismissed();
+      hideBanner();
+    });
+
+    var deferredPrompt = null;
+    window.addEventListener("beforeinstallprompt", function(ev){
+      ev.preventDefault();
+      deferredPrompt = ev;
+      installBtn.hidden = false;
+      showBanner();
+    });
+
+    installBtn.addEventListener("click", function(){
+      if(!deferredPrompt) return;
+      installBtn.disabled = true;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(){
+        deferredPrompt = null;
+        setDismissed();
+        hideBanner();
+      }).catch(function(){
+        installBtn.disabled = false;
+      });
+    });
+
+    window.addEventListener("appinstalled", function(){
+      setDismissed();
+      hideBanner();
+    });
+
+    // iOS Safari never fires beforeinstallprompt — show manual instructions instead.
+    var ua = window.navigator.userAgent || "";
+    var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+    if(isIOS && isSafari){
+      descEl.textContent = "Tap the Share icon, then “Add to Home Screen”, for quick, full-screen access.";
+      installBtn.hidden = true;
+      showBanner();
+    }
+  })();
 
   renderHistory();
 

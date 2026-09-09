@@ -347,6 +347,25 @@
   }
   .export-pdf-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
 
+  /* ---------- banner s nabídkou instalace jako appky ---------- */
+  .install-banner{background:var(--ui-bg-1);border-bottom:1px solid var(--ui-line);}
+  .install-banner[hidden]{display:none;}
+  .install-banner-inner{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:12px 20px;}
+  .install-banner-text{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--ui-text-dim);}
+  .install-banner-text strong{color:var(--ui-text);font-family:'Space Grotesk',sans-serif;font-size:14px;}
+  .install-banner-actions{display:flex;align-items:center;gap:8px;flex:none;}
+  .install-banner-btn{
+    background:var(--ui-accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .install-banner-btn:hover{background:#6b4ce6;}
+  .install-banner-btn:disabled{background:var(--ui-line);color:var(--ui-text-dim);cursor:default;}
+  .install-banner-dismiss{
+    background:transparent;border:1px solid var(--ui-line);color:var(--ui-text-dim);border-radius:8px;
+    width:30px;height:30px;cursor:pointer;font-size:13px;flex:none;
+  }
+  .install-banner-dismiss:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
+
   /* ---------- articles (same accordion pattern as WEBZENith) ---------- */
   .articles-wrap{border-top:1px solid var(--ui-line);padding:44px 0 20px;}
   .articles-wrap h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 6px;}
@@ -411,6 +430,13 @@
   }
   .promo-dismiss:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
 
+  .promo-support{
+    background:transparent;border:1px solid rgba(224,168,63,.4);color:var(--warn);
+    font-family:'Inter',sans-serif;font-weight:600;font-size:14px;padding:11px 16px;border-radius:8px;
+    text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+  }
+  .promo-support:hover{background:rgba(224,168,63,.12);}
+
   .promo-unlock{margin-top:18px;padding-top:16px;border-top:1px solid var(--ui-line);}
   .promo-unlock-label{display:block;font-size:12px;color:var(--ui-text-dim);margin:0 0 8px;}
   .promo-unlock-row{display:flex;gap:8px;}
@@ -436,7 +462,7 @@
   /* ---------- tisk / export do PDF (přes dialog tisku prohlížeče) ---------- */
   @media print{
     body{background:#fff;color:#111;}
-    .topbar,.hero,.articles-wrap,footer.app-footer,.promo-overlay,#reset-btn,.export-pdf-btn{
+    .topbar,.hero,.articles-wrap,footer.app-footer,.promo-overlay,.install-banner,#reset-btn,.export-pdf-btn{
       display:none !important;
     }
     #results{display:block !important;border-top:none;padding:0;margin-top:0;}
@@ -471,6 +497,19 @@
     <a class="save-btn" href="https://synthlucida.com/webzen.html" title="SYNTHLUCIDA WEBZENith">🌐 <span>WEBZENith</span></a>
     <a class="save-btn" href="https://synthlucida.com" title="Zpět na SYNTHLUCIDA">🏠 <span>SYNTHLUCIDA</span></a>
     <a class="save-btn" href="seochecker-en.html">EN</a>
+  </div>
+</div>
+
+<div class="install-banner" id="install-banner" hidden>
+  <div class="wrap install-banner-inner">
+    <div class="install-banner-text">
+      <strong>📲 Nainstalovat SEOCHECKER</strong>
+      <span id="install-banner-desc">Přidejte si ji na plochu pro rychlý přístup i bez obchodu s aplikacemi.</span>
+    </div>
+    <div class="install-banner-actions">
+      <button type="button" class="install-banner-btn" id="install-banner-btn" hidden>Instalovat</button>
+      <button type="button" class="install-banner-dismiss" id="install-banner-dismiss" aria-label="Zavřít">✕</button>
+    </div>
   </div>
 </div>
 
@@ -690,6 +729,7 @@
     <p>Omlouváme se za vyrušení — jen krátká nabídka na závěr. Pokud si chcete od SEO na chvíli odpočinout, mrkněte na <strong>Relax Player</strong>: ambientní hudbu a zvuky pro soustředění nebo usnutí, zdarma přímo v prohlížeči.</p>
     <div class="promo-actions">
       <a class="promo-cta" href="https://relaxplayer.eu" target="_blank" rel="noopener">🎧 Vyzkoušet Relax Player</a>
+      <a class="promo-support" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener noreferrer">☕ Podpořit projekt</a>
       <button type="button" class="promo-dismiss" id="promo-dismiss">Zavřít</button>
     </div>
     <form class="promo-unlock" id="promo-unlock-form">
@@ -714,6 +754,7 @@
     errorReadFailed: "Vybraný soubor se nepodařilo přečíst nebo se nejedná o platný HTML soubor. Zkuste stránku ve WEBZENith nebo PAGEZEN vyexportovat znovu.",
     errorDetailsLabel: "Technický detail",
     analyzedFor: "Výsledek pro soubor ",
+    historyNoDetail: "Podrobné výsledky pro tuto položku nejsou k dispozici (byla uložena před přidáním této funkce) — spusťte kontrolu znovu.",
     verdicts: {
       great: "Výborně. Vyhledávače by s touto stránkou neměly mít problém.",
       good: "Slušný základ, ale pár věcí stojí za doladění.",
@@ -1121,10 +1162,28 @@
 
       var entry = document.createElement("div");
       entry.className = "history-item";
+      entry.setAttribute("role", "button");
+      entry.setAttribute("tabindex", "0");
+      entry.title = "Zobrazit tento výsledek";
       entry.innerHTML =
         "<span class=\"history-dot " + scoreTier(item.score) + "\"></span>" +
         "<span class=\"history-host\">" + esc(item.name) + "</span>" +
         "<span class=\"history-score\">" + item.score + "/100</span>";
+
+      function openEntry(){
+        if(item.checks && item.checks.length){
+          renderReport(item.checks, item.name);
+        } else {
+          setStatus(T.historyNoDetail, "error");
+        }
+      }
+      entry.addEventListener("click", openEntry);
+      entry.addEventListener("keydown", function(ev){
+        if(ev.key === "Enter" || ev.key === " "){
+          ev.preventDefault();
+          openEntry();
+        }
+      });
 
       var rm = document.createElement("button");
       rm.type = "button";
@@ -1143,9 +1202,9 @@
     });
   }
 
-  function addToHistory(name, score){
+  function addToHistory(name, score, checks){
     var list = loadHistory();
-    list.unshift({name:name, score:score, ts:Date.now()});
+    list.unshift({name:name, score:score, ts:Date.now(), checks:checks});
     if(list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
     saveHistoryList(list);
     renderHistory();
@@ -1385,7 +1444,7 @@
       setStatus("", "");
       submitBtn.disabled = false;
       renderReport(finalChecks, pageFile.name);
-      addToHistory(pageFile.name, normalizedScoreFromChecks(finalChecks));
+      addToHistory(pageFile.name, normalizedScoreFromChecks(finalChecks), finalChecks);
       var checkN = bumpCheckCount();
       if(checkN % 5 === 0 && !isPromoSnoozed()){
         showPromo();
@@ -1418,6 +1477,78 @@
       window.print();
     });
   }
+
+  // ---------- banner s nabídkou instalace jako appky ----------
+  (function(){
+    var INSTALL_DISMISS_KEY = "seochecker_install_dismissed_v1";
+    var banner = document.getElementById("install-banner");
+    var descEl = document.getElementById("install-banner-desc");
+    var installBtn = document.getElementById("install-banner-btn");
+    var dismissBtn = document.getElementById("install-banner-dismiss");
+    if(!banner) return;
+
+    function isDismissed(){
+      try{ return window.localStorage.getItem(INSTALL_DISMISS_KEY) === "1"; }
+      catch(e){ return false; }
+    }
+    function setDismissed(){
+      try{ window.localStorage.setItem(INSTALL_DISMISS_KEY, "1"); }catch(e){ /* tiše ignorovat */ }
+    }
+    function isStandalone(){
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    if(isStandalone() || isDismissed()) return; // appka je už nainstalovaná, nebo byl banner dřív zavřený
+
+    function showBanner(){
+      if(isStandalone() || isDismissed()) return;
+      banner.hidden = false;
+    }
+    function hideBanner(){
+      banner.hidden = true;
+    }
+
+    dismissBtn.addEventListener("click", function(){
+      setDismissed();
+      hideBanner();
+    });
+
+    var deferredPrompt = null;
+    window.addEventListener("beforeinstallprompt", function(ev){
+      ev.preventDefault();
+      deferredPrompt = ev;
+      installBtn.hidden = false;
+      showBanner();
+    });
+
+    installBtn.addEventListener("click", function(){
+      if(!deferredPrompt) return;
+      installBtn.disabled = true;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(){
+        deferredPrompt = null;
+        setDismissed();
+        hideBanner();
+      }).catch(function(){
+        installBtn.disabled = false;
+      });
+    });
+
+    window.addEventListener("appinstalled", function(){
+      setDismissed();
+      hideBanner();
+    });
+
+    // iOS Safari nikdy nespustí beforeinstallprompt — místo tlačítka zobrazíme návod.
+    var ua = window.navigator.userAgent || "";
+    var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+    if(isIOS && isSafari){
+      descEl.textContent = "Klepněte na ikonu Sdílet a pak na „Přidat na plochu“ pro rychlý přístup na celou obrazovku.";
+      installBtn.hidden = true;
+      showBanner();
+    }
+  })();
 
   renderHistory();
 
