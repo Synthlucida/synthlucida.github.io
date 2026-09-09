@@ -908,6 +908,22 @@
     qfAppliedArrow: " → ",
     qfAppliedSuffix: ". You can download the corrected file below.",
     qfAllFixed: "🎉 All quick-fixable issues are resolved. Download your corrected file below.",
+    qfCanonicalLabel: "Canonical link (self-referencing URL)",
+    qfLangLabel: "Page language (e.g. en, cs)",
+    qfCharsetLabel: "Page encoding (charset)",
+    qfCharsetNote: "Missing — applying will add a standard UTF-8 charset declaration.",
+    qfViewportLabel: "Mobile viewport tag",
+    qfViewportNote: "Missing — applying will add the standard responsive viewport meta tag.",
+    qfFaviconLabel: "Favicon",
+    qfFaviconNote: "Missing — applying will add a simple placeholder icon; swap in your own logo whenever you like.",
+    qfRobotsLabel: "Meta robots (noindex)",
+    qfRobotsNote: "This page is set to “noindex”, so search engines won't show it — applying will remove that restriction.",
+    qfOgLabel: "Open Graph data (title, description, image)",
+    qfOgTitlePlaceholder: "Open Graph title",
+    qfOgDescPlaceholder: "Open Graph description",
+    qfOgImagePlaceholder: "Image URL (e.g. https://example.com/share-image.png)",
+    qfTwitterLabel: "Twitter/X card",
+    qfTwitterNote: "Missing — applying will add a standard Twitter/X card tag.",
     verdicts: {
       great: "Excellent. Search engines shouldn't have any trouble with this page.",
       good: "A solid foundation, but a few things are worth polishing.",
@@ -1428,6 +1444,14 @@
     return field;
   }
 
+  function addQfNoteField(labelText, noteText){
+    var field = document.createElement("div");
+    field.className = "qf-field";
+    field.innerHTML = "<label class=\"qf-label\">" + esc(labelText) + "</label><p class=\"qf-note\">" + esc(noteText) + "</p>";
+    quickfixFields.appendChild(field);
+    return field;
+  }
+
   function buildQuickFix(list, doc, fileName, context){
     if(!quickfixWrap) return;
     qfDoc = doc;
@@ -1481,6 +1505,86 @@
           if(head) head.appendChild(el);
         }
         el.setAttribute("content", v);
+        return true;
+      });
+    }
+
+    var canonCheck = findCheck(list, "canonical");
+    var canonHttpsCheck = findCheck(list, "canonicalhttps");
+    if((canonCheck && canonCheck.status !== "pass") || (canonHttpsCheck && canonHttpsCheck.status !== "pass")){
+      any = true;
+      var canonEl0 = doc.querySelector('link[rel="canonical"]');
+      var field5 = addQfField(T.qfCanonicalLabel, "<input type=\"text\" class=\"qf-input\" maxlength=\"300\" placeholder=\"https://example.com/page\">");
+      var canonInput = field5.querySelector("input");
+      canonInput.value = canonEl0 ? (canonEl0.getAttribute("href")||"").trim() : "";
+      qfFixers.push(function(){
+        var v = canonInput.value.trim();
+        if(!v) return false;
+        var el = doc.querySelector('link[rel="canonical"]');
+        if(!el){
+          el = doc.createElement("link");
+          el.setAttribute("rel","canonical");
+          var head = doc.querySelector("head");
+          if(head) head.appendChild(el);
+        }
+        el.setAttribute("href", v);
+        return true;
+      });
+    }
+
+    var langCheck = findCheck(list, "lang");
+    if(langCheck && langCheck.status !== "pass"){
+      any = true;
+      var field6 = addQfField(T.qfLangLabel, "<input type=\"text\" class=\"qf-input\" maxlength=\"12\" placeholder=\"en\">");
+      var langInput = field6.querySelector("input");
+      qfFixers.push(function(){
+        var v = langInput.value.trim();
+        if(!v) return false;
+        doc.documentElement.setAttribute("lang", v);
+        return true;
+      });
+    }
+
+    var charsetCheck = findCheck(list, "charset");
+    if(charsetCheck && charsetCheck.status !== "pass"){
+      any = true;
+      addQfNoteField(T.qfCharsetLabel, T.qfCharsetNote);
+      qfFixers.push(function(){
+        if(doc.querySelector("meta[charset]") || doc.querySelector('meta[http-equiv="Content-Type"]')) return false;
+        var el = doc.createElement("meta");
+        el.setAttribute("charset","UTF-8");
+        var head = doc.querySelector("head");
+        if(head) head.insertBefore(el, head.firstChild);
+        return true;
+      });
+    }
+
+    var viewportCheck = findCheck(list, "viewport");
+    if(viewportCheck && viewportCheck.status !== "pass"){
+      any = true;
+      addQfNoteField(T.qfViewportLabel, T.qfViewportNote);
+      qfFixers.push(function(){
+        if(doc.querySelector('meta[name="viewport"]')) return false;
+        var el = doc.createElement("meta");
+        el.setAttribute("name","viewport");
+        el.setAttribute("content","width=device-width, initial-scale=1");
+        var head = doc.querySelector("head");
+        if(head) head.appendChild(el);
+        return true;
+      });
+    }
+
+    var faviconCheck = findCheck(list, "favicon");
+    if(faviconCheck && faviconCheck.status !== "pass"){
+      any = true;
+      addQfNoteField(T.qfFaviconLabel, T.qfFaviconNote);
+      qfFixers.push(function(){
+        if(doc.querySelector('link[rel~="icon"]')) return false;
+        var el = doc.createElement("link");
+        el.setAttribute("rel","icon");
+        el.setAttribute("href","data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%237c5cff'/%3E%3C/svg%3E");
+        var head = doc.querySelector("head");
+        if(head) head.appendChild(el);
         return true;
       });
     }
@@ -1562,6 +1666,93 @@
         }
         quickfixFields.appendChild(altWrap);
       }
+    }
+
+    var ogCheck = findCheck(list, "og");
+    if(ogCheck && ogCheck.status !== "pass"){
+      any = true;
+      var titleElForOg = doc.querySelector("title");
+      var descElForOg = doc.querySelector('meta[name="description"]');
+      var ogTitleEl0 = doc.querySelector('meta[property="og:title"]');
+      var ogDescEl0 = doc.querySelector('meta[property="og:description"]');
+      var ogImgEl0 = doc.querySelector('meta[property="og:image"]');
+
+      var ogWrap = document.createElement("div");
+      ogWrap.className = "qf-field";
+      ogWrap.innerHTML =
+        "<label class=\"qf-label\">" + esc(T.qfOgLabel) + "</label>" +
+        "<input type=\"text\" class=\"qf-input\" style=\"margin-bottom:8px\" maxlength=\"120\" placeholder=\"" + esc(T.qfOgTitlePlaceholder) + "\">" +
+        "<textarea class=\"qf-input qf-textarea\" style=\"margin-bottom:8px\" maxlength=\"300\" rows=\"2\" placeholder=\"" + esc(T.qfOgDescPlaceholder) + "\"></textarea>" +
+        "<input type=\"text\" class=\"qf-input\" maxlength=\"300\" placeholder=\"" + esc(T.qfOgImagePlaceholder) + "\">";
+      quickfixFields.appendChild(ogWrap);
+      var ogInputs = ogWrap.querySelectorAll("input, textarea");
+      var ogTitleInput = ogInputs[0], ogDescInput = ogInputs[1], ogImageInput = ogInputs[2];
+      ogTitleInput.value = ogTitleEl0 ? (ogTitleEl0.getAttribute("content")||"").trim() : (titleElForOg ? titleElForOg.textContent.replace(/\s+/g," ").trim() : "");
+      ogDescInput.value = ogDescEl0 ? (ogDescEl0.getAttribute("content")||"").trim() : (descElForOg ? (descElForOg.getAttribute("content")||"").trim() : "");
+      ogImageInput.value = ogImgEl0 ? (ogImgEl0.getAttribute("content")||"").trim() : "";
+
+      function setOgMeta(prop, value){
+        var el = doc.querySelector('meta[property="' + prop + '"]');
+        if(!el){
+          el = doc.createElement("meta");
+          el.setAttribute("property", prop);
+          var head = doc.querySelector("head");
+          if(head) head.appendChild(el);
+        }
+        el.setAttribute("content", value);
+      }
+      qfFixers.push(function(){
+        var v = ogTitleInput.value.replace(/\s+/g," ").trim();
+        if(!v) return false;
+        setOgMeta("og:title", v);
+        return true;
+      });
+      qfFixers.push(function(){
+        var v = ogDescInput.value.replace(/\s+/g," ").trim();
+        if(!v) return false;
+        setOgMeta("og:description", v);
+        return true;
+      });
+      qfFixers.push(function(){
+        var v = ogImageInput.value.trim();
+        if(!v) return false;
+        setOgMeta("og:image", v);
+        return true;
+      });
+    }
+
+    var twitterCheck = findCheck(list, "twitter");
+    if(twitterCheck && twitterCheck.status !== "pass"){
+      any = true;
+      addQfNoteField(T.qfTwitterLabel, T.qfTwitterNote);
+      qfFixers.push(function(){
+        if(doc.querySelector('meta[name="twitter:card"]')) return false;
+        var el = doc.createElement("meta");
+        el.setAttribute("name","twitter:card");
+        el.setAttribute("content","summary_large_image");
+        var head = doc.querySelector("head");
+        if(head) head.appendChild(el);
+        return true;
+      });
+    }
+
+    var robotsCheck = findCheck(list, "robotsmeta");
+    if(robotsCheck && robotsCheck.status === "fail"){
+      any = true;
+      addQfNoteField(T.qfRobotsLabel, T.qfRobotsNote);
+      qfFixers.push(function(){
+        var el = doc.querySelector('meta[name="robots"]');
+        if(!el) return false;
+        var content = (el.getAttribute("content")||"").toLowerCase();
+        if(content.indexOf("noindex") === -1) return false;
+        var parts = content.split(",").map(function(s){ return s.trim(); }).filter(function(s){ return s && s.indexOf("noindex") === -1; });
+        if(parts.length){
+          el.setAttribute("content", parts.join(", "));
+        } else if(el.parentNode){
+          el.parentNode.removeChild(el);
+        }
+        return true;
+      });
     }
 
     quickfixApplyBtn.hidden = !any;
