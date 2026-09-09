@@ -8,9 +8,12 @@
 // atd., i když byl na serveru už nahraný nový soubor.
 // Zároveň: cache.put() u audia se teď čeká (await), takže když appka řekne
 // "staženo", skladba už je opravdu bezpečně uložená v Cache Storage.
+// Přidán SEOCHECKER (seochecker.html / seochecker-en.html) do seznamu appek
+// vyloučených z tohoto master SW - má vlastní manifest a žádnou offline
+// podporu, ať se s tímhle SW (a jeho cachí pro player) nijak nekříží.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v890';
+const APP_CACHE_NAME = 'synthlucida-app-v891';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -79,14 +82,14 @@ function isAudioRequest(url) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Weather, Progrese, Deník vozidla, Tripcost a Webzen mají vlastní scope
-  // (nebo žádnou offline podporu) a tenhle master SW to řešit nemá -
-  // necháme jejich requesty projít přímo na síť, bez event.respondWith().
+  // Weather, Progrese, Deník vozidla, Tripcost, Webzen a SEOCHECKER mají
+  // vlastní scope (nebo žádnou offline podporu) a tenhle master SW to řešit
+  // nemá - necháme jejich requesty projít přímo na síť, bez event.respondWith().
   // Bez tohohle vyloučení by je totiž handleAppShellRequest() tiše
   // zachytával a plnil jimi synthlucida-app cache, i když s playerem
   // vůbec nesouvisí. Kdyby jednou dostaly vlastní offline podporu,
   // dostanou vlastní sw.js se scope jen na sebe.
-  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas)/i.test(url.pathname)) {
+  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|seochecker|seochecker-en)/i.test(url.pathname)) {
     return;
   }
 
