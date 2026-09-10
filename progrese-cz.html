@@ -811,6 +811,13 @@
           <span class="tempo-val" id="volumeVal">80 %</span>
         </div>
       </div>
+      <div class="field">
+        <span class="label">Ladění (pitch)</span>
+        <div class="tempo-wrap" style="margin-top:6px;">
+          <input type="range" id="pitchSlider" min="-12" max="12" value="0" step="1" title="Posune celý vygenerovaný postup nahoru/dolů v půltónech — akordy, melodii, basu i arpeggio (bicích se netýká).">
+          <span class="tempo-val" id="pitchVal">0</span>
+        </div>
+      </div>
     </div>
 
     <span class="label" style="display:block; margin-top:16px;">Nálada / vibe</span>
@@ -1054,6 +1061,19 @@
           je tvoje k použití bez omezení — v osobní i komerční hudbě, bez nutnosti uvádět zdroj.</p>
         </div>
       </div>
+      <div class="info-step">
+        <div class="info-num">06</div>
+        <div>
+          <h3>Posuneš ladění (pitch) nahoru nebo dolů</h3>
+          <p>Posuvník „Ladění (pitch)“ vedle Hlasitosti přesune celý postup o -12 až +12 půltónů —
+          akordy, melodii, basu i arpeggio (bicích se netýká). Funguje okamžitě, i za hraní, bez
+          nutnosti cokoli přegenerovat, a projeví se úplně všude: v přehrávání, v živém MIDI výstupu
+          do DAW, v exportovaném .mid souboru (celkovém i po jednotlivých stopách) i v exportu not
+          do PDF — tam se podle nové výšky přepočítají i akordové značky, název tóniny v záhlaví
+          a klaviaturní diagramy. Postup samotný (kartičky akordů, Mini DAW) zůstává zobrazený
+          v původní tónině, ve které byl vygenerován — ladění je posun jen pro poslech a export.</p>
+        </div>
+      </div>
     </div>
 
     <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:18px 0 0; border-top:1px solid var(--line); padding-top:16px;">
@@ -1111,6 +1131,10 @@
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Jde slyšet postup přes vlastní syntetizér v DAW, bez exportu MIDI souboru?</h3>
       <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano — panel „Živě do MIDI“ posílá přehrávání v reálném čase na virtuální MIDI port. Stačí si na počítači vytvořit virtuální port (na Windows zdarma loopMIDI, na Macu vestavěný IAC Driver), nastavit ho v DAW jako vstup nástrojové stopy s libovolným synthem, v appce povolit MIDI přístup a zapnout „Posílat živě“. Funguje v Chrome, Edge a Firefoxu — Safari bohužel Web MIDI API nepodporuje.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Dá se vygenerovaný postup transponovat do jiné výšky?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Ano — posuvník „Ladění (pitch)“ vedle Hlasitosti posune celý postup o -12 až +12 půltónů, bez nutnosti cokoli přegenerovat. Projeví se v přehrávání, v živém MIDI výstupu, v exportu MIDI souboru i v exportu not do PDF (včetně přepočtených akordových značek a tóniny v záhlaví). Bicí se netransponují.</p>
     </div>
     </div>
   </details>
@@ -1777,6 +1801,23 @@ volumeSlider.addEventListener('input', ()=>{
 // (při prvním Play) — ta si aktuální hodnotu posuvníku sama dotáhne, jakmile
 // gain uzly konečně existují, takže tady žádné volání navíc není potřeba.
 
+/* ================= GLOBÁLNÍ LADĚNÍ (PITCH) =================
+   Posune přehrávaný i exportovaný postup o zadaný počet půltónů nahoru
+   nebo dolů — akordy, melodii, basu i arpeggio. Bicí se netransponují
+   (GM bicí nota je vždy pevná, transpozice by tam neměla smysl).
+   Aplikuje se "za běhu" (na úrovni přehrávání/exportu), takže se
+   nemusí přegenerovávat aktuální postup a funguje okamžitě i za hraní. */
+let globalPitchSemitones = 0;
+const pitchSlider = document.getElementById('pitchSlider');
+const pitchVal = document.getElementById('pitchVal');
+function formatPitchVal(n){
+  return n > 0 ? `+${n}` : String(n);
+}
+pitchSlider.addEventListener('input', ()=>{
+  globalPitchSemitones = parseInt(pitchSlider.value,10) || 0;
+  pitchVal.textContent = formatPitchVal(globalPitchSemitones);
+});
+
 /* ================= MIXÉR JEDNOTLIVÝCH NÁSTROJŮ =================
    Nezávisle na celkové hlasitosti (výše) jde doladit hlasitost každé
    vrstvy zvlášť. mixerVol drží procenta (0–100) pro každou vrstvu,
@@ -2284,23 +2325,27 @@ function cutActiveVoice(key){
 
 function triggerChord(chord, time){
   const dur = 240 / currentBpm; // 1 takt (4/4) = 4 doby
-  (chord.voicedTones || chord.tones).forEach(m=>{
+  (chord.voicedTones || chord.tones).forEach(m0=>{
+    const m = m0 + globalPitchSemitones;
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
     schedulePianoNote(m, 'chords', time, dur);
     sendMidiNoteEvent(m, 80, time, dur, MIDI_CHANNEL.chords);
   });
 }
-function triggerMelodyNote(m, time){
+function triggerMelodyNote(m0, time){
+  const m = m0 + globalPitchSemitones;
   playOscVoice(melodyGain, midiToFreq(m), 'sine', time, 0.01, 0.2, 0.3, 60/currentBpm, 0.4, 'melody');
   schedulePianoNote(m, 'melody', time, 60/currentBpm);
   sendMidiNoteEvent(m, 95, time, 60/currentBpm, MIDI_CHANNEL.melody);
 }
-function triggerBassNote(m, time){
+function triggerBassNote(m0, time){
+  const m = m0 + globalPitchSemitones;
   playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
   schedulePianoNote(m, 'bass', time, 60/currentBpm);
   sendMidiNoteEvent(m, 100, time, 60/currentBpm, MIDI_CHANNEL.bass);
 }
-function triggerArpNote(m, time){
+function triggerArpNote(m0, time){
+  const m = m0 + globalPitchSemitones;
   playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
   schedulePianoNote(m, 'arp', time, 30/currentBpm);
   sendMidiNoteEvent(m, 85, time, 30/currentBpm, MIDI_CHANNEL.arp);
@@ -2914,11 +2959,13 @@ function exportMidi(){
   const totalTicks = barTicks * current.chords.length;
 
   // chords: whole note per bar (takty ztlumené v Mini DAW se do exportu nepromítnou)
+  // Globální ladění (pitchSlider) se promítne i do exportu — bicí se netransponují.
   const chordEvents = [];
   current.chords.forEach((c,i)=>{
     if(isMutedFlat(current.chordsMute, i, 1)) return;
     const start = i * barTicks;
-    (c.voicedTones || c.tones).forEach(n=>{
+    (c.voicedTones || c.tones).forEach(n0=>{
+      const n = n0 + globalPitchSemitones;
       chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
       chordEvents.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
     });
@@ -2926,16 +2973,18 @@ function exportMidi(){
 
   // melody + bass: quarter notes, 16 steps (kroky ztlumené v Mini DAW se do exportu nepromítnou)
   const melodyEvents = [];
-  current.melody.flat().forEach((n,i)=>{
+  current.melody.flat().forEach((n0,i)=>{
     if(isMutedFlat(current.melodyMute, i, 4)) return;
+    const n = n0 + globalPitchSemitones;
     const start = i * TPQN;
     melodyEvents.push({tick:start, type:'on', note:n, vel:95, channel:1});
     melodyEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:1});
   });
 
   const bassEvents = [];
-  current.bass.flat().forEach((n,i)=>{
+  current.bass.flat().forEach((n0,i)=>{
     if(isMutedFlat(current.bassMute, i, 4)) return;
+    const n = n0 + globalPitchSemitones;
     const start = i * TPQN;
     bassEvents.push({tick:start, type:'on', note:n, vel:100, channel:2});
     bassEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:2});
@@ -2944,8 +2993,9 @@ function exportMidi(){
   // arp: osminové noty, 8 kroků na takt
   const arpEvents = [];
   const eighthTicks = TPQN / 2;
-  current.arp.flat().forEach((n,i)=>{
+  current.arp.flat().forEach((n0,i)=>{
     if(isMutedFlat(current.arpMute, i, 8)) return;
+    const n = n0 + globalPitchSemitones;
     const start = i * eighthTicks;
     arpEvents.push({tick:start, type:'on', note:n, vel:85, channel:3});
     arpEvents.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:3});
@@ -2999,6 +3049,24 @@ function midiToVexKey(m){
   const letters = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
   const oct = Math.floor(m/12) - 1;
   return letters[((m%12)+12)%12] + '/' + oct;
+}
+
+/* Pomocníci pro promítnutí globálního ladění (pitchSlider) i do PDF exportu
+   not — jak samotných not na notové osnově a klaviaturních diagramech, tak
+   textových akordových značek a názvu tóniny v záhlaví (jinak by PDF ukazovalo
+   "C" akordy i noty, i když by z MIDI/přehrávání znělo o kus výš/níž). */
+function pitchedRootName(rootIdx, semitones){
+  return NOTE_NAMES[((rootIdx + semitones) % 12 + 12) % 12];
+}
+function pitchedChordSymbol(chord, semitones){
+  if(!semitones) return chord.symbol;
+  const oldRootPc = ((chord.tones[0] % 12) + 12) % 12;
+  const oldRootName = NOTE_NAMES[oldRootPc];
+  const newRootName = NOTE_NAMES[((oldRootPc + semitones) % 12 + 12) % 12];
+  return newRootName + chord.symbol.slice(oldRootName.length);
+}
+function pitchedTones(tones, semitones){
+  return tones.map(t=>t+semitones);
 }
 
 /* Klaviaturní diagram pro každý akord — pro ty, co neumí noty, ale vidí, na
@@ -3129,13 +3197,13 @@ function exportPdfSheet(){
           if(isMutedFlat(current.melodyMute, barIndex*4+stepIdx, 4)){
             return new VF.StaveNote({ clef:'treble', keys:['b/4'], duration:'qr' });
           }
-          const key = midiToVexKey(n);
+          const key = midiToVexKey(n + globalPitchSemitones);
           const note = new VF.StaveNote({ clef:'treble', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
           return note;
         });
         melNotes[0].addModifier(
-          new VF.Annotation(current.chords[barIndex].symbol)
+          new VF.Annotation(pitchedChordSymbol(current.chords[barIndex], globalPitchSemitones))
             .setFont('Arial', 11, 'bold')
             .setVerticalJustification(VF.Annotation.VerticalJustify.TOP),
           0
@@ -3146,7 +3214,7 @@ function exportPdfSheet(){
           if(isMutedFlat(current.bassMute, barIndex*4+stepIdx, 4)){
             return new VF.StaveNote({ clef:'bass', keys:['d/3'], duration:'qr' });
           }
-          const key = midiToVexKey(n);
+          const key = midiToVexKey(n + globalPitchSemitones);
           const note = new VF.StaveNote({ clef:'bass', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
           return note;
@@ -3169,14 +3237,15 @@ function exportPdfSheet(){
     const pageWidth = doc.internal.pageSize.getWidth();
     const vibeName = VIBES[current.vibeKey].name;
     const modeLabel = VIBES[current.vibeKey].mode === 'major' ? 'dur' : 'moll';
+    const pitchedRoot = pitchedRootName(current.rootIdx, globalPitchSemitones);
     let cursorY = 46;
     doc.setFont('DejaVuSans', 'bold'); doc.setFontSize(16);
-    doc.text(`Progrese — ${current.rootName} ${modeLabel} · ${vibeName}`, 40, cursorY);
+    doc.text(`Progrese — ${pitchedRoot} ${modeLabel} · ${vibeName}`, 40, cursorY);
     cursorY += 20;
     doc.setFont('DejaVuSans', 'normal'); doc.setFontSize(10.5);
     doc.text(`Tempo: ${current.tempo} BPM`, 40, cursorY);
     cursorY += 15;
-    doc.text(`Akordy: ${current.chords.map(c=>c.symbol).join('  –  ')}`, 40, cursorY, { maxWidth: pageWidth - 80 });
+    doc.text(`Akordy: ${current.chords.map(c=>pitchedChordSymbol(c, globalPitchSemitones)).join('  –  ')}`, 40, cursorY, { maxWidth: pageWidth - 80 });
     cursorY += 26;
 
     const imgData = canvasEl.toDataURL('image/png');
@@ -3200,7 +3269,7 @@ function exportPdfSheet(){
       const row = Math.floor(i / kbPerRow);
       const kx = 40 + col*(kbWidth + kbGap);
       const ky = cursorY + row*kbRowStep;
-      drawPianoChordDiagram(doc, kx, ky, kbWidth, kbHeight, chord.tones, `Takt ${i+1} · ${chord.symbol}`);
+      drawPianoChordDiagram(doc, kx, ky, kbWidth, kbHeight, pitchedTones(chord.tones, globalPitchSemitones), `Takt ${i+1} · ${pitchedChordSymbol(chord, globalPitchSemitones)}`);
     });
     cursorY += Math.ceil(current.chords.length / kbPerRow) * kbRowStep + 10;
 
@@ -3210,7 +3279,7 @@ function exportPdfSheet(){
     doc.text('Vytvořeno v Progrese — synthlucida.com/progrese-cz.html', 40, doc.internal.pageSize.getHeight() - 24);
 
     const vibeSlug = current.vibeKey.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-    doc.save(`progrese_${current.rootName.replace('#','s')}_${vibeSlug}.pdf`);
+    doc.save(`progrese_${pitchedRoot.replace('#','s')}_${vibeSlug}.pdf`);
     showStatus('Noty vyexportovány jako PDF');
   }catch(e){
     console.error('exportPdfSheet failed', e);
@@ -3230,29 +3299,33 @@ function buildPartEvents(part){
     current.chords.forEach((c,i)=>{
       if(isMutedFlat(current.chordsMute, i, 1)) return;
       const start = i * barTicks;
-      (c.voicedTones || c.tones).forEach(n=>{
+      (c.voicedTones || c.tones).forEach(n0=>{
+        const n = n0 + globalPitchSemitones;
         events.push({tick:start, type:'on', note:n, vel:80, channel:0});
         events.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
       });
     });
   } else if(part === 'melody'){
-    current.melody.flat().forEach((n,i)=>{
+    current.melody.flat().forEach((n0,i)=>{
       if(isMutedFlat(current.melodyMute, i, 4)) return;
+      const n = n0 + globalPitchSemitones;
       const start = i * TPQN;
       events.push({tick:start, type:'on', note:n, vel:95, channel:0});
       events.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:0});
     });
   } else if(part === 'bass'){
-    current.bass.flat().forEach((n,i)=>{
+    current.bass.flat().forEach((n0,i)=>{
       if(isMutedFlat(current.bassMute, i, 4)) return;
+      const n = n0 + globalPitchSemitones;
       const start = i * TPQN;
       events.push({tick:start, type:'on', note:n, vel:100, channel:0});
       events.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:0});
     });
   } else if(part === 'arp'){
     const eighthTicks = TPQN / 2;
-    current.arp.flat().forEach((n,i)=>{
+    current.arp.flat().forEach((n0,i)=>{
       if(isMutedFlat(current.arpMute, i, 8)) return;
+      const n = n0 + globalPitchSemitones;
       const start = i * eighthTicks;
       events.push({tick:start, type:'on', note:n, vel:85, channel:0});
       events.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:0});

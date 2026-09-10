@@ -813,6 +813,13 @@
           <span class="tempo-val" id="volumeVal">80 %</span>
         </div>
       </div>
+      <div class="field">
+        <span class="label">Pitch</span>
+        <div class="tempo-wrap" style="margin-top:6px;">
+          <input type="range" id="pitchSlider" min="-12" max="12" value="0" step="1" title="Shifts the whole generated progression up/down in semitones — chords, melody, bass and arpeggio (drums aren't affected).">
+          <span class="tempo-val" id="pitchVal">0</span>
+        </div>
+      </div>
     </div>
 
     <span class="label" style="display:block; margin-top:16px;">Mood / vibe</span>
@@ -1057,6 +1064,20 @@
           use without restriction — in personal or commercial tracks, with no attribution required.</p>
         </div>
       </div>
+      <div class="info-step">
+        <div class="info-num">06</div>
+        <div>
+          <h3>Shift the pitch up or down</h3>
+          <p>The "Pitch" slider next to Volume shifts the whole progression by -12 to +12 semitones —
+          chords, melody, bass and arpeggio (drums aren't affected). It works instantly, even mid-playback,
+          with no need to regenerate anything, and it applies everywhere: in playback, in the live MIDI
+          output to your DAW, in the exported .mid file (both the full export and the per-layer ones), and
+          in the sheet music (PDF) export — there the chord symbols, the key name in the header, and the
+          piano key diagrams are all recalculated for the new pitch too. The progression itself (the chord
+          cards, the Mini DAW) still displays in the key it was generated in — pitch is a shift applied
+          only for listening and exporting.</p>
+        </div>
+      </div>
     </div>
 
     <p style="font-size:12.5px; color:var(--text-dim); line-height:1.7; margin:18px 0 0; border-top:1px solid var(--line); padding-top:16px;">
@@ -1114,6 +1135,10 @@
     <div style="margin-top:14px;">
       <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I hear the progression through my own synth in a DAW, without exporting a MIDI file?</h3>
       <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Live to MIDI" panel sends playback in real time to a virtual MIDI port. Set up a virtual port on your computer (loopMIDI is free on Windows; the built-in IAC Driver works on Mac), point an instrument track in your DAW at it with any synth loaded, then enable MIDI access in the app and turn on "Live sending". Works in Chrome, Edge, and Firefox — unfortunately Safari doesn't support the Web MIDI API.</p>
+    </div>
+    <div style="margin-top:14px;">
+      <h3 style="font-size:13px; margin:0 0 4px; color:var(--text);">Can I transpose the generated progression to a different pitch?</h3>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:0; line-height:1.6;">Yes — the "Pitch" slider next to Volume shifts the whole progression by -12 to +12 semitones, with no need to regenerate anything. It applies to playback, the live MIDI output, the MIDI file export, and the sheet music (PDF) export (including recalculated chord symbols and key name in the header). Drums are not transposed.</p>
     </div>
     </div>
   </details>
@@ -1784,6 +1809,23 @@ volumeSlider.addEventListener('input', ()=>{
 // current value once the gain nodes actually exist, so no extra call is
 // needed here.
 
+/* ================= GLOBAL PITCH =================
+   Shifts playback and export by a given number of semitones up or down —
+   chords, melody, bass and arpeggio. Drums are not transposed (GM drum
+   notes are fixed, so transposing them wouldn't make sense). Applied "on
+   the fly" at the playback/export layer, so the current progression never
+   needs to be regenerated and it takes effect instantly even mid-playback. */
+let globalPitchSemitones = 0;
+const pitchSlider = document.getElementById('pitchSlider');
+const pitchVal = document.getElementById('pitchVal');
+function formatPitchVal(n){
+  return n > 0 ? `+${n}` : String(n);
+}
+pitchSlider.addEventListener('input', ()=>{
+  globalPitchSemitones = parseInt(pitchSlider.value,10) || 0;
+  pitchVal.textContent = formatPitchVal(globalPitchSemitones);
+});
+
 /* ================= PER-INSTRUMENT MIXER =================
    Independently of the overall volume above, each layer's volume can be
    tuned on its own. mixerVol holds a percentage (0–100) per layer, BASE_VOL
@@ -2285,23 +2327,27 @@ function cutActiveVoice(key){
 
 function triggerChord(chord, time){
   const dur = 240 / currentBpm; // 1 bar (4/4) = 4 beats
-  (chord.voicedTones || chord.tones).forEach(m=>{
+  (chord.voicedTones || chord.tones).forEach(m0=>{
+    const m = m0 + globalPitchSemitones;
     playOscVoice(chordGain, midiToFreq(m), 'triangle', time, 0.05, 0.3, 0.6, dur, 1.2);
     schedulePianoNote(m, 'chords', time, dur);
     sendMidiNoteEvent(m, 80, time, dur, MIDI_CHANNEL.chords);
   });
 }
-function triggerMelodyNote(m, time){
+function triggerMelodyNote(m0, time){
+  const m = m0 + globalPitchSemitones;
   playOscVoice(melodyGain, midiToFreq(m), 'sine', time, 0.01, 0.2, 0.3, 60/currentBpm, 0.4, 'melody');
   schedulePianoNote(m, 'melody', time, 60/currentBpm);
   sendMidiNoteEvent(m, 95, time, 60/currentBpm, MIDI_CHANNEL.melody);
 }
-function triggerBassNote(m, time){
+function triggerBassNote(m0, time){
+  const m = m0 + globalPitchSemitones;
   playOscVoice(bassGain, midiToFreq(m), 'sawtooth', time, 0.01, 0.15, 0.5, 60/currentBpm, 0.3, 'bass');
   schedulePianoNote(m, 'bass', time, 60/currentBpm);
   sendMidiNoteEvent(m, 100, time, 60/currentBpm, MIDI_CHANNEL.bass);
 }
-function triggerArpNote(m, time){
+function triggerArpNote(m0, time){
+  const m = m0 + globalPitchSemitones;
   playOscVoice(arpGain, midiToFreq(m), 'square', time, 0.005, 0.1, 0.12, 30/currentBpm, 0.18, 'arp');
   schedulePianoNote(m, 'arp', time, 30/currentBpm);
   sendMidiNoteEvent(m, 85, time, 30/currentBpm, MIDI_CHANNEL.arp);
@@ -2920,11 +2966,13 @@ function exportMidi(){
   const totalTicks = barTicks * current.chords.length;
 
   // chords: whole note per bar (bars muted in the Mini DAW are skipped in the export)
+  // Global pitch (pitchSlider) also applies to the export — drums are not transposed.
   const chordEvents = [];
   current.chords.forEach((c,i)=>{
     if(isMutedFlat(current.chordsMute, i, 1)) return;
     const start = i * barTicks;
-    (c.voicedTones || c.tones).forEach(n=>{
+    (c.voicedTones || c.tones).forEach(n0=>{
+      const n = n0 + globalPitchSemitones;
       chordEvents.push({tick:start, type:'on', note:n, vel:80, channel:0});
       chordEvents.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
     });
@@ -2932,16 +2980,18 @@ function exportMidi(){
 
   // melody + bass: quarter notes, 16 steps (steps muted in the Mini DAW are skipped)
   const melodyEvents = [];
-  current.melody.flat().forEach((n,i)=>{
+  current.melody.flat().forEach((n0,i)=>{
     if(isMutedFlat(current.melodyMute, i, 4)) return;
+    const n = n0 + globalPitchSemitones;
     const start = i * TPQN;
     melodyEvents.push({tick:start, type:'on', note:n, vel:95, channel:1});
     melodyEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:1});
   });
 
   const bassEvents = [];
-  current.bass.flat().forEach((n,i)=>{
+  current.bass.flat().forEach((n0,i)=>{
     if(isMutedFlat(current.bassMute, i, 4)) return;
+    const n = n0 + globalPitchSemitones;
     const start = i * TPQN;
     bassEvents.push({tick:start, type:'on', note:n, vel:100, channel:2});
     bassEvents.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:2});
@@ -2950,8 +3000,9 @@ function exportMidi(){
   // arp: eighth notes, 8 steps per bar
   const arpEvents = [];
   const eighthTicks = TPQN / 2;
-  current.arp.flat().forEach((n,i)=>{
+  current.arp.flat().forEach((n0,i)=>{
     if(isMutedFlat(current.arpMute, i, 8)) return;
+    const n = n0 + globalPitchSemitones;
     const start = i * eighthTicks;
     arpEvents.push({tick:start, type:'on', note:n, vel:85, channel:3});
     arpEvents.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:3});
@@ -3005,6 +3056,24 @@ function midiToVexKey(m){
   const letters = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
   const oct = Math.floor(m/12) - 1;
   return letters[((m%12)+12)%12] + '/' + oct;
+}
+
+/* Helpers to also apply the global pitch (pitchSlider) to the PDF sheet
+   export — both the notes on the staff/keyboard diagrams and the text chord
+   symbols/key label in the header (otherwise the PDF would still show "C"
+   chords and notes even though playback/MIDI is sounding a shifted pitch). */
+function pitchedRootName(rootIdx, semitones){
+  return NOTE_NAMES[((rootIdx + semitones) % 12 + 12) % 12];
+}
+function pitchedChordSymbol(chord, semitones){
+  if(!semitones) return chord.symbol;
+  const oldRootPc = ((chord.tones[0] % 12) + 12) % 12;
+  const oldRootName = NOTE_NAMES[oldRootPc];
+  const newRootName = NOTE_NAMES[((oldRootPc + semitones) % 12 + 12) % 12];
+  return newRootName + chord.symbol.slice(oldRootName.length);
+}
+function pitchedTones(tones, semitones){
+  return tones.map(t=>t+semitones);
 }
 
 /* Piano key diagram for each chord — for people who can't read notes but can
@@ -3125,13 +3194,13 @@ function exportPdfSheet(){
           if(isMutedFlat(current.melodyMute, barIndex*4+stepIdx, 4)){
             return new VF.StaveNote({ clef:'treble', keys:['b/4'], duration:'qr' });
           }
-          const key = midiToVexKey(n);
+          const key = midiToVexKey(n + globalPitchSemitones);
           const note = new VF.StaveNote({ clef:'treble', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
           return note;
         });
         melNotes[0].addModifier(
-          new VF.Annotation(current.chords[barIndex].symbol)
+          new VF.Annotation(pitchedChordSymbol(current.chords[barIndex], globalPitchSemitones))
             .setFont('Arial', 11, 'bold')
             .setVerticalJustification(VF.Annotation.VerticalJustify.TOP),
           0
@@ -3142,7 +3211,7 @@ function exportPdfSheet(){
           if(isMutedFlat(current.bassMute, barIndex*4+stepIdx, 4)){
             return new VF.StaveNote({ clef:'bass', keys:['d/3'], duration:'qr' });
           }
-          const key = midiToVexKey(n);
+          const key = midiToVexKey(n + globalPitchSemitones);
           const note = new VF.StaveNote({ clef:'bass', keys:[key], duration:'q' });
           if(key.includes('#')) note.addModifier(new VF.Accidental('#'), 0);
           return note;
@@ -3164,14 +3233,15 @@ function exportPdfSheet(){
     const pageWidth = doc.internal.pageSize.getWidth();
     const vibeName = VIBES[current.vibeKey].name;
     const modeLabel = VIBES[current.vibeKey].mode === 'major' ? 'major' : 'minor';
+    const pitchedRoot = pitchedRootName(current.rootIdx, globalPitchSemitones);
     let cursorY = 46;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
-    doc.text(`Progrese — ${current.rootName} ${modeLabel} · ${vibeName}`, 40, cursorY);
+    doc.text(`Progrese — ${pitchedRoot} ${modeLabel} · ${vibeName}`, 40, cursorY);
     cursorY += 20;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
     doc.text(`Tempo: ${current.tempo} BPM`, 40, cursorY);
     cursorY += 15;
-    doc.text(`Chords: ${current.chords.map(c=>c.symbol).join('  –  ')}`, 40, cursorY, { maxWidth: pageWidth - 80 });
+    doc.text(`Chords: ${current.chords.map(c=>pitchedChordSymbol(c, globalPitchSemitones)).join('  –  ')}`, 40, cursorY, { maxWidth: pageWidth - 80 });
     cursorY += 26;
 
     const imgData = canvasEl.toDataURL('image/png');
@@ -3195,7 +3265,7 @@ function exportPdfSheet(){
       const row = Math.floor(i / kbPerRow);
       const kx = 40 + col*(kbWidth + kbGap);
       const ky = cursorY + row*kbRowStep;
-      drawPianoChordDiagram(doc, kx, ky, kbWidth, kbHeight, chord.tones, `Bar ${i+1} · ${chord.symbol}`);
+      drawPianoChordDiagram(doc, kx, ky, kbWidth, kbHeight, pitchedTones(chord.tones, globalPitchSemitones), `Bar ${i+1} · ${pitchedChordSymbol(chord, globalPitchSemitones)}`);
     });
     cursorY += Math.ceil(current.chords.length / kbPerRow) * kbRowStep + 10;
 
@@ -3205,7 +3275,7 @@ function exportPdfSheet(){
     doc.text('Made with Progrese — synthlucida.com/progrese-en.html', 40, doc.internal.pageSize.getHeight() - 24);
 
     const vibeSlug = current.vibeKey.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-    doc.save(`progrese_${current.rootName.replace('#','s')}_${vibeSlug}.pdf`);
+    doc.save(`progrese_${pitchedRoot.replace('#','s')}_${vibeSlug}.pdf`);
     showStatus('Sheet music exported as PDF');
   }catch(e){
     console.error('exportPdfSheet failed', e);
@@ -3225,29 +3295,33 @@ function buildPartEvents(part){
     current.chords.forEach((c,i)=>{
       if(isMutedFlat(current.chordsMute, i, 1)) return;
       const start = i * barTicks;
-      (c.voicedTones || c.tones).forEach(n=>{
+      (c.voicedTones || c.tones).forEach(n0=>{
+        const n = n0 + globalPitchSemitones;
         events.push({tick:start, type:'on', note:n, vel:80, channel:0});
         events.push({tick:start+barTicks, type:'off', note:n, vel:0, channel:0});
       });
     });
   } else if(part === 'melody'){
-    current.melody.flat().forEach((n,i)=>{
+    current.melody.flat().forEach((n0,i)=>{
       if(isMutedFlat(current.melodyMute, i, 4)) return;
+      const n = n0 + globalPitchSemitones;
       const start = i * TPQN;
       events.push({tick:start, type:'on', note:n, vel:95, channel:0});
       events.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:0});
     });
   } else if(part === 'bass'){
-    current.bass.flat().forEach((n,i)=>{
+    current.bass.flat().forEach((n0,i)=>{
       if(isMutedFlat(current.bassMute, i, 4)) return;
+      const n = n0 + globalPitchSemitones;
       const start = i * TPQN;
       events.push({tick:start, type:'on', note:n, vel:100, channel:0});
       events.push({tick:start+TPQN, type:'off', note:n, vel:0, channel:0});
     });
   } else if(part === 'arp'){
     const eighthTicks = TPQN / 2;
-    current.arp.flat().forEach((n,i)=>{
+    current.arp.flat().forEach((n0,i)=>{
       if(isMutedFlat(current.arpMute, i, 8)) return;
+      const n = n0 + globalPitchSemitones;
       const start = i * eighthTicks;
       events.push({tick:start, type:'on', note:n, vel:85, channel:0});
       events.push({tick:start+eighthTicks, type:'off', note:n, vel:0, channel:0});
