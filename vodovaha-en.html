@@ -1347,8 +1347,14 @@
   // so that tapping "Turn on" a moment later just flips torch:true on an already-open
   // track instead of waiting for the whole camera to spin up.
   function prewarmCamera(){
+    updateFlashColorFieldVisibility();
     if(flashTrack || torchUnsupported) return;
-    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+      // No camera/API at all — it will always be a screen flash.
+      torchUnsupported = true;
+      updateFlashColorFieldVisibility();
+      return;
+    }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
       .then(function(stream){
         var track = stream.getVideoTracks()[0];
@@ -1356,10 +1362,12 @@
         if(!caps || !caps.torch){
           torchUnsupported = true;
           stream.getTracks().forEach(function(t){ t.stop(); });
+          updateFlashColorFieldVisibility();
           return;
         }
         flashStream = stream;
         flashTrack = track;
+        updateFlashColorFieldVisibility();
       })
       .catch(function(){ /* permission not granted yet / denied — first tap will ask normally */ });
   }
@@ -1558,22 +1566,38 @@
     flashTrack = null;
   }
 
+  var torchUnsupported = false; // once true, skip camera entirely and go straight to screen-flash
+
+  // Only show the screen color picker once we know the device has no real
+  // hardware flash (torchUnsupported === true) — and show it even BEFORE
+  // turning the light on, and during SOS blinking, so the color can be set
+  // calmly instead of while the screen is flashing. If the device does have
+  // a real flash, the color picker stays hidden since it's irrelevant.
+  function updateFlashColorFieldVisibility(){
+    if(torchUnsupported){
+      els.flashColorField.style.display = "block";
+    } else if(flashTrack){
+      els.flashColorField.style.display = "none";
+    }
+    // Not yet known (camera check still pending) — leave current state as is.
+  }
+
   function turnOnScreenFlash(){
     els.screenFlashOverlay.style.background = flashColor;
     els.screenFlashOverlay.classList.add("show");
-    els.flashColorField.style.display = "block";
+    updateFlashColorFieldVisibility();
   }
   function turnOffScreenFlash(){
     els.screenFlashOverlay.classList.remove("show");
   }
 
-  var torchUnsupported = false; // once true, skip camera entirely and go straight to screen-flash
-
   function updateFlashUI(){
     els.flashToggleBtn.classList.toggle("on", flashOn);
     els.flashToggleBtn.setAttribute("aria-pressed", flashOn ? "true" : "false");
     els.flashBtnLabel.textContent = flashOn ? "Turn off" : "Turn on";
-    if(!flashOn){
+    // Keep the color picker visible across on/off as long as this device only
+    // ever does a screen flash — only hide it when a real hardware flash exists.
+    if(!torchUnsupported && flashTrack){
       els.flashColorField.style.display = "none";
     }
   }
@@ -1581,6 +1605,7 @@
   function turnOnFlash(){
     els.flashBtnLabel.textContent = "Starting…";
     tryTorchOn().then(function(ok){
+      updateFlashColorFieldVisibility();
       if(ok){
         flashMode = "torch";
         flashOn = true;
@@ -1648,6 +1673,7 @@
     if(flashOn) turnOffFlash();
     els.sosBtnLabel.textContent = "Starting…";
     tryTorchOn().then(function(ok){
+      updateFlashColorFieldVisibility();
       flashMode = ok ? "torch" : "screen";
       flashOn = true;
       sosActive = true;

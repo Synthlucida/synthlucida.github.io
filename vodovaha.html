@@ -1348,8 +1348,14 @@
   // so that tapping "Zapnout" a moment later just flips torch:true on an already-open
   // track instead of waiting for the whole camera to spin up.
   function prewarmCamera(){
+    updateFlashColorFieldVisibility();
     if(flashTrack || torchUnsupported) return;
-    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+      // Prohlížeč nemá kameru/API vůbec — bude to vždy jen bliknutí obrazovkou.
+      torchUnsupported = true;
+      updateFlashColorFieldVisibility();
+      return;
+    }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
       .then(function(stream){
         var track = stream.getVideoTracks()[0];
@@ -1357,12 +1363,14 @@
         if(!caps || !caps.torch){
           torchUnsupported = true;
           stream.getTracks().forEach(function(t){ t.stop(); });
+          updateFlashColorFieldVisibility();
           return;
         }
         flashStream = stream;
         flashTrack = track;
+        updateFlashColorFieldVisibility();
       })
-      .catch(function(){ /* permission not granted yet / denied — first tap will ask normally */ });
+      .catch(function(){ /* permission not granted yet / zamítnuto — první klik se zeptá normálně */ });
   }
 
   /* ============ PRAVÍTKO ============ */
@@ -1561,10 +1569,24 @@
     flashTrack = null;
   }
 
+  // Nabídku barvy displeje ukazujeme, jen když víme, že zařízení nemá skutečný
+  // hardwarový blesk (torchUnsupported === true) — a to klidně i PŘED zapnutím
+  // a i během SOS blikání, aby se dala barva nastavit v klidu, ne za blikání.
+  // Pokud zařízení skutečný blesk má, volba barvy nemá smysl a zůstává skrytá.
+  function updateFlashColorFieldVisibility(){
+    if(torchUnsupported){
+      els.flashColorField.style.display = "block";
+    } else if(flashTrack){
+      els.flashColorField.style.display = "none";
+    }
+    // Dokud to není zjištěné (ještě neproběhl dotaz na kameru), necháváme
+    // aktuální stav beze změny.
+  }
+
   function turnOnScreenFlash(){
     els.screenFlashOverlay.style.background = flashColor;
     els.screenFlashOverlay.classList.add("show");
-    els.flashColorField.style.display = "block";
+    updateFlashColorFieldVisibility();
   }
   function turnOffScreenFlash(){
     els.screenFlashOverlay.classList.remove("show");
@@ -1574,7 +1596,9 @@
     els.flashToggleBtn.classList.toggle("on", flashOn);
     els.flashToggleBtn.setAttribute("aria-pressed", flashOn ? "true" : "false");
     els.flashBtnLabel.textContent = flashOn ? "Vypnout" : "Zapnout";
-    if(!flashOn){
+    // Barvu necháváme vidět i po vypnutí/zapnutí, pokud zařízení stejně umí
+    // jen bliknutí obrazovkou — schováváme ji jen tehdy, když existuje reálný blesk.
+    if(!torchUnsupported && flashTrack){
       els.flashColorField.style.display = "none";
     }
   }
@@ -1582,6 +1606,7 @@
   function turnOnFlash(){
     els.flashBtnLabel.textContent = "Spouštím…";
     tryTorchOn().then(function(ok){
+      updateFlashColorFieldVisibility();
       if(ok){
         flashMode = "torch";
         flashOn = true;
@@ -1649,6 +1674,7 @@
     if(flashOn) turnOffFlash();
     els.sosBtnLabel.textContent = "Spouštím…";
     tryTorchOn().then(function(ok){
+      updateFlashColorFieldVisibility();
       flashMode = ok ? "torch" : "screen";
       flashOn = true;
       sosActive = true;
