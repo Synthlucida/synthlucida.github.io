@@ -109,8 +109,17 @@ body {
   margin: 0;
   font-family: 'Orbitron', sans-serif;
   color: #ffffff;
-  background:
-    radial-gradient(circle at top, #05123a, #000010, #000000);
+  background-color: #000000;
+  background-image:
+    /* Explicit radius (instead of the default farthest-corner sizing)
+       so the gradient reaches solid black well before the bottom of
+       the page. Without a fixed size, "farthest-corner" is measured
+       against the whole body box — which is as tall as the entire
+       page — so on a long page the glow never actually finishes
+       fading out by the time you reach the footer, leaving the area
+       under it visibly lighter than sections further up that sit on
+       plain black. */
+    radial-gradient(circle 1000px at top, #05123a, #000010, #000000);
   text-align: center;
   overflow-x: hidden;
   padding-left: env(safe-area-inset-left, 0px);
@@ -722,7 +731,6 @@ header::after {
 }
 
 .platforms-toggle-btn,
-.contact-form-toggle-btn,
 .app-descriptions-toggle-btn {
   width: 100%;
   max-width: 330px;
@@ -751,7 +759,6 @@ header::after {
 }
 
 .platforms-toggle-btn:hover,
-.contact-form-toggle-btn:hover,
 .app-descriptions-toggle-btn:hover {
   transform: translateY(-2px) scale(1.03);
   box-shadow: 0 0 20px rgba(0,240,255,0.45);
@@ -759,14 +766,12 @@ header::after {
 }
 
 .platforms-toggle-btn[aria-expanded="true"],
-.contact-form-toggle-btn[aria-expanded="true"],
 .app-descriptions-toggle-btn[aria-expanded="true"] {
   background: rgba(0,240,255,0.1);
   border-color: rgba(0,240,255,0.55);
 }
 
 .platforms-toggle-btn .chevron,
-.contact-form-toggle-btn .chevron,
 .app-descriptions-toggle-btn .chevron {
   display: inline-block;
   transition: transform 0.3s ease;
@@ -774,9 +779,39 @@ header::after {
 }
 
 .platforms-toggle-btn[aria-expanded="true"] .chevron,
-.contact-form-toggle-btn[aria-expanded="true"] .chevron,
 .app-descriptions-toggle-btn[aria-expanded="true"] .chevron {
   transform: rotate(180deg);
+}
+
+/* Contact form opener — icon-only round button, smaller and lighter-weight
+   than the full-width text toggles above since it just needs to be
+   recognizable as "get in touch", not read as a section heading. */
+.contact-form-toggle-btn {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  color: #00f0ff;
+  border: 1px solid rgba(0,240,255,0.35);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.25s ease;
+  font-size: 19px;
+  box-shadow: 0 0 10px rgba(0,240,255,0.12);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-form-toggle-btn:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 0 20px rgba(0,240,255,0.45);
+  background: rgba(255,255,255,0.05);
+}
+
+.contact-form-toggle-btn[aria-expanded="true"] {
+  background: rgba(0,240,255,0.1);
+  border-color: rgba(0,240,255,0.55);
 }
 
 /* Breathing room above the "Popis aplikací" button — it sits right after
@@ -811,8 +846,13 @@ header::after {
      retrigger it. A fixed cap well above any realistic content height
      removes the need for that measurement (and the race) entirely: the
      panel still only ever grows to its actual content height, since
-     max-height merely sets a ceiling. */
-  max-height: 6000px;
+     max-height merely sets a ceiling.
+     Raised from 6000px: this panel also has to fit the Relax Player's
+     review-panel nested inside it once that's opened too, on top of
+     all the other app-card blurbs, and on narrow mobile widths the
+     extra text wrapping pushed the combined height past 6000px —
+     clipping the tail end (the star rating) of the review. */
+  max-height: 16000px;
 }
 
 /* SYNTHLUCIDA for Android toggle — same small badge size/style as the
@@ -1353,7 +1393,9 @@ h2 {
 }
 
 .review-panel.open {
-  max-height: 4000px;
+  /* Raised from 4000px to keep headroom under the new 16000px cap on
+     its ancestor panels — see the note there. */
+  max-height: 8000px;
   opacity: 1;
   margin: 26px auto 0;
 }
@@ -3066,8 +3108,8 @@ Dave - SYNTHLUCIDA rec.
 
 <nav class="links">
 
-<button class="contact-form-toggle-btn" id="contact-form-toggle-btn" onclick="toggleContactForm()" aria-expanded="false" aria-controls="contact-form-panel">
-<span data-i18n="contact-toggle">✉ KONTAKTNÍ FORMULÁŘ</span> <span class="chevron">▾</span>
+<button class="contact-form-toggle-btn" id="contact-form-toggle-btn" onclick="toggleContactForm()" aria-expanded="false" aria-controls="contact-form-panel" aria-label="Kontaktní formulář" title="Kontaktní formulář">
+✉
 </button>
 
 <div class="contact-form-panel" id="contact-form-panel">
@@ -3260,14 +3302,14 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   }
 
   // SYNTHLUCIDA for Android panel toggle
+  // Opened from inside the header menu, so it deliberately does NOT
+  // auto-scroll to the panel — the user is already looking at the menu
+  // and a scroll jump there feels like the page moving out from under them.
   function toggleApp() {
     const panel = document.getElementById('app-download-panel');
     const btn = document.getElementById('app-toggle-btn');
     const isOpen = panel.classList.toggle('open');
     btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    if (isOpen) {
-      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
-    }
   }
 
   // App descriptions panel toggle - shows/hides all app-card blurbs together
@@ -3289,36 +3331,22 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   // Menu shortcuts: "About" and "SYNTHLUCIDA Apps" quick-link buttons in the
   // header menu panel are now the ONLY way to reach these two sections — the
   // big standalone toggle buttons that used to sit in the page body were
-  // removed, so these panels have no other opener left. Clicking always
-  // closes the header menu first, then toggles the section's panel: opens
-  // and scrolls to it if it was closed, or just collapses it back if the
-  // user clicks the same menu item again while it's already open.
+  // removed, so these panels have no other opener left. Clicking just toggles
+  // the section's panel open or closed and leaves the header menu open, so
+  // the user can tap either shortcut again (or several sections in a row)
+  // without having to reopen the menu each time; they close it themselves via
+  // the menu button when done. Deliberately no auto-scroll here either —
+  // these are opened from inside the header menu, so jumping the page out
+  // from under the user right after they tapped a menu item felt like the
+  // page was moving on its own.
   function goToAbout() {
-    const menuPanel = document.getElementById('header-menu-panel');
-    const menuBtn = document.getElementById('menu-toggle-btn');
-    if (menuPanel.classList.contains('open')) {
-      menuPanel.classList.remove('open');
-      menuBtn.setAttribute('aria-expanded', 'false');
-    }
     const panel = document.getElementById('about-panel');
-    const isOpen = panel.classList.toggle('open');
-    if (isOpen) {
-      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
-    }
+    panel.classList.toggle('open');
   }
 
   function goToApps() {
-    const menuPanel = document.getElementById('header-menu-panel');
-    const menuBtn = document.getElementById('menu-toggle-btn');
-    if (menuPanel.classList.contains('open')) {
-      menuPanel.classList.remove('open');
-      menuBtn.setAttribute('aria-expanded', 'false');
-    }
     const panel = document.getElementById('platforms-panel');
-    const isOpen = panel.classList.toggle('open');
-    if (isOpen) {
-      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
-    }
+    panel.classList.toggle('open');
   }
 
   // Contact form panel toggle - shows/hides the contact form
