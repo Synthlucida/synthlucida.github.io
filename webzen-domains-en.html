@@ -144,8 +144,8 @@
   // ---------------------------------------------------------------------
   // TLD chips offered to the user (feel free to extend this list)
   // ---------------------------------------------------------------------
-  const DEFAULT_TLDS = ['com','net','org','io','co','info','shop','store','online','dev'];
-  let activeTlds = new Set(['com','net','io']); // preselected
+  const DEFAULT_TLDS = ['com','net','org','info','shop','store','online','dev'];
+  let activeTlds = new Set(['com','net','org']); // preselected
 
   const tldChipsEl = document.getElementById('tldChips');
   const customRow = document.getElementById('customTldRow');
@@ -219,7 +219,21 @@
     const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
       headers: { 'Accept': 'application/rdap+json' }
     });
-    if (res.status === 404) return 'available';
+    if (res.status === 404){
+      // A 404 from rdap.org can mean two different things.
+      // 1) A redirect happened (res.redirected) and the TLD's authoritative
+      //    RDAP server itself responded 404 -> the domain genuinely
+      //    doesn't exist / is available.
+      // 2) No redirect happened -> rdap.org itself has no known RDAP
+      //    server for this TLD (missing from its bootstrap list, .eu
+      //    being a common example), so the 404 came straight from
+      //    rdap.org and says nothing about the domain itself.
+      //    In that case we must NOT report it as "available".
+      if (!res.redirected){
+        throw new Error('RDAP: no known RDAP server for this TLD');
+      }
+      return 'available';
+    }
     if (res.ok) return 'taken';
     throw new Error(`RDAP HTTP ${res.status}`);
   }

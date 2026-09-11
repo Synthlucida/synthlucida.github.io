@@ -137,8 +137,8 @@
   // ---------------------------------------------------------------------
   // Seznam TLD nabízených jako chipy (dá se v provozu dál rozšiřovat)
   // ---------------------------------------------------------------------
-  const DEFAULT_TLDS = ['cz','com','eu','sk','net','org','info','shop','store','online'];
-  let activeTlds = new Set(['cz','com','eu']); // předvyplněný výběr
+  const DEFAULT_TLDS = ['cz','com','net','org','info','shop','store','online'];
+  let activeTlds = new Set(['cz','com','net']); // předvyplněný výběr
 
   const tldChipsEl = document.getElementById('tldChips');
   const customRow = document.getElementById('customTldRow');
@@ -212,7 +212,19 @@
     const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
       headers: { 'Accept': 'application/rdap+json' }
     });
-    if (res.status === 404) return 'available';
+    if (res.status === 404){
+      // Pozor: 404 od rdap.org může znamenat dvě různé věci.
+      // 1) K přesměrování došlo (res.redirected) a teprve autoritativní
+      //    RDAP server dané TLD odpověděl 404 -> doména fakt neexistuje/je volná.
+      // 2) K přesměrování NEdošlo -> rdap.org sám nezná RDAP server pro
+      //    tuhle příponu (chybí v bootstrap seznamu, typicky třeba .eu),
+      //    takže 404 přišlo rovnou od rdap.org a o doméně samotné nic neříká.
+      //    V tom případě to NESMÍME hlásit jako "volná".
+      if (!res.redirected){
+        throw new Error(`RDAP: pro tuto příponu není znám žádný RDAP server`);
+      }
+      return 'available';
+    }
     if (res.ok) return 'taken';
     throw new Error(`RDAP HTTP ${res.status}`);
   }
