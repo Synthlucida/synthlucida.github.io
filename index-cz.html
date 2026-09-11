@@ -141,7 +141,7 @@ body.is-scrolling::before {
   animation-play-state: paused;
 }
 
-/* faint synthwave horizon grid at the very bottom — sits behind the equalizer */
+/* faint synthwave horizon grid at the very bottom of the page */
 .ambient-horizon {
   position: fixed;
   left: 0;
@@ -629,9 +629,7 @@ header::after {
   margin-top: 0;
 }
 
-.relax-player-badge,
 .review-toggle-btn,
-.demo-toggle-btn,
 .quick-link-btn,
 .app-toggle-btn {
   display: flex;
@@ -655,7 +653,6 @@ header::after {
 }
 
 .review-toggle-btn,
-.demo-toggle-btn,
 .quick-link-btn,
 .app-toggle-btn {
   background: rgba(0,0,0,0.35);
@@ -663,9 +660,7 @@ header::after {
   opacity: 0.9;
 }
 
-.relax-player-badge .badge-icon,
 .review-toggle-btn .badge-icon,
-.demo-toggle-btn .badge-icon,
 .quick-link-btn .badge-icon,
 .app-toggle-btn .badge-icon {
   font-size: 15px;
@@ -673,7 +668,6 @@ header::after {
 }
 
 .review-toggle-btn[aria-expanded="true"],
-.demo-toggle-btn[aria-expanded="true"],
 .app-toggle-btn[aria-expanded="true"] {
   background: rgba(0,240,255,0.12);
   border-color: rgba(0,240,255,0.55);
@@ -824,8 +818,7 @@ header::after {
 /* SYNTHLUCIDA for Android toggle — same small badge size/style as the
    Microsoft Store button (see .ms-store-badge), joined into that shared
    rule set further down. The panel it opens (.app-download-wrap) lives
-   outside <header>, right below the whole hero card — same principle as
-   Demo Music opening .radio-section below the header, not inside it. */
+   outside <header>, right below the whole hero card. */
 .app-toggle-btn {
   display: inline-flex;
   margin-top: 18px;
@@ -1186,18 +1179,14 @@ header::after {
 
 @media (max-width: 600px) {
   .ms-store-badge,
-  .relax-player-badge,
   .review-toggle-btn,
-  .demo-toggle-btn,
   .quick-link-btn,
   .app-toggle-btn {
     padding: 6px 11px;
     font-size: 9.5px;
     min-width: 106px;
   }
-  .relax-player-badge .badge-icon,
   .review-toggle-btn .badge-icon,
-  .demo-toggle-btn .badge-icon,
   .quick-link-btn .badge-icon,
   .app-toggle-btn .badge-icon { font-size: 13px; }
   .header-menu-panel {
@@ -1241,9 +1230,7 @@ header::after {
     max-height: 1400px;
   }
   .header-menu-panel .ms-store-badge,
-  .header-menu-panel .relax-player-badge,
   .header-menu-panel .review-toggle-btn,
-  .header-menu-panel .demo-toggle-btn,
   .header-menu-panel .quick-link-btn {
     flex: 0 1 calc(50% - 4px);
     min-width: 0;
@@ -1252,9 +1239,7 @@ header::after {
     overflow-wrap: anywhere;
   }
   .header-menu-panel .ms-store-badge .ms-label-full,
-  .header-menu-panel .relax-player-badge .label-full,
   .header-menu-panel .review-toggle-btn .label-full,
-  .header-menu-panel .demo-toggle-btn .label-full,
   .header-menu-panel .quick-link-btn .label-full {
     white-space: normal;
   }
@@ -1511,13 +1496,69 @@ a.review-cta:hover {
 
 .info-section {
   margin-top: 40px;
-  padding: 30px 25px;
-  border-radius: 18px;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid rgba(0,240,255,0.18);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 0 25px rgba(0,240,255,0.1);
+}
+
+/* About toggle - collapses the bio text + photos section. Same
+   max-height/opacity mechanic as .review-panel/.contact-form-panel etc:
+   content stays in the DOM at all times (never display:none), so it
+   remains fully visible to search engines and screen readers even while
+   collapsed for sighted visitors. */
+.about-toggle-btn {
+  width: 100%;
+  max-width: 330px;
+  margin: 18px auto 0;
+  padding: 15px;
+  border-radius: 14px;
+  color: #00f0ff;
+  border: 1px solid rgba(0,240,255,0.35);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.25s ease;
+  font-size: 14px;
+  line-height: 1.75;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(0,240,255,0.12);
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.about-toggle-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 20px rgba(0,240,255,0.45);
+  background: rgba(255,255,255,0.05);
+}
+
+.about-toggle-btn[aria-expanded="true"] {
+  background: rgba(0,240,255,0.1);
+  border-color: rgba(0,240,255,0.55);
+}
+
+.about-toggle-btn .chevron {
+  display: inline-block;
+  transition: transform 0.3s ease;
+  font-size: 11px;
+}
+
+.about-toggle-btn[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.about-panel {
+  max-width: 680px;
+  margin: 0 auto;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.6s ease, opacity 0.45s ease, margin 0.6s ease;
+}
+
+.about-panel.open {
+  max-height: 6000px;
+  opacity: 1;
+  margin-top: 26px;
 }
 
 @keyframes sectionGlow {
@@ -1637,174 +1678,6 @@ iframe {
   height: 152px;
   border-radius: 12px;
   border: none;
-}
-
-/* Radio Player Custom Design — collapsible, opened via the Demo Music toggle */
-.radio-section {
-  max-width: 440px;
-  margin: 0 auto;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  padding: 0 20px;
-  border-radius: 18px;
-  background: rgba(0,0,0,0.65);
-  border: 1px solid rgba(255,0,255,0.25);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 25px rgba(255,0,255,0.08);
-  transition: max-height 0.6s ease, opacity 0.45s ease, margin 0.6s ease, padding 0.6s ease;
-}
-
-.radio-section.open {
-  max-height: 4000px;
-  opacity: 1;
-  margin: 26px auto 0;
-  padding: 25px 20px;
-}
-
-@keyframes sectionGlowMagenta {
-  0%, 100% { box-shadow: 0 0 20px rgba(255,0,255,0.08); border-color: rgba(255,0,255,0.2); }
-  50% { box-shadow: 0 0 32px rgba(255,0,255,0.18); border-color: rgba(255,0,255,0.38); }
-}
-
-.radio-status {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: #ff00ff;
-  margin-bottom: 5px;
-  text-shadow: 0 0 8px rgba(255,0,255,0.5);
-}
-
-.radio-title {
-  font-size: 14px;
-  color: #ffffff;
-  margin-bottom: 15px;
-  font-weight: 600;
-  min-height: 20px;
-  letter-spacing: 0.5px;
-}
-
-/* Equalizer Design */
-.equalizer {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 4px;
-  height: 35px;
-  margin-bottom: 20px;
-  opacity: 0.2; 
-  transition: opacity 0.3s ease;
-}
-
-.equalizer.active {
-  opacity: 1;
-}
-
-.equalizer .bar {
-  width: 6px;
-  height: 5px;
-  background: #00f0ff;
-  border-radius: 3px;
-  box-shadow: 0 0 8px #00f0ff;
-  transition: height 0.1s ease;
-}
-
-.equalizer.active .bar {
-  animation: bounce 0.8s infinite ease-in-out alternate;
-}
-
-/* Bar staggered animations and alternating colors */
-.equalizer .bar:nth-child(1) { animation-delay: 0.1s; }
-.equalizer .bar:nth-child(2) { animation-delay: 0.4s; background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
-.equalizer .bar:nth-child(3) { animation-delay: 0.2s; }
-.equalizer .bar:nth-child(4) { animation-delay: 0.5s; background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
-.equalizer .bar:nth-child(5) { animation-delay: 0.3s; }
-.equalizer .bar:nth-child(6) { animation-delay: 0.6s; background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
-.equalizer .bar:nth-child(7) { animation-delay: 0.2s; }
-
-@keyframes bounce {
-  0% { height: 5px; }
-  100% { height: 35px; }
-}
-
-/* Custom Selector Styles */
-.radio-select {
-  width: 100%;
-  margin-bottom: 20px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  color: #fff;
-  border-radius: 8px;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 13px;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.radio-select:hover {
-  border-color: #00f0ff;
-  background: rgba(0, 240, 255, 0.05);
-}
-
-.radio-select option {
-  background: #000010;
-  color: #fff;
-}
-
-.radio-controls {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-}
-
-.radio-btn {
-  font-family: 'Orbitron', sans-serif;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(0, 240, 255, 0.4);
-  color: #00f0ff;
-  padding: 12px 24px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  letter-spacing: 1px;
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
-}
-
-.radio-btn:hover {
-  background: rgba(0, 240, 255, 0.1);
-  border-color: #00f0ff;
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
-  transform: translateY(-1px);
-}
-
-.radio-btn:active {
-  transform: translateY(1px);
-}
-
-#radio-play-btn {
-  min-width: 130px;
-}
-
-/* Radio Description Text */
-.radio-description {
-  margin-top: 25px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 12px;
-  line-height: 1.6;
-  color: #b0b0b0;
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
-}
-
-.radio-description strong {
-  color: #00f0ff;
-  font-weight: 600;
 }
 
 /* App download (Google Play) */
@@ -2019,9 +1892,7 @@ footer {
    small screens — the underlying rgba() backgrounds already give enough
    contrast without it — while keeping the nicer glass look on desktop. */
 @media (max-width: 480px) {
-  .relax-player-badge,
   .review-toggle-btn,
-  .demo-toggle-btn,
   .quick-link-btn,
   .ms-store-badge,
   .review-card,
@@ -2034,10 +1905,8 @@ footer {
   }
 }
 
-/* Language toggle button (CZ / EN) — placed inline above the
-   "Atmospheric Electronic Music & Sound Design" section rather than
-   fixed top-left, since the top-left corner is already used by the
-   header menu / badges. */
+/* Language toggle button (CZ / EN) — sits in the header buttons row,
+   right above the main Menu button. */
 .lang-toggle-wrap {
   display: flex;
   justify-content: center;
@@ -2790,6 +2659,10 @@ rel="noopener noreferrer">
 
 <div class="header-buttons-row">
 
+<div class="lang-toggle-wrap">
+<button class="lang-toggle-btn" id="lang-toggle-btn" onclick="toggleLang()" aria-label="Přepnout jazyk / Switch language" title="Přepnout jazyk / Switch language">🇬🇧 EN</button>
+</div>
+
 <button class="menu-toggle-btn" id="menu-toggle-btn" onclick="toggleHeaderMenu()" aria-expanded="false" aria-controls="header-menu-panel" aria-label="Menu" title="Menu">
 <span class="badge-icon">☰</span><span class="label-full" data-i18n="menu-label">Menu</span>
 </button>
@@ -2808,15 +2681,9 @@ rel="noopener noreferrer">
 </span>
 <span class="ms-label-full" data-i18n="ms-store-label">Microsoft Store</span>
 </a>
-<button class="demo-toggle-btn" id="demo-toggle-btn" onclick="toggleDemo()" aria-expanded="false" aria-controls="radio-section" aria-label="Demo Music" title="Demo Music">
-<span class="badge-icon">🎵</span><span class="label-full" data-i18n="demo-label">Ukázka hudby</span>
-</button>
 </div>
 
 <div class="header-topright">
-<a class="relax-player-badge" href="player.html" aria-label="Open the SYNTHLUCIDA Relax Player" title="Relax Player">
-<span class="badge-icon">🎧</span><span class="label-full" data-i18n="relax-label">Relax Player</span>
-</a>
 <button class="review-toggle-btn" id="review-toggle-btn" onclick="toggleReview()" aria-expanded="false" aria-controls="review-panel" aria-label="Review" title="Review">
 <span class="badge-icon">★</span><span class="label-full" data-i18n="review-label">Recenze</span>
 </button>
@@ -3110,34 +2977,6 @@ aria-label="Get SYNTHLUCIDA on Google Play">
 </section>
 </div>
 
-<section class="radio-section" id="radio-section">
-  <div class="radio-status" id="radio-status">Radio Offline</div>
-  <div class="radio-title" id="radio-title">Click Play to Tune In</div>
-  
-  <div class="equalizer" id="visual-equalizer">
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-  </div>
-
-  <select id="track-selector" class="radio-select">
-    <option value="" disabled selected>-- Select a track --</option>
-  </select>
-
-  <audio id="main-audio-player"></audio>
-
-  <div class="radio-controls">
-    <button class="radio-btn" id="radio-play-btn" data-i18n="radio-play">▶ PŘEHRÁT</button>
-    <button class="radio-btn" id="radio-next-btn" data-i18n="radio-next">⏭ DALŠÍ</button>
-  </div>
-
-  <div class="radio-description" data-i18n="radio-desc"><strong>Nepřetržité vysílání 24/7.</strong><br>Užijte si nepřerušované, bezplatné poslouchání kdykoli a kdekoli. Ať už potřebujete hudbu na pozadí pro soustředění, hluboké uvolnění nebo běžné činnosti, toto rádio nabízí dokonalý atmosférický doprovod a zároveň slouží jako ucelená ukázka mé původní elektronické tvorby.</div>
-</section>
-
 <section class="review-panel" id="review-panel">
 <div class="review-card">
 
@@ -3188,9 +3027,11 @@ aria-label="Get SYNTHLUCIDA on Google Play">
 
 <section class="info-section">
 
-<div class="lang-toggle-wrap">
-<button class="lang-toggle-btn" id="lang-toggle-btn" onclick="toggleLang()" aria-label="Přepnout jazyk / Switch language" title="Přepnout jazyk / Switch language">🇬🇧 EN</button>
-</div>
+<button class="about-toggle-btn" id="about-toggle-btn" onclick="toggleAbout()" aria-expanded="false" aria-controls="about-panel">
+<span data-i18n="about-toggle">👤 O MNĚ</span> <span class="chevron">▾</span>
+</button>
+
+<div class="about-panel" id="about-panel">
 
 <h2 data-i18n="info-h2">Atmosférická elektronická hudba a sound design</h2>
 
@@ -3210,6 +3051,8 @@ aria-label="Get SYNTHLUCIDA on Google Play">
 Dave - SYNTHLUCIDA rec.
 
 <img id="thank-you-photo" src="dazante.jpg" alt="Dave, the producer behind SYNTHLUCIDA, in his home studio" class="thank-you-image" loading="lazy" style="display: block; margin: 20px auto 0 auto;">
+
+</div>
 
 </div>
 
@@ -3410,18 +3253,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     }
   }
 
-  // Demo Music panel toggle - shows/hides the radio player
-  function toggleDemo() {
-    const panel = document.getElementById('radio-section');
-    const btn = document.getElementById('demo-toggle-btn');
-    const isOpen = panel.classList.toggle('open');
-    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    if (isOpen) {
-      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
-    }
-  }
-
-  // SYNTHLUCIDA for Android panel toggle - same collapse mechanic as Demo Music
+  // SYNTHLUCIDA for Android panel toggle
   function toggleApp() {
     const panel = document.getElementById('app-download-panel');
     const btn = document.getElementById('app-toggle-btn');
@@ -3458,6 +3290,17 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     const opening = panel.classList.toggle('open');
     btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
     if (opening) {
+      setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
+    }
+  }
+
+  // About panel toggle - shows/hides the bio text + photos section
+  function toggleAbout() {
+    const panel = document.getElementById('about-panel');
+    const btn = document.getElementById('about-toggle-btn');
+    const isOpen = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
     }
   }
@@ -3507,116 +3350,6 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
         });
     });
   })();
-
-  const playlist = [
-    { title: "SYNTHLUCIDA - Everything", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/everything.mp3" },
-    { title: "SYNTHLUCIDA - Spirits of Spring", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spring.mp3" },
-    { title: "SYNTHLUCIDA - Fly With The Soul part2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/fly_with_the_soul_part2.mp3" },
-    { title: "SYNTHLUCIDA - Run Machine", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/machine.mp3" },
-    { title: "SYNTHLUCIDA - Spirits Of Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spirits_of_summer.mp3" },
-    { title: "SYNTHLUCIDA - Sky", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sky.mp3" },
-    { title: "SYNTHLUCIDA - SunSets", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/sunset.mp3" },
-    { title: "SYNTHLUCIDA - Stranger Visitors", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/stranger.mp3" },
-    { title: "SYNTHLUCIDA - Last Sunset", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/last_sunset.mp3" },
-    { title: "SYNTHLUCIDA - Echoes Of Freedom", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/echoes_freedom.mp3" },
-    { title: "SYNTHLUCIDA - Magic Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/magic_waves.mp3" },
-    { title: "SYNTHLUCIDA - Night Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/night_waves.mp3" },
-    { title: "SYNTHLUCIDA - Raindrops", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/raindrops.mp3" },
-    { title: "SYNTHLUCIDA - Winning Moments", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/winning_moments.mp3" },
-    { title: "SYNTHLUCIDA - You and Me", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/you_and_me.mp3" },
-    { title: "SYNTHLUCIDA - Tropical Free Tones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tropical.mp3" },
-  ];
-
-  const audio = document.getElementById('main-audio-player');
-  const playBtn = document.getElementById('radio-play-btn');
-  const nextBtn = document.getElementById('radio-next-btn');
-  const statusDiv = document.getElementById('radio-status');
-  const titleDiv = document.getElementById('radio-title');
-  const trackSelector = document.getElementById('track-selector');
-  const visualizer = document.getElementById('visual-equalizer'); // Načtení vizualizéru
-
-  // Fill the dropdown with tracks
-  playlist.forEach((track, index) => {
-    const option = document.createElement('option');
-    option.value = index;
-    option.text = track.title;
-    trackSelector.appendChild(option);
-  });
-
-  let currentTrackIndex = -1;
-  let isPlaying = false;
-
-  function getRandomTrackIndex() {
-    if (playlist.length <= 1) return 0;
-    let newIndex;
-    do {
-      newIndex = Math.floor(Math.random() * playlist.length);
-    } while (newIndex === currentTrackIndex);
-    return newIndex;
-  }
-
-  function loadAndPlayTrack(index) {
-    currentTrackIndex = index;
-    const track = playlist[currentTrackIndex];
-    
-    // Sync dropdown with current track
-    trackSelector.value = index;
-    
-    audio.src = track.src;
-    titleDiv.innerText = track.title;
-    statusDiv.innerText = "Tuning in...";
-    
-    audio.play()
-      .then(() => {
-        isPlaying = true;
-        playBtn.innerText = "⏸ PAUSE";
-        statusDiv.innerText = "• LIVE RADIO";
-        visualizer.classList.add('active'); // Spuštění ekvalizéru
-      })
-      .catch(err => {
-        console.log("Autoplay blocked or error: ", err);
-        statusDiv.innerText = "Radio Paused";
-        playBtn.innerText = "▶ PLAY";
-        isPlaying = false;
-        visualizer.classList.remove('active'); // Zastavení ekvalizéru při chybě
-      });
-  }
-
-  // Dropdown event listener
-  trackSelector.addEventListener('change', (e) => {
-    loadAndPlayTrack(parseInt(e.target.value));
-  });
-
-  playBtn.addEventListener('click', () => {
-    if (isPlaying) {
-      audio.pause();
-      isPlaying = false;
-      playBtn.innerText = "▶ PLAY";
-      statusDiv.innerText = "Radio Paused";
-      visualizer.classList.remove('active'); // Zastavení ekvalizéru při pauze
-    } else {
-      if (currentTrackIndex === -1) {
-        loadAndPlayTrack(getRandomTrackIndex());
-      } else {
-        audio.play();
-        isPlaying = true;
-        playBtn.innerText = "⏸ PAUSE";
-        statusDiv.innerText = "• LIVE RADIO";
-        visualizer.classList.add('active'); // Spuštění ekvalizéru při stisknutí Play
-      }
-    }
-  });
-
-  nextBtn.addEventListener('click', () => {
-    loadAndPlayTrack(getRandomTrackIndex());
-  });
-
-  audio.addEventListener('ended', () => {
-    loadAndPlayTrack(getRandomTrackIndex());
-  });
-
-  statusDiv.innerText = "Radio Ready";
-  titleDiv.innerText = "Press Play to Shuffle Demos";
 
   // ==========================================
   // VÁNOČNÍ ATMOSFÉRA — stejný princip jako v player.html: automaticky se
@@ -3965,8 +3698,6 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     'hero-subtitle': 'Electronic Music Producer • Chillout • Ambient • Progressive',
     'menu-label': 'Menu',
     'ms-store-label': 'Microsoft Store',
-    'demo-label': 'Demo Music',
-    'relax-label': 'Relax Player',
     'review-label': 'Review',
     'news-label': 'News',
     'download-label': 'Download',
@@ -3978,9 +3709,6 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     'app-title': '📱 SYNTHLUCIDA for Android',
     'app-desc': 'Get the full ambient SYNTHLUCIDA experience as an installable Android app. Early alpha build — thank you for helping test it. For participation in the testing program, please contact me by email. Thank you!',
     'app-alt': 'Prefer no install? You can also use it right in your browser — see the link below.',
-    'radio-play': '▶ PLAY',
-    'radio-next': '⏭ NEXT',
-    'radio-desc': '<strong>Experience 24/7 uninterrupted streaming.</strong><br>      Enjoy continuous, free listening anytime and anywhere. Whether you need background music for focus, deep relaxation, or daily activities, this radio stream provides the perfect atmospheric soundtrack while serving as a comprehensive showcase of my original electronic production.',
     'review-tag': 'Feature Article',
     'review-title': 'Inside the Relax Player: A Deep Dive Into Every Feature',
     'review-p1': 'The Relax Player is the heart of SYNTHLUCIDA — a free, browser-based ambient player built for winding down, focusing, or falling asleep. It has grown far beyond a simple "press play" tool, so here\'s a proper, detailed look at everything inside it.',
@@ -3996,6 +3724,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     'review-p11': '<strong>Gentle reminders:</strong> 🔔 REMINDERS sends short local notifications on a chosen interval — every 15 minutes, 30 minutes, 1, 2 or 4 hours — as a gentle nudge to take a break. Everything runs locally on-device, nothing is sent to any server, and the whole thing can be switched off from the same panel at any time.',
     'review-p12': 'Thanks for taking the time to read all this — and even more for giving the Relax Player a try. Every listen, heart and saved playlist genuinely makes this worth building.',
     'review-signoff': '— Dave, SYNTHLUCIDA',
+    'about-toggle': '👤 ABOUT',
     'contact-toggle': '✉ CONTACT FORM',
     'contact-recipient': 'Send a message to <strong>David Zanta</strong>',
     'contact-submit': 'SEND MESSAGE',
