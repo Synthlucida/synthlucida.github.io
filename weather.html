@@ -1208,19 +1208,35 @@
     return "zlepší se "+fmtDayName(data.daily.time[timing.etaIdx]);
   }
 
+  // Denní předpověď (zejména srážková pravděpodobnost) se mezi jednotlivými aktualizacemi
+  // modelu dost přirozeně hýbe, takže by hraniční den uměl "přeskakovat" tam a zpět, aniž
+  // by se realisticky něco měnilo. Izolovaný den, který se od OBOU sousedních dnů liší,
+  // proto bereme jako šum a přebijeme ho stavem sousedů (pokud se shodnou).
+  function smoothedDay(okFn, data, i){
+    var n = data.daily.time.length;
+    var cur = okFn(data, i);
+    var prev = i > 0 ? okFn(data, i-1) : cur;
+    var next = i < n-1 ? okFn(data, i+1) : cur;
+    if(cur !== prev && cur !== next && prev === next) return prev;
+    return cur;
+  }
+  function smooth(okFn){
+    return function(data, i){ return smoothedDay(okFn, data, i); };
+  }
+
   function buildActivityOutlook(data, mush){
     var lookahead = Math.min(6, data.daily.time.length - 1);
     var rows = [];
     if(mush){
       rows.push({ name:"Houbaření", icon:"mushroom", ok:mush.ok, text:mush.outlookText });
     }
-    var bikeT = activityTiming(bikeOkDay, data, lookahead);
+    var bikeT = activityTiming(smooth(bikeOkDay), data, lookahead);
     rows.push({ name:"Kolo", icon:"bike", ok:bikeT.ok, text:timingText(bikeT, data) });
-    var skateT = activityTiming(skateOkDay, data, lookahead);
+    var skateT = activityTiming(smooth(skateOkDay), data, lookahead);
     rows.push({ name:"Brusle", icon:"skate", ok:skateT.ok, text:timingText(skateT, data) });
-    var hikeT = activityTiming(hikeOkDay, data, lookahead);
+    var hikeT = activityTiming(smooth(hikeOkDay), data, lookahead);
     rows.push({ name:"Výlet", icon:"hike", ok:hikeT.ok, text:timingText(hikeT, data) });
-    var campT = activityTiming(campWindowOk, data, lookahead);
+    var campT = activityTiming(smooth(campWindowOk), data, lookahead);
     rows.push({ name:"Kemping", icon:"tent", ok:campT.ok, text:timingText(campT, data) });
     return rows;
   }
@@ -1669,7 +1685,7 @@
       latitude: place.latitude,
       longitude: place.longitude,
       daily: "precipitation_sum,temperature_2m_max,temperature_2m_min",
-      past_days: 7,
+      past_days: 18, // delší historie pro plynulý vážený odhad houbařských podmínek (viz computeMushroomConditions)
       forecast_days: 1,
       timezone: "auto"
     });
@@ -1742,16 +1758,38 @@
     return html;
   }
 
-  // ---------- houbařské podmínky (uplynulý týden + výhled) ----------
-  function mushWindowOk(rainQ, tempQ, frostQ){
-    var rainSum = 0, tempSum = 0, tempCount = 0, frost = false;
-    for(var k=0; k<rainQ.length; k++){
-      rainSum += rainQ[k];
-      if(tempQ[k] != null){ tempSum += tempQ[k]; tempCount++; }
-      if(frostQ[k]) frost = true;
-    }
-    var avgTemp = tempCount ? tempSum/tempCount : null;
-    return rainSum >= 15 && avgTemp !== null && avgTemp >= 8 && avgTemp <= 24 && !frost;
+  // ---------- houbařské podmínky (delší horizont + výhled) ----------
+  // Mycelium nereaguje na počasí ze dne na den – roste/plodí podle vlhkostní a teplotní
+  // bilance posledních ~1-2 týdnů a jeden suchý (nebo naopak deštivý) den na tom nic
+  // zásadního nezmění. Předchozí verze počítala tvrdý součet srážek přesně za posledních
+  // 7 dní: jakmile vydatný déšť "vypadl" z okna (přesně na 8. den), skóre umělo skokově
+  // spadnout i vystoupat, i když se objektivně nic nestalo. Místo toho tu teď používáme
+  // exponenciálně tlumený (vážený) součet přes delší historii – starší dny mají menší
+  // váhu, ale nemizí ze dne na den skokem, takže se skóre mění plynule.
+  var MUSH_HALF_LIFE_DAYS = 6;              // za kolik dní klesne váha srážky na polovinu
+  var MUSH_DECAY = Math.pow(0.5, 1 / MUSH_HALF_LIFE_DAYS);
+  var MUSH_RAIN_THRESHOLD = 14;             // vážený "srážkový skór", od kterého houby rostou
+  var MUSH_FROST_RECOVERY_DAYS = 4;         // kolik dní po mrazíku ještě houby nečekat
+
+  function mushEmptyState(){
+    return { rainScore: 0, tempScoreRaw: 0, tempWeightSum: 0, daysSinceFrost: null };
+  }
+  // Posune stav o jeden den vpřed – použito jak pro zpracování historie (den po dni),
+  // tak pro simulaci výhledu do budoucna, takže obě počítají úplně stejně.
+  function mushStep(state, rainMM, tempC, isFrost){
+    return {
+      rainScore: state.rainScore * MUSH_DECAY + (rainMM || 0),
+      tempScoreRaw: state.tempScoreRaw * MUSH_DECAY + (tempC != null ? tempC : 0),
+      tempWeightSum: state.tempWeightSum * MUSH_DECAY + (tempC != null ? 1 : 0),
+      daysSinceFrost: isFrost ? 0 : (state.daysSinceFrost === null ? null : state.daysSinceFrost + 1)
+    };
+  }
+  function mushAvgTemp(state){ return state.tempWeightSum ? state.tempScoreRaw / state.tempWeightSum : null; }
+  function mushStateOk(state){
+    var avgTemp = mushAvgTemp(state);
+    return state.rainScore >= MUSH_RAIN_THRESHOLD &&
+      avgTemp !== null && avgTemp >= 8 && avgTemp <= 24 &&
+      (state.daysSinceFrost === null || state.daysSinceFrost >= MUSH_FROST_RECOVERY_DAYS);
   }
 
   function computeMushroomConditions(mushData, forecastData){
@@ -1761,42 +1799,43 @@
     var pastDays = Math.max(0, n - 1); // poslední den je "dnes/zítra" (forecast_days:1), ten do bilance nepočítáme
     if(pastDays < 3) return null;
 
-    var rainQ = [], tempQ = [], frostQ = [];
-    for(var i=0; i<pastDays; i++){
-      rainQ.push(d.precipitation_sum[i] || 0);
+    var state = mushEmptyState();
+    var rainSumRaw = 0; // prostý součet za posledních 7 dní jen pro čitelné hlášení "zatím sucho"
+    var recentDays = Math.min(pastDays, 7);
+    for(var i = 0; i < pastDays; i++){
+      var rainMM = d.precipitation_sum[i] || 0;
       var tmax = d.temperature_2m_max[i], tmin = d.temperature_2m_min[i];
-      tempQ.push((tmax != null && tmin != null) ? (tmax+tmin)/2 : null);
-      frostQ.push(tmin != null && tmin <= -1);
+      var tempC = (tmax != null && tmin != null) ? (tmax + tmin) / 2 : null;
+      var isFrost = tmin != null && tmin <= -1;
+      state = mushStep(state, rainMM, tempC, isFrost);
+      if(i >= pastDays - recentDays) rainSumRaw += rainMM;
     }
-    var rainSum = rainQ.reduce(function(a,b){ return a+b; }, 0);
-    var tempVals = tempQ.filter(function(t){ return t != null; });
-    var avgTemp = tempVals.length ? tempVals.reduce(function(a,b){ return a+b; },0)/tempVals.length : null;
-    var frost = frostQ.some(function(f){ return f; });
-    var ok = mushWindowOk(rainQ, tempQ, frostQ);
+    var ok = mushStateOk(state);
 
     var outlookText;
     if(ok){
-      outlookText = "houby teď rostou, klidně vyrazte – vydrží, dokud se neudělá sucho nebo nepřijde mrazík";
+      outlookText = "houby teď rostou, klidně vyrazte – vydrží ještě nějakou dobu i bez dalšího deště, dokud se neudělá delší sucho nebo nepřijde mrazík";
     } else if(forecastData && forecastData.daily && forecastData.daily.time){
       var fd = forecastData.daily;
       var lookahead = Math.min(6, fd.time.length - 1);
       var found = null;
-      for(var f=1; f<=lookahead; f++){
-        rainQ.push(fd.precipitation_sum ? (fd.precipitation_sum[f] || 0) : 0);
+      var fState = state;
+      for(var f = 1; f <= lookahead; f++){
+        var frainMM = fd.precipitation_sum ? (fd.precipitation_sum[f] || 0) : 0;
         var ftmax = fd.temperature_2m_max[f], ftmin = fd.temperature_2m_min[f];
-        tempQ.push((ftmax != null && ftmin != null) ? (ftmax+ftmin)/2 : null);
-        frostQ.push(ftmin != null && ftmin <= -1);
-        rainQ.shift(); tempQ.shift(); frostQ.shift();
-        if(mushWindowOk(rainQ, tempQ, frostQ)){ found = f; break; }
+        var ftempC = (ftmax != null && ftmin != null) ? (ftmax + ftmin) / 2 : null;
+        var fisFrost = ftmin != null && ftmin <= -1;
+        fState = mushStep(fState, frainMM, ftempC, fisFrost);
+        if(mushStateOk(fState)){ found = f; break; }
       }
       if(found === 1) outlookText = "po dešti by se mělo zlepšit už zítra";
       else if(found != null) outlookText = "po dešti by se mělo zlepšit "+fmtDayName(fd.time[found]);
-      else outlookText = "zatím sucho (za týden napršelo jen "+rainSum.toFixed(0)+" mm), houby zatím nečekejte";
+      else outlookText = "zatím sucho (za posledních 7 dní napršelo jen "+rainSumRaw.toFixed(0)+" mm), houby zatím nečekejte";
     } else {
       outlookText = "zatím sucho, houby zatím nečekejte";
     }
 
-    return { ok: ok, rain7d: rainSum, avgTemp: avgTemp, frost: frost, outlookText: outlookText };
+    return { ok: ok, rainScore: state.rainScore, avgTemp: mushAvgTemp(state), daysSinceFrost: state.daysSinceFrost, outlookText: outlookText };
   }
 
   function fmtHour(iso){
