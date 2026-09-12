@@ -1734,6 +1734,15 @@ footer {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  /* Promote this to its own GPU layer. Mobile Safari in particular is
+     known to lag/jump fixed-position elements a frame or two behind
+     during scroll unless they're already composited on their own layer;
+     this (plus the resize fix above that stops the star field from
+     re-randomizing on the address-bar show/hide "resize" events) is what
+     actually stops the sky from visibly jumping while scrolling. */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .night-sky .milky-way {
@@ -2522,12 +2531,25 @@ rel="noopener noreferrer">
     }
   }
 
+  // On mobile, scrolling shows/hides the browser's address bar, which
+  // fires plain 'resize' events even though nothing actually changed
+  // width-wise (only the visible height shrinks/grows a bit). Rebuilding
+  // the whole star field (mapConst + buildStars re-randomizes every star
+  // position) on those events made the sky visibly "jump" to a new layout
+  // mid-scroll. Only a real width change (rotation, resizing the browser
+  // window) should re-seed the stars; a height-only change just resizes
+  // the canvas buffer and keeps the existing stars where they were.
+  var lastResizeWidth = window.innerWidth;
   function resize() {
+    var widthChanged = window.innerWidth !== lastResizeWidth;
+    lastResizeWidth = window.innerWidth;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     isMobile = window.innerWidth <= 768;
-    mapConst();
-    buildStars();
+    if (widthChanged) {
+      mapConst();
+      buildStars();
+    }
     if (prefersReducedMotion) drawStatic();
   }
 
