@@ -32,7 +32,7 @@
      (Microsoft Store / Google se manifestu ani sw.js nedotýkají, jen se
      přidává druhá stránka, která je používá). -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1a0033">
+<meta name="theme-color" content="#05123a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SYNTHLUCIDA">
@@ -200,8 +200,10 @@ header {
   max-width: 880px;
   margin: 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  justify-content: space-between;
+  gap: 8px 18px;
 }
 
 .nav-brand {
@@ -342,11 +344,36 @@ header {
     padding: 7px 14px;
     font-size: 10px;
   }
+  .lang-toggle-btn {
+    padding: 7px 14px;
+    font-size: 10px;
+  }
 }
 
-@media (max-width: 360px) {
+/* Tighter still on narrow phones — shrinks the remaining gaps/padding so
+   brand + hamburger + lang toggle + CTA comfortably fit on one line down
+   to very small screens; flex-wrap on .nav-inner is still there underneath
+   as a last-resort safety net if a phone is narrower than this accounts for. */
+@media (max-width: 480px) {
+  header {
+    padding: 12px 14px;
+  }
+  .nav-inner {
+    gap: 6px 12px;
+  }
+  .nav-right {
+    gap: 8px;
+  }
   .nav-brand {
     font-size: 13px;
+  }
+  .nav-cta {
+    padding: 6px 11px;
+    font-size: 9px;
+  }
+  .lang-toggle-btn {
+    padding: 6px 11px;
+    font-size: 9px;
   }
 }
 
@@ -908,7 +935,7 @@ header {
 h1 {
   position: relative;
   z-index: 1;
-  font-size: clamp(9.5px, 2.6vw, 15px);
+  font-size: clamp(9px, 1.9vw, 15px);
   font-weight: 500;
   letter-spacing: 0;
   color: #b9d4ee;
@@ -918,6 +945,16 @@ h1 {
   margin: 4px auto 22px;
   padding: 0 20px;
   line-height: 1.6;
+}
+
+/* Below this width, even the shrunk nowrap text would start crowding the
+   edges (it stacks with main.container's own side padding), so it wraps
+   to two lines at a fixed, comfortably readable size instead. */
+@media (max-width: 520px) {
+  h1 {
+    white-space: normal;
+    font-size: 13px;
+  }
 }
 
 /* Small retro synth-sun accent under the tagline — the same warm gradient
@@ -2281,7 +2318,7 @@ rel="noopener noreferrer">
 <header id="site-header">
 <div class="nav-inner">
 
-<a class="nav-brand" href="#top">SYNTHLUCIDA</a>
+<a class="nav-brand" href="#top" id="nav-brand-link">SYNTHLUCIDA</a>
 
 <input type="checkbox" id="navToggle" class="nav-toggle-checkbox">
 <label for="navToggle" class="nav-toggle-label" aria-label="Menu">☰</label>
@@ -2875,6 +2912,22 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
     }
   }
+
+  // Clicking the "SYNTHLUCIDA" brand text in the nav re-opens the welcome
+  // overlay instead of just scrolling up — this only reads/toggles the
+  // gate's own public class/style hooks from the outside; the entry-gate's
+  // own markup, styles and scripts above are untouched.
+  (function () {
+    const brand = document.getElementById('nav-brand-link');
+    const gate = document.getElementById('entry-gate');
+    if (!brand || !gate) return;
+    brand.addEventListener('click', function (e) {
+      e.preventDefault();
+      gate.classList.remove('entry-gate-closing');
+      gate.style.display = '';
+      document.body.classList.add('entry-gate-open');
+    });
+  })();
 
   // Top-nav shortcuts — Apps/About toggle their panel open or shut and
   // scroll to it once opened, same pattern as the other panel toggles above.

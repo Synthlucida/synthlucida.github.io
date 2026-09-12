@@ -32,7 +32,7 @@
      (Microsoft Store / Google se manifestu ani sw.js nedotýkají, jen se
      přidává druhá stránka, která je používá). -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1a0033">
+<meta name="theme-color" content="#05123a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SYNTHLUCIDA">
@@ -47,18 +47,23 @@
 <meta name="author" content="SYNTHLUCIDA">
 <meta name="google-site-verification" content="qRt_5PPaFc7SKM965xj-uiwFYr-dvrJgBUajkoGg4UA" />
 
-<link rel="canonical" href="https://synthlucida.github.io/">
+<link rel="canonical" href="https://synthlucida.com/">
+<link rel="alternate" hreflang="en" href="https://synthlucida.com/">
+<link rel="alternate" hreflang="cs" href="https://synthlucida.com/index-cz.html">
+<link rel="alternate" hreflang="x-default" href="https://synthlucida.com/">
 
 <meta property="og:title" content="SYNTHLUCIDA | Electronic Music Producer">
 <meta property="og:description" content="Atmospheric electronic music producer focused on Chillout, Ambient, Trance and Progressive sound design.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://synthlucida.github.io/">
-<meta property="og:image" content="https://synthlucida.github.io/preview.jpg">
+<meta property="og:url" content="https://synthlucida.com/">
+<meta property="og:image" content="https://synthlucida.com/preview.jpg">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="cs_CZ">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="SYNTHLUCIDA">
 <meta name="twitter:description" content="Electronic music producer and sound designer.">
-<meta name="twitter:image" content="https://synthlucida.github.io/preview.jpg">
+<meta name="twitter:image" content="https://synthlucida.com/preview.jpg">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,7 +77,7 @@
   "@context": "https://schema.org",
   "@type": "MusicGroup",
   "name": "SYNTHLUCIDA",
-  "url": "https://synthlucida.github.io/",
+  "url": "https://synthlucida.com/",
   "genre": [
     "Chillout",
     "Ambient",
@@ -196,8 +201,10 @@ header {
   max-width: 880px;
   margin: 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  justify-content: space-between;
+  gap: 8px 18px;
 }
 
 .nav-brand {
@@ -338,11 +345,36 @@ header {
     padding: 7px 14px;
     font-size: 10px;
   }
+  .lang-toggle-btn {
+    padding: 7px 14px;
+    font-size: 10px;
+  }
 }
 
-@media (max-width: 360px) {
+/* Tighter still on narrow phones — shrinks the remaining gaps/padding so
+   brand + hamburger + lang toggle + CTA comfortably fit on one line down
+   to very small screens; flex-wrap on .nav-inner is still there underneath
+   as a last-resort safety net if a phone is narrower than this accounts for. */
+@media (max-width: 480px) {
+  header {
+    padding: 12px 14px;
+  }
+  .nav-inner {
+    gap: 6px 12px;
+  }
+  .nav-right {
+    gap: 8px;
+  }
   .nav-brand {
     font-size: 13px;
+  }
+  .nav-cta {
+    padding: 6px 11px;
+    font-size: 9px;
+  }
+  .lang-toggle-btn {
+    padding: 6px 11px;
+    font-size: 9px;
   }
 }
 
@@ -904,7 +936,7 @@ header {
 h1 {
   position: relative;
   z-index: 1;
-  font-size: clamp(9.5px, 2.6vw, 15px);
+  font-size: clamp(9px, 1.9vw, 15px);
   font-weight: 500;
   letter-spacing: 0;
   color: #b9d4ee;
@@ -914,6 +946,16 @@ h1 {
   margin: 4px auto 22px;
   padding: 0 20px;
   line-height: 1.6;
+}
+
+/* Below this width, even the shrunk nowrap text would start crowding the
+   edges (it stacks with main.container's own side padding), so it wraps
+   to two lines at a fixed, comfortably readable size instead. */
+@media (max-width: 520px) {
+  h1 {
+    white-space: normal;
+    font-size: 13px;
+  }
 }
 
 /* Small retro synth-sun accent under the tagline — the same warm gradient
@@ -2276,7 +2318,7 @@ rel="noopener noreferrer">
 <header id="site-header">
 <div class="nav-inner">
 
-<a class="nav-brand" href="#top">SYNTHLUCIDA</a>
+<a class="nav-brand" href="#top" id="nav-brand-link">SYNTHLUCIDA</a>
 
 <input type="checkbox" id="navToggle" class="nav-toggle-checkbox">
 <label for="navToggle" class="nav-toggle-label" aria-label="Menu">☰</label>
@@ -2727,7 +2769,7 @@ Dave - SYNTHLUCIDA rec.
 </nav>
 
 <a class="privacy-link"
-href="https://synthlucida.github.io/privacy_policy.html"
+href="https://synthlucida.com/privacy_policy.html"
 data-i18n="privacy-link">
 Privacy Policy
 </a>
@@ -2916,6 +2958,22 @@ Privacy Policy
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 150);
     }
   }
+
+  // Clicking the "SYNTHLUCIDA" brand text in the nav re-opens the welcome
+  // overlay instead of just scrolling up — this only reads/toggles the
+  // gate's own public class/style hooks from the outside; the entry-gate's
+  // own markup, styles and scripts above are untouched.
+  (function () {
+    const brand = document.getElementById('nav-brand-link');
+    const gate = document.getElementById('entry-gate');
+    if (!brand || !gate) return;
+    brand.addEventListener('click', function (e) {
+      e.preventDefault();
+      gate.classList.remove('entry-gate-closing');
+      gate.style.display = '';
+      document.body.classList.add('entry-gate-open');
+    });
+  })();
 
   // Top-nav shortcuts — Apps/About toggle their panel open or shut and
   // scroll to it once opened, same pattern as the other panel toggles above.
