@@ -102,14 +102,14 @@ html {
   /* Fallback in case body's own background doesn't reach the very
      bottom of the viewport (short pages, overscroll bounce) — without
      this, that gap shows the browser's default white instead of black. */
-  background-color: #0a0f24;
+  background-color: #000010;
 }
 
 body {
   margin: 0;
   font-family: 'Orbitron', sans-serif;
   color: #ffffff;
-  background-color: #0a0f24;
+  background-color: #000010;
   /* Make sure the dark background always covers at least the full
      viewport height, even when the actual content (header + main +
      footer) is shorter than the screen — otherwise the gradient/footer
@@ -125,7 +125,7 @@ body {
        fading out by the time you reach the footer, leaving the area
        under it visibly lighter than sections further up that sit on
        plain black. */
-    radial-gradient(circle 1000px at top, #0a1e5c, #05123a, #0a0f24);
+    radial-gradient(circle 1000px at top, #0a1e5c, #05123a, #000010);
   text-align: center;
   overflow-x: hidden;
   padding-left: env(safe-area-inset-left, 0px);
@@ -256,6 +256,20 @@ header {
 .nav-links button:hover,
 .nav-links button:focus-visible {
   color: #3ec6e0;
+}
+
+/* Small chevron on the Apps/About/Android App/Contact nav buttons — flips
+   to point up while that section is open, so it's clear at a glance what's
+   currently expanded and what's still collapsed. */
+.nav-chevron {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 9px;
+  transition: transform 0.25s ease;
+}
+
+.nav-links button[aria-expanded="true"] .nav-chevron {
+  transform: rotate(180deg);
 }
 
 .nav-right {
@@ -914,6 +928,22 @@ h1 {
   overflow: hidden;
   background: radial-gradient(circle at 50% 38%, #fff6e2 0%, #ffe2ab 12%, #ffb666 28%, #ff8c4a 44%, #ff6f4d 62%, #dd6178 80%, rgba(200,80,90,0) 100%);
   box-shadow: 0 0 18px rgba(255,150,90,0.22), 0 0 34px rgba(255,110,90,0.12);
+  animation: miniSunGlow 3.5s ease-in-out infinite;
+}
+
+@keyframes miniSunGlow {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(255,150,90,0.22), 0 0 34px rgba(255,110,90,0.12);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(255,165,100,0.4), 0 0 50px rgba(255,120,100,0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mini-sun {
+    animation: none;
+  }
 }
 
 .mini-sun::after {
@@ -2252,10 +2282,10 @@ rel="noopener noreferrer">
 <label for="navToggle" class="nav-toggle-label" aria-label="Menu">☰</label>
 
 <nav class="nav-links" aria-label="Main menu">
-<button type="button" onclick="goToApps()" data-i18n="menu-apps-label">Apps</button>
-<button type="button" onclick="goToAbout()" data-i18n="menu-about-label">About</button>
-<button type="button" onclick="toggleApp()" id="app-toggle-btn" aria-expanded="false" aria-controls="app-download-panel" data-i18n="android-label">Android App</button>
-<button type="button" onclick="goToContact()" data-i18n="nav-contact-label">Contact</button>
+<button type="button" onclick="goToApps()" id="nav-apps-btn" aria-expanded="false" aria-controls="platforms-panel"><span data-i18n="menu-apps-label">Apps</span><span class="nav-chevron" aria-hidden="true">&#9662;</span></button>
+<button type="button" onclick="goToAbout()" id="nav-about-btn" aria-expanded="false" aria-controls="about-panel"><span data-i18n="menu-about-label">About</span><span class="nav-chevron" aria-hidden="true">&#9662;</span></button>
+<button type="button" onclick="toggleApp()" id="app-toggle-btn" aria-expanded="false" aria-controls="app-download-panel"><span data-i18n="android-label">Android App</span><span class="nav-chevron" aria-hidden="true">&#9662;</span></button>
+<button type="button" onclick="goToContact()" id="nav-contact-btn" aria-expanded="false" aria-controls="contact-form-panel"><span data-i18n="nav-contact-label">Contact</span><span class="nav-chevron" aria-hidden="true">&#9662;</span></button>
 </nav>
 
 <div class="nav-right">
@@ -2891,7 +2921,9 @@ Privacy Policy
   // scroll to it once opened, same pattern as the other panel toggles above.
   function goToApps() {
     const panel = document.getElementById('platforms-panel');
+    const btn = document.getElementById('nav-apps-btn');
     const isOpen = panel.classList.toggle('open');
+    if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     if (isOpen) {
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
     }
@@ -2899,23 +2931,34 @@ Privacy Policy
 
   function goToAbout() {
     const panel = document.getElementById('about-panel');
+    const btn = document.getElementById('nav-about-btn');
     const isOpen = panel.classList.toggle('open');
+    if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     if (isOpen) {
       setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
     }
   }
 
-  // Contact form lives nested inside the About panel, so reaching it from
-  // the top nav needs both opened — always ends up open+visible rather than
-  // toggling shut, since "Contact" should reliably land you there.
+  // Contact form is its own independent panel (a sibling section, not
+  // nested inside About) — opens/closes it and scrolls to it once opened,
+  // same pattern as the other nav toggles above.
   function goToContact() {
-    const aboutPanel = document.getElementById('about-panel');
+    // Contact form is its own independent section (not nested inside
+    // About), so this only ever needs to manage its own panel.
     const contactPanel = document.getElementById('contact-form-panel');
     const contactBtn = document.getElementById('contact-form-toggle-btn');
-    aboutPanel.classList.add('open');
-    contactPanel.classList.add('open');
-    if (contactBtn) contactBtn.setAttribute('aria-expanded', 'true');
-    setTimeout(() => { contactPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
+    const navBtn = document.getElementById('nav-contact-btn');
+    const isOpen = contactPanel.classList.contains('open');
+    if (isOpen) {
+      contactPanel.classList.remove('open');
+      if (contactBtn) contactBtn.setAttribute('aria-expanded', 'false');
+      if (navBtn) navBtn.setAttribute('aria-expanded', 'false');
+    } else {
+      contactPanel.classList.add('open');
+      if (contactBtn) contactBtn.setAttribute('aria-expanded', 'true');
+      if (navBtn) navBtn.setAttribute('aria-expanded', 'true');
+      setTimeout(() => { contactPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
+    }
   }
 
   // Contact form panel toggle - shows/hides the contact form
