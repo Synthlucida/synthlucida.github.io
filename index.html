@@ -2539,7 +2539,14 @@ rel="noopener noreferrer">
   // mid-scroll. Only a real width change (rotation, resizing the browser
   // window) should re-seed the stars; a height-only change just resizes
   // the canvas buffer and keeps the existing stars where they were.
-  var lastResizeWidth = window.innerWidth;
+  // -1 (never a real innerWidth) instead of the actual starting width, so
+  // the very first resize() call below always counts as a "width change"
+  // and actually builds the stars. Seeding it with window.innerWidth here
+  // made the first call a no-op (nothing had "changed" yet), so mapConst()/
+  // buildStars() never ran and the whole starfield stayed empty forever —
+  // not just skipped on the harmless mobile address-bar resize this guard
+  // was meant to ignore.
+  var lastResizeWidth = -1;
   function resize() {
     var widthChanged = window.innerWidth !== lastResizeWidth;
     lastResizeWidth = window.innerWidth;
