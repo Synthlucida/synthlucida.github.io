@@ -1378,7 +1378,40 @@ a.review-cta:hover {
   box-shadow: 0 0 20px rgba(62,198,224,0.09);
 }
 
+/* Festive greeting shown on the entry gate (welcome screen) only while the
+   Christmas atmosphere is active — toggled via JS (display:none/block)
+   alongside the snow/lights canvas, see updateChristmasCanvasState(). */
+#entry-gate-christmas-greeting {
+  display: none;
+  margin: 2px auto 20px;
+  padding: 10px 24px;
+  max-width: 92%;
+  border-radius: 999px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: clamp(13px, 3.6vw, 16.5px);
+  letter-spacing: 0.02em;
+  color: #eafff2;
+  background: rgba(60,200,120,0.1);
+  border: 1px solid rgba(140,235,170,0.35);
+  box-shadow: 0 0 16px rgba(140,235,170,0.25), 0 0 30px rgba(255,90,120,0.12);
+  animation: entryGateChristmasGlow 3.2s ease-in-out infinite;
+}
+
+@keyframes entryGateChristmasGlow {
+  0%, 100% { box-shadow: 0 0 16px rgba(140,235,170,0.25), 0 0 30px rgba(255,90,120,0.12); }
+  50% { box-shadow: 0 0 26px rgba(140,235,170,0.42), 0 0 46px rgba(255,90,120,0.22); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #entry-gate-christmas-greeting { animation: none; }
+}
+
 /* christmas atmosphere overlay */
+/* z-index raised above #entry-gate's 100000 so the lights/snow are visible
+   on the welcome screen too, not just after the gate is closed — the gate
+   is a separate fixed full-screen layer that would otherwise sit on top of
+   this and hide it completely while it's open. */
 #christmas-canvas {
   position: fixed;
   top: 0;
@@ -1386,7 +1419,7 @@ a.review-cta:hover {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 9998;
+  z-index: 100050;
   display: none;
 }
 
@@ -1403,7 +1436,7 @@ a.review-cta:hover {
   border-radius: 12px;
   font-size: 13px;
   letter-spacing: 0.5px;
-  z-index: 9999;
+  z-index: 100051;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.35s ease, transform 0.35s ease;
@@ -2163,6 +2196,8 @@ body.entry-gate-open { overflow: hidden; }
 </div>
 
 </div>
+
+<p id="entry-gate-christmas-greeting">🎄 Veselé Vánoce a šťastný nový rok přeje SYNTHLUCIDA 🎄</p>
 
 <p class="tagline">Ambient a chillout hudba</p>
 
@@ -3493,9 +3528,17 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   const christmasCtx = christmasCanvas.getContext('2d');
   const christmasToastEl = document.getElementById('christmas-toast');
   const thankYouPhoto = document.getElementById('thank-you-photo');
+  const entryGateChristmasGreeting = document.getElementById('entry-gate-christmas-greeting');
 
   function isChristmasSeason() {
       return new Date().getMonth() === 11; // prosinec (0 = leden ... 11 = prosinec)
+  }
+
+  // Od 23. prosince (poslední dny před Štědrým dnem) je girlanda i roztroušená
+  // světýlka výrazně hustší — viz initChristmasLights().
+  function isDeepChristmasSeason() {
+      const d = new Date();
+      return d.getMonth() === 11 && d.getDate() >= 23;
   }
 
   function isChristmasActive() {
@@ -3528,9 +3571,12 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   function initChristmasLights() {
       christmasLights = [];
       const colors = ['#ff3b3b', '#ffd93b', '#3bff6e', '#3bb0ff', '#ff3bd6'];
+      const denser = isDeepChristmasSeason();
 
-      // horní girlanda (o něco hustší než dřív)
-      const count = Math.max(24, Math.min(52, Math.floor(christmasCanvas.width / 22)));
+      // horní girlanda (o něco hustší než dřív; od 23. prosince ještě hustší)
+      const count = denser
+          ? Math.max(36, Math.min(76, Math.floor(christmasCanvas.width / 14)))
+          : Math.max(24, Math.min(52, Math.floor(christmasCanvas.width / 22)));
       for (let i = 0; i < count; i++) {
           christmasLights.push({
               x: (christmasCanvas.width / count) * i + (Math.random() * 20 - 10),
@@ -3542,8 +3588,11 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
           });
       }
 
-      // jemně roztroušená světýlka po celé ploše stránky
-      const scatteredCount = Math.max(15, Math.min(35, Math.floor((christmasCanvas.width * christmasCanvas.height) / 45000)));
+      // jemně roztroušená světýlka po celé ploše stránky; od 23. prosince
+      // výrazně víc, aby atmosféra před Štědrým dnem víc "žila"
+      const scatteredCount = denser
+          ? Math.max(35, Math.min(80, Math.floor((christmasCanvas.width * christmasCanvas.height) / 20000)))
+          : Math.max(15, Math.min(35, Math.floor((christmasCanvas.width * christmasCanvas.height) / 45000)));
       for (let i = 0; i < scatteredCount; i++) {
           christmasLights.push({
               x: Math.random() * christmasCanvas.width,
@@ -3611,6 +3660,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
       if (isChristmasActive()) {
           christmasCanvas.style.display = 'block';
           resizeChristmasCanvas();
+          if (entryGateChristmasGreeting) entryGateChristmasGreeting.style.display = 'block';
           if (!christmasCanvasLoopActive) {
               christmasCanvasLoopActive = true;
               drawChristmasOverlay();
@@ -3619,6 +3669,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
           christmasCanvasLoopActive = false;
           christmasCanvas.style.display = 'none';
           christmasCtx.clearRect(0, 0, christmasCanvas.width, christmasCanvas.height);
+          if (entryGateChristmasGreeting) entryGateChristmasGreeting.style.display = 'none';
       }
   }
 
