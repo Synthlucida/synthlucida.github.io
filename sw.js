@@ -13,7 +13,7 @@
 // podporu, ať se s tímhle SW (a jeho cachí pro player) nijak nekříží.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v928';
+const APP_CACHE_NAME = 'synthlucida-app-v929';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
