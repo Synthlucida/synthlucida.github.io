@@ -2693,6 +2693,29 @@ rel="noopener noreferrer">
     if (document.hidden) stop(); else start();
   });
 
+  // Mobile browsers commonly freeze position:fixed layers while the page is
+  // actively being scrolled, then let them "catch up" all at once the
+  // instant scrolling stops. Since this canvas keeps redrawing every frame
+  // (twinkling stars, meteors, satellites), that catch-up shows up as a
+  // small visible jump/skip in the sky right as a scroll ends. Pausing the
+  // redraw loop for the duration of the scroll (plus a short debounce, same
+  // 150ms window used elsewhere on this page) means there's nothing queued
+  // up to "catch up" on — scrolling just reveals the same still frame it
+  // paused on, and the animation resumes smoothly once scrolling actually
+  // stops. Gated to coarse-pointer (touch) devices since that's where this
+  // fixed-layer behavior happens; desktop scrolling is untouched.
+  var coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+  if (coarsePointer && !prefersReducedMotion) {
+    var scrollStopTimer;
+    window.addEventListener('scroll', function () {
+      stop();
+      clearTimeout(scrollStopTimer);
+      scrollStopTimer = setTimeout(function () {
+        if (isPageVisible) start();
+      }, 150);
+    }, { passive: true });
+  }
+
   resize();
   if (prefersReducedMotion) {
     drawStatic();
@@ -2728,6 +2751,23 @@ rel="noopener noreferrer">
 
 </div>
 </header>
+
+<script>
+(function () {
+  // Close the mobile hamburger menu automatically once a menu item is
+  // tapped. The buttons inside .nav-links only toggle a panel further down
+  // the page — they never touch the checkbox that controls the hamburger
+  // menu itself — so without this the menu stayed open after picking an
+  // item and had to be closed by hand.
+  var navToggle = document.getElementById('navToggle');
+  var navLinks = document.querySelector('.nav-links');
+  if (!navToggle || !navLinks) return;
+  navLinks.addEventListener('click', function (e) {
+    var target = e.target.closest('a, button');
+    if (target) navToggle.checked = false;
+  });
+})();
+</script>
 
 <h1 data-i18n="hero-subtitle">Producent elektronické hudby • Chillout • Ambient • Progressive</h1>
 
