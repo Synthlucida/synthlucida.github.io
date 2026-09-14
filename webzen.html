@@ -168,6 +168,25 @@
   .home-btn{text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
   .autosave-status{font-size:11.5px;color:var(--ui-text-dim);white-space:nowrap;}
 
+  /* ---------- přepínač Web / Eshop ---------- */
+  /* Schválně jen ikony (bez textu vedle) — s textem se tlačítka do horní
+     lišty nevešla a lišta zbytečně skákala na dva řádky i na běžných
+     laptop šířkách. Popisek zůstává přes title (tooltip) a aria-label
+     (čtečky obrazovky), takže se o funkci pořád dá zjistit, jen nezabírá
+     trvalé místo. */
+  .mode-toggle{
+    display:flex;gap:2px;background:var(--ui-bg-2);border:1px solid var(--ui-line);
+    border-radius:9px;padding:2px;flex:0 0 auto;
+  }
+  .mode-toggle-btn{
+    background:transparent;border:none;color:var(--ui-text-dim);padding:7px 10px;
+    border-radius:7px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
+    cursor:pointer;white-space:nowrap;line-height:1;
+  }
+  .mode-toggle-btn .btn-label{display:none;}
+  .mode-toggle-btn.active{background:var(--ui-accent);color:#fff;}
+  .mode-toggle-btn:not(.active):hover{color:var(--ui-text);}
+
   /* ---------- workspace ---------- */
   .workspace{flex:1;display:flex;min-height:0;}
   .app-footer{
@@ -644,6 +663,10 @@
   <div class="topbar">
     <div class="topbar-brand"><span class="topbar-brand-prefix">SYNTHLUCIDA</span><span class="topbar-brand-name">WEBZENith</span><span class="topbar-brand-tagline"> — Tvorba webu snadno a rychle — bez kódování a ZDARMA.</span></div>
     <a class="save-btn home-btn" href="./landing_webzenith.html" title="Domovská stránka">🏠 <span class="btn-label">Domů</span></a>
+    <div class="mode-toggle" id="modeToggle" role="group" aria-label="Typ webu">
+      <button type="button" class="mode-toggle-btn" data-mode="website" title="Běžný prezentační web" aria-label="Běžný prezentační web">🌐 <span class="btn-label">Web</span></button>
+      <button type="button" class="mode-toggle-btn" data-mode="eshop" title="Odlehčený eshop s košíkem a platbou" aria-label="Odlehčený eshop s košíkem a platbou">🛒 <span class="btn-label">Eshop</span></button>
+    </div>
     <div class="topbar-spacer"></div>
     <button class="save-btn" id="undoBtn" title="Zpět (Ctrl+Z)" disabled>↶ <span class="btn-label">Zpět</span></button>
     <button class="save-btn" id="redoBtn" title="Vpřed (Ctrl+Shift+Z)" disabled>↷ <span class="btn-label">Vpřed</span></button>
@@ -1227,6 +1250,31 @@ function getDefaultState(){
   glow: '#581c87',
   bg1: '#2b1150',
   bg2: '#0a0612',
+  mode: 'website', // 'website' (běžný web) | 'eshop' (odlehčený eshop bez skladového hospodářství) — přepínač nahoře v liště
+  eshop: {
+    heading: 'Naše produkty',
+    intro: 'Vyber si z nabídky a přidej zboží do košíku.',
+    currency: 'Kč',
+    products: [
+      {id:'p1', type:'physical', name:'Vzorový produkt', price:499, image:'', imageUrl:'', imageAlt:'', description:'Krátký popis produktu, který zákazník uvidí u karty.', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:''},
+      {id:'p2', type:'digital', name:'Vzorový digitální produkt', price:299, image:'', imageUrl:'', imageAlt:'', description:'Např. e-book, šablona nebo návod ke stažení — bez fyzického doručení.', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:''}
+    ],
+    shipping: [
+      {label:'Osobní odběr', price:0},
+      {label:'Zásilkovna', price:89},
+      {label:'Česká pošta — balík do ruky', price:129}
+    ],
+    payment: {
+      bankEnabled:true, bankAccount:'', bankNote:'Platbu prosím odešli na účet výš do 3 dnů od objednání, do poznámky napiš svoje jméno.',
+      codEnabled:true, codNote:'Platba v hotovosti nebo kartou při doručení (jen fyzické zboží).',
+      paypalEnabled:false, paypalLink:'',
+      cardEnabled:false, cardLink:'', cardProviderLabel:'Platební brána (Stripe / GoPay / Comgate…)'
+    },
+    orderForm: {
+      provider:'formspree', formspreeId:'', web3formsKey:'', netlifyFormName:'objednavka', mailtoAddress:'',
+      gdprConsent:true, gdprConsentText:'Souhlasím se zpracováním výše uvedených osobních údajů za účelem vyřízení mé objednávky.'
+    }
+  },
   cardsHeading: 'Co nabízíme',
   cards: [
     {icon:'⭐', title:'Vzorová funkce 1', text:'Sem napiš krátký popis první funkce nebo výhody, kterou chceš na webu vyzdvihnout.', linkType:'none', sectionIndex:0, url:'', newTab:false},
@@ -1693,6 +1741,24 @@ const panel = document.getElementById('panel');
 
 function field(labelText, inner){
   return `<label>${labelText}</label>${inner}`;
+}
+
+// Přepínač "Web / Eshop" v horní liště — mění state.mode a znovu vykreslí
+// formulář (objeví/zmizí sekce Eshopu) i náhled. Volá se znovu při každém
+// renderForm(), aby zvýraznění aktivního tlačítka vždy sedělo se stavem.
+function initModeToggle(){
+  const el = document.getElementById('modeToggle');
+  if (!el) return;
+  el.querySelectorAll('.mode-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === (state.mode || 'website'));
+    btn.onclick = () => {
+      if (state.mode === btn.dataset.mode) return;
+      state.mode = btn.dataset.mode;
+      if (previewSectionIndex === 'cart' && state.mode !== 'eshop') previewSectionIndex = null;
+      renderForm();
+      updatePreview();
+    };
+  });
 }
 
 /* ---------- velké okno pro psaní delších textů + jednoduché formátování ---------- */
@@ -2189,6 +2255,8 @@ function renderForm(){
       <button class="add-btn" id="addSection">+ Přidat stránku</button>
     </div>
 
+    ${state.mode === 'eshop' ? eshopFormFieldsetsHtml() : ''}
+
     <div class="fieldset">
       <div class="fieldset-title">Karty / funkce</div>
       ${field('Nadpis sekce', `<input type="text" data-bind="cardsHeading" value="${escapeAttr(state.cardsHeading)}">`)}
@@ -2359,6 +2427,7 @@ function renderForm(){
   `;
 
   initCollapsibleFieldsets();
+  initModeToggle();
   renderSwatches();
   renderStylePresets();
   renderSections();
@@ -2380,6 +2449,25 @@ function renderForm(){
   bindCookieBannerInputs();
   bindCustomCodeInputs();
   bindFooterInputs();
+  if (state.mode === 'eshop') {
+    renderEshopProducts();
+    renderEshopShipping();
+    bindEshopSimpleInputs();
+    bindEshopPaymentInputs();
+    bindEshopOrderFormInputs();
+    const previewCartBtn = document.getElementById('previewCartBtn');
+    if (previewCartBtn) previewCartBtn.onclick = () => setPreviewTarget('cart');
+    const addEshopProductBtn = document.getElementById('addEshopProduct');
+    if (addEshopProductBtn) addEshopProductBtn.onclick = () => {
+      state.eshop.products.push({id:'p'+Date.now(), type:'physical', name:'Nový produkt', price:0, image:'', imageUrl:'', imageAlt:'', description:'', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:''});
+      renderEshopProducts(); updatePreview();
+    };
+    const addEshopShippingBtn = document.getElementById('addEshopShipping');
+    if (addEshopShippingBtn) addEshopShippingBtn.onclick = () => {
+      state.eshop.shipping.push({label:'Nový způsob dopravy', price:0});
+      renderEshopShipping(); updatePreview();
+    };
+  }
 
   document.getElementById('downloadManifest').onclick = () => downloadTextFile('manifest.json', buildManifestJSON(state), 'application/json');
   document.getElementById('downloadSw').onclick = () => downloadTextFile('sw.js', buildServiceWorkerJS(state), 'text/javascript');
@@ -3255,6 +3343,298 @@ function renderCards(){
   enhanceTextareas();
 }
 
+/* ============================================================
+   ESHOP (odlehčená verze bez skladového hospodářství)
+   ------------------------------------------------------------
+   Zapíná se přepínačem "Web / Eshop" v horní liště (viz initModeToggle).
+   V režimu eshopu se na hlavní stránku přidá sekce s produkty a vygeneruje
+   se navíc samostatná stránka kosik.html (košík + doprava + objednávkový
+   formulář + platba + odemykání digitálních produktů) — viz buildCartPageHTML.
+   ============================================================ */
+function eshopFormFieldsetsHtml(){
+  const e = state.eshop;
+  const pay = e.payment;
+  const of = e.orderForm;
+  return `
+    <div class="fieldset">
+      <div class="fieldset-title">🛒 Eshop — nastavení</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Web běží v režimu eshopu (přepínač nahoře v liště). Sem patří produkty, doprava, platba a objednávkový formulář — zbytek webu (hero, vlastní stránky, FAQ, patička…) funguje úplně stejně jako v běžném webu.</div>
+      ${field('Nadpis sekce s produkty', `<input type="text" data-eshop="heading" value="${escapeAttr(e.heading)}">`)}
+      ${field('Krátký úvodní text (nepovinné)', `<textarea data-eshop="intro">${escapeHtml(e.intro)}</textarea>`)}
+      ${field('Měna (zobrazí se za cenou)', `<input type="text" data-eshop="currency" value="${escapeAttr(e.currency)}" style="max-width:100px;">`)}
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">🛍️ Eshop — produkty</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;"><b>Fyzický produkt</b> se posílá poštou/přepravcem — počítá se s ním doprava níž. <b>Digitální produkt</b> je soubor ke stažení (e-book, šablona, návod…) — doprava se u něj nepočítá a navíc jde nastavit odemykací kód, kterým zákazník po zaplacení odemkne stažení na stránce Košíku (kód mu pošleš ručně, podobně jako u Gumroadu).</div>
+      <div id="eshopProductsList"></div>
+      <button class="add-btn" id="addEshopProduct">+ Přidat produkt</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">🚚 Eshop — doprava</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Nabídka způsobů dopravy pro objednávky s fyzickým zbožím — zákazník si jeden vybere na stránce Košíku. Pokud má objednávka jen digitální produkty, doprava se v košíku vůbec nezobrazí.</div>
+      <div id="eshopShippingList"></div>
+      <button class="add-btn" id="addEshopShipping">+ Přidat způsob dopravy</button>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">💳 Eshop — platba</div>
+      <div class="warn-box" style="margin-top:0;margin-bottom:10px;">⚠️ Eshop běží jako čistě statický web bez vlastního serveru, takže nejde automaticky ověřit, že platba skutečně došla. Tlačítka/odkazy níž zákazníka jen dovedou k zaplacení — potvrzení platby a odeslání zboží (nebo odemykacího kódu u digitálního produktu) je vždy na tobě ručně po přijetí platby.</div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:0;">
+        <input type="checkbox" data-eshop-pay="bankEnabled" ${pay.bankEnabled?'checked':''}> Bankovní převod
+      </label>
+      <div id="eshopBankBox" style="margin-top:8px;${pay.bankEnabled?'':'display:none;'}">
+        ${field('Číslo účtu / IBAN', `<input type="text" data-eshop-pay="bankAccount" value="${escapeAttr(pay.bankAccount)}" placeholder="123456789/0800">`)}
+        ${field('Poznámka k platbě', `<textarea data-eshop-pay="bankNote" style="min-height:44px;">${escapeHtml(pay.bankNote)}</textarea>`)}
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+        <input type="checkbox" data-eshop-pay="codEnabled" ${pay.codEnabled?'checked':''}> Dobírka (jen fyzické zboží)
+      </label>
+      <div id="eshopCodBox" style="margin-top:8px;${pay.codEnabled?'':'display:none;'}">
+        ${field('Poznámka k dobírce', `<input type="text" data-eshop-pay="codNote" value="${escapeAttr(pay.codNote)}">`)}
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+        <input type="checkbox" data-eshop-pay="paypalEnabled" ${pay.paypalEnabled?'checked':''}> PayPal
+      </label>
+      <div id="eshopPaypalBox" style="margin-top:8px;${pay.paypalEnabled?'':'display:none;'}">
+        ${field('Odkaz na platbu (např. paypal.me/tvujucet)', `<input type="text" data-eshop-pay="paypalLink" value="${escapeAttr(pay.paypalLink)}" placeholder="https://paypal.me/tvujucet">`)}
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+        <input type="checkbox" data-eshop-pay="cardEnabled" ${pay.cardEnabled?'checked':''}> Platební brána (Stripe / GoPay / Comgate…)
+      </label>
+      <div id="eshopCardBox" style="margin-top:8px;${pay.cardEnabled?'':'display:none;'}">
+        ${field('Název tlačítka', `<input type="text" data-eshop-pay="cardProviderLabel" value="${escapeAttr(pay.cardProviderLabel)}">`)}
+        ${field('Platební odkaz (Payment Link z brány)', `<input type="text" data-eshop-pay="cardLink" value="${escapeAttr(pay.cardLink)}" placeholder="https://…">`)}
+        <div class="note-box" style="margin-top:8px;">Odkaz obvykle vede na pevně nastavenou částku v bráně — pro objednávky s víc produkty najednou proto doporučujeme spíš bankovní převod nebo dobírku.</div>
+      </div>
+    </div>
+
+    <div class="fieldset">
+      <div class="fieldset-title">📩 Eshop — objednávkový formulář</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Objednávka (obsah košíku, doprava, kontakt zákazníka) se odešle stejně jako u kontaktního formuláře — vyber, kam.</div>
+      <button type="button" class="preview-page-btn" id="previewCartBtn">👁️ ${previewSectionIndex==='cart'?'Právě v náhledu':'Náhled stránky Košík'}</button>
+
+      <label style="margin-top:0;">Kam objednávky odesílat</label>
+      <select data-eshoporder="provider">
+        <option value="formspree" ${of.provider==='formspree'?'selected':''}>Formspree</option>
+        <option value="web3forms" ${of.provider==='web3forms'?'selected':''}>Web3Forms</option>
+        <option value="netlify" ${of.provider==='netlify'?'selected':''}>Netlify Forms (jen při hostování na Netlify)</option>
+        <option value="mailto" ${of.provider==='mailto'?'selected':''}>Otevřít e-mail (mailto, bez cizí služby)</option>
+      </select>
+
+      ${of.provider==='formspree' ? `
+        <label>ID formuláře z Formspree</label>
+        <input type="text" data-eshoporder="formspreeId" value="${escapeAttr(of.formspreeId)}" placeholder="např. xzbqldpr">
+        <div class="note-box" style="margin-top:8px;">Můžeš použít stejné nebo jiné Formspree ID než u kontaktního formuláře — objednávky pak chodí zvlášť.</div>
+      ` : ''}
+      ${of.provider==='web3forms' ? `
+        <label>Access Key z Web3Forms</label>
+        <input type="text" data-eshoporder="web3formsKey" value="${escapeAttr(of.web3formsKey)}" placeholder="např. a1b2c3d4-5e6f-...">
+      ` : ''}
+      ${of.provider==='netlify' ? `
+        <label>Interní název formuláře</label>
+        <input type="text" data-eshoporder="netlifyFormName" value="${escapeAttr(of.netlifyFormName)}" placeholder="objednavka">
+      ` : ''}
+      ${of.provider==='mailto' ? `
+        <label>Cílová e-mailová adresa</label>
+        <input type="text" data-eshoporder="mailtoAddress" value="${escapeAttr(of.mailtoAddress)}" placeholder="objednavky@tvuj-eshop.cz">
+      ` : ''}
+      <div id="eshopOrderMissingWarn" class="warn-box" style="${eshopOrderFormMissingField(of)?'':'display:none;'}">⚠ Bez vyplnění povinného údaje výš se objednávkový formulář na stránce Košíku vůbec nezobrazí.</div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+        <input type="checkbox" data-eshoporder="gdprConsent" ${of.gdprConsent!==false?'checked':''}> Vyžadovat povinný souhlas se zpracováním osobních údajů
+      </label>
+      ${of.gdprConsent!==false ? field('Text souhlasu', `<textarea data-eshoporder="gdprConsentText" style="min-height:50px;">${escapeHtml(of.gdprConsentText)}</textarea>`) : ''}
+    </div>`;
+}
+
+function renderEshopProducts(){
+  const el = document.getElementById('eshopProductsList');
+  if (!el) return;
+  el.innerHTML = state.eshop.products.map((p,i) => {
+    const hasImage = (p.imageUrl || p.image || '').trim();
+    return `
+    <div class="card-item" data-i="${i}">
+      <button class="item-remove" data-remove-eshop-product="${i}">✕</button>
+      <div class="row2">
+        <input type="text" data-eshop-product="${i}" data-key="name" value="${escapeAttr(p.name)}" placeholder="název produktu">
+        <input type="text" inputmode="decimal" data-eshop-product="${i}" data-key="price" value="${p.price}" placeholder="cena">
+      </div>
+      <select data-eshop-product-type="${i}" style="margin-top:6px;">
+        <option value="physical" ${p.type!=='digital'?'selected':''}>📦 Fyzický produkt (posílá se)</option>
+        <option value="digital" ${p.type==='digital'?'selected':''}>💾 Digitální produkt (ke stažení)</option>
+      </select>
+      <textarea data-eshop-product="${i}" data-key="description" data-richtext="1" style="margin-top:6px;min-height:40px;" placeholder="krátký popis produktu">${escapeHtml(p.description)}</textarea>
+
+      <label style="margin-top:10px;">Obrázek produktu</label>
+      <input type="file" data-eshop-product-file="${i}" accept="image/*">
+      <input type="text" data-eshop-product="${i}" data-key="imageUrl" value="${escapeAttr(p.imageUrl)}" placeholder="nebo URL obrázku (má přednost)" style="margin-top:6px;">
+      ${hasImage ? `<img src="${escapeAttr((p.imageUrl||'').trim() || p.image)}" style="max-width:110px;border-radius:8px;margin-top:6px;border:1px solid var(--ui-line);">` : ''}
+
+      <label style="margin-top:10px;">Varianta (nepovinné, např. „Velikost")</label>
+      <div class="row2">
+        <input type="text" data-eshop-product="${i}" data-key="variantLabel" value="${escapeAttr(p.variantLabel)}" placeholder="název volby, např. Velikost">
+        <input type="text" data-eshop-product="${i}" data-key="variantOptions" value="${escapeAttr(p.variantOptions)}" placeholder="možnosti čárkou: S, M, L">
+      </div>
+
+      ${p.type==='digital' ? `
+        <div class="note-box" style="margin-top:10px;margin-bottom:0;">Soubor ke stažení a odemykací kód — zákazník kód zadá až po zaplacení (pošleš mu ho ručně e-mailem).</div>
+        <label style="margin-top:10px;">Soubor ke stažení</label>
+        <input type="file" data-eshop-product-digitalfile="${i}">
+        <span style="display:block;margin-top:4px;font-size:11.5px;color:var(--ui-text-dim);">${p.fileData ? ('Nahráno: ' + escapeHtml(p.fileName||'soubor') + ' ✓') : ''}</span>
+        <input type="text" data-eshop-product="${i}" data-key="fileUrl" value="${escapeAttr(p.fileUrl)}" placeholder="nebo URL ke stažení (Gumroad, Drive, Dropbox…) — má přednost" style="margin-top:6px;">
+        <label style="margin-top:10px;">Odemykací kód</label>
+        <input type="text" data-eshop-product="${i}" data-key="unlockCode" value="${escapeAttr(p.unlockCode)}" placeholder="např. DEKUJI2026">
+        <div class="note-box" style="margin-top:6px;">Kód se do webu neuloží čitelně — jen jeho zašifrovaný otisk, takže ho nejde jednoduše vyčíst ze zdrojového kódu stránky.</div>
+      ` : ''}
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('[data-eshop-product]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const i = +inp.dataset.eshopProduct, key = inp.dataset.key;
+      const p = state.eshop.products[i];
+      if (key === 'price') { p.price = parseFloat(String(inp.value).replace(',', '.')) || 0; }
+      else { p[key] = inp.value; }
+      if (key === 'unlockCode') { updateEshopUnlockHash(i); }
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-eshop-product-type]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      state.eshop.products[+sel.dataset.eshopProductType].type = sel.value;
+      renderEshopProducts();
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-eshop-product]').forEach(btn => {
+    btn.onclick = () => { state.eshop.products.splice(+btn.dataset.removeEshopProduct,1); renderEshopProducts(); updatePreview(); };
+  });
+  el.querySelectorAll('[data-eshop-product-file]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const i = +inp.dataset.eshopProductFile;
+      const file = inp.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        resizeImageDataUrl(reader.result, 1000).then(dataUrl => {
+          state.eshop.products[i].image = dataUrl;
+          renderEshopProducts();
+          updatePreview();
+        }).catch(() => {});
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  el.querySelectorAll('[data-eshop-product-digitalfile]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const i = +inp.dataset.eshopProductDigitalfile;
+      const file = inp.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.eshop.products[i].fileData = reader.result;
+        state.eshop.products[i].fileName = file.name;
+        renderEshopProducts();
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  enhanceTextareas();
+}
+
+// Spočítá SHA-256 otisk odemykacího kódu digitálního produktu a uloží ho do
+// state (p.unlockHash) — do exportovaného webu se pak vkládá jen tenhle
+// otisk, ne čitelný kód (stejný princip jako odemykání appky samotné,
+// viz WZ_NOBRAND_HASH/WZ_PASS_HASH níž v souboru). Vyžaduje https/localhost
+// (crypto.subtle) — pokud selže, kód se prostě neuloží jako platný.
+async function updateEshopUnlockHash(i){
+  const p = state.eshop.products[i];
+  if (!p) return;
+  const code = (p.unlockCode || '').trim();
+  if (!code) { p.unlockHash = ''; updatePreview(); return; }
+  try {
+    const enc = new TextEncoder().encode(code);
+    const digest = await crypto.subtle.digest('SHA-256', enc);
+    p.unlockHash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2,'0')).join('');
+  } catch(e) {
+    p.unlockHash = '';
+  }
+  updatePreview();
+}
+
+function renderEshopShipping(){
+  const el = document.getElementById('eshopShippingList');
+  if (!el) return;
+  el.innerHTML = state.eshop.shipping.map((sh,i) => `
+    <div class="card-item" data-i="${i}">
+      <button class="item-remove" data-remove-eshop-shipping="${i}">✕</button>
+      <div class="row2">
+        <input type="text" data-eshop-shipping="${i}" data-key="label" value="${escapeAttr(sh.label)}" placeholder="název způsobu dopravy">
+        <input type="text" inputmode="decimal" data-eshop-shipping="${i}" data-key="price" value="${sh.price}" placeholder="cena">
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-eshop-shipping]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const i = +inp.dataset.eshopShipping, key = inp.dataset.key;
+      if (key === 'price') state.eshop.shipping[i].price = parseFloat(String(inp.value).replace(',', '.')) || 0;
+      else state.eshop.shipping[i][key] = inp.value;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-eshop-shipping]').forEach(btn => {
+    btn.onclick = () => { state.eshop.shipping.splice(+btn.dataset.removeEshopShipping,1); renderEshopShipping(); updatePreview(); };
+  });
+}
+
+function bindEshopSimpleInputs(){
+  document.querySelectorAll('[data-eshop]').forEach(el => {
+    el.addEventListener('input', () => {
+      state.eshop[el.dataset.eshop] = el.value;
+      updatePreview();
+    });
+  });
+}
+
+function bindEshopPaymentInputs(){
+  document.querySelectorAll('[data-eshop-pay]').forEach(el => {
+    const key = el.dataset.eshopPay;
+    const evt = el.type === 'checkbox' ? 'change' : 'input';
+    el.addEventListener(evt, () => {
+      state.eshop.payment[key] = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.type === 'checkbox') { renderForm(); }
+      updatePreview();
+    });
+  });
+}
+
+function eshopOrderFormMissingField(of){
+  const o = of || {};
+  if (o.provider === 'formspree') return !(o.formspreeId || '').trim();
+  if (o.provider === 'web3forms') return !(o.web3formsKey || '').trim();
+  if (o.provider === 'mailto') return !(o.mailtoAddress || '').trim();
+  return false;
+}
+
+function bindEshopOrderFormInputs(){
+  document.querySelectorAll('[data-eshoporder]').forEach(el => {
+    const key = el.dataset.eshoporder;
+    const evt = el.type === 'checkbox' ? 'change' : 'input';
+    el.addEventListener(evt, () => {
+      state.eshop.orderForm[key] = el.type === 'checkbox' ? el.checked : el.value;
+      if (key === 'provider' || key === 'gdprConsent') { renderForm(); }
+      updatePreview();
+    });
+  });
+}
+
 function renderFaq(){
   const el = document.getElementById('faqList');
   el.innerHTML = state.faq.map((f,i) => `
@@ -3348,7 +3728,8 @@ function buildServiceWorkerJS(s){
     'favicon.ico',
     'apple-touch-icon.png',
     (s.pwa.icon192 || 'icon-192.png').trim(),
-    (s.pwa.icon512 || 'icon-512.png').trim()
+    (s.pwa.icon512 || 'icon-512.png').trim(),
+    ...(s.mode === 'eshop' ? ['kosik.html'] : [])
   ];
 
   const extra = (s.pwa.extraFiles || '')
@@ -3559,6 +3940,13 @@ ${socialLinks.map(l => {
     return `    <a href="${escapeAttr(l.url)}" target="_blank" rel="noopener" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}">${icon}</a>`;
   }).join('\n')}
   </div>` : '';
+  // Odkaz na košík (jen v režimu eshopu) — kosik.html je vždy vedle hlavní
+  // stránky, takže adresa je stejná bez ohledu na to, jestli jde zrovna
+  // o hlavní stránku, nebo o jinou podstránku. Počítadlo položek v košíku
+  // (wz-cart-badge) doplňuje/aktualizuje eshopCartScript() za běhu.
+  const cartLinkHtml = s.mode === 'eshop'
+    ? `\n  <a href="kosik.html" class="side-nav-cart">🛒 Košík <span class="wz-cart-badge" hidden>0</span></a>`
+    : '';
   return `  <button class="menu-toggle" id="menuToggle" aria-label="Otevřít menu" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
@@ -3566,7 +3954,7 @@ ${socialLinks.map(l => {
 
   <nav class="side-nav" id="sideNav" aria-label="Hlavní navigace">
     <a href="${escapeAttr(brandHref)}" class="side-nav-brand" id="sideNavBrand"${brandAttrs}>${escapeHtml(s.brand)}</a>
-${linksHtml}${socialHtml}
+${linksHtml}${cartLinkHtml}${socialHtml}
   </nav>`;
 }
 
@@ -3836,6 +4224,529 @@ function contactFormScript(){
 })();<\/script>`;
 }
 
+/* ============================================================
+   ESHOP — generování výstupu (produkty na hlavní stránce, stránka
+   kosik.html s košíkem/dopravou/objednávkou/platbou/odemykáním)
+   ============================================================ */
+
+// Sekce s produkty na hlavní stránce — karty s obrázkem, cenou, volitelnou
+// variantou a tlačítkem "Přidat do košíku" (obsluhuje eshopCartScript()).
+function eshopProductsSectionHtml(s){
+  const e = s.eshop || {};
+  const products = e.products || [];
+  if (!products.length) return '';
+  const currency = escapeHtml(e.currency || 'Kč');
+  const cardsHtml = products.map(p => {
+    const img = (p.imageUrl || '').trim() || p.image || '';
+    const variantOpts = (p.variantOptions || '').split(',').map(x => x.trim()).filter(Boolean);
+    const hasVariant = variantOpts.length > 0;
+    const variantSelectId = 'wz-variant-' + slugifyGlobal(p.id, 'p');
+    const priceNum = Number(p.price) || 0;
+    return `
+        <article class="eshop-product-card">
+          ${img ? `<img class="eshop-product-img" src="${escapeAttr(img)}" alt="${escapeAttr(p.imageAlt || p.name || '')}" loading="lazy">` : ''}
+          <div class="eshop-product-body">
+            <span class="eshop-product-badge">${p.type==='digital' ? '💾 Ke stažení' : '📦 Fyzické zboží'}</span>
+            <h3>${escapeHtml(p.name)}</h3>
+            ${(p.description||'').trim() ? `<p class="eshop-product-desc">${richText(p.description)}</p>` : ''}
+            <div class="eshop-product-price">${priceNum.toLocaleString('cs-CZ')}&nbsp;${currency}</div>
+            ${hasVariant ? `<select class="eshop-variant-select" id="${escapeAttr(variantSelectId)}">
+              ${variantOpts.map(o => `<option value="${escapeAttr(o)}">${escapeHtml(p.variantLabel || 'Varianta')}: ${escapeHtml(o)}</option>`).join('')}
+            </select>` : ''}
+            <button type="button" class="eshop-add-btn" data-cart-add
+              data-id="${escapeAttr(p.id)}" data-name="${escapeAttr(p.name)}" data-price="${priceNum}"
+              data-type="${escapeAttr(p.type || 'physical')}" data-variant-id="${hasVariant ? escapeAttr(variantSelectId) : ''}">
+              🛒 Přidat do košíku
+            </button>
+            ${p.type==='digital' ? `<p class="eshop-product-note">Máš už odemykací kód? Stáhni si produkt na stránce <a href="kosik.html#stazeni">Košík</a>.</p>` : ''}
+          </div>
+        </article>`;
+  }).join('');
+  return `
+    <section class="eshop-products-section wrap" id="produkty">
+      <h2>${escapeHtml(e.heading || 'Naše produkty')}</h2>
+      ${(e.intro||'').trim() ? `<p class="eshop-products-intro">${richText(e.intro)}</p>` : ''}
+      <div class="eshop-products-grid">${cardsHtml}
+      </div>
+    </section>`;
+}
+
+// Vygeneruje bloky se způsoby platby podle zapnutých metod (viz sekce
+// "Eshop — platba" v editoru). Statický web bez serveru nemůže platbu sám
+// ověřit — potvrzení a odeslání zboží/kódu řeší prodejce vždy ručně.
+function eshopPaymentMethodsHtml(s){
+  const pay = (s.eshop && s.eshop.payment) || {};
+  const blocks = [];
+  if (pay.bankEnabled) {
+    blocks.push(`
+        <div class="eshop-payment-method">
+          <h3>🏦 Bankovní převod</h3>
+          ${(pay.bankAccount||'').trim() ? `<p class="eshop-payment-account">${escapeHtml(pay.bankAccount)}</p>` : ''}
+          ${(pay.bankNote||'').trim() ? `<p>${richText(pay.bankNote)}</p>` : ''}
+        </div>`);
+  }
+  if (pay.codEnabled) {
+    blocks.push(`
+        <div class="eshop-payment-method">
+          <h3>📦 Dobírka</h3>
+          <p>${escapeHtml(pay.codNote || '')}</p>
+        </div>`);
+  }
+  if (pay.paypalEnabled && (pay.paypalLink||'').trim()) {
+    blocks.push(`
+        <div class="eshop-payment-method">
+          <h3>💙 PayPal</h3>
+          <a class="cta cta-secondary" href="${escapeAttr(pay.paypalLink)}" target="_blank" rel="noopener">Zaplatit přes PayPal</a>
+        </div>`);
+  }
+  if (pay.cardEnabled && (pay.cardLink||'').trim()) {
+    blocks.push(`
+        <div class="eshop-payment-method">
+          <h3>💳 ${escapeHtml(pay.cardProviderLabel || 'Platební brána')}</h3>
+          <a class="cta cta-secondary" href="${escapeAttr(pay.cardLink)}" target="_blank" rel="noopener">Přejít k platbě</a>
+        </div>`);
+  }
+  if (!blocks.length) {
+    return `<p class="eshop-payment-empty">Zatím není nastavený žádný způsob platby — doplň ho v sekci „Eshop — platba" v editoru.</p>`;
+  }
+  return `<div class="eshop-payment-methods">${blocks.join('')}
+      </div>
+      <p class="eshop-payment-note">Platbu potvrzujeme ručně po přijetí — u digitálních produktů pak pošleme e-mailem odemykací kód ke stažení.</p>`;
+}
+
+// Objednávkový formulář na stránce Košíku — stejný princip jako u kontaktního
+// formuláře (Formspree / Web3Forms / Netlify Forms / mailto), navíc se před
+// odesláním doplní skryté pole se shrnutím objednávky (viz eshopOrderFormScript).
+function buildEshopOrderFormHtml(s){
+  const of = (s.eshop && s.eshop.orderForm) || {};
+  let formAction = '', formExtraAttrs = '', hiddenFields = '';
+  if (of.provider === 'formspree') {
+    const id = (of.formspreeId || '').trim();
+    if (!id) return { html: '', missing: true };
+    formAction = `https://formspree.io/f/${escapeAttr(id)}`;
+    hiddenFields = `<input type="hidden" name="_subject" value="${escapeAttr('Nová objednávka z eshopu — ' + (s.brand || ''))}">`;
+  } else if (of.provider === 'web3forms') {
+    const key = (of.web3formsKey || '').trim();
+    if (!key) return { html: '', missing: true };
+    formAction = 'https://api.web3forms.com/submit';
+    hiddenFields = `<input type="hidden" name="access_key" value="${escapeAttr(key)}"><input type="hidden" name="subject" value="${escapeAttr('Nová objednávka z eshopu — ' + (s.brand || ''))}">`;
+  } else if (of.provider === 'netlify') {
+    const formName = (of.netlifyFormName || '').trim() || 'objednavka';
+    formExtraAttrs = ` name="${escapeAttr(formName)}" data-netlify="true"`;
+    hiddenFields = `<input type="hidden" name="form-name" value="${escapeAttr(formName)}">`;
+  } else if (of.provider === 'mailto') {
+    const addr = (of.mailtoAddress || '').trim();
+    if (!addr) return { html: '', missing: true };
+    formExtraAttrs = ` data-mailto="${escapeAttr(addr)}"`;
+  } else {
+    return { html: '', missing: true };
+  }
+  const honeypotField = `
+        <div class="hp-field" aria-hidden="true"><label>Nechte prázdné<input type="text" name="_hpwebsite" tabindex="-1" autocomplete="off"></label></div>`;
+  let consentField = '';
+  if (of.gdprConsent !== false) {
+    const consentText = (of.gdprConsentText || '').trim() || 'Souhlasím se zpracováním výše uvedených osobních údajů za účelem vyřízení mé objednávky.';
+    const privacyLinkHtml = (s.privacyPage && s.privacyPage.enabled) ? ` <a href="privacy.html" target="_blank" rel="noopener">Zásady ochrany osobních údajů</a>.` : '';
+    consentField = `
+        <label class="contact-consent"><input type="checkbox" name="gdprConsent" required> ${escapeHtml(consentText)}${privacyLinkHtml}</label>`;
+  }
+  const html = `
+      <form class="eshop-order-form contact-form" method="POST"${formAction ? ` action="${escapeAttr(formAction)}"` : ''}${formExtraAttrs} data-eshoporder-provider="${escapeAttr(of.provider)}">
+        ${hiddenFields}
+        <label>Jméno a příjmení<input type="text" name="name" autocomplete="name" required></label>
+        <label>E-mail<input type="email" name="email" autocomplete="email" required></label>
+        <label>Telefon (nepovinné)<input type="tel" name="phone" autocomplete="tel"></label>
+        <label>Doručovací adresa (jen pro fyzické zboží)<textarea name="address" rows="2" placeholder="Ulice, město, PSČ"></textarea></label>
+        <label>Poznámka k objednávce (nepovinné)<textarea name="note" rows="2"></textarea></label>
+        <input type="hidden" name="objednavka_shrnuti" id="wzOrderSummaryField">
+        ${consentField}
+        ${honeypotField}
+        <button type="submit">Odeslat objednávku</button>
+        <p class="eshop-order-status" aria-live="polite"></p>
+      </form>`;
+  return { html, missing: false };
+}
+
+// Sekce pro odemykání stažení digitálních produktů — vždy dostupná na stránce
+// Košíku (nezávisle na aktuálním obsahu košíku), ať se zákazník může vrátit
+// a stáhnout produkt kdykoli poté, co od prodejce dostane kód. Kód se ověřuje
+// porovnáním SHA-256 otisků (viz eshopUnlockScript) — čitelný kód nikde ve
+// vygenerovaném HTML není.
+function eshopDigitalUnlockSectionHtml(s){
+  const digitalProducts = ((s.eshop && s.eshop.products) || []).filter(p => p.type === 'digital');
+  if (!digitalProducts.length) return '';
+  return `
+    <section class="eshop-unlock-section wrap" id="stazeni">
+      <h2>🔑 Stažení zakoupených digitálních produktů</h2>
+      <p class="eshop-unlock-intro">Po přijetí platby ti pošleme odemykací kód e-mailem — zadej ho tady u příslušného produktu a stažení se odemkne.</p>
+      <div class="eshop-unlock-list">
+        ${digitalProducts.map(p => `
+        <div class="eshop-unlock-item" data-unlock-item data-hash="${escapeAttr(p.unlockHash || '')}" data-file="${escapeAttr((p.fileUrl||'').trim() || p.fileData || '')}">
+          <div class="eshop-unlock-name">${escapeHtml(p.name)}</div>
+          <div class="eshop-unlock-controls">
+            <input type="text" class="eshop-unlock-code" placeholder="Odemykací kód">
+            <button type="button" class="eshop-unlock-btn">Odemknout</button>
+          </div>
+          <a class="eshop-unlock-download" href="#" target="_blank" rel="noopener" hidden>⬇ Stáhnout</a>
+          <span class="eshop-unlock-msg"></span>
+        </div>`).join('')}
+      </div>
+    </section>`;
+}
+
+// Sdílená košíková logika (localStorage) — vkládá se na hlavní stránku
+// (tlačítka "Přidat do košíku" u produktů) i na kosik.html (čtení/úprava
+// obsahu). V náhledu appky (iframe s srcdoc) může localStorage v některých
+// prohlížečích vyhodit výjimku — proto try/catch s tichým fallbackem, ať
+// tlačítka nespadnou, i když se košík mezi překreslením náhledu nezapamatuje.
+function eshopCartScript(){
+  return `<script>(function(){
+  var CART_KEY = 'wz_cart_v1';
+  var mem = [];
+  function readCart(){
+    try { var raw = localStorage.getItem(CART_KEY); return raw ? JSON.parse(raw) : []; }
+    catch(e){ return mem; }
+  }
+  function writeCart(arr){
+    mem = arr;
+    try { localStorage.setItem(CART_KEY, JSON.stringify(arr)); } catch(e){}
+    updateBadge();
+  }
+  function updateBadge(){
+    var count = readCart().reduce(function(sum,it){ return sum + (it.qty||1); }, 0);
+    document.querySelectorAll('.wz-cart-badge').forEach(function(b){
+      b.textContent = String(count);
+      b.hidden = count === 0;
+    });
+  }
+  window.wzCart = { read: readCart, write: writeCart, update: updateBadge };
+
+  document.querySelectorAll('[data-cart-add]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.dataset.id, name = btn.dataset.name, price = parseFloat(btn.dataset.price)||0, type = btn.dataset.type || 'physical';
+      var variant = '';
+      if (btn.dataset.variantId) {
+        var sel = document.getElementById(btn.dataset.variantId);
+        if (sel) variant = sel.value || '';
+      }
+      var key = id + '|' + variant;
+      var cart = readCart();
+      var existing = null;
+      for (var i=0; i<cart.length; i++){ if (cart[i].key === key) { existing = cart[i]; break; } }
+      if (existing) { existing.qty = (existing.qty||1) + 1; }
+      else { cart.push({ key: key, id: id, name: name, price: price, type: type, variant: variant, qty: 1 }); }
+      writeCart(cart);
+      var origText = btn.textContent;
+      btn.textContent = '✓ Přidáno';
+      btn.disabled = true;
+      setTimeout(function(){ btn.textContent = origText; btn.disabled = false; }, 1000);
+    });
+  });
+
+  updateBadge();
+})();<\/script>`;
+}
+
+// Vykreslování obsahu košíku na stránce kosik.html — tabulka položek,
+// množství, doprava (jen když je v košíku fyzické zboží) a mezisoučty.
+// Shrnutí objednávky (window.__wzOrderSummary) čte eshopOrderFormScript()
+// při odeslání formuláře.
+function eshopCartPageScript(s){
+  const currency = (s.eshop && s.eshop.currency) || 'Kč';
+  return `<script>(function(){
+  var CURRENCY = ${JSON.stringify(currency)};
+  function fmt(n){ return (Math.round(n*100)/100).toLocaleString('cs-CZ') + ' ' + CURRENCY; }
+  function esc(str){ var d = document.createElement('div'); d.textContent = str == null ? '' : String(str); return d.innerHTML; }
+  function buildSummary(cart, hasPhysical, shipSel, subtotal, shipPrice, total){
+    var lines = cart.map(function(it){
+      return '- ' + it.name + (it.variant ? ' (' + it.variant + ')' : '') + ' x' + it.qty + ' = ' + fmt(it.price*it.qty);
+    });
+    if (hasPhysical && shipSel && shipSel.options.length){
+      lines.push('Doprava: ' + shipSel.options[shipSel.selectedIndex].textContent);
+    }
+    lines.push('Celkem: ' + fmt(total));
+    return lines.join('\\n');
+  }
+  function render(){
+    var cart = (window.wzCart ? window.wzCart.read() : []) || [];
+    var tableEl = document.getElementById('wzCartTable');
+    var emptyEl = document.getElementById('wzCartEmpty');
+    var totalsEl = document.getElementById('wzCartTotals');
+    var shipSection = document.getElementById('wzShippingSection');
+    if (!tableEl) return;
+    if (!cart.length){
+      tableEl.innerHTML = '';
+      if (emptyEl) emptyEl.hidden = false;
+      if (totalsEl) totalsEl.innerHTML = '';
+      if (shipSection) shipSection.hidden = true;
+      window.__wzOrderSummary = '';
+      return;
+    }
+    if (emptyEl) emptyEl.hidden = true;
+    var hasPhysical = cart.some(function(it){ return it.type !== 'digital'; });
+    if (shipSection) shipSection.hidden = !hasPhysical;
+    tableEl.innerHTML = cart.map(function(it, idx){
+      return '<div class="eshop-cart-row" data-idx="' + idx + '">' +
+        '<div class="eshop-cart-row-name">' + esc(it.name) + (it.variant ? ' <span class="eshop-cart-variant">(' + esc(it.variant) + ')</span>' : '') + '</div>' +
+        '<div class="eshop-cart-row-qty"><button type="button" class="wz-qty-btn" data-qty="-1" data-idx="' + idx + '" aria-label="Ubrat">−</button><span>' + it.qty + '</span><button type="button" class="wz-qty-btn" data-qty="1" data-idx="' + idx + '" aria-label="Přidat">+</button></div>' +
+        '<div class="eshop-cart-row-price">' + fmt(it.price * it.qty) + '</div>' +
+        '<button type="button" class="wz-cart-remove" data-idx="' + idx + '" aria-label="Odebrat">✕</button>' +
+        '</div>';
+    }).join('');
+    var subtotal = cart.reduce(function(sum,it){ return sum + it.price*it.qty; }, 0);
+    var shipPrice = 0;
+    var shipSel = document.getElementById('wzShipSelect');
+    if (hasPhysical && shipSel && shipSel.options.length){
+      shipPrice = parseFloat(shipSel.options[shipSel.selectedIndex].dataset.price) || 0;
+    }
+    var total = subtotal + (hasPhysical ? shipPrice : 0);
+    totalsEl.innerHTML = '<div class="eshop-cart-total-row"><span>Mezisoučet</span><span>' + fmt(subtotal) + '</span></div>' +
+      (hasPhysical ? '<div class="eshop-cart-total-row"><span>Doprava</span><span>' + fmt(shipPrice) + '</span></div>' : '') +
+      '<div class="eshop-cart-total-row eshop-cart-total-final"><span>Celkem</span><span>' + fmt(total) + '</span></div>';
+    window.__wzOrderSummary = buildSummary(cart, hasPhysical, shipSel, subtotal, shipPrice, total);
+  }
+  window.__wzCartRender = render;
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('.wz-qty-btn') : null;
+    if (btn){
+      var cart = window.wzCart.read();
+      var idx = +btn.dataset.idx;
+      if (cart[idx]) cart[idx].qty = Math.max(1, (cart[idx].qty||1) + (+btn.dataset.qty));
+      window.wzCart.write(cart);
+      render();
+      return;
+    }
+    var rm = e.target.closest ? e.target.closest('.wz-cart-remove') : null;
+    if (rm){
+      var cart2 = window.wzCart.read();
+      cart2.splice(+rm.dataset.idx, 1);
+      window.wzCart.write(cart2);
+      render();
+    }
+  });
+  var shipSelEl = document.getElementById('wzShipSelect');
+  if (shipSelEl) shipSelEl.addEventListener('change', render);
+  render();
+})();<\/script>`;
+}
+
+// Odeslání objednávkového formuláře na kosik.html — stejný princip jako
+// contactFormScript(), navíc: odmítne prázdný košík, doplní shrnutí
+// objednávky do skrytého pole před odesláním a po úspěchu košík vyprázdní.
+function eshopOrderFormScript(){
+  return `<script>(function(){
+  var form = document.querySelector('.eshop-order-form');
+  if (!form) return;
+  var statusEl = form.querySelector('.eshop-order-status');
+  var provider = form.dataset.eshoporderProvider;
+  function setStatus(msg, isError){
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    statusEl.className = 'eshop-order-status' + (isError ? ' error' : ' success');
+  }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var cart = window.wzCart ? window.wzCart.read() : [];
+    if (!cart.length){ setStatus('Košík je prázdný — nejdřív přidej nějaký produkt.', true); return; }
+    var hp = form.querySelector('input[name="_hpwebsite"]');
+    if (hp && hp.value){ form.reset(); setStatus('Díky! Objednávka byla odeslána.', false); return; }
+    var summaryField = form.querySelector('#wzOrderSummaryField');
+    if (summaryField) summaryField.value = window.__wzOrderSummary || '';
+    if (provider === 'mailto'){
+      var fd = new FormData(form);
+      var body = 'Jméno: ' + (fd.get('name')||'') + '\\nE-mail: ' + (fd.get('email')||'') +
+        (fd.get('phone') ? ('\\nTelefon: ' + fd.get('phone')) : '') +
+        (fd.get('address') ? ('\\nAdresa: ' + fd.get('address')) : '') +
+        (fd.get('note') ? ('\\nPoznámka: ' + fd.get('note')) : '') +
+        '\\n\\nObjednávka:\\n' + (fd.get('objednavka_shrnuti')||'');
+      window.location.href = 'mailto:' + encodeURIComponent(form.dataset.mailto || '') +
+        '?subject=' + encodeURIComponent('Nová objednávka z eshopu') + '&body=' + encodeURIComponent(body);
+      setStatus('Otevírá se tvoje e-mailová aplikace…', false);
+      if (window.wzCart) window.wzCart.write([]);
+      if (window.__wzCartRender) window.__wzCartRender();
+      return;
+    }
+    var submitBtn = form.querySelector('button[type=submit]');
+    if (submitBtn) submitBtn.disabled = true;
+    setStatus('Odesílám…', false);
+    var fetchUrl, fetchOptions;
+    if (provider === 'netlify'){
+      fetchUrl = window.location.pathname;
+      fetchOptions = { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams(new FormData(form)).toString() };
+    } else {
+      fetchUrl = form.action;
+      fetchOptions = { method: 'POST', body: new FormData(form), headers: {'Accept':'application/json'} };
+    }
+    fetch(fetchUrl, fetchOptions).then(function(res){
+      if (res.ok){
+        form.reset();
+        setStatus('Díky! Objednávka byla odeslána — informace o platbě najdeš níž.', false);
+        if (window.wzCart) window.wzCart.write([]);
+        if (window.__wzCartRender) window.__wzCartRender();
+      } else {
+        setStatus('Objednávku se nepodařilo odeslat, zkus to prosím znovu.', true);
+      }
+    }).catch(function(){
+      setStatus('Objednávku se nepodařilo odeslat — zkontroluj připojení k internetu.', true);
+    }).finally(function(){
+      if (submitBtn) submitBtn.disabled = false;
+    });
+  });
+})();<\/script>`;
+}
+
+// Obsluha odemykání stažení digitálních produktů (viz eshopDigitalUnlockSectionHtml) —
+// zadaný kód se ověří porovnáním SHA-256 otisků, stejně jako u odemykacího
+// kódu appky samotné. Vyžaduje https nebo localhost (crypto.subtle).
+function eshopUnlockScript(){
+  return `<script>(function(){
+  // "async function" schválně (ne obyčejná funkce s ručním .then řetězcem) —
+  // díky tomu se i synchronní výjimka (chybějící crypto.subtle na http:// mimo
+  // localhost, nebo ve starším prohlížeči) automaticky promění v zamítnutý
+  // Promise, který dole zachytí .catch(), místo aby vypadla nezachycená chyba.
+  async function sha256Hex(text){
+    var enc = new TextEncoder().encode(text);
+    var digest = await crypto.subtle.digest('SHA-256', enc);
+    return Array.prototype.map.call(new Uint8Array(digest), function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+  document.querySelectorAll('[data-unlock-item]').forEach(function(item){
+    var hash = item.dataset.hash;
+    var file = item.dataset.file;
+    var input = item.querySelector('.eshop-unlock-code');
+    var btn = item.querySelector('.eshop-unlock-btn');
+    var link = item.querySelector('.eshop-unlock-download');
+    var msg = item.querySelector('.eshop-unlock-msg');
+    if (!btn || !input) return;
+    function tryUnlock(){
+      var val = (input.value || '').trim();
+      if (!val) return;
+      if (!hash){
+        msg.textContent = 'Pro tenhle produkt zatím není nastavený odemykací kód.';
+        msg.className = 'eshop-unlock-msg error';
+        return;
+      }
+      sha256Hex(val).then(function(computed){
+        if (computed === hash && file){
+          link.href = file;
+          link.hidden = false;
+          msg.textContent = 'Odemčeno! Klikni na tlačítko stažení.';
+          msg.className = 'eshop-unlock-msg success';
+        } else {
+          msg.textContent = 'Neplatný kód.';
+          msg.className = 'eshop-unlock-msg error';
+        }
+      }).catch(function(){
+        msg.textContent = 'Kód se nepodařilo ověřit (stránka musí běžet přes https, nebo lokálně).';
+        msg.className = 'eshop-unlock-msg error';
+      });
+    }
+    btn.addEventListener('click', tryUnlock);
+    input.addEventListener('keydown', function(e){ if (e.key === 'Enter'){ e.preventDefault(); tryUnlock(); } });
+  });
+})();<\/script>`;
+}
+
+// Samostatná stránka kosik.html — košík, doprava, objednávkový formulář,
+// platba a odemykání digitálních produktů. Generuje se jen v režimu eshopu
+// (state.mode === 'eshop'), viz exportAllBtn a buildCurrentPreviewHTML.
+function buildCartPageHTML(s, customSectionsData, homeFilename){
+  const domain = (s.domain || 'https://example.com/').trim();
+  const pageUrl = domain.replace(/\/$/, '') + '/kosik.html';
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: '' });
+  const orderForm = buildEshopOrderFormHtml(s);
+  const currency = escapeHtml((s.eshop && s.eshop.currency) || 'Kč');
+
+  const mainHtml = `
+    <section class="eshop-cart-section wrap" id="kosik-obsah">
+      <a href="${escapeAttr(homeFilename)}" class="back-home">← Zpět na hlavní stránku</a>
+      <h1>Košík</h1>
+      <div id="wzCartTable" class="eshop-cart-table"></div>
+      <p id="wzCartEmpty" class="eshop-cart-empty" hidden>Košík je zatím prázdný — <a href="${escapeAttr(homeFilename)}#produkty">prohlédni si nabídku</a>.</p>
+      <div class="eshop-cart-totals" id="wzCartTotals"></div>
+    </section>
+
+    <section class="eshop-shipping-section wrap" id="wzShippingSection" hidden>
+      <h2>Doprava</h2>
+      <select id="wzShipSelect">
+        ${(s.eshop.shipping||[]).map((sh,i) => `<option value="${i}" data-price="${Number(sh.price)||0}">${escapeHtml(sh.label)} — ${(Number(sh.price)||0).toLocaleString('cs-CZ')} ${currency}</option>`).join('')}
+      </select>
+    </section>
+
+    <section class="eshop-order-section wrap" id="objednavka">
+      <h2>Doručovací a kontaktní údaje</h2>
+      ${orderForm.missing ? `<p class="eshop-order-empty">Objednávkový formulář zatím není nastavený — doplň ho v sekci „Eshop — objednávkový formulář" v editoru.</p>` : orderForm.html}
+    </section>
+
+    <section class="eshop-payment-section wrap" id="platba">
+      <h2>Jak zaplatit</h2>
+      ${eshopPaymentMethodsHtml(s)}
+    </section>
+${eshopDigitalUnlockSectionHtml(s)}`;
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>Košík — ${escapeHtml(s.brand)}</title>
+<meta name="description" content="Košík a objednávka — ${escapeAttr(s.brand)}">
+<link rel="canonical" href="${escapeAttr(pageUrl)}">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escapeAttr(s.brand)}">
+<meta property="og:title" content="Košík — ${escapeAttr(s.brand)}">
+<meta property="og:url" content="${escapeAttr(pageUrl)}">
+<meta property="og:locale" content="cs_CZ">
+<meta name="robots" content="noindex, follow">
+<meta name="generator" content="SYNTHLUCIDA WEBZENith — https://synthlucida.com">
+
+${faviconLinkHtml(s)}
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+${googleFontsLinkHtml(s)}
+
+${sharedStyleTag(s)}
+${customHeadHtml(s)}
+</head>
+<body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+${mainHtml}
+
+    <footer>${s.footer.showCopyright ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>` : ''}${webzenWatermarkHtml()}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+    ${menuToggleScript()}
+    ${previewNavInterceptScript()}
+  <\/script>
+${eshopCartScript()}
+${eshopCartPageScript(s)}
+${orderForm.missing ? '' : eshopOrderFormScript()}
+${eshopUnlockScript()}
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  <\/script>
+${customBodyEndHtml(s)}
+</body>
+</html>`;
+}
+
 function sharedStyleTag(s){
   return `<style>
   :root{
@@ -4067,9 +4978,9 @@ function sharedStyleTag(s){
   }
   .contact-form button:hover{opacity:.92;}
   .contact-form button:disabled{opacity:.6;cursor:default;}
-  .contact-status{min-height:1.2em;font-size:13px;margin:0;text-align:center;}
-  .contact-status.success{color:#4ade80;}
-  .contact-status.error{color:#f87171;}
+  .contact-status, .eshop-order-status{min-height:1.2em;font-size:13px;margin:0;text-align:center;}
+  .contact-status.success, .eshop-order-status.success{color:#4ade80;}
+  .contact-status.error, .eshop-order-status.error{color:#f87171;}
   .hp-field{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;}
 
   .custom-section{padding:70px 20px;max-width:720px;margin:0 auto;min-height:60vh;}
@@ -4164,6 +5075,117 @@ function sharedStyleTag(s){
     .nav-scrim{display:none;}
     .page-content{margin-left:230px;}
   }
+  /* ---------- Eshop: produkty, košík, doprava, platba, odemykání ---------- */
+  .side-nav-cart{display:flex !important;align-items:center;gap:6px;}
+  .wz-cart-badge{
+    background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;
+    border-radius:99px;padding:1px 7px;line-height:1.5;
+  }
+  .eshop-products-section{padding:50px 20px 20px;}
+  .eshop-products-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 10px;}
+  .eshop-products-intro{text-align:center;color:#c7c7ce;font-size:14px;max-width:560px;margin:0 auto 30px;}
+  .eshop-products-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;}
+  .eshop-product-card{
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;overflow:hidden;display:flex;flex-direction:column;
+  }
+  .eshop-product-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;}
+  .eshop-product-body{padding:18px;display:flex;flex-direction:column;gap:8px;}
+  .eshop-product-badge{
+    align-self:flex-start;font-size:11px;font-weight:600;color:#c7c7ce;
+    background:rgba(255,255,255,.07);border-radius:99px;padding:3px 10px;
+  }
+  .eshop-product-body h3{margin:0;font-size:16px;}
+  .eshop-product-desc{font-size:13.5px;color:#c7c7ce;line-height:1.55;margin:0;}
+  .eshop-product-price{font-weight:700;font-size:17px;color:var(--accent);}
+  .eshop-variant-select{
+    width:100%;background:rgba(255,255,255,.05);color:#fff;border:1px solid rgba(255,255,255,.14);
+    border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;
+  }
+  .eshop-add-btn{
+    margin-top:4px;background:var(--accent);color:#fff;border:none;border-radius:99px;
+    padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .eshop-add-btn:hover{opacity:.92;}
+  .eshop-add-btn:disabled{opacity:.7;cursor:default;}
+  .eshop-product-note{font-size:12px;color:#9a9aa2;margin:0;}
+  .eshop-product-note a{color:var(--accent);}
+
+  .eshop-cart-section, .eshop-shipping-section, .eshop-order-section, .eshop-payment-section, .eshop-unlock-section{
+    padding:26px 20px;max-width:640px;margin:0 auto;
+  }
+  .eshop-cart-section h1{font-size:clamp(22px,3.5vw,30px);margin:0 0 18px;}
+  .eshop-shipping-section h2, .eshop-order-section h2, .eshop-payment-section h2, .eshop-unlock-section h2{
+    font-size:clamp(19px,3vw,24px);margin:0 0 14px;
+  }
+  .eshop-cart-table{display:flex;flex-direction:column;gap:10px;}
+  .eshop-cart-row{
+    display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;padding:12px 14px;
+  }
+  .eshop-cart-row-name{font-size:14px;}
+  .eshop-cart-variant{color:#9a9aa2;font-size:12.5px;}
+  .eshop-cart-row-qty{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .wz-qty-btn{
+    width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.14);color:#fff;cursor:pointer;font-size:14px;line-height:1;
+  }
+  .wz-qty-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .eshop-cart-row-price{font-weight:600;font-size:13.5px;white-space:nowrap;}
+  .wz-cart-remove{
+    background:none;border:none;color:#9a9aa2;cursor:pointer;font-size:14px;padding:4px;
+  }
+  .wz-cart-remove:hover{color:#f87171;}
+  .eshop-cart-empty{color:#c7c7ce;font-size:14px;}
+  .eshop-cart-empty a{color:var(--accent);}
+  .eshop-cart-totals{margin-top:16px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px;}
+  .eshop-cart-total-row{display:flex;justify-content:space-between;font-size:13.5px;color:#c7c7ce;padding:3px 0;}
+  .eshop-cart-total-final{font-weight:700;font-size:16px;color:#fff;margin-top:4px;}
+
+  .eshop-shipping-section select{
+    width:100%;background:rgba(255,255,255,.05);color:#fff;border:1px solid rgba(255,255,255,.14);
+    border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;
+  }
+  .eshop-order-empty, .eshop-payment-empty{color:#c7c7ce;font-size:13.5px;}
+
+  .eshop-payment-methods{display:flex;flex-direction:column;gap:14px;}
+  .eshop-payment-method{
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;padding:16px 18px;
+  }
+  .eshop-payment-method h3{margin:0 0 8px;font-size:15px;}
+  .eshop-payment-method p{margin:0 0 4px;color:#c7c7ce;font-size:13.5px;line-height:1.55;}
+  .eshop-payment-account{
+    font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#fff;
+    background:rgba(255,255,255,.06);border-radius:7px;padding:6px 10px;display:inline-block;
+  }
+  .eshop-payment-note{color:#9a9aa2;font-size:12.5px;margin-top:12px;}
+
+  .eshop-unlock-intro{color:#c7c7ce;font-size:13.5px;margin:0 0 16px;}
+  .eshop-unlock-list{display:flex;flex-direction:column;gap:12px;}
+  .eshop-unlock-item{
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;padding:14px 16px;
+  }
+  .eshop-unlock-name{font-weight:600;font-size:14px;margin-bottom:8px;}
+  .eshop-unlock-controls{display:flex;gap:8px;flex-wrap:wrap;}
+  .eshop-unlock-code{
+    flex:1;min-width:140px;background:rgba(255,255,255,.05);color:#fff;
+    border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13.5px;
+  }
+  .eshop-unlock-btn{
+    background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;
+    font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .eshop-unlock-download{
+    display:inline-block;margin-top:10px;color:var(--accent);font-weight:600;text-decoration:none;font-size:13.5px;
+  }
+  .eshop-unlock-download:hover{text-decoration:underline;}
+  .eshop-unlock-msg{display:block;margin-top:8px;font-size:12.5px;}
+  .eshop-unlock-msg.success{color:#4ade80;}
+  .eshop-unlock-msg.error{color:#f87171;}
+
 ${(s.customCode && (s.customCode.css || '').trim()) ? `\n  /* Vlastní CSS (doplněné ručně v sekci "Vlastní kód") */\n${s.customCode.css}\n` : ''}
 </style>`;
 }
@@ -4407,7 +5429,7 @@ ${sideNavHtml}
         </div>
       </div>
     </section>
-
+${s.mode === 'eshop' ? eshopProductsSectionHtml(s) : ''}
     <section class="cards-section wrap" id="funkce">
       <h2>${escapeHtml(s.cardsHeading || 'Co nabízíme')}</h2>
       <div class="cards">${cardsHtml}
@@ -4421,6 +5443,7 @@ ${contactSectionHtml}
     <footer>${footerTextHtml}${footerLinksHtml}${footerCopyrightHtml}${webzenWatermarkHtml()}</footer>
 
   </div>
+${s.mode === 'eshop' ? eshopCartScript() : ''}
 ${contactSectionHtml ? contactFormScript() : ''}
   <script>
     var yEl = document.getElementById('y');
@@ -4624,6 +5647,7 @@ ${mainHtml}
     ${menuToggleScript()}
     ${previewNavInterceptScript()}
   <\/script>
+${s.mode === 'eshop' ? eshopCartScript() : ''}
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -4707,6 +5731,7 @@ ${mainHtml}
     ${menuToggleScript()}
     ${previewNavInterceptScript()}
   <\/script>
+${s.mode === 'eshop' ? eshopCartScript() : ''}
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -4856,6 +5881,7 @@ ${mainHtml}
     ${menuToggleScript()}
     ${previewNavInterceptScript()}
   <\/script>
+${s.mode === 'eshop' ? eshopCartScript() : ''}
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -4887,11 +5913,13 @@ function updatePreviewIndicator(){
   if (!el) return;
   const isNotFound = previewSectionIndex === 'notfound';
   const isPrivacy = previewSectionIndex === 'privacy';
-  const sec = (!isNotFound && !isPrivacy && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
-  if (sec || isNotFound || isPrivacy) {
+  const isCart = previewSectionIndex === 'cart';
+  const sec = (!isNotFound && !isPrivacy && !isCart && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
+  if (sec || isNotFound || isPrivacy || isCart) {
     el.classList.add('show');
     const label = isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Stránka nenalezena')
       : isPrivacy ? 'Zásady ochrany osobních údajů'
+      : isCart ? 'Košík / objednávka'
       : escapeHtml(sec.label || sec.title || 'Stránka');
     el.innerHTML = `📄 Náhled: <b>${label}</b>`;
     const backBtn = document.createElement('button');
@@ -4909,6 +5937,8 @@ function updatePreviewIndicator(){
   if (nfBtn) nfBtn.textContent = isNotFound ? '👁️ Právě v náhledu' : '👁️ Náhled stránky 404';
   const ppBtn = document.getElementById('previewPrivacyBtn');
   if (ppBtn) ppBtn.textContent = isPrivacy ? '👁️ Právě v náhledu' : '👁️ Náhled stránky';
+  const cartBtn = document.getElementById('previewCartBtn');
+  if (cartBtn) cartBtn.textContent = isCart ? '👁️ Právě v náhledu' : '👁️ Náhled stránky Košík';
 }
 
 function buildCurrentPreviewHTML(){
@@ -4919,6 +5949,9 @@ function buildCurrentPreviewHTML(){
   }
   if (previewSectionIndex === 'privacy') {
     return buildPrivacyPageHTML(state, customSectionsData, homeFilename);
+  }
+  if (previewSectionIndex === 'cart') {
+    return buildCartPageHTML(state, customSectionsData, homeFilename);
   }
   const sec = previewSectionIndex != null ? state.sections[previewSectionIndex] : null;
   if (sec) {
@@ -5261,6 +6294,9 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   jobs.push(() => downloadTextFile('404.html', buildNotFoundPageHTML(state, customSectionsData, homeFilename), 'text/html'));
   if (state.privacyPage && state.privacyPage.enabled) {
     jobs.push(() => downloadTextFile('privacy.html', buildPrivacyPageHTML(state, customSectionsData, homeFilename), 'text/html'));
+  }
+  if (state.mode === 'eshop') {
+    jobs.push(() => downloadTextFile('kosik.html', buildCartPageHTML(state, customSectionsData, homeFilename), 'text/html'));
   }
   // PWA a SEO soubory — dřív se daly stáhnout jen zvlášť tlačítky v sekcích
   // "PWA"/"Sitemap.xml", teď jsou součástí kompletního exportu, ať "Stáhnout
