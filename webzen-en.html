@@ -1027,9 +1027,17 @@ function getDefaultState(){
     heading: 'Our products',
     intro: 'Pick from the list below and add items to your cart.',
     currency: '$',
+    // Product categories — optional. When there's at least one, each also gets
+    // generated as its own standalone .html page (showing only that category's
+    // products) and is automatically added to the left-hand menu, similar to
+    // "Custom pages" — see computeEshopCategoriesData/buildEshopCategoryPageHTML.
+    // Products are assigned to a category via the categoryIndex field (an index
+    // into this array, -1 = no category). The homepage keeps showing every
+    // product together regardless of category (see eshopProductsSectionHtml).
+    categories: [],
     products: [
-      {id:'p1', type:'physical', name:'Sample product', price:29, image:'', imageUrl:'', imageAlt:'', description:'Short product description shown on the card.', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:''},
-      {id:'p2', type:'digital', name:'Sample digital product', price:19, image:'', imageUrl:'', imageAlt:'', description:'E.g. an e-book, template or guide to download — no physical delivery.', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:''}
+      {id:'p1', type:'physical', name:'Sample product', price:29, image:'', imageUrl:'', imageAlt:'', description:'Short product description shown on the card.', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:'', categoryIndex:-1},
+      {id:'p2', type:'digital', name:'Sample digital product', price:19, image:'', imageUrl:'', imageAlt:'', description:'E.g. an e-book, template or guide to download — no physical delivery.', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:'', categoryIndex:-1}
     ],
     shipping: [
       {label:'Local pickup', price:0},
@@ -1526,7 +1534,7 @@ function initModeToggle(){
     btn.onclick = () => {
       if (state.mode === btn.dataset.mode) return;
       state.mode = btn.dataset.mode;
-      if (previewSectionIndex === 'cart' && state.mode !== 'eshop') previewSectionIndex = null;
+      if (state.mode !== 'eshop' && (previewSectionIndex === 'cart' || (typeof previewSectionIndex === 'string' && previewSectionIndex.indexOf('ecat:') === 0))) previewSectionIndex = null;
       renderForm();
       updatePreview();
     };
@@ -2222,6 +2230,7 @@ function renderForm(){
   bindCustomCodeInputs();
   bindFooterInputs();
   if (state.mode === 'eshop') {
+    renderEshopCategories();
     renderEshopProducts();
     renderEshopShipping();
     bindEshopSimpleInputs();
@@ -2229,9 +2238,14 @@ function renderForm(){
     bindEshopOrderFormInputs();
     const previewCartBtn = document.getElementById('previewCartBtn');
     if (previewCartBtn) previewCartBtn.onclick = () => setPreviewTarget('cart');
+    const addEshopCategoryBtn = document.getElementById('addEshopCategory');
+    if (addEshopCategoryBtn) addEshopCategoryBtn.onclick = () => {
+      state.eshop.categories.push({label:'New category', intro:''});
+      renderEshopCategories(); renderEshopProducts(); updatePreview();
+    };
     const addEshopProductBtn = document.getElementById('addEshopProduct');
     if (addEshopProductBtn) addEshopProductBtn.onclick = () => {
-      state.eshop.products.push({id:'p'+Date.now(), type:'physical', name:'New product', price:0, image:'', imageUrl:'', imageAlt:'', description:'', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:''});
+      state.eshop.products.push({id:'p'+Date.now(), type:'physical', name:'New product', price:0, image:'', imageUrl:'', imageAlt:'', description:'', variantLabel:'', variantOptions:'', fileUrl:'', fileData:'', fileName:'', unlockCode:'', unlockHash:'', categoryIndex:-1});
       renderEshopProducts(); updatePreview();
     };
     const addEshopShippingBtn = document.getElementById('addEshopShipping');
@@ -3138,6 +3152,13 @@ function eshopFormFieldsetsHtml(){
     </div>
 
     <div class="fieldset">
+      <div class="fieldset-title">🗂️ Shop — categories</div>
+      <div class="note-box" style="margin-top:0;margin-bottom:10px;">Optional — handy once you have a bigger catalog. Each category also gets generated as its own standalone page showing only that category's products, and is automatically added to the left-hand menu, similar to "Custom pages". The homepage keeps showing every product together regardless of category.</div>
+      <div id="eshopCategoriesList"></div>
+      <button class="add-btn" id="addEshopCategory">+ Add category</button>
+    </div>
+
+    <div class="fieldset">
       <div class="fieldset-title">🛍️ Shop — products</div>
       <div class="note-box" style="margin-top:0;margin-bottom:10px;"><b>Physical product</b> is shipped by mail/courier — shipping below applies to it. <b>Digital product</b> is a file to download (e-book, template, guide…) — shipping doesn't apply, and you can set an unlock code the customer enters after paying to unlock the download on the Cart page (you send them the code by hand, similar to Gumroad).</div>
       <div id="eshopProductsList"></div>
@@ -3226,11 +3247,59 @@ function eshopFormFieldsetsHtml(){
     </div>`;
 }
 
+function renderEshopCategories(){
+  const el = document.getElementById('eshopCategoriesList');
+  if (!el) return;
+  // Older saved/imported projects (from before this feature existed) don't
+  // have state.eshop.categories at all — without this guard it would crash
+  // here with "Cannot read properties of undefined (reading 'map')".
+  if (!state.eshop.categories) state.eshop.categories = [];
+  el.innerHTML = state.eshop.categories.map((cat,i) => `
+    <div class="card-item${previewSectionIndex==='ecat:'+i?' previewing':''}" data-i="${i}">
+      <button class="item-remove" data-remove-eshop-category="${i}">✕</button>
+      <input type="text" data-eshop-category="${i}" data-key="label" value="${escapeAttr(cat.label)}" placeholder="category name, e.g. Clothing">
+      <textarea data-eshop-category="${i}" data-key="intro" style="margin-top:6px;min-height:40px;" placeholder="short category intro text (optional)">${escapeHtml(cat.intro)}</textarea>
+      <button type="button" class="preview-page-btn" data-preview-eshop-category="${i}" style="margin-top:8px;">👁️ ${previewSectionIndex==='ecat:'+i?'Currently previewing':'Preview this category'}</button>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-eshop-category]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const i = +inp.dataset.eshopCategory, key = inp.dataset.key;
+      state.eshop.categories[i][key] = inp.value;
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-remove-eshop-category]').forEach(btn => {
+    btn.onclick = () => {
+      const removedIndex = +btn.dataset.removeEshopCategory;
+      state.eshop.categories.splice(removedIndex, 1);
+      if (previewSectionIndex === 'ecat:' + removedIndex) previewSectionIndex = null;
+      else if (typeof previewSectionIndex === 'string' && previewSectionIndex.indexOf('ecat:') === 0) {
+        const idx = parseInt(previewSectionIndex.slice(5), 10);
+        if (idx > removedIndex) previewSectionIndex = 'ecat:' + (idx - 1);
+      }
+      state.eshop.products.forEach(p => {
+        const ci = p.categoryIndex ?? -1;
+        if (ci === removedIndex) p.categoryIndex = -1;
+        else if (ci > removedIndex) p.categoryIndex = ci - 1;
+      });
+      updatePreviewIndicator();
+      renderEshopCategories(); renderEshopProducts(); updatePreview();
+    };
+  });
+  el.querySelectorAll('[data-preview-eshop-category]').forEach(btn => {
+    btn.onclick = () => setPreviewTarget('ecat:' + (+btn.dataset.previewEshopCategory));
+  });
+  enhanceTextareas();
+}
+
 function renderEshopProducts(){
   const el = document.getElementById('eshopProductsList');
   if (!el) return;
+  const categories = state.eshop.categories || [];
   el.innerHTML = state.eshop.products.map((p,i) => {
     const hasImage = (p.imageUrl || p.image || '').trim();
+    const categoryIndex = p.categoryIndex ?? -1;
     return `
     <div class="card-item" data-i="${i}">
       <button class="item-remove" data-remove-eshop-product="${i}">✕</button>
@@ -3242,6 +3311,10 @@ function renderEshopProducts(){
         <option value="physical" ${p.type!=='digital'?'selected':''}>📦 Physical product (shipped)</option>
         <option value="digital" ${p.type==='digital'?'selected':''}>💾 Digital product (download)</option>
       </select>
+      ${categories.length ? `<select data-eshop-product-category="${i}" style="margin-top:6px;">
+        <option value="-1" ${categoryIndex<0?'selected':''}>— No category —</option>
+        ${categories.map((cat,ci) => `<option value="${ci}" ${categoryIndex===ci?'selected':''}>${escapeHtml(cat.label || 'Category')}</option>`).join('')}
+      </select>` : ''}
       <textarea data-eshop-product="${i}" data-key="description" data-richtext="1" style="margin-top:6px;min-height:40px;" placeholder="short product description">${escapeHtml(p.description)}</textarea>
 
       <label style="margin-top:10px;">Product image</label>
@@ -3282,6 +3355,12 @@ function renderEshopProducts(){
     sel.addEventListener('change', () => {
       state.eshop.products[+sel.dataset.eshopProductType].type = sel.value;
       renderEshopProducts();
+      updatePreview();
+    });
+  });
+  el.querySelectorAll('[data-eshop-product-category]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      state.eshop.products[+sel.dataset.eshopProductCategory].categoryIndex = parseInt(sel.value, 10);
       updatePreview();
     });
   });
@@ -3608,9 +3687,11 @@ function buildSitemapXML(s){
     .map(l => /^https?:\/\//i.test(l) ? l : domain + l.replace(/^\//,''));
   // Vlastní stránky (samostatné .html soubory) se do sitemapy přidají automaticky.
   const pageUrls = computeCustomSectionsData(s).map(sec => domain + sec.filename);
+  // Shop category pages (unlike kosik.html) make sense to keep indexable.
+  const categoryUrls = s.mode === 'eshop' ? computeEshopCategoriesData(s).map(cat => domain + cat.filename) : [];
   // The GDPR/privacy page (unlike 404) makes sense to keep indexable.
   const privacyUrl = (s.privacyPage && s.privacyPage.enabled) ? [domain + 'privacy.html'] : [];
-  const urls = Array.from(new Set([domain, ...pageUrls, ...privacyUrl, ...extra]));
+  const urls = Array.from(new Set([domain, ...pageUrls, ...categoryUrls, ...privacyUrl, ...extra]));
   const urlEntries = urls.map(u => `  <url>
     <loc>${escapeHtml(u)}</loc>
     <lastmod>${escapeHtml(lastmod)}</lastmod>
@@ -3677,7 +3758,23 @@ function computeCustomSectionsData(s){
   });
 }
 
-// Pořadí položek levého menu: Hero -> Funkce -> vlastní stránky (pokud jsou zapnuté) -> FAQ.
+// Spočítá pro každou eshop kategorii unikátní slug + název souboru — stejný
+// princip jako computeCustomSectionsData, jen se navíc vyhýbá jménům, která už
+// používají vlastní stránky nebo vyhrazené soubory eshopu (kosik.html apod.),
+// ať si omylem nekolidují.
+function computeEshopCategoriesData(s){
+  const used = new Set(['kosik', '404', 'privacy', ...computeCustomSectionsData(s).map(sec => sec.slug)]);
+  return ((s.eshop && s.eshop.categories) || []).map((cat, i) => {
+    const base = slugifyPage(cat.label, 'category-' + (i+1));
+    let slug = base, n = 2;
+    while (used.has(slug)) { slug = base + '-' + n; n++; }
+    used.add(slug);
+    return { ...cat, index: i, id: 'ecat-' + slug, slug, filename: slug + '.html' };
+  });
+}
+
+// Pořadí položek levého menu: Hero -> Funkce -> vlastní stránky (pokud jsou zapnuté)
+// -> kategorie eshopu (jen v režimu eshopu) -> FAQ.
 // ctx.isHome = generujeme hlavní stránku (kotvy #hero/#funkce/#faq fungují lokálně),
 // jinak jde o vlastní podstránku a stejné odkazy musí mířit zpátky na hlavní soubor.
 function buildNavLinksData(s, customSectionsData, ctx){
@@ -3690,6 +3787,9 @@ function buildNavLinksData(s, customSectionsData, ctx){
   }
   if (s.nav?.showPagesMenu !== false) {
     customSectionsData.forEach(sec => links.push({ href: sec.filename, label: sec.label || sec.title, local: false, id: sec.slug }));
+  }
+  if (s.mode === 'eshop') {
+    computeEshopCategoriesData(s).forEach(cat => links.push({ href: cat.filename, label: cat.label || 'Category', local: false, id: cat.id }));
   }
   if (s.nav?.showFaq !== false && s.faq.length) {
     links.push({ href: ctx.isHome ? '#faq' : (ctx.homeFilename + '#faq'), label: s.nav?.faqLabel || 'FAQ', local: ctx.isHome, id: 'home' });
@@ -4004,11 +4104,35 @@ function contactFormScript(){
 
 // Products section on the home page — cards with image, price, optional
 // variant, and an "Add to cart" button (handled by eshopCartScript()).
-function eshopProductsSectionHtml(s){
+// opts (optional) — used for the standalone category pages:
+//   categoryIndex: number -> only show products with this categoryIndex
+//   heading/intro: override the default section heading/intro (typically the
+//   category's own name and text)
+function eshopProductsSectionHtml(s, opts){
+  opts = opts || {};
   const e = s.eshop || {};
-  const products = e.products || [];
-  if (!products.length) return '';
+  const allProducts = e.products || [];
+  const filtering = typeof opts.categoryIndex === 'number';
+  const products = filtering ? allProducts.filter(p => (p.categoryIndex ?? -1) === opts.categoryIndex) : allProducts;
+  if (!allProducts.length) return '';
+  if (filtering && !products.length) {
+    return `
+    <section class="eshop-products-section wrap" id="produkty">
+      <details class="eshop-products-toggle">
+        <summary class="eshop-products-toggle-summary"><h2>${escapeHtml(opts.heading || e.heading || 'Our products')}</h2></summary>
+        <div class="eshop-products-toggle-content">
+          ${(opts.intro||'').trim() ? `<p class="eshop-products-intro">${richText(opts.intro)}</p>` : ''}
+          <p class="eshop-products-empty">There are no products in this category yet.</p>
+        </div>
+      </details>
+    </section>`;
+  }
   const currency = escapeHtml(e.currency || '$');
+  // Each product is a <details>/<summary> (same principle as the FAQ above) —
+  // while collapsed only a compact summary row (thumbnail, name, price) is
+  // shown; the full description/variant/"Add to cart" button only appear
+  // once expanded. This keeps the products section from taking up a lot of
+  // space on the homepage even when the shop has many products.
   const cardsHtml = products.map(p => {
     const img = (p.imageUrl || '').trim() || p.image || '';
     const variantOpts = (p.variantOptions || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -4016,13 +4140,18 @@ function eshopProductsSectionHtml(s){
     const variantSelectId = 'wz-variant-' + slugifyGlobal(p.id, 'p');
     const priceNum = Number(p.price) || 0;
     return `
-        <article class="eshop-product-card">
-          ${img ? `<img class="eshop-product-img" src="${escapeAttr(img)}" alt="${escapeAttr(p.imageAlt || p.name || '')}" loading="lazy">` : ''}
+        <details class="eshop-product-card">
+          <summary class="eshop-product-summary">
+            ${img ? `<img class="eshop-product-thumb" src="${escapeAttr(img)}" alt="" loading="lazy">` : ''}
+            <span class="eshop-product-summary-text">
+              <span class="eshop-product-summary-name">${escapeHtml(p.name)}</span>
+              <span class="eshop-product-summary-price">${priceNum.toLocaleString('en-US')}&nbsp;${currency}</span>
+            </span>
+          </summary>
           <div class="eshop-product-body">
+            ${img ? `<img class="eshop-product-img" src="${escapeAttr(img)}" alt="${escapeAttr(p.imageAlt || p.name || '')}" loading="lazy">` : ''}
             <span class="eshop-product-badge">${p.type==='digital' ? '💾 Digital download' : '📦 Physical product'}</span>
-            <h3>${escapeHtml(p.name)}</h3>
             ${(p.description||'').trim() ? `<p class="eshop-product-desc">${richText(p.description)}</p>` : ''}
-            <div class="eshop-product-price">${priceNum.toLocaleString('en-US')}&nbsp;${currency}</div>
             ${hasVariant ? `<select class="eshop-variant-select" id="${escapeAttr(variantSelectId)}">
               ${variantOpts.map(o => `<option value="${escapeAttr(o)}">${escapeHtml(p.variantLabel || 'Option')}: ${escapeHtml(o)}</option>`).join('')}
             </select>` : ''}
@@ -4033,14 +4162,24 @@ function eshopProductsSectionHtml(s){
             </button>
             ${p.type==='digital' ? `<p class="eshop-product-note">Already have an unlock code? Download the product on the <a href="kosik.html#stazeni">Cart</a> page.</p>` : ''}
           </div>
-        </article>`;
+        </details>`;
   }).join('');
+  const heading = filtering ? (opts.heading || e.heading || 'Our products') : (e.heading || 'Our products');
+  const intro = filtering ? (opts.intro || '') : (e.intro || '');
+  // The whole section is also collapsible (a <details> wrapping the heading) —
+  // collapsed by default, so it doesn't take up space on the homepage right
+  // after load until the visitor expands it themselves. Individual products
+  // inside stay their own collapsible cards (see above).
   return `
     <section class="eshop-products-section wrap" id="produkty">
-      <h2>${escapeHtml(e.heading || 'Our products')}</h2>
-      ${(e.intro||'').trim() ? `<p class="eshop-products-intro">${richText(e.intro)}</p>` : ''}
-      <div class="eshop-products-grid">${cardsHtml}
-      </div>
+      <details class="eshop-products-toggle">
+        <summary class="eshop-products-toggle-summary"><h2>${escapeHtml(heading)}</h2></summary>
+        <div class="eshop-products-toggle-content">
+          ${(intro||'').trim() ? `<p class="eshop-products-intro">${richText(intro)}</p>` : ''}
+          <div class="eshop-products-list">${cardsHtml}
+          </div>
+        </div>
+      </details>
     </section>`;
 }
 
@@ -4855,22 +4994,46 @@ function sharedStyleTag(s){
     border-radius:99px;padding:1px 7px;line-height:1.5;
   }
   .eshop-products-section{padding:50px 20px 20px;}
+  .eshop-products-toggle-summary{
+    cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .eshop-products-toggle-summary::-webkit-details-marker{display:none;}
+  .eshop-products-toggle-summary::after{
+    content:'+';color:var(--accent);font-size:24px;line-height:1;flex-shrink:0;
+  }
+  .eshop-products-toggle[open] .eshop-products-toggle-summary::after{content:'–';}
+  .eshop-products-toggle-summary h2{margin:0;}
+  .eshop-products-toggle-content{margin-top:16px;}
   .eshop-products-section h2{text-align:center;font-size:clamp(22px,3.5vw,30px);margin:0 0 10px;}
   .eshop-products-intro{text-align:center;color:#c7c7ce;font-size:14px;max-width:560px;margin:0 auto 30px;}
-  .eshop-products-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;}
+  .eshop-products-list{display:flex;flex-direction:column;gap:12px;max-width:640px;margin:0 auto;}
   .eshop-product-card{
     background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-    border-radius:14px;overflow:hidden;display:flex;flex-direction:column;
+    border-radius:14px;overflow:hidden;
   }
-  .eshop-product-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;}
-  .eshop-product-body{padding:18px;display:flex;flex-direction:column;gap:8px;}
+  .eshop-product-summary{
+    display:flex;align-items:center;gap:14px;padding:12px 18px;cursor:pointer;
+    list-style:none;
+  }
+  .eshop-product-summary::-webkit-details-marker{display:none;}
+  .eshop-product-summary::after{
+    content:'+';margin-left:auto;padding-left:10px;color:var(--accent);
+    font-size:20px;line-height:1;flex-shrink:0;
+  }
+  .eshop-product-card[open] .eshop-product-summary::after{content:'–';}
+  .eshop-product-thumb{width:46px;height:46px;border-radius:9px;object-fit:cover;flex-shrink:0;display:block;}
+  .eshop-product-summary-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .eshop-product-summary-name{
+    font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .eshop-product-summary-price{font-weight:700;font-size:13.5px;color:var(--accent);}
+  .eshop-product-body{padding:0 18px 18px;display:flex;flex-direction:column;gap:8px;}
+  .eshop-product-img{width:100%;max-width:280px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block;margin-bottom:2px;}
   .eshop-product-badge{
     align-self:flex-start;font-size:11px;font-weight:600;color:#c7c7ce;
     background:rgba(255,255,255,.07);border-radius:99px;padding:3px 10px;
   }
-  .eshop-product-body h3{margin:0;font-size:16px;}
   .eshop-product-desc{font-size:13.5px;color:#c7c7ce;line-height:1.55;margin:0;}
-  .eshop-product-price{font-weight:700;font-size:17px;color:var(--accent);}
   .eshop-variant-select{
     width:100%;background:rgba(255,255,255,.05);color:#fff;border:1px solid rgba(255,255,255,.14);
     border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;
@@ -4920,7 +5083,7 @@ function sharedStyleTag(s){
     width:100%;background:rgba(255,255,255,.05);color:#fff;border:1px solid rgba(255,255,255,.14);
     border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;
   }
-  .eshop-order-empty, .eshop-payment-empty{color:#c7c7ce;font-size:13.5px;}
+  .eshop-order-empty, .eshop-payment-empty, .eshop-products-empty{color:#c7c7ce;font-size:13.5px;}
 
   .eshop-payment-methods{display:flex;flex-direction:column;gap:14px;}
   .eshop-payment-method{
@@ -5432,6 +5595,89 @@ ${customBodyEndHtml(s)}
 </html>`;
 }
 
+// Standalone page for a single shop category — only generated when at least
+// one category exists (see computeEshopCategoriesData). Same shell as custom
+// pages (buildSectionPageHTML above) — same side menu (with a link to itself
+// added in), footer and watermark — just the main content is the product
+// list restricted to this category (eshopProductsSectionHtml with a
+// categoryIndex filter). The homepage (buildSiteHTML) is unaffected and
+// keeps showing every product.
+function buildEshopCategoryPageHTML(s, cat, customSectionsData, homeFilename){
+  const domain = (s.domain || 'https://example.com/').trim();
+  const pageUrl = domain.replace(/\/$/, '') + '/' + cat.filename;
+  const description = (cat.intro || s.description || '').trim();
+
+  const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
+  const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: cat.id });
+
+  const mainHtml = eshopProductsSectionHtml(s, { categoryIndex: cat.index, heading: cat.label, intro: cat.intro });
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="${s.accent}">
+
+<title>${escapeHtml(cat.label || 'Category')} — ${escapeHtml(s.brand)}</title>
+<meta name="description" content="${escapeAttr(description)}">
+<link rel="canonical" href="${escapeAttr(pageUrl)}">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${escapeAttr(s.brand)}">
+<meta property="og:title" content="${escapeAttr(cat.label || 'Category')} — ${escapeAttr(s.brand)}">
+<meta property="og:description" content="${escapeAttr(description)}">
+<meta property="og:url" content="${escapeAttr(pageUrl)}">
+<meta property="og:image" content="${escapeAttr(domain)}og-image.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<meta name="generator" content="SYNTHLUCIDA WEBZENith — https://synthlucida.com">
+
+${faviconLinkHtml(s)}
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+
+${googleFontsLinkHtml(s)}
+
+${sharedStyleTag(s)}
+${customHeadHtml(s)}
+</head>
+<body class="cards-${['grid','list','numbered','minimal'].includes(s.cardsLayout) ? s.cardsLayout : 'grid'}">
+${cookieBannerHtml(s.cookieBanner, { links: resolvePrivacyFooterLinks(s) })}
+
+${sideNavHtml}
+
+  <div class="page-content" id="pageContent">
+    <section class="custom-section wrap" style="padding-bottom:0;">
+      <a href="${escapeAttr(homeFilename)}" class="back-home">← Back to homepage</a>
+    </section>
+${mainHtml}
+
+    <footer>${s.footer.showCopyright ? `<p class="footer-text">© <span id="y"></span> ${escapeHtml(s.brand)}</p>` : ''}${webzenWatermarkHtml()}</footer>
+
+  </div>
+
+  <script>
+    var yEl = document.getElementById('y');
+    if (yEl) yEl.textContent = new Date().getFullYear();
+    ${menuToggleScript()}
+    ${previewNavInterceptScript()}
+  <\/script>
+${eshopCartScript()}
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  <\/script>
+${customBodyEndHtml(s)}
+</body>
+</html>`;
+}
+
 // Standalone 404 page — most sites are missing one entirely, so
 // SYNTHLUCIDA WEBZENith generates it as its own 404.html (kept out of the sitemap, with meta
 // robots "noindex", since error pages shouldn't be indexed by search
@@ -5683,18 +5929,30 @@ function setPreviewTarget(i){
   updatePreview();
 }
 
+// previewSectionIndex is sometimes a string with the 'ecat:' prefix + shop
+// category index (see computeEshopCategoriesData) — this helper recognizes
+// it and returns the matching category record, or null otherwise.
+function getPreviewEshopCategory(){
+  if (typeof previewSectionIndex !== 'string' || previewSectionIndex.indexOf('ecat:') !== 0) return null;
+  const idx = parseInt(previewSectionIndex.slice(5), 10);
+  const cats = computeEshopCategoriesData(state);
+  return cats[idx] || null;
+}
+
 function updatePreviewIndicator(){
   const el = document.getElementById('previewPageIndicator');
   if (!el) return;
   const isNotFound = previewSectionIndex === 'notfound';
   const isPrivacy = previewSectionIndex === 'privacy';
   const isCart = previewSectionIndex === 'cart';
-  const sec = (!isNotFound && !isPrivacy && !isCart && previewSectionIndex != null) ? state.sections[previewSectionIndex] : null;
-  if (sec || isNotFound || isPrivacy || isCart) {
+  const eshopCat = getPreviewEshopCategory();
+  const sec = (!isNotFound && !isPrivacy && !isCart && !eshopCat && previewSectionIndex != null && typeof previewSectionIndex === 'number') ? state.sections[previewSectionIndex] : null;
+  if (sec || isNotFound || isPrivacy || isCart || eshopCat) {
     el.classList.add('show');
     const label = isNotFound ? '404 — ' + escapeHtml(state.notFound.heading || 'Page not found')
       : isPrivacy ? 'Privacy Policy'
       : isCart ? 'Cart / checkout'
+      : eshopCat ? escapeHtml(eshopCat.label || 'Category')
       : escapeHtml(sec.label || sec.title || 'Page');
     el.innerHTML = `📄 Preview: <b>${label}</b>`;
     const backBtn = document.createElement('button');
@@ -5729,7 +5987,11 @@ function buildCurrentPreviewHTML(){
   if (previewSectionIndex === 'cart') {
     return buildCartPageHTML(state, customSectionsData, homeFilename);
   }
-  const sec = previewSectionIndex != null ? state.sections[previewSectionIndex] : null;
+  const eshopCat = getPreviewEshopCategory();
+  if (eshopCat) {
+    return buildEshopCategoryPageHTML(state, eshopCat, customSectionsData, homeFilename);
+  }
+  const sec = (typeof previewSectionIndex === 'number') ? state.sections[previewSectionIndex] : null;
   if (sec) {
     return buildSectionPageHTML(state, customSectionsData[previewSectionIndex], customSectionsData, homeFilename);
   }
@@ -5929,6 +6191,19 @@ function autosaveState(){
   }, 400);
 }
 
+// Object.assign when restoring a saved/imported project is only a shallow
+// merge — if the loaded state has an "eshop" key, it replaces the whole
+// default object, including fields that didn't exist yet when it was saved
+// (like categories). This backfills those missing new fields after every
+// such merge, so older projects never crash on "undefined" instead of an array.
+function normalizeLoadedState(s){
+  if (s.eshop) {
+    if (!s.eshop.categories) s.eshop.categories = [];
+    (s.eshop.products || []).forEach(p => { if (p.categoryIndex == null) p.categoryIndex = -1; });
+  }
+  return s;
+}
+
 function restoreAutosave(){
   let raw;
   try{ raw = localStorage.getItem(STORAGE_KEY); }catch(err){ return; }
@@ -5936,7 +6211,7 @@ function restoreAutosave(){
   try{
     const parsed = JSON.parse(raw);
     if (parsed && parsed.state){
-      state = Object.assign({}, state, parsed.state);
+      state = normalizeLoadedState(Object.assign({}, state, parsed.state));
       const savedAt = parsed.savedAt ? new Date(parsed.savedAt) : null;
       if (autosaveStatusEl){
         autosaveStatusEl.textContent = savedAt
@@ -5989,7 +6264,7 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
       const parsed = JSON.parse(reader.result);
       const loadedState = parsed && parsed.state ? parsed.state : parsed;
       if (!loadedState || typeof loadedState !== 'object') throw new Error('Invalid file format');
-      state = Object.assign({}, state, loadedState);
+      state = normalizeLoadedState(Object.assign({}, state, loadedState));
       previewSectionIndex = null;
       updatePreviewIndicator();
       initHistory();
@@ -6074,6 +6349,9 @@ document.getElementById('exportAllBtn').addEventListener('click', () => {
   }
   if (state.mode === 'eshop') {
     jobs.push(() => downloadTextFile('kosik.html', buildCartPageHTML(state, customSectionsData, homeFilename), 'text/html'));
+    computeEshopCategoriesData(state).forEach(cat => {
+      jobs.push(() => downloadTextFile(cat.filename, buildEshopCategoryPageHTML(state, cat, customSectionsData, homeFilename), 'text/html'));
+    });
   }
   // PWA and SEO files — previously only downloadable separately via buttons
   // in the "PWA"/"Sitemap.xml" sections, now part of the full export so
