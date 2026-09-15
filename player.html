@@ -533,7 +533,15 @@
   /* Slogany pod vizuálem */
   .slogan-wrap { position: relative; max-width: 280px; margin: 0 auto 4px auto; }
   .slogan-container {
-    min-height: 9px; 
+    /* Room for ~3 wrapped lines, so the box is always the same height no matter how long
+       the current slogan is - body is a flex column with justify-content:space-between,
+       so any height change here used to reshuffle the space around every other section
+       (including the player), which is what made everything "jump" every ~30s. */
+    min-height: 36px;
+    line-height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 8px; 
     opacity: 0;
     transition: opacity 2.5s ease-in-out; 
@@ -846,23 +854,40 @@
   .mini-stat-label { font-size: 9px; letter-spacing: 0.5px; opacity: 0.55; color: #fff; text-transform: uppercase; user-select: none; white-space: nowrap; }
 
   /* Focus mode toggle and screen-wake toggle - sit right under the LVL/XP indicator, on opposite sides */
-  .focus-mode-row { display: flex; justify-content: space-between; margin-top: -4px; margin-bottom: 6px; }
-  .focus-mode-left { display: flex; align-items: center; gap: 8px; }
-  .btn-focus-mode { background: none; border: 1px solid rgba(255,255,255,0.25); color: #fff; opacity: 0.55; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; }
+  .focus-mode-row { display: flex; justify-content: space-between; align-items: center; margin-top: -4px; margin-bottom: 6px; gap: 6px; }
+  /* focus-mode-left can shrink (min-width:0 lets its flex children actually shrink instead of
+     overflowing); focus-mode-right (tarot/visual/fullscreen/focus icons) never shrinks, so on
+     narrow phones the left group's text badges truncate instead of the two groups overlapping */
+  .focus-mode-left { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .focus-mode-right { flex: 0 0 auto; }
+  .focus-mode-left .btn-focus-mode,
+  .focus-mode-left .online-count-badge { flex-shrink: 0; }
+  .btn-focus-mode { background: none; border: 1px solid rgba(255,255,255,0.25); color: #fff; opacity: 0.55; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; flex-shrink: 0; }
   .btn-focus-mode:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
   .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
 
   /* Malý odznak s aktuální rychlostí připojení, vedle 🔆 tlačítka "display stále zapnutý" */
-  .net-speed-badge { font-size: 9px; letter-spacing: 0.03em; color: #fff; opacity: 0.5; white-space: nowrap; user-select: none; pointer-events: none; }
+  .net-speed-badge { font-size: 9px; letter-spacing: 0.03em; color: #fff; opacity: 0.5; white-space: nowrap; user-select: none; pointer-events: none; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
   .net-speed-badge:empty { display: none; }
 
   /* Odznak se skutečným stavem připojení (OK / NOK) vedle rychlosti - viz JS "netStatus*" */
-  .net-status-badge { font-size: 9px; letter-spacing: 0.05em; color: #fff; opacity: 0.75; white-space: nowrap; user-select: none; pointer-events: none; display: inline-flex; align-items: center; gap: 4px; }
+  .net-status-badge { font-size: 9px; letter-spacing: 0.05em; color: #fff; opacity: 0.75; white-space: nowrap; user-select: none; pointer-events: none; display: inline-flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+  .net-status-badge .net-status-dot { flex-shrink: 0; }
+  .net-status-badge #net-status-text { overflow: hidden; text-overflow: ellipsis; }
   .net-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #888; box-shadow: 0 0 4px #888; transition: background 0.4s ease, box-shadow 0.4s ease; flex-shrink: 0; }
   .net-status-badge.status-ok .net-status-dot { background: #00ff88; box-shadow: 0 0 5px #00ff88; }
   .net-status-badge.status-bad .net-status-dot { background: #ff3355; box-shadow: 0 0 5px #ff3355; }
   .net-status-badge.status-checking .net-status-dot { background: #ffcc00; box-shadow: 0 0 5px #ffcc00; animation: netStatusPulse 1.2s ease-in-out infinite; }
   @keyframes netStatusPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* On very narrow phones there isn't room for both the connection badges and the
+     🃏/🎨/⤢/⛶ icon row without crowding, so drop the speed text and status label first
+     and keep just the compact status dot - the tarot button never has to move or shrink. */
+  @media (max-width: 400px) {
+    .net-speed-badge { display: none; }
+    .net-status-badge #net-status-text { display: none; }
+    .net-status-badge { gap: 0; }
+  }
 
   /* Odhlašovací tlačítko admin režimu - skryté, dokud nejsi přihlášený přes 666 v chatu.
      Musí být v CSS AŽ ZA .btn-focus-mode, jinak by ho stejná specificita přebila. */
@@ -880,8 +905,6 @@
   body.focus-mode .main-files-btn,
   body.focus-mode .header,
   body.focus-mode .atmospheres,
-  body.focus-mode .themes-container,
-  body.focus-mode .visual-toggle-btn,
   body.focus-mode .crossfade-container,
   body.focus-mode .effects-container,
   body.focus-mode .download-progress-wrap,
