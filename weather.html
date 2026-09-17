@@ -101,6 +101,49 @@
   .blob.b2{ width:420px; height:420px; bottom:-10%; right:-14%; background:var(--accent-glow); animation-duration:65s; animation-delay:-14s; }
   @keyframes floatBlobs{ 0%{transform:translate(0,0);} 100%{transform:translate(60px,44px);} }
 
+  /* ---- weather background fx ---- */
+  .weather-fx{ position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+
+  .fx-star{ position:absolute; border-radius:50%; background:#fff; box-shadow:0 0 4px rgba(255,255,255,0.8); animation:fxTwinkle 3.5s ease-in-out infinite; }
+  @keyframes fxTwinkle{ 0%,100%{ opacity:var(--fx-min,0.15); } 50%{ opacity:var(--fx-max,0.95); } }
+
+  .fx-shootingstar{ position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; box-shadow:0 0 6px 1px #fff; opacity:0; }
+  .fx-shootingstar::before{ content:""; position:absolute; top:50%; left:50%; width:70px; height:1px;
+    background:linear-gradient(90deg, rgba(255,255,255,0.9), transparent);
+    transform-origin:left center; transform:translateY(-50%) rotate(-45deg); }
+  @keyframes fxShoot{ 0%{ opacity:0; transform:translate(0,0); } 4%{ opacity:1; } 35%{ opacity:1; transform:translate(-220px,220px); } 40%{ opacity:0; transform:translate(-250px,250px); } 100%{ opacity:0; } }
+
+  .fx-sunglow{ position:absolute; top:-12%; left:50%; width:65vmax; height:65vmax; margin-left:-32.5vmax; border-radius:50%;
+    background:radial-gradient(circle, var(--accent-color) 0%, transparent 68%); opacity:0.22; animation:fxSunPulse 7s ease-in-out infinite; }
+  @keyframes fxSunPulse{ 0%,100%{ opacity:0.16; transform:scale(1); } 50%{ opacity:0.26; transform:scale(1.06); } }
+
+  .fx-mote{ position:absolute; bottom:-5%; border-radius:50%; background:var(--accent-color); opacity:0; animation:fxRise linear infinite; }
+  @keyframes fxRise{ 0%{ transform:translate(0,0); opacity:0; } 10%{ opacity:0.55; } 90%{ opacity:0.35; } 100%{ transform:translate(var(--fx-dx,20px),-110vh); opacity:0; } }
+
+  .fx-cloud{ position:absolute; border-radius:50%; background:var(--accent-color); filter:blur(38px); opacity:0.16; animation:fxDrift linear infinite; }
+  @keyframes fxDrift{ 0%{ transform:translateX(-25vw); } 100%{ transform:translateX(125vw); } }
+
+  .fx-fogband{ position:absolute; left:-20%; width:140%; height:70px; border-radius:50%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent); filter:blur(6px); animation:fxFogDrift linear infinite; }
+  @keyframes fxFogDrift{ 0%{ transform:translateX(-8%); } 50%{ transform:translateX(8%); } 100%{ transform:translateX(-8%); } }
+
+  .fx-rain{ position:absolute; top:-15%; width:1.5px; border-radius:2px;
+    background:linear-gradient(to bottom, transparent, var(--accent-color)); opacity:0.45; animation:fxFall linear infinite; }
+  @keyframes fxFall{ 0%{ transform:translateY(0); } 100%{ transform:translateY(120vh); } }
+
+  .fx-snow{ position:absolute; top:-5%; border-radius:50%; background:#fff; box-shadow:0 0 3px var(--accent-color);
+    opacity:0.75; animation:fxSnowFall linear infinite; }
+  @keyframes fxSnowFall{
+    0%{ transform:translate(0,0) rotate(0deg); }
+    50%{ transform:translate(var(--fx-dx,18px), 55vh) rotate(180deg); }
+    100%{ transform:translate(0,120vh) rotate(360deg); }
+  }
+
+  .fx-flash{ position:absolute; inset:0; background:#fff; opacity:0; }
+  @media (prefers-reduced-motion: reduce){
+    .weather-fx *{ animation:none !important; }
+  }
+
   .wrap{
     position:relative; z-index:1; width:100%; max-width:460px; margin:0 auto;
     padding:calc(30px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
@@ -791,6 +834,7 @@
 </head>
 <body>
 <div class="ambient-blobs"><div class="blob b1"></div><div class="blob b2"></div></div>
+<div class="weather-fx" id="weatherFx" aria-hidden="true"></div>
 
 <div class="wrap">
   <header>
@@ -1082,7 +1126,9 @@
       drop: '<path d="M12 3s6.5 7.2 6.5 12A6.5 6.5 0 0 1 5.5 15C5.5 10.2 12 3 12 3Z"/>',
       wind: '<path d="M3 8h10.5a2.5 2.5 0 1 0-2.3-3.5M3 12.5h14.5a2.5 2.5 0 1 1-2.3 3.5M3 17h8.5a2 2 0 1 0-1.8-2.8"/>',
       warning: '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/>',
-      feelsPerson: '<circle cx="12" cy="7.3" r="3.1"/><path d="M6 20.5v-1.2a6 6 0 0 1 12 0v1.2"/>'
+      feelsPerson: '<circle cx="12" cy="7.3" r="3.1"/><path d="M6 20.5v-1.2a6 6 0 0 1 12 0v1.2"/>',
+      walk: '<circle cx="13.2" cy="4.3" r="1.7"/><path d="M12.3 6.6 9 8.4l.7 3.6-3 4.4"/><path d="M12.3 6.6l2.6 2 .9 4.2 3 2.4"/><path d="M9.7 12 13 13l1.5 5"/>',
+      coffee: '<path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z"/><path d="M17 9.5h1.2a2.3 2.3 0 0 1 0 4.6H17"/><path d="M8 3.2c-.6 1 .5 1.4-.1 2.4M11.7 3.2c-.6 1 .5 1.4-.1 2.4"/>'
     };
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+icons[name]+'</svg>';
   }
@@ -1136,6 +1182,52 @@
     return Math.max(groupWeight, precipProbMax || 0);
   }
 
+  var HOME_QUIPS = {
+    storm: [
+      "Radši se zavrtej doma, bouřka teď venku nebere zajatce.",
+      "Ven se dnes moc nehrň, blesky si dneska vládnou samy.",
+      "Bouřka bere vládu nad oblohou, sleduj ji radši z okna."
+    ],
+    rain: [
+      "Leje jak z konve, dneska je lepší zůstat v suchu.",
+      "Přívalový déšť dnes vede, ven se moc nechystej.",
+      "Takový liják radši přečkej pod střechou."
+    ],
+    snow: [
+      "Sněhová nadílka je dnes trochu moc, radši zůstaň v teple.",
+      "Vánice řádí naplno, dneska se ven moc nehrň.",
+      "Sníh valí jak o závod, radši počkej, až se to uklidní."
+    ],
+    cold: [
+      "Mráz je dnes extrémní, radši se zavrtej doma do tepla.",
+      "Venku je ledovo na kost, dneska zůstaň radši uvnitř.",
+      "Takovou kosu si dnes radši užij zpod deky."
+    ],
+    heat: [
+      "Vedro je dnes extrémní, radši zůstaň ve stínu nebo doma.",
+      "Slunce dneska nebere zajatce, hledej klimatizaci.",
+      "Takové vedro rovnou volá po odpočinku v chladu."
+    ],
+    default: [
+      "Radši se dnes zavrtej doma.",
+      "Dneska to venku moc nezkoušej.",
+      "Lepší den na pohodu doma než na výlety."
+    ]
+  };
+
+  function homeQuip(cur, group){
+    var apparent = cur.apparent_temperature;
+    var reason = "default";
+    if(group === "storm") reason = "storm";
+    else if(apparent <= -10) reason = "cold";
+    else if(apparent >= 35) reason = "heat";
+    else if(group === "snow") reason = "snow";
+    else if(group === "rain") reason = "rain";
+    var pool = HOME_QUIPS[reason] || HOME_QUIPS.default;
+    var idx = dayOfYear(new Date()) % pool.length;
+    return pool[idx];
+  }
+
   function activityAdvice(cur, data, mush){
     var precipNow = cur.precipitation || 0;
     var wind = cur.wind_speed_10m;
@@ -1143,8 +1235,13 @@
     var temp = cur.apparent_temperature;
     var group = weatherInfo(cur.weather_code, cur.is_day).group;
     var todayProb = (data.daily.precipitation_probability_max && data.daily.precipitation_probability_max[0]) || 0;
+    // total expected rainfall today gives a much better picture than just the current-hour reading
+    var todaySum = (data.daily.precipitation_sum != null && data.daily.precipitation_sum[0] != null)
+      ? data.daily.precipitation_sum[0] : precipNow * 3;
 
-    var severe = group === "storm" || group === "snow" || precipNow >= 1 || gust >= 50 || temp <= -8 || temp >= 35;
+    // only genuinely extreme conditions count as "severe" now - moderate rain/snow/wind
+    // still leave room for some outdoor options instead of jumping straight to "stay home"
+    var severe = group === "storm" || precipNow >= 4 || todaySum >= 15 || gust >= 60 || temp <= -12 || temp >= 37;
 
     var items = [];
     if(!severe){
@@ -1160,6 +1257,18 @@
       if(precipNow < 0.5 && todayProb < 55 && wind < 45 && temp >= -8 && temp <= 32){
         items.push({ name:"Výlet", icon:"hike", ok:true });
       }
+      if(group === "snow" && temp <= 2 && temp >= -10 && wind < 40){
+        items.push({ name:"Sáňkování", icon:"snow", ok:true });
+      }
+      // more forgiving catch-all so mild rain, wind or cloudy days still get a real suggestion
+      if(precipNow < 2 && todaySum < 10 && wind < 55 && temp >= -10 && temp <= 34){
+        items.push({ name:"Procházka", icon:"walk", ok:true });
+      }
+      // when it's not nice enough for the above but still not severe, offer an indoor-ish tip
+      // instead of only ever saying "stay home"
+      if(items.length === 0 || group === "rain" || group === "fog" || todayProb >= 55 || todaySum >= 5){
+        items.push({ name:"Kavárna nebo muzeum", icon:"coffee", ok: items.length > 0 });
+      }
       var campingOk = true;
       var lookAhead = Math.min(3, data.daily.time.length);
       for(var i=0;i<lookAhead;i++){
@@ -1170,7 +1279,7 @@
       if(campingOk) items.push({ name:"Kemping", icon:"tent", ok:true });
     }
     if(items.length === 0){
-      items.push({ name:"Radši se zavrtej doma", icon:"home", ok:false });
+      items.push({ name: homeQuip(cur, group), icon:"home", ok:false });
     }
     return items;
   }
@@ -1388,12 +1497,199 @@
   };
   function applyAccent(group, isDay){
     lastWeatherKey = { group: group, isDay: isDay };
+    applyWeatherFx(group, isDay); // background animation reflects real weather regardless of color theme
     if(getSelectedTheme() !== "auto") return; // manual theme overrides the weather-based colors
     var key = group === "clear" ? (isDay ? "clear_day" : "clear_night") : group;
     var pair = THEME_ACCENTS[key] || THEME_ACCENTS.clear_day;
     var root = document.documentElement.style;
     root.setProperty("--accent-color", pair[0]);
     root.setProperty("--accent-glow", pair[1]);
+  }
+
+  // ---------- animated weather background ----------
+  var weatherFxKey = null;
+  var weatherFxTimers = [];
+
+  function prefersReducedMotion(){
+    try { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+    catch(e){ return false; }
+  }
+
+  function rand(min, max){ return min + Math.random() * (max - min); }
+
+  function clearWeatherFxTimers(){
+    for(var i=0;i<weatherFxTimers.length;i++) clearTimeout(weatherFxTimers[i]);
+    weatherFxTimers = [];
+  }
+
+  function applyWeatherFx(group, isDay){
+    var key = group === "clear" ? (isDay ? "clear_day" : "clear_night") : group;
+    if(key === weatherFxKey) return; // already showing the right effect, avoid rebuilding/flicker
+    weatherFxKey = key;
+    var el = document.getElementById("weatherFx");
+    if(!el) return;
+    clearWeatherFxTimers();
+    el.innerHTML = "";
+    if(prefersReducedMotion()) return; // respect the user's motion preference: leave it empty/static
+
+    switch(key){
+      case "clear_day":   buildFxSun(el); break;
+      case "clear_night": buildFxStars(el); break;
+      case "cloudy":      buildFxClouds(el); break;
+      case "fog":         buildFxFog(el); break;
+      case "rain":        buildFxRain(el, 46); break;
+      case "snow":        buildFxSnow(el); break;
+      case "storm":       buildFxRain(el, 70); buildFxLightning(el); break;
+      default:            buildFxClouds(el);
+    }
+  }
+
+  function buildFxSun(el){
+    var glow = document.createElement("div");
+    glow.className = "fx-sunglow";
+    el.appendChild(glow);
+    // gentle rising light motes, like dust caught in sunlight
+    for(var i=0;i<16;i++){
+      var m = document.createElement("div");
+      m.className = "fx-mote";
+      var size = rand(3, 7);
+      m.style.left = rand(0, 100) + "%";
+      m.style.width = size + "px";
+      m.style.height = size + "px";
+      m.style.setProperty("--fx-dx", rand(-30, 30) + "px");
+      m.style.animationDuration = rand(9, 18) + "s";
+      m.style.animationDelay = "-" + rand(0, 18) + "s";
+      el.appendChild(m);
+    }
+  }
+
+  function buildFxStars(el){
+    for(var i=0;i<55;i++){
+      var s = document.createElement("div");
+      s.className = "fx-star";
+      var size = rand(1, 2.6);
+      s.style.left = rand(0, 100) + "%";
+      s.style.top = rand(0, 65) + "%";
+      s.style.width = size + "px";
+      s.style.height = size + "px";
+      s.style.setProperty("--fx-min", rand(0.1, 0.3));
+      s.style.setProperty("--fx-max", rand(0.7, 1));
+      s.style.animationDuration = rand(2, 5) + "s";
+      s.style.animationDelay = "-" + rand(0, 5) + "s";
+      el.appendChild(s);
+    }
+    scheduleShootingStar(el);
+  }
+
+  function scheduleShootingStar(el){
+    if(weatherFxKey !== "clear_night") return;
+    var delay = rand(4000, 11000);
+    var t = setTimeout(function(){
+      if(weatherFxKey !== "clear_night" || !document.body.contains(el)) return;
+      var star = document.createElement("div");
+      star.className = "fx-shootingstar";
+      star.style.top = rand(5, 35) + "%";
+      star.style.left = rand(35, 90) + "%";
+      star.style.animation = "fxShoot " + rand(1.1, 1.6) + "s ease-in forwards";
+      el.appendChild(star);
+      var cleanupT = setTimeout(function(){ if(star.parentNode) star.parentNode.removeChild(star); }, 1800);
+      weatherFxTimers.push(cleanupT);
+      scheduleShootingStar(el);
+    }, delay);
+    weatherFxTimers.push(t);
+  }
+
+  function buildFxClouds(el){
+    var count = 4;
+    for(var i=0;i<count;i++){
+      var c = document.createElement("div");
+      c.className = "fx-cloud";
+      var size = rand(160, 320);
+      c.style.width = size + "px";
+      c.style.height = (size * 0.6) + "px";
+      c.style.top = rand(2, 55) + "%";
+      c.style.animationDuration = rand(50, 95) + "s";
+      c.style.animationDelay = "-" + rand(0, 90) + "s";
+      el.appendChild(c);
+    }
+  }
+
+  function buildFxFog(el){
+    var count = 4;
+    for(var i=0;i<count;i++){
+      var f = document.createElement("div");
+      f.className = "fx-fogband";
+      f.style.top = (12 + i * 22) + "%";
+      f.style.opacity = rand(0.4, 0.85);
+      f.style.animationDuration = rand(14, 24) + "s";
+      f.style.animationDelay = "-" + rand(0, 20) + "s";
+      el.appendChild(f);
+    }
+  }
+
+  function buildFxRain(el, count){
+    for(var i=0;i<count;i++){
+      var r = document.createElement("div");
+      r.className = "fx-rain";
+      r.style.left = rand(0, 100) + "%";
+      r.style.height = rand(50, 110) + "px";
+      r.style.animationDuration = rand(0.45, 0.9) + "s";
+      r.style.animationDelay = "-" + rand(0, 1) + "s";
+      el.appendChild(r);
+    }
+  }
+
+  function buildFxSnow(el){
+    for(var i=0;i<38;i++){
+      var s = document.createElement("div");
+      s.className = "fx-snow";
+      var size = rand(3, 7);
+      s.style.left = rand(0, 100) + "%";
+      s.style.width = size + "px";
+      s.style.height = size + "px";
+      s.style.opacity = rand(0.5, 0.9);
+      s.style.setProperty("--fx-dx", rand(-40, 40) + "px");
+      s.style.animationDuration = rand(7, 15) + "s";
+      s.style.animationDelay = "-" + rand(0, 15) + "s";
+      el.appendChild(s);
+    }
+  }
+
+  function buildFxLightning(el){
+    var flash = document.createElement("div");
+    flash.className = "fx-flash";
+    el.appendChild(flash);
+    scheduleLightning(flash);
+  }
+
+  function scheduleLightning(flash){
+    if(weatherFxKey !== "storm") return;
+    var delay = rand(3500, 9000);
+    var t = setTimeout(function(){
+      if(weatherFxKey !== "storm" || !document.body.contains(flash)) return;
+      flash.style.transition = "none";
+      flash.style.opacity = "0.55";
+      var t1 = setTimeout(function(){
+        flash.style.transition = "opacity 0.35s ease-out";
+        flash.style.opacity = "0";
+      }, 90);
+      var doubleFlash = Math.random() < 0.4;
+      weatherFxTimers.push(t1);
+      if(doubleFlash){
+        var t2 = setTimeout(function(){
+          flash.style.transition = "none";
+          flash.style.opacity = "0.4";
+          var t3 = setTimeout(function(){
+            flash.style.transition = "opacity 0.3s ease-out";
+            flash.style.opacity = "0";
+          }, 70);
+          weatherFxTimers.push(t3);
+        }, 160);
+        weatherFxTimers.push(t2);
+      }
+      scheduleLightning(flash);
+    }, delay);
+    weatherFxTimers.push(t);
   }
 
   function updateBrandWeatherIcon(iconName){
@@ -1407,48 +1703,66 @@
     clear_day: [
       "Slunce dneska hraje sólo, klidně vyrazte ven.",
       "Nebe bez jedinýho mráčku, hoď brýle a jde se.",
-      "Bezmráček – ideál nedělat nic a bejt u toho venku."
+      "Bezmráček – ideál nedělat nic a bejt u toho venku.",
+      "Modrá obloha na celý den, škoda by bylo zůstat doma.",
+      "Sluníčko svítí naplno, využij to, dokud to jde."
     ],
     clear_night: [
       "Hvězdy dneska svítí na plný pecky.",
       "Obloha čistá, ideál na noční toulku.",
-      "Měsíc si dnes užívá sólo bez konkurence mraků."
+      "Měsíc si dnes užívá sólo bez konkurence mraků.",
+      "Bezoblačná noc, škoda nevytáhnout deku na zahradu.",
+      "Nebe je dnes jak z planetária, jen se stačí kouknout nahoru."
     ],
     cloudy: [
       "Obloha zamračená, ale aspoň suchá – jde se ven bez obav.",
       "Šedivo jak v pondělí ráno, ale deštník nech doma.",
-      "Mraky se courají po obloze, ale nic vážnýho nechystaj."
+      "Mraky se courají po obloze, ale nic vážnýho nechystaj.",
+      "Zataženo, ale sucho drží, ven se klidně vyrazit dá.",
+      "Šedá obloha, ale žádná voda z ní zatím nekape."
     ],
     fog: [
       "Mlha hustá jak guláš, radši rozsviť světla.",
       "Vidět je tak akorát na špičku nosu, jeď opatrně.",
-      "Dneska je svět v mlze doslova."
+      "Dneska je svět v mlze doslova.",
+      "Mlha se drží při zemi, na procházku klidně, jen dej pozor v dopravě.",
+      "Viditelnost na pár metrů, tajemná ranní atmosféra zaručena."
     ],
     rain: [
       "Lije jak z konve, deštník je dneska povinná výbava.",
       "Nebe brečí, tak si vem pláštěnku a jde se to přežít.",
-      "Kapky bubnujou na okna, ideál na čaj a deku."
+      "Kapky bubnujou na okna, ideál na čaj a deku.",
+      "Mrholí, ale krátká procházka se snese, jen s deštníkem.",
+      "Déšť dneska hraje hlavní roli, plánuj podle toho."
     ],
     snow: [
       "Sněží jak na pohlednici, sáňky klidně ven.",
       "Bílá nadílka v plným proudu, obuj pořádný boty.",
-      "Vločky padaj jak v pohádce, jen pozor na náledí."
+      "Vločky padaj jak v pohádce, jen pozor na náledí.",
+      "Sníh sype pomalu, ideál na procházku i sáňkování.",
+      "Zima maluje bílo, jen se obuj a oblíkni pořádně."
     ],
     storm: [
       "Blýská se a hřmí, deštník nech doma a radši se schovej.",
       "Nebe dneska pouští ohňostroj zadarmo, sleduj ho radši z okna.",
-      "Bouřka se řítí jak na objednávku, ven se dneska moc nehrň."
+      "Bouřka se řítí jak na objednávku, ven se dneska moc nehrň.",
+      "Hromy duní a blesky sviští, dneska je lepší zůstat v suchu.",
+      "Bouřka dnes velí, venkovní plány radši přelož na jindy."
     ]
   };
   var HEAT_QUIPS = [
     "Vedro jak v sauně, pij vodu a nehrdinuj na sluníčku.",
     "Teploty šplhaj nahoru jak akcie ve zlatý éře, hledej stín.",
-    "Dneska se smaží i chodník, pít a stín je dneska program."
+    "Dneska se smaží i chodník, pít a stín je dneska program.",
+    "Slunce dneska nebere zajatce, plánuj ven radši k ránu nebo večer.",
+    "Extrémní vedro, klimatizace nebo stín jsou dneska tvůj kamarád."
   ];
   var COLD_QUIPS = [
     "Kosa jak v mrazáku, oblíkni se na cibuli.",
     "Mráz štípe jak vosa, čepici a rukavice neváhej.",
-    "Venku je zima na kost, radši zůstaň pěkně zabalenej."
+    "Venku je zima na kost, radši zůstaň pěkně zabalenej.",
+    "Teploty padly hluboko pod nulu, ven jen v nutným případě.",
+    "Ledová dálnice venku, teplé oblečení je dnes nutnost."
   ];
 
   function weatherQuip(cur, info){
