@@ -208,7 +208,24 @@
 
   .header { padding: 6px 20px 4px; }
   .logo { max-width: 80px; height: auto; margin-bottom: 3px; animation: logoPulse 3.5s ease-in-out infinite; }
-  .brand-name { font-size: 16px; margin-bottom: 3px; letter-spacing: 2px; }
+  .logo.glow-off { display: none; }
+  .brand-name-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 3px; }
+  .brand-name { font-size: 16px; margin-bottom: 0; letter-spacing: 2px; }
+  /* Malé tlačítko vedle názvu SYNTHLUCIDA pro vypnutí/zapnutí podsvícení (záře) loga */
+  .logo-glow-toggle-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.45);
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .logo-glow-toggle-btn.active { color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
   .desc-text { font-size: 8px; opacity: 0.7; padding: 0 20px; line-height: 1.3; margin-bottom: 4px; }
 
   @keyframes logoPulse {
@@ -1305,7 +1322,10 @@
 
 <div class="header">
   <img src="logo.jpg" alt="SYNTHLUCIDA" id="logo-img" class="logo" onerror="this.style.display='none'" onclick="handleLogoClick()">
-  <div class="brand-name">SYNTHLUCIDA</div>
+  <div class="brand-name-row">
+    <div class="brand-name">SYNTHLUCIDA</div>
+    <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight">💡</button>
+  </div>
 </div>
 
 <div class="atmospheres">
@@ -2151,6 +2171,37 @@
           updateCanvasState();
       }
   };
+
+  // ==========================================
+  // Malé tlačítko 💡 vedle názvu SYNTHLUCIDA - vypne/zapne podsvícené (zářící) logo.
+  // Logo se při vypnutí úplně skryje (ne jen zhasne záře) a appka si nastavení
+  // pamatuje i po zavření/restartu (vlastní localStorage klíč, ukládá se hned).
+  // ==========================================
+  const LOGO_GLOW_KEY = 'synthlucida_logo_glow';
+  let logoGlowEnabled = true;
+
+  function applyLogoGlowUI() {
+      const img = document.getElementById('logo-img');
+      const btn = document.getElementById('btn-logo-glow');
+      if (img) img.classList.toggle('glow-off', !logoGlowEnabled);
+      if (btn) {
+          btn.classList.toggle('active', logoGlowEnabled);
+          btn.title = logoGlowEnabled ? 'Turn off logo' : 'Turn on logo';
+          btn.setAttribute('aria-label', btn.title);
+      }
+  }
+
+  window.toggleLogoGlow = function() {
+      logoGlowEnabled = !logoGlowEnabled;
+      try { localStorage.setItem(LOGO_GLOW_KEY, logoGlowEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+      applyLogoGlowUI();
+  };
+
+  try {
+      const savedLogoGlow = localStorage.getItem(LOGO_GLOW_KEY);
+      if (savedLogoGlow === '0') logoGlowEnabled = false;
+  } catch (e) { /* ignore */ }
+  applyLogoGlowUI();
 
   function initChristmasLights() {
       christmasLights = [];
@@ -3086,31 +3137,37 @@
       ctx.fillStyle = chill;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const windAngle = 0.55; // šikmý pád vlivem větru
+      // Jemnější vánice: mírnější sklon i rychlost větru a tlumenější "svišť" pruh,
+      // ať to působí měkčeji a méně agresivně než dřív.
+      const windAngle = 0.4; // šikmý pád vlivem větru
       for (let i = 0; i < snowFlakes.length; i++) {
           let f = snowFlakes[i];
-          let windSpeed = f.speed * 1.7;
+          let windSpeed = f.speed * 1.25;
           f.y += windSpeed;
           f.x += windSpeed * windAngle;
           f.driftPhase += f.driftSpeed;
           f.x += Math.sin(f.driftPhase) * f.driftAmount * 0.08;
 
-          if (f.y > canvas.height + 4) {
+          // Vločka dopadla dole, NEBO ji silný vítr odfoukl mimo pravý okraj dřív,
+          // než stihla dopadnout (u úzkých/vysokých obrazovek se to stávalo často) -
+          // v obou případech ji vrátíme nahoru na nový start. Dřív se v druhém
+          // případě jen "teleportovala" na levý okraj ve stejné výšce, uprostřed
+          // pádu, což vypadalo jako náhlý pruh sněhu sypající se od okraje.
+          if (f.y > canvas.height + 4 || f.x > canvas.width + 4) {
               f.y = -4;
               f.x = Math.random() * canvas.width * 0.6 - canvas.width * 0.2;
           }
-          if (f.x > canvas.width + 4) f.x = -4;
           if (f.x < -4) f.x = canvas.width + 4;
 
-          // Lehký "svišť" pruh za vločkou - dojem větru
-          ctx.strokeStyle = `rgba(255, 255, 255, ${(f.alpha * 0.5).toFixed(3)})`;
-          ctx.lineWidth = Math.max(0.6, f.r * 0.5);
+          // Lehký "svišť" pruh za vločkou - dojem větru, ale jemnější a kratší
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(f.alpha * 0.3).toFixed(3)})`;
+          ctx.lineWidth = Math.max(0.5, f.r * 0.35);
           ctx.beginPath();
           ctx.moveTo(f.x, f.y);
-          ctx.lineTo(f.x - windSpeed * windAngle * 1.4, f.y - windSpeed * 1.4);
+          ctx.lineTo(f.x - windSpeed * windAngle * 0.9, f.y - windSpeed * 0.9);
           ctx.stroke();
 
-          ctx.fillStyle = `rgba(255, 255, 255, ${f.alpha.toFixed(3)})`;
+          ctx.fillStyle = `rgba(255, 255, 255, ${(f.alpha * 0.85).toFixed(3)})`;
           ctx.beginPath();
           ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
           ctx.fill();
@@ -3722,6 +3779,10 @@
   let netStatusStallTimer = null;
   let netStatusIsStalled = false;
   let netStatusProbeInFlight = false;
+  // Nastaveno na true po dobu hromadného stahování playlistu (DOWNLOAD OFFLINE) -
+  // stahování zabírá šířku pásma, takže dočasné zadrhnutí přehrávání neznamená
+  // špatné připojení. Prahové hodnoty níže se v tu dobu prodlouží zhruba na dvojnásobek.
+  let bulkDownloadInProgress = false;
 
   function setNetStatus(state) {
     // state: 'ok' | 'bad' | 'checking'
@@ -3749,8 +3810,13 @@
     if (netStatusProbeInFlight) return;
     if (navigator.onLine === false) { setNetStatus('bad'); return; }
     netStatusProbeInFlight = true;
+    // Během hromadného stahování playlistu (DOWNLOAD OFFLINE) je šířka pásma
+    // logicky obsazená stahováním, takže testu na malý soubor dáme zhruba
+    // dvojnásobek času, než to prohlásíme za problém s připojením.
+    const abortMs = bulkDownloadInProgress ? 20000 : 10000;
+    const badThresholdMs = bulkDownloadInProgress ? 17000 : 8500;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), abortMs);
     const startedAt = performance.now();
     fetch('icon.png?probe=' + Date.now(), { cache: 'no-store', signal: controller.signal })
       .then((res) => {
@@ -3758,9 +3824,9 @@
         netStatusProbeInFlight = false;
         if (!res.ok) { setNetStatus('bad'); return; }
         const elapsedMs = performance.now() - startedAt;
-        // Pomalá odezva na malý soubor (>8.5s) je reálně špatné připojení,
+        // Pomalá odezva na malý soubor je reálně špatné připojení,
         // i kdyby Network Information API tvrdilo něco jiného.
-        setNetStatus((elapsedMs > 8500 || netStatusIsStalled) ? 'bad' : 'ok');
+        setNetStatus((elapsedMs > badThresholdMs || netStatusIsStalled) ? 'bad' : 'ok');
       })
       .catch(() => {
         clearTimeout(timeoutId);
@@ -3774,10 +3840,14 @@
   // připojení - přesnější než čistě teoretický odhad rychlosti.
   audio.addEventListener('waiting', () => {
     if (netStatusStallTimer) clearTimeout(netStatusStallTimer);
+    // Během hromadného stahování (DOWNLOAD OFFLINE) dáme aktuálně hrající skladbě
+    // ještě víc času na zabufferování, než to označíme za problém -
+    // zadrhnutí je v tu chvíli často jen důsledek sdílené šířky pásma, ne špatného připojení.
+    const stallDelayMs = bulkDownloadInProgress ? 17000 : 13000;
     netStatusStallTimer = setTimeout(() => {
       netStatusIsStalled = true;
       setNetStatus('bad');
-    }, 8500);
+    }, stallDelayMs);
   });
   audio.addEventListener('playing', () => {
     if (netStatusStallTimer) { clearTimeout(netStatusStallTimer); netStatusStallTimer = null; }
@@ -4144,6 +4214,11 @@
     progWrap.classList.add('active');
     progBar.style.width = '0%';
     progLabel.classList.add('active');
+    // Hromadné stahování skladeb zabírá dost šířky pásma, takže se snadno stane,
+    // že se aktuálně hrající skladba na chvíli zadrhne - to ale neznamená špatné
+    // připojení. Po dobu stahování proto kontrolce připojení dáme delší lhůtu,
+    // než to označí za problém (viz bulkDownloadInProgress u net-status-badge).
+    bulkDownloadInProgress = true;
 
     for (let i = 0; i < playlist.length; i++) {
       const track = playlist[i];
@@ -4183,6 +4258,7 @@
       }
     }
 
+    bulkDownloadInProgress = false;
     btn.innerText = '✓ DONE';
     updateOfflineStatus();
     setTimeout(() => {
