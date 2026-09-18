@@ -342,8 +342,26 @@
   .temp{
     font-family:'Orbitron', sans-serif; font-size:70px; font-weight:600; line-height:0.85;
     color:#fff; text-shadow:0 0 26px var(--accent-color);
+    display:inline-block; transform-origin:left bottom; will-change:transform;
+    animation:tempBreathe 6s ease-in-out infinite;
   }
   .temp-unit{ font-size:28px; font-weight:500; vertical-align:super; }
+  @keyframes tempBreathe{
+    0%, 100%{ transform:scale(1); text-shadow:0 0 26px var(--accent-color); }
+    50%{ transform:scale(1.02); text-shadow:0 0 36px var(--accent-color); }
+  }
+  .temp-mood{
+    font-size:32px; line-height:1; padding-bottom:14px; flex-shrink:0;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,0.35));
+    display:inline-block; animation:moodBob 3.2s ease-in-out infinite;
+  }
+  @keyframes moodBob{
+    0%, 100%{ transform:translateY(0) rotate(0deg); }
+    50%{ transform:translateY(-3px) rotate(-6deg); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .temp, .temp-mood{ animation:none; }
+  }
   .cond{ display:flex; flex-direction:column; gap:6px; padding-bottom:10px; }
   .cond-icon{ width:36px; height:36px; color:var(--accent-color); filter:drop-shadow(0 0 8px var(--accent-color)); }
   .cond-icon svg{ width:100%; height:100%; will-change:filter; }
@@ -532,7 +550,7 @@
   .hidden{ display:none !important; }
 
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
-  @media (max-width:380px){ .temp{ font-size:58px; } .stats{ grid-template-columns:1fr 1fr; } .brand{ font-size:11px; letter-spacing:1.6px; } .feels-value{ font-size:23px; } }
+  @media (max-width:380px){ .temp{ font-size:58px; } .temp-mood{ font-size:26px; padding-bottom:11px; } .stats{ grid-template-columns:1fr 1fr; } .brand{ font-size:11px; letter-spacing:1.6px; } .feels-value{ font-size:23px; } }
 
   /* ---- very narrow phones ---- */
   @media (max-width:360px){
@@ -1167,6 +1185,16 @@
     return null;
   }
 
+  function tempMoodEmoji(apparent){
+    if(apparent >= 28) return "🥵";
+    if(apparent >= 25) return "😎";
+    if(apparent >= 18) return "😊";
+    if(apparent >= 8)  return "🙂";
+    if(apparent > 0)   return "😐";
+    if(apparent > -10) return "🧊";
+    return "🥶";
+  }
+
   function outfitAdvice(apparent, precip, wind, group){
     var base;
     if(apparent < 0)       base = "Sibiřská výbava: bunda na kosu, čepice a palčáky";
@@ -1699,49 +1727,98 @@
       "Nebe bez jedinýho mráčku, hoď brýle a jde se.",
       "Bezmráček – ideál nedělat nic a bejt u toho venku.",
       "Modrá obloha na celý den, škoda by bylo zůstat doma.",
-      "Sluníčko svítí naplno, využij to, dokud to jde."
+      "Sluníčko svítí naplno, využij to, dokud to jde.",
+      "Obloha čistá jak filtr na fotce, jen bez filtru.",
+      "Dneska svítí i bez brýlí, ale s brýlema je to lepší.",
+      "Modro od rána do večera, žádná výmluva zůstat doma.",
+      "Slunce si vzalo celej den volno na plný nasazení nad tebou.",
+      "Ani mráček se dneska neodváží na scénu.",
+      "Ideální den vytáhnout deku na trávník a nic nedělat.",
+      "Obloha na jedničku, škoda ji nevyužít."
     ],
     clear_night: [
       "Hvězdy dneska svítí na plný pecky.",
       "Obloha čistá, ideál na noční toulku.",
       "Měsíc si dnes užívá sólo bez konkurence mraků.",
       "Bezoblačná noc, škoda nevytáhnout deku na zahradu.",
-      "Nebe je dnes jak z planetária, jen se stačí kouknout nahoru."
+      "Nebe je dnes jak z planetária, jen se stačí kouknout nahoru.",
+      "Hvězdy bez konkurence, ideál na pozorování.",
+      "Měsíc svítí jak reflektor, mraky si dnes daly pauzu.",
+      "Noční obloha čistá, jen si nezapomeň teplejší mikinu.",
+      "Tmavá obloha plná hvězd, škoda to prospat.",
+      "Ani mráček nekazí výhled na hvězdy.",
+      "Noc jak stvořená na hvězdářský dalekohled.",
+      "Obloha zametená, hvězdy mají dnes hlavní slovo."
     ],
     cloudy: [
       "Obloha zamračená, ale aspoň suchá – jde se ven bez obav.",
       "Šedivo jak v pondělí ráno, ale deštník nech doma.",
       "Mraky se courají po obloze, ale nic vážnýho nechystaj.",
       "Zataženo, ale sucho drží, ven se klidně vyrazit dá.",
-      "Šedá obloha, ale žádná voda z ní zatím nekape."
+      "Šedá obloha, ale žádná voda z ní zatím nekape.",
+      "Mraky si dneska dělaj peřinu, ale suchou.",
+      "Šedo jak ve skladu, ale bez deště se to dá přežít.",
+      "Obloha bez nálady, ale i tak sucho.",
+      "Zataženo od rána do večera, deštník ale zůstane doma.",
+      "Mraky se táhnou pomalu, déšť naštěstí nehlásej.",
+      "Nebe má dneska šedou náladu, ale drží se suché.",
+      "Peřina mraků nad hlavou, ale ani kapka na zem."
     ],
     fog: [
       "Mlha hustá jak guláš, radši rozsviť světla.",
       "Vidět je tak akorát na špičku nosu, jeď opatrně.",
       "Dneska je svět v mlze doslova.",
       "Mlha se drží při zemi, na procházku klidně, jen dej pozor v dopravě.",
-      "Viditelnost na pár metrů, tajemná ranní atmosféra zaručena."
+      "Viditelnost na pár metrů, tajemná ranní atmosféra zaručena.",
+      "Mlha zahalila okolí jak ve strašidelném filmu.",
+      "Ranní clona nad krajinou, světla na autě jsou dneska povinná.",
+      "Mlžný opar dělá z ulice tajemné místo.",
+      "Vidět dál než na dva kroky je dneska luxus.",
+      "Mlha se válí kolem jak vata, opatrně za volantem.",
+      "Krajina zmizela v mléčném oparu.",
+      "Hustá mlha dnes maskuje i sousední dům."
     ],
     rain: [
       "Lije jak z konve, deštník je dneska povinná výbava.",
       "Nebe brečí, tak si vem pláštěnku a jde se to přežít.",
       "Kapky bubnujou na okna, ideál na čaj a deku.",
       "Mrholí, ale krátká procházka se snese, jen s deštníkem.",
-      "Déšť dneska hraje hlavní roli, plánuj podle toho."
+      "Déšť dneska hraje hlavní roli, plánuj podle toho.",
+      "Kapky padaj jedna radost, gumáky jsou dneska trend.",
+      "Déšť bubnuje na okap, ideál zůstat v teple.",
+      "Obloha spustila kohoutek na plno, deštník nezapomeň.",
+      "Mokro všude kolem, ale aspoň zahrada je ráda.",
+      "Prší jak z konve, tak žádné sportovky, ale gumáky.",
+      "Kapky ťukají na okna jak budíček, kafe a čaj jsou dneska program.",
+      "Nebe si dneska pustilo sprchu na plný proud."
     ],
     snow: [
       "Sněží jak na pohlednici, sáňky klidně ven.",
       "Bílá nadílka v plným proudu, obuj pořádný boty.",
       "Vločky padaj jak v pohádce, jen pozor na náledí.",
       "Sníh sype pomalu, ideál na procházku i sáňkování.",
-      "Zima maluje bílo, jen se obuj a oblíkni pořádně."
+      "Zima maluje bílo, jen se obuj a oblíkni pořádně.",
+      "Vločky se snáší jak z pohádkové knížky.",
+      "Bílý koberec pokrývá všechno kolem, boty s dobrou podrážkou jsou nutnost.",
+      "Sníh práší jak z cukřenky, sněhulák se sám nabízí.",
+      "Zimní pohádka za oknem, jen pozor na klouzačky.",
+      "Vločky tancují ve vzduchu, teplé rukavice neváhej.",
+      "Sníh se drží, ideál na sáňky i bitvu sněhovými kouličkami.",
+      "Bílo kam se podíváš, zima si dává plný nástup."
     ],
     storm: [
       "Blýská se a hřmí, deštník nech doma a radši se schovej.",
       "Nebe dneska pouští ohňostroj zadarmo, sleduj ho radši z okna.",
       "Bouřka se řítí jak na objednávku, ven se dneska moc nehrň.",
       "Hromy duní a blesky sviští, dneska je lepší zůstat v suchu.",
-      "Bouřka dnes velí, venkovní plány radši přelož na jindy."
+      "Bouřka dnes velí, venkovní plány radši přelož na jindy.",
+      "Nebe burácí, radši sleduj z bezpečí okna.",
+      "Blesky křižují oblohu, elektrika venku dneska frčí zadarmo.",
+      "Hrom duní jak bicí souprava, schovej se do sucha.",
+      "Bouřka si dneska bere hlavní slovo, plány ven odlož.",
+      "Blýskání a hřmění v plné palbě, deštník nepomůže.",
+      "Nebeská bitva v plném proudu, zůstaň raději pod střechou.",
+      "Bouřka útočí ze všech stran, dneska je king indoor."
     ]
   };
   var HEAT_QUIPS = [
@@ -1749,15 +1826,31 @@
     "Teploty šplhaj nahoru jak akcie ve zlatý éře, hledej stín.",
     "Dneska se smaží i chodník, pít a stín je dneska program.",
     "Slunce dneska nebere zajatce, plánuj ven radši k ránu nebo večer.",
-    "Extrémní vedro, klimatizace nebo stín jsou dneska tvůj kamarád."
+    "Extrémní vedro, klimatizace nebo stín jsou dneska tvůj kamarád.",
+    "Vzduch se tetelí žárem, voda a stín jsou dneska nutnost.",
+    "Teploty na maximum, tělo hlídej a pij víc než obvykle.",
+    "Slunce práží jak v peci, žádné hrdinství na poledním slunci.",
+    "Vedro dusí i ve stínu, tempo dneska klidně zpomal.",
+    "Rtuť teploměru útočí na vrchol, plánuj den kolem chladnějších hodin.",
+    "Horko jak v sauně bez odpočinku, hydratace je dneska prioritou.",
+    "Slunce si dneska nebere servítky, klobouk a voda jsou základ."
   ];
   var COLD_QUIPS = [
     "Kosa jak v mrazáku, oblíkni se na cibuli.",
     "Mráz štípe jak vosa, čepici a rukavice neváhej.",
     "Venku je zima na kost, radši zůstaň pěkně zabalenej.",
     "Teploty padly hluboko pod nulu, ven jen v nutným případě.",
-    "Ledová dálnice venku, teplé oblečení je dnes nutnost."
+    "Ledová dálnice venku, teplé oblečení je dnes nutnost.",
+    "Mráz maluje na okna, teplá čepice je dneska povinná.",
+    "Zima kouše do tváří, šátek přes nos se hodí.",
+    "Ledový vzduch řeže jak nůž, oblíkni se vrstevnatě.",
+    "Teploměr se schoval hluboko pod nulu, rukavice neváhej.",
+    "Venku je chladno jak v mrazáku, horký čaj je dneska záchrana.",
+    "Mráz štípe do nosu, teplé boty jsou dneska základ.",
+    "Zima drží pevně, teplé oblečení a horký nápoj jsou dneska plán."
   ];
+
+  var lastWeatherQuip = null;
 
   function weatherQuip(cur, info){
     var apparent = cur.apparent_temperature;
@@ -1771,7 +1864,14 @@
       pool = WEATHER_QUIPS[key] || WEATHER_QUIPS.cloudy;
     }
     if(!pool || !pool.length) return "";
-    var idx = dayOfYear(new Date()) % pool.length;
+    if(pool.length === 1) return pool[0];
+    // vybíráme opravdu náhodně (podle aktuálního počasí/pocitové teploty),
+    // jen se snažíme nezopakovat úplně tu samou hlášku, co byla naposledy
+    var idx = Math.floor(Math.random() * pool.length);
+    if(pool[idx] === lastWeatherQuip){
+      idx = (idx + 1 + Math.floor(Math.random() * (pool.length - 1))) % pool.length;
+    }
+    lastWeatherQuip = pool[idx];
     return pool[idx];
   }
 
@@ -2341,6 +2441,7 @@
     html += '<div class="updated">Aktualizováno '+fmtHour(cur.time)+'</div>';
     html += '<div class="temp-row">';
     html += '<div class="temp">'+Math.round(cur.temperature_2m)+'<span class="temp-unit">°</span></div>';
+    html += '<span class="temp-mood" title="Pocitově '+Math.round(cur.apparent_temperature)+'°C" aria-hidden="true">'+tempMoodEmoji(cur.apparent_temperature)+'</span>';
     html += '<div class="cond"><div class="cond-icon">'+icon(info.icon)+'</div><div class="cond-label">'+info.label+'</div></div>';
     html += '</div>';
     html += '<div class="feels-row" title="Pocitová teplota">';
@@ -3127,37 +3228,86 @@
     1: [ // pondělí
       "Pondělí. Ještě 5 dní do víkendu – to zvládneš!",
       "Nový týden, nové šance. Drž se, víkend je na cestě.",
-      "Pondělní boj se šálkem kávy. 5 dní a je vymalováno."
+      "Pondělní boj se šálkem kávy. 5 dní a je vymalováno.",
+      "Pondělí startuje, víkend je vzdálenej, ale reálný cíl.",
+      "Ještě 5 dní driftu a jsi zpátky u víkendu.",
+      "Pondělní mise: přežít a nezapomenout na kafe.",
+      "Nový týden na startu, 5 dní a máš to za sebou.",
+      "Pondělí bolí, ale za 5 dní je odměna.",
+      "Restart týdne, víkend čeká za rohem – jen 5 dní.",
+      "Pondělní rozjezd, drž tempo, cíl je za 5 dny."
     ],
     2: [ // úterý
       "Úterý. Pondělí přežito, teď už jen 4 dny.",
       "Půlku toho nejhoršího máš za sebou. Ještě 4 dny.",
-      "Kafe, práce, opakovat. 4 dny do cíle."
+      "Kafe, práce, opakovat. 4 dny do cíle.",
+      "Úterní tempo, 4 dny a je to v suchu.",
+      "Nejhorší den týdne za tebou, teď už jen z kopce. 4 dny.",
+      "Úterek plyne, víkend se blíží – 4 dny zbývá.",
+      "Druhý den v pořadí, 4 dny do víkendu.",
+      "Úterní grind pokračuje, cíl na dohled za 4 dny.",
+      "Ještě 4 dny a týden je za tebou.",
+      "Úterek: v půlce cesty k odpočinku."
     ],
     3: [ // středa
       "Středa – ekvátor týdne! Zbývají 3 dny.",
       "Půlka týdne za tebou, půlka před tebou. Drž tempo.",
-      "Středeční rovnováha: nahoru, dolů, pořád stejně. 3 dny do víkendu."
+      "Středeční rovnováha: nahoru, dolů, pořád stejně. 3 dny do víkendu.",
+      "Středa, ekvátor překročen, teď už jen z kopce. 3 dny.",
+      "Půlka je za tebou, víkend čeká za 3 dny.",
+      "Středeční finish line uprostřed týdne, 3 dny na cíl.",
+      "Nejtěžší část za tebou, 3 dny a je vymalováno.",
+      "Středeční kafe a 3 dny do klidu.",
+      "Týden na půl cesty, víkend na dohled.",
+      "Středa: teď už to jede jen z kopce, 3 dny zbývá."
     ],
     4: [ // čtvrtek
       "Čtvrtek! Víkend už je cítit ve vzduchu. Jen 2 dny.",
       "Skoro tam. Ještě 2 dny a padák.",
-      "Poslední rozjezd před finišem. 2 dny do víkendu."
+      "Poslední rozjezd před finišem. 2 dny do víkendu.",
+      "Čtvrtek, finišuje se, ještě 2 dny.",
+      "Víkend je za dveřmi, jen vydrž 2 dny.",
+      "Čtvrteční tah na branku, 2 dny do gólu.",
+      "Skoro v cíli, 2 dny a je hotovo.",
+      "Čtvrtek: předposlední zastávka, víkend za rohem.",
+      "Ještě dva dny a padák je tvůj.",
+      "Čtvrteční finiš na dohled, víkend čeká."
     ],
     5: [ // pátek
       "Pátek! Poslední den, dej do toho všechno.",
       "TGIF – dnes to dotáhneš a zítra spíš dlouho.",
-      "Pátek: režim „skoro víkend“ zapnut."
+      "Pátek: režim „skoro víkend“ zapnut.",
+      "Poslední kolo týdne, dneska to zvládneš.",
+      "Pátek: cílová páska je na dohled.",
+      "TGIF v plné parádě, víkend startuje zítra.",
+      "Pátek, poslední míle, potom volno.",
+      "Dnešek je poslední překážka, pak už jen odpočinek.",
+      "Páteční finiš, večer patří tobě.",
+      "Pátek: makej dneska, odpočívej zítra."
     ],
     6: [ // sobota
       "Sobota – žádný budík, jen ty a klid.",
       "Víkend v plném proudu, užívej si každou minutu.",
-      "Sobotní mise: odpočívat na plný úvazek."
+      "Sobotní mise: odpočívat na plný úvazek.",
+      "Sobota patří tobě, žádné povinnosti nutné.",
+      "Víkendový klid v plném nasazení.",
+      "Sobotní ráno bez budíku, ideál na pomalý start.",
+      "Dnes žádný spěch, jen sobotní pohoda.",
+      "Sobota: čas na to, co tě baví.",
+      "Víkend jede na plné obrátky, užij si to.",
+      "Sobotní volno, žádné termíny, jen klid."
     ],
     0: [ // neděle
       "Neděle – nabij baterky, zítra to zase rozjedeš.",
       "Poslední den volna, užij si ho naplno.",
-      "Neděle: ideální den na nicnedělání."
+      "Neděle: ideální den na nicnedělání.",
+      "Neděle, poslední nádech před týdnem.",
+      "Dobij energii, zítra to jede znova.",
+      "Nedělní klid, žádný spěch, jen pohoda.",
+      "Poslední kousek víkendu, vychutnej si ho.",
+      "Neděle: čas zpomalit a nabrat síly.",
+      "Dnešek je na relax, zítra na výkon.",
+      "Nedělní pohoda před pondělním restartem."
     ]
   };
 
