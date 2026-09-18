@@ -840,6 +840,7 @@
   .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; max-height: clamp(90px, 22vh, 160px); overflow-y: auto; overflow-x: hidden; text-align: left; }
   .playlist li { font-size: 10px; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
+  .playlist li.active { border-left: 2px solid var(--accent-color); background: rgba(255,255,255,0.06); }
   .playlist li .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
   .offline-badge { font-size: 9px; opacity: 0.6; flex-shrink: 0; color: var(--accent-color); }
 
@@ -2000,6 +2001,10 @@
   // Vlastní playlist (fronta) skládaný uživatelem z historie
   let customQueue = []; // [{ title, src, playlist, index }]
   let customQueueActive = false;
+  // Odděleno od customQueueActive: říká jen to, co hlavní okno PROHLÍŽÍ (zobrazuje seznam
+  // fronty "My Playlist" místo naposledy vybraného ASMR/PIANO/CHILL). Přepínání playlistů
+  // (browsing) tohle mění, ale nezastavuje tím to, co doopravdy hraje na pozadí.
+  let mainListShowsQueue = false;
   let customQueueIndex = -1;
   const titleDiv = document.getElementById('track-title');
   const nowPlayingNewFlag = document.getElementById('now-playing-new-flag');
@@ -2095,7 +2100,7 @@
   
   let currentVisualTheme = 'amber';
   let weatherMode = 0; // 0 = vypnuto, 1 = sun (teplá fotka západu slunce + ptáci/záře), 2 = rain (padající déšť), 3 = winter (sněžení), 4 = winter II (vánice s větrem)
-  let sunsetMode = 0; // 0 = vypnuto, 1 = sunset (teplý gradient), 2 = night (živá hvězdná obloha)
+  let sunsetMode = 0; // 0 = vypnuto, 1 = sunset (teplý gradient), 2 = sunset II (živější - pulzující slunce, jiskry), 3 = night (živá hvězdná obloha)
 
   // ==========================================
   // VÁNOČNÍ ATMOSFÉRA — automaticky se aktivuje od 1. do 31. prosince (Silvestr) a jemně
@@ -2252,6 +2257,10 @@
   const sunImage = new Image();
   let sunImageLoaded = false;
   let sunImageAspect = 16 / 9;
+
+  // SUNSET II — druhý, bohatší stupeň tlačítka SUNSET (mezi SUNSET a NIGHT)
+  let sunsetEmbers = [];
+  let sunset2Frame = 0;
   sunImage.onload = function() {
       sunImageLoaded = true;
       sunImageAspect = sunImage.naturalWidth / sunImage.naturalHeight;
@@ -2830,6 +2839,21 @@
           });
       }
 
+      // SUNSET II — jemně stoupající jiskřičky/uhlíky nad obzorem
+      sunsetEmbers = [];
+      let emberCount = Math.max(18, Math.min(45, Math.floor(canvas.width / 32)));
+      for(let i=0; i<emberCount; i++) {
+          sunsetEmbers.push({
+              x: Math.random() * canvas.width,
+              y: canvas.height * (0.3 + Math.random() * 0.7),
+              r: Math.random() * 1.6 + 0.6,
+              speed: Math.random() * 0.35 + 0.12,
+              phase: Math.random() * Math.PI * 2,
+              driftSpeed: Math.random() * 0.02 + 0.008,
+              alpha: Math.random() * 0.45 + 0.25
+          });
+      }
+
       initChristmasLights();
       initChristmasSnow();
   }
@@ -2870,6 +2894,8 @@
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
       } else if(sunsetMode === 2) {
+          drawSunsetSky();
+      } else if(sunsetMode === 3) {
           drawNightSky();
       }
 
@@ -3093,7 +3119,119 @@
 
 
   // ==========================================
-  // NIGHT — živá noční obloha jako druhý stupeň tlačítka SUNSET.
+  // SUNSET II — druhý, bohatší stupeň tlačítka SUNSET (mezi SUNSET a NIGHT).
+  // Oproti prostému gradientu SUNSETu navíc: pomalu se protáčející teplá paleta oblohy,
+  // pulzující slunce těsně nad obzorem se září (stejný princip "dýchání" jako u měsíce
+  // v NIGHT) a jemně stoupající jiskřičky/uhlíky, ať to působí živě, ale pořád klidně.
+  // ==========================================
+  function drawSunsetSky() {
+      sunset2Frame++;
+
+      // Tmavší synthwave paleta oblohy - hluboká purpurová/indigo nahoře,
+      // tlumený magenta-oranžový pás uprostřed (pomalu se přelévá tam a zpět)
+      let hueShift = 0.5 + 0.5 * Math.sin(sunset2Frame * 0.0025);
+      let topColor = `rgba(${Math.round(22 + hueShift * 14)}, ${Math.round(4 + hueShift * 4)}, ${Math.round(34 + hueShift * 16)}, 0.48)`;
+      let midColor = `rgba(${Math.round(105 + hueShift * 24)}, ${Math.round(16 + hueShift * 9)}, ${Math.round(44 + hueShift * 18)}, 0.30)`;
+
+      let sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      sky.addColorStop(0, topColor);
+      sky.addColorStop(0.5, midColor);
+      sky.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Zapadající synthwave slunce - nízko u pomyslného obzoru, spodní část
+      // "mizí" pod čárou horizontu, tělo je proříznuté vodorovnými pruhy
+      // (klasický retrowave motiv), jemně "dýchá" stejně jako měsíc v NIGHT.
+      // Slunce je menší, tišší a víc "zapuštěné" do hloubky scény, ať nepřebíjí
+      // čitelnost textu/playlistu v přehrávači nad ním.
+      let sunX = canvas.width * 0.5;
+      let horizonY = canvas.height * 0.8;
+      let sunR = Math.max(18, Math.min(canvas.width, canvas.height) * 0.075);
+      let sunY = horizonY - sunR * 0.3;
+      let breathe = 0.5 + 0.5 * Math.sin(sunset2Frame * 0.014);
+
+      // Tlumenější, tmavší a menší záře (hot pink/magenta místo jasné oranžové)
+      let haloR = sunR * (1.9 + breathe * 0.4);
+      let halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, haloR);
+      halo.addColorStop(0, `rgba(180, 40, 85, ${(0.11 + 0.05 * breathe).toFixed(3)})`);
+      halo.addColorStop(1, 'rgba(180, 40, 85, 0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, haloR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Jemná zářivá linka na horizontu, kde slunce "zapadá" - jen slabý náznak
+      let horizonGlow = ctx.createLinearGradient(0, horizonY - 2, 0, horizonY + 2);
+      horizonGlow.addColorStop(0, 'rgba(210,85,135,0)');
+      horizonGlow.addColorStop(0.5, `rgba(210, 85, 135, ${(0.10 + 0.04 * breathe).toFixed(3)})`);
+      horizonGlow.addColorStop(1, 'rgba(210,85,135,0)');
+      ctx.fillStyle = horizonGlow;
+      ctx.fillRect(0, horizonY - 2, canvas.width, 4);
+
+      // Dozvuk linky horizontu - krátký a rychle mizející, ať nezasahuje do textu pod ním
+      let reflectionH = (canvas.height - horizonY) * 0.3;
+      if (reflectionH > 0) {
+          let reflection = ctx.createLinearGradient(0, horizonY, 0, horizonY + reflectionH);
+          reflection.addColorStop(0, `rgba(210, 85, 135, ${(0.08 + 0.03 * breathe).toFixed(3)})`);
+          reflection.addColorStop(1, 'rgba(210, 85, 135, 0)');
+          ctx.fillStyle = reflection;
+          ctx.fillRect(0, horizonY, canvas.width, reflectionH);
+      }
+
+      ctx.save();
+      // Ořízne slunce vlastním kruhem a zároveň oblastí nad horizontem,
+      // takže spodní část kotouče vizuálně "zapadá" pod čáru.
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.rect(sunX - sunR - 2, sunY - sunR - 2, sunR * 2 + 4, horizonY - (sunY - sunR - 2));
+      ctx.clip();
+
+      // Tělo slunce - syntwave gradient zlatá -> oranžová -> magenta -> tmavě fialová (tlumenější, tmavší
+      // tóny + mírná průhlednost, ať slunce působí zapuštěné hloub do scény, ne jako plná ostrá plocha)
+      ctx.globalAlpha = 0.8;
+      let sunBody = ctx.createLinearGradient(0, sunY - sunR, 0, sunY + sunR);
+      sunBody.addColorStop(0, '#d9ad6c');
+      sunBody.addColorStop(0.32, '#c06a34');
+      sunBody.addColorStop(0.62, '#8f2450');
+      sunBody.addColorStop(1, '#280f33');
+      ctx.fillStyle = sunBody;
+      ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
+
+      // Vodorovné pruhy proříznuté do slunce - tenké nahoře, širší (a s většími mezerami) dole
+      const stripeCount = 7;
+      for (let i = 0; i < stripeCount; i++) {
+          let t = i / (stripeCount - 1);
+          let stripeY = sunY - sunR * 0.55 + t * sunR * 1.7;
+          let stripeH = 2 + t * t * 9;
+          ctx.fillStyle = 'rgba(8, 3, 18, 0.65)';
+          ctx.fillRect(sunX - sunR - 2, stripeY, sunR * 2 + 4, stripeH);
+      }
+
+      ctx.restore();
+
+      // Jemně stoupající jiskřičky/uhlíky, s lehkým blikáním (tlumenější tón)
+      for (let i = 0; i < sunsetEmbers.length; i++) {
+          let e = sunsetEmbers[i];
+          e.y -= e.speed;
+          e.phase += e.driftSpeed;
+          e.x += Math.sin(e.phase) * 0.3;
+          if (e.y < -6) {
+              e.y = canvas.height + 6;
+              e.x = Math.random() * canvas.width;
+          }
+          let flicker = 0.5 + 0.5 * Math.sin(sunset2Frame * 0.05 + e.phase);
+          ctx.fillStyle = `rgba(200, 70, 110, ${(e.alpha * flicker * 0.65).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+          ctx.fill();
+      }
+  }
+
+  // ==========================================
+  // NIGHT — živá noční obloha jako třetí stupeň tlačítka SUNSET.
   // Stejná stavba gradientu jako u sunset (jen studené tóny), navíc blikající hvězdy,
   // měsíc co jemně "dýchá" (stejný princip jako pulzující logo) a občasná padající hvězda.
   // ==========================================
@@ -3269,11 +3407,14 @@
       } else if (sunsetMode === 1) {
           btn.innerText = "SUNSET: ON";
           btn.classList.add('active');
+      } else if (sunsetMode === 2) {
+          btn.innerText = "SUNSET II";
+          btn.classList.add('active');
       } else {
           btn.innerText = "NIGHT: ON";
           btn.classList.add('active');
       }
-      if (sunsetMode !== 2) shootingStar = null; // ať noční obloha při návratu nenaskočí s "obletlou" hvězdou
+      if (sunsetMode !== 3) shootingStar = null; // ať noční obloha při návratu nenaskočí s "obletlou" hvězdou
       updateCanvasState();
   }
 
@@ -3284,9 +3425,9 @@
       body.classList.toggle('weather-photo-mode', weatherMode === 1);
   }
 
-  // Tlačítko SUNSET nyní prochází cyklem OFF -> SUNSET -> NIGHT -> OFF
+  // Tlačítko SUNSET nyní prochází cyklem OFF -> SUNSET -> SUNSET II -> NIGHT -> OFF
   window.toggleSunset = function() {
-      sunsetMode = (sunsetMode + 1) % 3;
+      sunsetMode = (sunsetMode + 1) % 4;
       applySunsetUI();
   };
 
@@ -3920,6 +4061,28 @@
 
   async function updatePlaylistUI() {
     playlistEl.innerHTML = '';
+
+    // Pokud hlavní okno právě prohlíží frontu "My Playlist" (viz mainListShowsQueue),
+    // zobrazí JEJÍ obsah - jinak normálně naposledy vybraný ASMR/PIANO/CHILL playlist.
+    if (mainListShowsQueue) {
+      if (!customQueue.length) { updateOfflineStatus(); return; }
+      customQueue.forEach((entry, pos) => {
+        const li = document.createElement('li');
+        if (pos === customQueueIndex) li.classList.add('active');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'track-name';
+        nameSpan.innerText = entry.title;
+        setupHoverMarquee(nameSpan);
+
+        li.appendChild(nameSpan);
+        li.onclick = () => { playCustomQueueAt(pos); };
+        playlistEl.appendChild(li);
+      });
+      updateOfflineStatus();
+      return;
+    }
+
     playlist.forEach((track, index) => {
       const li = document.createElement('li');
 
@@ -4328,7 +4491,8 @@
     guideLang = guideLang === 'en' ? 'cz' : 'en';
     try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) { /* ignore */ }
     breathSloganQueue = []; // vynutí přeskládání sloganů v dechovém cvičení v novém jazyce
-    mainSloganQueue = []; // vynutí přeskládání hlavních sloganů v novém jazyce
+    // Hlavní slogany si drží historii podle indexu (jazykově nezávislou), takže
+    // při přepnutí jazyka není potřeba nic resetovat.
     applyGuideLanguage();
     const statsPanel = document.getElementById('main-stats');
     if (statsPanel && statsPanel.classList.contains('visible') && typeof renderStats === 'function') renderStats();
@@ -4587,6 +4751,7 @@
     playlist = tracks[key];
     currentPlaylistKey = key;
     customQueueActive = false;
+    mainListShowsQueue = false;
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     const downloadBtn = document.getElementById('btn-download');
     if (downloadBtn) downloadBtn.style.display = 'none';
@@ -4697,6 +4862,7 @@
     playlist = tracks[key];
     currentPlaylistKey = key;
     customQueueActive = false;
+    mainListShowsQueue = false;
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     const downloadBtn = document.getElementById('btn-download');
     if (downloadBtn) downloadBtn.style.display = 'none';
@@ -4964,6 +5130,9 @@
   window.setPlaylist = function(key, btn) {
     playlist = tracks[key];
     currentPlaylistKey = key;
+    // Jen přepne PROHLÍŽENÝ seznam - pokud zrovna hraje fronta "My Playlist", necháme ji
+    // dál hrát na pozadí beze změny a jen přestaneme její obsah zobrazovat v hlavním okně.
+    mainListShowsQueue = false;
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const downloadBtn = document.getElementById('btn-download');
@@ -5356,7 +5525,7 @@
 
   // ==========================================
   // HISTORIE PŘEHRÁVÁNÍ
-  // Uchovává posledních 50 přehraných skladeb (napříč playlisty), aby si
+  // Uchovává posledních 100 přehraných skladeb (napříč playlisty), aby si
   // uživatel mohl kdykoliv prohlédnout, co poslouchal, a znovu to pustit -
   // nebo si z nich poskládat vlastní playlist (viz MY PLAYLIST níže).
   // ==========================================
@@ -5618,7 +5787,7 @@
   };
 
   const HISTORY_KEY = 'synthlucida_history';
-  const HISTORY_LIMIT = 50;
+  const HISTORY_LIMIT = 100;
 
   function addToHistory(track, playlistKey, explicitIndex) {
     try {
@@ -5957,6 +6126,10 @@
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
+    // Hlavní okno přehrávače (a zvýraznění nahoře) má teď ukazovat "My Playlist", ne ASMR/PIANO/CHILL
+    mainListShowsQueue = true;
+    document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+    updatePlaylistUI();
 
     showLoading();
     audio.src = entry.src;
@@ -6334,7 +6507,11 @@
             if (typeof settings.weather === 'number') savedWeatherMode = settings.weather;
             else if (settings.rain) savedWeatherMode = 2; // zpětná kompatibilita se starším uložením (RAIN bývalo prosté true/false)
             if (settings.sunset === true) savedSunsetMode = 1; // zpětná kompatibilita se starším uložením (bool)
-            else if (typeof settings.sunset === 'number') savedSunsetMode = settings.sunset;
+            else if (typeof settings.sunset === 'number') {
+                // zpětná kompatibilita: dřív bylo 2 = NIGHT (SUNSET II ještě neexistoval),
+                // nově je NIGHT na indexu 3
+                savedSunsetMode = settings.sunset === 2 ? 3 : settings.sunset;
+            }
             if (settings.breathLogoHidden) breathLogoHidden = true;
             if (settings.vibrationEnabled === false) vibrationEnabled = false;
             if (settings.breathTechnique && BREATH_TECHNIQUES[settings.breathTechnique]) {
@@ -6471,6 +6648,11 @@
     "Don't wait for the perfect moment. Create it.",
     "Keep moving forward, no matter how slow the progress.",
     "Harmonize your thoughts.",
+    "Inhale calm, exhale tension.",
+    "Silence is not empty, it's full of answers.",
+    "Return to your breath, again and again.",
+    "Meditation is a homecoming to yourself.",
+    "Soften your shoulders, soften your mind.",
   ];
 
   // Český překlad sloganů - stejné pořadí a počet jako pole "slogans" výše,
@@ -6502,6 +6684,11 @@
     "Nečekej na dokonalý okamžik. Vytvoř si ho.",
     "Jdi dál, i kdyby to bylo pomalým tempem.",
     "Uveď své myšlenky do souladu.",
+    "Nadechni klid, vydechni napětí.",
+    "Ticho není prázdné, je plné odpovědí.",
+    "Vracej se ke svému dechu, znovu a znovu.",
+    "Meditace je návrat domů k sobě.",
+    "Uvolni ramena, uvolni mysl.",
   ];
 
   // Vrátí pole sloganů podle aktuálně zvoleného jazyka (ⓘ / D panel).
@@ -6510,22 +6697,49 @@
   }
   
   const sloganEl = document.getElementById('slogan-container');
-  let mainSloganQueue = [];
+
+  // Historie naposledy zobrazených hlavních sloganů (podle indexu, takže funguje
+  // stejně bez ohledu na aktuální jazyk) - uložená v localStorage, aby se stejné
+  // slogany neopakovaly hned po restartu appky, ne jen v rámci jednoho běhu.
+  // Velikost historie je max. polovina zásoby, aby vždy zbylo dost kandidátů na výběr.
+  const SLOGAN_HISTORY_KEY = 'sl-recent-slogan-idx';
+
+  function sloganHistorySize() {
+    return Math.max(1, Math.min(10, Math.floor(currentSlogans().length / 2)));
+  }
+
+  function loadSloganHistory() {
+    try {
+      const raw = localStorage.getItem(SLOGAN_HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+
+  function saveSloganHistory(history) {
+    try { localStorage.setItem(SLOGAN_HISTORY_KEY, JSON.stringify(history)); } catch (e) { /* ignore */ }
+  }
 
   function nextMainSlogan() {
-    if (mainSloganQueue.length === 0) {
-      mainSloganQueue = shuffleSlogans(currentSlogans());
-      // Zabrání tomu, aby se po novém zamíchání (i po restartu appky) hned opakoval
-      // ten samý slogan, který byl zobrazen naposledy.
-      let lastSlogan = null;
-      try { lastSlogan = localStorage.getItem('sl-last-slogan'); } catch (e) { /* ignore */ }
-      if (lastSlogan && mainSloganQueue.length > 1 && mainSloganQueue[0] === lastSlogan) {
-        mainSloganQueue.push(mainSloganQueue.shift());
-      }
+    const list = currentSlogans();
+    const historySize = sloganHistorySize();
+    let history = loadSloganHistory();
+
+    // Kandidáti jsou všechny slogany, které nejsou v poslední historii - tím je
+    // zaručeno, že se stejný slogan nevrátí dřív, než uplyne aspoň `historySize`
+    // dalších zobrazení (a to i napříč restarty appky a přepnutím jazyka).
+    let candidates = [];
+    for (let i = 0; i < list.length; i++) {
+      if (!history.includes(i)) candidates.push(i);
     }
-    const next = mainSloganQueue.shift();
-    try { localStorage.setItem('sl-last-slogan', next); } catch (e) { /* ignore */ }
-    return next;
+    if (candidates.length === 0) candidates = list.map((_, i) => i);
+
+    const nextIndex = candidates[Math.floor(Math.random() * candidates.length)];
+    history.push(nextIndex);
+    if (history.length > historySize) history = history.slice(history.length - historySize);
+    saveSloganHistory(history);
+
+    return list[nextIndex];
   }
 
   function showSlogan() {
