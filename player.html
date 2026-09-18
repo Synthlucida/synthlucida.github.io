@@ -6435,13 +6435,19 @@
 
   // Funkce pro uložení nastavení
   window.saveSettings = function() {
-    const settings = {
-        theme: currentVisualTheme,
-        weather: weatherMode,
-        sunset: sunsetMode,
-        breathLogoHidden: breathLogoHidden,
-        crossfade: crossfadeDuration
-    };
+    // Nejdřív načteme, co už je uložené (např. nastavení z dechového panelu -
+    // vibrace, technika), a jen do toho doplníme/přepíšeme aktuální vizuální
+    // hodnoty. Díky tomu tlačítko SAVE nikdy nesmaže nastavení uložená odjinud.
+    let settings = {};
+    try {
+        const existing = localStorage.getItem('synthlucida_settings');
+        if (existing) settings = JSON.parse(existing);
+    } catch (e) { settings = {}; }
+    settings.theme = currentVisualTheme;
+    settings.weather = weatherMode;
+    settings.sunset = sunsetMode;
+    settings.breathLogoHidden = breathLogoHidden;
+    settings.crossfade = crossfadeDuration;
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
     
     // Malý vizuální feedback
@@ -6537,9 +6543,11 @@
             else if (settings.rain) savedWeatherMode = 2; // zpětná kompatibilita se starším uložením (RAIN bývalo prosté true/false)
             if (settings.sunset === true) savedSunsetMode = 1; // zpětná kompatibilita se starším uložením (bool)
             else if (typeof settings.sunset === 'number') {
-                // zpětná kompatibilita: dřív bylo 2 = NIGHT (SUNSET II ještě neexistoval),
-                // nově je NIGHT na indexu 3
-                savedSunsetMode = settings.sunset === 2 ? 3 : settings.sunset;
+                // Pozn.: dřív (než přibylo SUNSET II) se hodnotou 2 myslelo NIGHT - to už ale
+                // dnes koliduje s aktuálním významem 2 = SUNSET II, takže se hodnota bere tak,
+                // jak je uložená, beze změny (jinak by se každé uložené SUNSET II po načtení
+                // nesprávně změnilo na NIGHT).
+                savedSunsetMode = settings.sunset;
             }
             if (settings.breathLogoHidden) breathLogoHidden = true;
             if (settings.vibrationEnabled === false) vibrationEnabled = false;
@@ -6567,8 +6575,11 @@
     updateReminderPanelUI();
     scheduleReminders();
 
+    // Hledáme podle názvu tématu zapsaného v onclick atributu, ne podle textu tlačítka -
+    // u některých témat (cyber -> "SYNTH", void -> "DARK") se popisek liší od názvu tématu,
+    // takže porovnání podle textu tlačítko nikdy nenajde a po načtení se vždy zvýrazní první.
     const defaultBtn = Array.from(document.querySelectorAll('.btn-theme'))
-      .find(b => b.textContent.trim() === savedTheme.toUpperCase());
+      .find(b => b.getAttribute('onclick') === `setVisualTheme('${savedTheme}', this)`);
 
     if (defaultBtn) {
       setVisualTheme(savedTheme, defaultBtn);
