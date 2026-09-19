@@ -156,7 +156,8 @@
   body.is-fullscreen .main-guide-btn,
   body.is-fullscreen .main-donate-btn,
   body.is-fullscreen .main-stats-btn,
-  body.is-fullscreen .main-files-btn {
+  body.is-fullscreen .main-files-btn,
+  body.is-fullscreen .logo-glow-toggle-btn {
     display: none !important;
   }
 
@@ -211,9 +212,16 @@
   /* visibility:hidden (ne display:none) - logo dál zabírá stejné místo v layoutu,
      takže po vypnutí nic neposkočí ani se nepřeuspořádá. */
   .logo.glow-off { visibility: hidden; }
+  /* Logo zůstává vidět, ale bez vlastního podsvícení/pulzování (ovládá tlačítko ✨) */
   .logo.pulse-off { animation: none !important; filter: none !important; }
   .brand-name-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 3px; }
   .brand-name { font-size: 16px; margin-bottom: 0; letter-spacing: 2px; }
+  /* Podsvícený nápis SYNTHLUCIDA - náhrada za logo, když je logo tlačítkem 💡 zhasnuté */
+  .brand-name.text-glow { color: var(--accent-color); animation: brandNamePulse 3.5s ease-in-out infinite; }
+  @keyframes brandNamePulse {
+    0%, 100% { text-shadow: 0 0 6px var(--accent-color), 0 0 12px var(--accent-color); }
+    50% { text-shadow: 0 0 10px var(--accent-color), 0 0 20px var(--accent-color); }
+  }
   /* Malé tlačítko vedle názvu SYNTHLUCIDA pro vypnutí/zapnutí podsvícení (záře) loga */
   .logo-glow-toggle-btn {
     flex-shrink: 0;
@@ -998,6 +1006,10 @@
      bez toho při přepnutí poskakovala/přeskakovala sousední tlačítka na další řádek */
   #btn-weather { min-width: 122px; }
   #btn-sunset { min-width: 100px; }
+  /* Pevná min. šířka MY PLAYLIST tlačítka - číslo v závorce vedle názvu roste s počtem
+     skladeb (jednociferné/dvouciferné/trojciferné), bez pevné šířky se tlačítko při
+     10+ skladbách rozšířilo a celý řádek tlačítek se přeuspořádal/přeskočil o řádek níž */
+  #btn-my-playlist { min-width: 98px; }
 
   /* Odkazy (Explore website / Privacy / News) - nyní uvnitř sekce ⓘ */
   .web-link { text-decoration: none; color: #fff; font-size: 8px; border: 1px solid rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 20px; transition: 0.3s; white-space: nowrap; }
@@ -1202,7 +1214,12 @@
     color: var(--accent-color); text-shadow: 0 0 12px var(--accent-color); min-height: 18px;
   }
   .breath-count {
-    margin-top: 8px; font-size: 50px; font-weight: 600; line-height: 1;
+    /* min-height: 1em (spolu s line-height:1) drží místo rezervované na výšku jedné
+       číslice i ve chvíli, kdy je prázdné (appka čeká na START) - jinak byl box
+       vysoký 0px a po spuštění cvičení, když se do něj vepsalo číslo, všechno pod
+       ním (slogan, tlačítka) poskočilo. 1em se navíc automaticky přizpůsobí i
+       zmenšenému písmu na nízkých obrazovkách (viz media query výše). */
+    margin-top: 8px; font-size: 50px; font-weight: 600; line-height: 1; min-height: 1em;
     font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 20px var(--accent-color);
   }
   .breath-hint {
@@ -1342,7 +1359,7 @@
 <div class="header">
   <img src="logo.jpg" alt="SYNTHLUCIDA" id="logo-img" class="logo" onerror="this.style.display='none'" onclick="handleLogoClick()">
   <div class="brand-name-row">
-    <button class="logo-glow-toggle-btn active" id="btn-logo-pulse" onclick="toggleLogoPulse()" title="Toggle logo glow" aria-label="Toggle logo glow">✨</button>
+    <button class="logo-glow-toggle-btn" id="btn-logo-pulse" onclick="toggleTextGlow()" title="Toggle SYNTHLUCIDA text glow" aria-label="Toggle SYNTHLUCIDA text glow">✨</button>
     <div class="brand-name">SYNTHLUCIDA</div>
     <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight">💡</button>
   </div>
@@ -1904,6 +1921,20 @@
 </script>
 
 <script>
+  // Logo v dechovém cvičení (.breath-logo) je schovaný v elementu s display:none,
+  // dokud uživatel dechové cvičení nespustí. Prohlížeč do té doby obrázek nikdy
+  // nedekóduje do bitmapy - jakmile se panel zobrazí (display:none -> flex),
+  // musí dekódovat "za pochodu", a na zlomek okamžiku se místo loga může krátce
+  // vykreslit prázdná/rozbitá ikonka obrázku (vypadá jako slabý bílý křížek).
+  // Řešení: dekódovat obrázek předem, hned při načtení stránky, ať je bitmapa
+  // připravená dávno předtím, než uživatel cvičení vůbec spustí.
+  try {
+      const breathLogoWarmup = document.getElementById('breath-logo');
+      if (breathLogoWarmup && breathLogoWarmup.decode) {
+          breathLogoWarmup.decode().catch(() => { /* ignore - onerror na img to řeší */ });
+      }
+  } catch (e) { /* ignore */ }
+
   const tracks = {
     asmr: [
       { title: "SYNTHLUCIDA - ASMR", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr1.mp3" },
@@ -2194,9 +2225,10 @@
   };
 
   // ==========================================
-  // Malé tlačítko 💡 vedle názvu SYNTHLUCIDA - vypne/zapne podsvícené (zářící) logo.
-  // Logo se při vypnutí úplně skryje (ne jen zhasne záře) a appka si nastavení
+  // Malé tlačítko 💡 vedle názvu SYNTHLUCIDA - jednoduchý přepínač podsvícení
+  // (zapnuto/vypnuto) loga. Logo se při vypnutí úplně skryje a appka si nastavení
   // pamatuje i po zavření/restartu (vlastní localStorage klíč, ukládá se hned).
+  // Nezávislé na tlačítku ✨ vedle - to ovládá podsvícení samotného NÁPISU.
   // ==========================================
   const LOGO_GLOW_KEY = 'synthlucida_logo_glow';
   let logoGlowEnabled = true;
@@ -2210,7 +2242,7 @@
           btn.title = logoGlowEnabled ? 'Turn off logo' : 'Turn on logo';
           btn.setAttribute('aria-label', btn.title);
       }
-      // Rohová tlačítka (ⓘ, ☕, S, F) se při vypnutém logu přeskupí z dvou svislých
+      // Rohová tlačítka (ⓘ, ☕, S, F) se při skrytém logu přeskupí z dvou svislých
       // dvojic na dvě vodorovné - viz .logo-hidden v CSS.
       document.body.classList.toggle('logo-hidden', !logoGlowEnabled);
   }
@@ -2228,35 +2260,51 @@
   applyLogoGlowUI();
 
   // ==========================================
-  // Druhé malé tlačítko ✨ na druhé straně názvu SYNTHLUCIDA - vypne/zapne
-  // JEN podsvícení (zář) loga, logo samotné zůstává vidět. Ukládá se stejně
-  // jako tlačítko 💡 (vlastní localStorage klíč, ukládá se hned).
+  // Druhé malé tlačítko ✨ na druhé straně názvu SYNTHLUCIDA - cykluje mezi 3 stavy
+  // (nezávisle na tlačítku 💡, které jen celé schovává/zobrazuje logo):
+  // 0 = logo svítí (podsvícené/pulzující), nápis SYNTHLUCIDA nesvítí (výchozí stav)
+  // 1 = logo nesvítí (zůstává vidět, jen bez záře/pulzování), místo něj svítí nápis
+  // 2 = nesvítí vůbec nic (ani logo, ani nápis)
+  // ...a další klik se vrátí zpátky na stav 0. Ukládá se stejně jako tlačítko 💡
+  // (vlastní localStorage klíč, ukládá se hned).
   // ==========================================
-  const LOGO_PULSE_KEY = 'synthlucida_logo_pulse';
-  let logoPulseEnabled = true;
+  const SPARKLE_STATE_KEY = 'synthlucida_sparkle_state';
+  let sparkleState = 0;
 
-  function applyLogoPulseUI() {
+  function applySparkleUI() {
       const img = document.getElementById('logo-img');
+      const brandName = document.querySelector('.brand-name');
       const btn = document.getElementById('btn-logo-pulse');
-      if (img) img.classList.toggle('pulse-off', !logoPulseEnabled);
+      if (img) img.classList.toggle('pulse-off', sparkleState !== 0);
+      if (brandName) brandName.classList.toggle('text-glow', sparkleState === 1);
       if (btn) {
-          btn.classList.toggle('active', logoPulseEnabled);
-          btn.title = logoPulseEnabled ? 'Turn off logo glow' : 'Turn on logo glow';
+          btn.classList.toggle('active', sparkleState === 0);
+          // Popisek vždy říká, co udělá NÁSLEDUJÍCÍ klik (ne aktuální stav)
+          const nextActionTitles = ['Turn off logo glow', 'Turn off everything', 'Turn on logo glow'];
+          btn.title = nextActionTitles[sparkleState];
           btn.setAttribute('aria-label', btn.title);
       }
   }
 
-  window.toggleLogoPulse = function() {
-      logoPulseEnabled = !logoPulseEnabled;
-      try { localStorage.setItem(LOGO_PULSE_KEY, logoPulseEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
-      applyLogoPulseUI();
+  window.toggleTextGlow = function() {
+      sparkleState = (sparkleState + 1) % 3;
+      try { localStorage.setItem(SPARKLE_STATE_KEY, String(sparkleState)); } catch (e) { /* ignore */ }
+      applySparkleUI();
   };
 
   try {
-      const savedLogoPulse = localStorage.getItem(LOGO_PULSE_KEY);
-      if (savedLogoPulse === '0') logoPulseEnabled = false;
+      const savedSparkleState = localStorage.getItem(SPARKLE_STATE_KEY);
+      if (savedSparkleState !== null) {
+          const parsed = parseInt(savedSparkleState, 10);
+          if (parsed === 0 || parsed === 1 || parsed === 2) sparkleState = parsed;
+      } else {
+          // Zpětná kompatibilita s krátce nasazenou předchozí verzí (jednoduchý
+          // přepínač jen pro podsvícení nápisu, bez logo záře)
+          const savedTextGlowOld = localStorage.getItem('synthlucida_text_glow');
+          if (savedTextGlowOld === '1') sparkleState = 1;
+      }
   } catch (e) { /* ignore */ }
-  applyLogoPulseUI();
+  applySparkleUI();
 
   function initChristmasLights() {
       christmasLights = [];
@@ -6590,7 +6638,7 @@
     settings.breathLogoHidden = breathLogoHidden;
     settings.crossfade = crossfadeDuration;
     settings.logoGlowEnabled = logoGlowEnabled;
-    settings.logoPulseEnabled = logoPulseEnabled;
+    settings.sparkleState = sparkleState;
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
     
     // Malý vizuální feedback
@@ -6698,15 +6746,15 @@
                 currentBreathTechnique = settings.breathTechnique;
             }
             if (typeof settings.crossfade === 'number') savedCrossfade = settings.crossfade;
-            // Vypnuté/zapnuté logo a jeho podsvícení se sice ukládají hned při každém
+            // Vypnuté/zapnuté logo a podsvícení nápisu se sice ukládají hned při každém
             // kliknutí na 💡/✨ (vlastní klíče), ale SAVE tlačítko má tohle nastavení
             // ukládat/obnovovat taky - promítneme ho tedy i sem.
             if (typeof settings.logoGlowEnabled === 'boolean') logoGlowEnabled = settings.logoGlowEnabled;
-            if (typeof settings.logoPulseEnabled === 'boolean') logoPulseEnabled = settings.logoPulseEnabled;
+            if (typeof settings.sparkleState === 'number' && (settings.sparkleState === 0 || settings.sparkleState === 1 || settings.sparkleState === 2)) sparkleState = settings.sparkleState;
         }
     } catch (e) { console.error("Nelze načíst nastavení:", e); }
     applyLogoGlowUI();
-    applyLogoPulseUI();
+    applySparkleUI();
 
     const crossfadeBtn = Array.from(document.querySelectorAll('.btn-crossfade'))
       .find(b => parseInt(b.dataset.cf, 10) === savedCrossfade);
