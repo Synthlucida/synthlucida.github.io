@@ -895,7 +895,20 @@
     flex-shrink: 0;
     box-shadow: 0 0 5px rgba(255, 204, 0, 0.55);
   }
-  .offline-status { font-size: 8px; opacity: 0.45; display: inline-block; min-width: 60px; text-align: left; }
+  /* Text uvnitř ("X/Y OFFLINE") se mění podle počtu skladeb v aktuálním
+     playlistu (ASMR/PIANO/CHILL mají různý počet skladeb, takže i jiný počet
+     číslic). Dřív byl jen min-width - to je pouhé dolní minimum, skutečná
+     šířka boxu se ale s delším textem přesto zvětšovala, a na mobilu (jiné
+     vykreslení fontu než v desktopovém prohlížeči) to stačilo k tomu, aby se
+     při přepnutí na jiný playlist posunul bod zalomení řádků v .effects-container
+     a "OFFLINE" ukazatel/tlačítka pod ním poskočila na jiný řádek. Pevná šířka
+     (ne jen minimální) tohle řeší nadobro - box má vždycky stejnou velikost,
+     ať je aktivní kterýkoli playlist nebo jakýkoli prohlížeč. */
+  .offline-status {
+    font-size: 8px; opacity: 0.45; display: inline-block;
+    width: 78px; min-width: 78px; max-width: 78px; flex-shrink: 0;
+    white-space: nowrap; overflow: hidden; text-align: left;
+  }
 
   /* Heart button to add a track directly from the main playlist to MY PLAYLIST */
   .heart-btn { background: none; border: none; font-size: 13px; opacity: 0.5; box-shadow: none; }
@@ -1192,9 +1205,20 @@
   }
   .breathing-overlay.breath-paused .breath-ring { animation-play-state: paused; opacity: 0; }
   .breath-orb {
+    /* Dřív mělo pozadí ještě filter:blur(6px) navrch - ve Firefoxu ale
+       kombinace border-radius (kruh) + filter na jednom elementu uměla na
+       zlomek snímku vykreslit neořezané rohy blurované záře dřív, než se
+       stihlo uplatnit kruhové ořezání (vypadalo to jako slabý bílý "křížek"
+       problikávající uprostřed koule při spuštění cvičení). Zkoušel jsem to
+       řešit přes overflow:hidden + samostatný vnitřní prvek, jenže to rozbilo
+       vykreslení loga uprostřed koule. Nejjednodušší a bezpečné řešení: filter
+       úplně pryč - gradient sám o sobě už plynule doznívá do průhledna
+       (transparent 72%), takže rozdíl je vizuálně minimální, ale tím zmizí
+       úplně i ta chyba ve Firefoxu (nemá se tam co pokazit, žádný filter).
+       Struktura zůstává úplně stejná jako předtím, logo se tím nijak nedotklo. */
     position: absolute; inset: 0; border-radius: 50%;
     background: radial-gradient(circle, var(--accent-color) 0%, var(--accent-glow) 45%, transparent 72%);
-    filter: blur(6px); opacity: 0.32;
+    opacity: 0.32;
     transition: opacity 4s ease-in-out;
     will-change: opacity;
   }
@@ -1204,6 +1228,9 @@
     50% { opacity: 0.6; }
   }
   .breath-logo {
+    /* Logo v kouli natrvalo pryč (na přání) - element zůstává v DOM (kód mu
+       při každé fázi dýchání nastavuje styl), jen je natrvalo schovaný. */
+    display: none;
     position: relative; width: 84px; height: auto; z-index: 1;
     filter: drop-shadow(0 0 8px var(--accent-color));
     transition: filter 4s ease-in-out;
@@ -1255,9 +1282,8 @@
     border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color);
   }
   .btn-breath-ctrl:disabled { opacity: 0.3; cursor: default; }
-  /* Pevná min. šířka LOGO/VIBE/SAVE tlačítek - text se přepíná mezi kratší a delší variantou
-     (např. "LOGO: ON" / "LOGO: OFF", "SAVE" / "SAVED!"), bez toho poskakovala sousední tlačítka */
-  #breath-logo-btn { min-width: 88px; }
+  /* Pevná min. šířka VIBE/SAVE tlačítek - text se přepíná mezi kratší a delší variantou
+     (např. "VIBE: ON" / "VIBE: OFF", "SAVE" / "SAVED!"), bez toho poskakovala sousední tlačítka */
   #breath-vibe-btn { min-width: 88px; }
   #breath-save-btn { min-width: 62px; }
 
@@ -1873,6 +1899,10 @@
     <div class="breath-ring breath-ring-1"></div>
     <div class="breath-ring breath-ring-2"></div>
     <div class="breath-orb" id="breath-orb"></div>
+    <!-- Logo v kouli natrvalo odstraněno (na přání) - element necháváme v DOM, jen
+         skrytý přes CSS (.breath-logo { display: none; }), aby zbytek kódu, co
+         mu nastavuje styl při každé fázi dýchání, nemusel na nic čekat ani se
+         nerozbil kvůli chybějícímu elementu. -->
     <img src="logo.jpg" alt="" class="breath-logo" id="breath-logo" onerror="this.style.display='none'">
   </div>
   <div class="breath-phase" id="breath-phase" aria-live="polite">Breathe In</div>
@@ -1882,7 +1912,6 @@
   <div class="breath-controls">
     <button class="btn-breath-ctrl" id="breath-start-btn" onclick="resumeBreathCycle()">START</button>
     <button class="btn-breath-ctrl" id="breath-stop-btn" onclick="pauseBreathCycle()">STOP</button>
-    <button class="btn-breath-ctrl" id="breath-logo-btn" onclick="toggleBreathLogo()">LOGO: ON</button>
     <button class="btn-breath-ctrl" id="breath-vibe-btn" onclick="toggleBreathVibration()">VIBE: ON</button>
     <button class="btn-breath-ctrl" id="breath-save-btn" onclick="saveBreathSettings()">SAVE</button>
   </div>
@@ -2375,7 +2404,6 @@
   let breathingSessionStartTime = null; // pro ochranu XP - počítá se jen skutečně odcvičený čas, ne kliknutí na start
   let breathingPaused = false;
   let breathCycleStarted = false; // true až po skutečném stisku START - do té doby appka jen čeká
-  let breathLogoHidden = false;
   let currentBreathTechnique = '478';
   let vibrationEnabled = true;
   let breathSaveBtnResetTimer = null;
@@ -4037,21 +4065,6 @@
     if (stopBtn) stopBtn.classList.toggle('active', breathingActive && breathingPaused);
   }
 
-  // Přepínač loga (schování/zobrazení) v dechovém cvičení
-  window.toggleBreathLogo = function() {
-    breathLogoHidden = !breathLogoHidden;
-    applyBreathLogoVisibility();
-  };
-
-  function applyBreathLogoVisibility() {
-    breathLogoEl.style.display = breathLogoHidden ? 'none' : '';
-    const btn = document.getElementById('breath-logo-btn');
-    if (btn) {
-      btn.innerText = breathLogoHidden ? 'LOGO: OFF' : 'LOGO: ON';
-      btn.classList.toggle('active', !breathLogoHidden);
-    }
-  }
-
   // Přepínač vibrací při změně fáze dechu (nádech/výdech/zádrž)
   window.toggleBreathVibration = function() {
     vibrationEnabled = !vibrationEnabled;
@@ -4073,7 +4086,6 @@
       const existing = localStorage.getItem('synthlucida_settings');
       if (existing) settings = JSON.parse(existing);
     } catch (e) { settings = {}; }
-    settings.breathLogoHidden = breathLogoHidden;
     settings.vibrationEnabled = vibrationEnabled;
     settings.breathTechnique = currentBreathTechnique;
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
@@ -6635,7 +6647,6 @@
     settings.theme = currentVisualTheme;
     settings.weather = weatherMode;
     settings.sunset = sunsetMode;
-    settings.breathLogoHidden = breathLogoHidden;
     settings.crossfade = crossfadeDuration;
     settings.logoGlowEnabled = logoGlowEnabled;
     settings.sparkleState = sparkleState;
@@ -6740,7 +6751,6 @@
                 // nesprávně změnilo na NIGHT).
                 savedSunsetMode = settings.sunset;
             }
-            if (settings.breathLogoHidden) breathLogoHidden = true;
             if (settings.vibrationEnabled === false) vibrationEnabled = false;
             if (settings.breathTechnique && BREATH_TECHNIQUES[settings.breathTechnique]) {
                 currentBreathTechnique = settings.breathTechnique;
@@ -6760,7 +6770,6 @@
       .find(b => parseInt(b.dataset.cf, 10) === savedCrossfade);
     setCrossfade(savedCrossfade, crossfadeBtn || document.querySelector('.btn-crossfade'));
 
-    applyBreathLogoVisibility();
     applyBreathVibrationVisibility();
     updateBreathTechniqueUI();
 
