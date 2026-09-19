@@ -208,8 +208,27 @@
 
   .header { padding: 6px 20px 4px; }
   .logo { max-width: 80px; height: auto; margin-bottom: 3px; animation: logoPulse 3.5s ease-in-out infinite; }
+  /* visibility:hidden (ne display:none) - logo dál zabírá stejné místo v layoutu,
+     takže po vypnutí nic neposkočí ani se nepřeuspořádá. */
+  .logo.glow-off { visibility: hidden; }
+  .logo.pulse-off { animation: none !important; filter: none !important; }
   .brand-name-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 3px; }
   .brand-name { font-size: 16px; margin-bottom: 0; letter-spacing: 2px; }
+  /* Malé tlačítko vedle názvu SYNTHLUCIDA pro vypnutí/zapnutí podsvícení (záře) loga */
+  .logo-glow-toggle-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.45);
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .logo-glow-toggle-btn.active { color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
   .desc-text { font-size: 8px; opacity: 0.7; padding: 0 20px; line-height: 1.3; margin-bottom: 4px; }
 
   @keyframes logoPulse {
@@ -286,6 +305,17 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
   .main-files-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  /* Když je logo vypnuté (tlačítko 💡), přeskupí se ⓘ+☕ a S+F z dvou svislých
+     dvojic na dvě vodorovné, hlavně kvůli malému místu na mobilu. */
+  body.logo-hidden .main-donate-btn {
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    left: calc(16px + 36px + 8px + env(safe-area-inset-left, 0px));
+  }
+  body.logo-hidden .main-files-btn {
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    right: calc(16px + 36px + 8px + env(safe-area-inset-right, 0px));
+  }
 
   /* Nápověda (?) k My Files - v levém horním rohu panelu F, po vzoru main-guide-close */
   .myfiles-help-btn {
@@ -1181,7 +1211,12 @@
 
   /* Slogany a ovládací tlačítka uvnitř dechového cvičení */
   .breath-slogan {
-    min-height: 14px; margin-top: 22px; max-width: 260px;
+    /* Pevná výška (ne min-height) na 3 řádky - slogany mají různou délku a bez
+       toho se box po zobrazení/výměně textu natahoval a posouval tlačítka pod
+       ním. Takhle je místo rezervované pořád stejné, ať je slogan krátký,
+       nebo se zalomí na víc řádků. */
+    height: 42px; line-height: 14px; margin-top: 22px; max-width: 260px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
     font-size: 10px; opacity: 0; transition: opacity 2.5s ease-in-out;
     text-shadow: 0 0 8px var(--accent-color); letter-spacing: 2px;
     text-transform: uppercase; font-weight: 400;
@@ -1307,7 +1342,9 @@
 <div class="header">
   <img src="logo.jpg" alt="SYNTHLUCIDA" id="logo-img" class="logo" onerror="this.style.display='none'" onclick="handleLogoClick()">
   <div class="brand-name-row">
+    <button class="logo-glow-toggle-btn active" id="btn-logo-pulse" onclick="toggleLogoPulse()" title="Toggle logo glow" aria-label="Toggle logo glow">✨</button>
     <div class="brand-name">SYNTHLUCIDA</div>
+    <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight">💡</button>
   </div>
 </div>
 
@@ -1328,6 +1365,7 @@
     <button class="btn-crossfade" data-cf="6" onclick="setCrossfade(6, this)">6s</button>
     <button class="btn-crossfade" data-cf="8" onclick="setCrossfade(8, this)">8s</button>
     <button class="btn-crossfade" data-cf="10" onclick="setCrossfade(10, this)">10s</button>
+    <button class="btn-crossfade" data-cf="15" onclick="setCrossfade(15, this)">15s</button>
   </div>
 </div>
 
@@ -1337,8 +1375,6 @@
   <input type="file" id="sun-photo-input" accept="image/*" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
   <button class="btn-feature" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
-  <button class="btn-feature" id="btn-history" onclick="toggleHistory()">🕘 HISTORY</button>
-  <button class="btn-feature" id="btn-reminders" onclick="toggleMainReminders()">🔔 REMINDERS</button>
   <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()">🎵 MY PLAYLIST <span id="queue-count-badge"></span></button>
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
@@ -1663,6 +1699,7 @@
     </div>
     <div class="queue-actions">
       <button class="btn-feature" onclick="resetStats()">RESET STATISTICS</button>
+      <button class="btn-feature" onclick="openRemindersFromStats()">🔔 REMINDERS</button>
     </div>
     <p class="main-guide-note" data-i18n="stats_note">Stats are stored locally in your browser and are never sent anywhere.</p>
 
@@ -1683,6 +1720,7 @@
     <input type="file" id="myfiles-input" accept="audio/*" multiple style="display:none;" onchange="handleMyFilesUpload(event)">
     <div class="queue-actions">
       <button class="btn-feature" onclick="document.getElementById('myfiles-input').click()">＋ ADD AUDIO FILES</button>
+      <button class="btn-feature" onclick="openHistoryFromFiles()">🕘 HISTORY</button>
     </div>
 
     <h4 class="myfiles-subhead">Your Files</h4>
@@ -1997,7 +2035,7 @@
 
   const audio = document.getElementById('audio-player');
   const crossfadeAudio = document.getElementById('audio-player-crossfade');
-  let crossfadeDuration = 0; // 0 = vypnuto, jinak 3/6/8/10 sekund
+  let crossfadeDuration = 0; // 0 = vypnuto, jinak 3/6/8/10/15 sekund
   let crossfadeActive = false;
   let crossfadeInterval = null;
 
@@ -2156,6 +2194,70 @@
   };
 
   // ==========================================
+  // Malé tlačítko 💡 vedle názvu SYNTHLUCIDA - vypne/zapne podsvícené (zářící) logo.
+  // Logo se při vypnutí úplně skryje (ne jen zhasne záře) a appka si nastavení
+  // pamatuje i po zavření/restartu (vlastní localStorage klíč, ukládá se hned).
+  // ==========================================
+  const LOGO_GLOW_KEY = 'synthlucida_logo_glow';
+  let logoGlowEnabled = true;
+
+  function applyLogoGlowUI() {
+      const img = document.getElementById('logo-img');
+      const btn = document.getElementById('btn-logo-glow');
+      if (img) img.classList.toggle('glow-off', !logoGlowEnabled);
+      if (btn) {
+          btn.classList.toggle('active', logoGlowEnabled);
+          btn.title = logoGlowEnabled ? 'Turn off logo' : 'Turn on logo';
+          btn.setAttribute('aria-label', btn.title);
+      }
+      // Rohová tlačítka (ⓘ, ☕, S, F) se při vypnutém logu přeskupí z dvou svislých
+      // dvojic na dvě vodorovné - viz .logo-hidden v CSS.
+      document.body.classList.toggle('logo-hidden', !logoGlowEnabled);
+  }
+
+  window.toggleLogoGlow = function() {
+      logoGlowEnabled = !logoGlowEnabled;
+      try { localStorage.setItem(LOGO_GLOW_KEY, logoGlowEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+      applyLogoGlowUI();
+  };
+
+  try {
+      const savedLogoGlow = localStorage.getItem(LOGO_GLOW_KEY);
+      if (savedLogoGlow === '0') logoGlowEnabled = false;
+  } catch (e) { /* ignore */ }
+  applyLogoGlowUI();
+
+  // ==========================================
+  // Druhé malé tlačítko ✨ na druhé straně názvu SYNTHLUCIDA - vypne/zapne
+  // JEN podsvícení (zář) loga, logo samotné zůstává vidět. Ukládá se stejně
+  // jako tlačítko 💡 (vlastní localStorage klíč, ukládá se hned).
+  // ==========================================
+  const LOGO_PULSE_KEY = 'synthlucida_logo_pulse';
+  let logoPulseEnabled = true;
+
+  function applyLogoPulseUI() {
+      const img = document.getElementById('logo-img');
+      const btn = document.getElementById('btn-logo-pulse');
+      if (img) img.classList.toggle('pulse-off', !logoPulseEnabled);
+      if (btn) {
+          btn.classList.toggle('active', logoPulseEnabled);
+          btn.title = logoPulseEnabled ? 'Turn off logo glow' : 'Turn on logo glow';
+          btn.setAttribute('aria-label', btn.title);
+      }
+  }
+
+  window.toggleLogoPulse = function() {
+      logoPulseEnabled = !logoPulseEnabled;
+      try { localStorage.setItem(LOGO_PULSE_KEY, logoPulseEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+      applyLogoPulseUI();
+  };
+
+  try {
+      const savedLogoPulse = localStorage.getItem(LOGO_PULSE_KEY);
+      if (savedLogoPulse === '0') logoPulseEnabled = false;
+  } catch (e) { /* ignore */ }
+  applyLogoPulseUI();
+
   function initChristmasLights() {
       christmasLights = [];
       const colors = ['#ff3b3b', '#ffd93b', '#3bff6e', '#3bb0ff', '#ff3bd6'];
@@ -2224,6 +2326,7 @@
   let breathingActive = false;
   let breathingSessionStartTime = null; // pro ochranu XP - počítá se jen skutečně odcvičený čas, ne kliknutí na start
   let breathingPaused = false;
+  let breathCycleStarted = false; // true až po skutečném stisku START - do té doby appka jen čeká
   let breathLogoHidden = false;
   let currentBreathTechnique = '478';
   let vibrationEnabled = true;
@@ -3822,25 +3925,25 @@
   window.startBreathing = function() {
     if (breathingActive) return;
     breathingActive = true;
-    breathingPaused = false;
+    breathingPaused = true; // čeká, dokud uživatel sám nezmáčkne START - dřív se cyklus spustil hned po otevření
+    breathCycleStarted = false;
     breathPhaseIndex = 0;
     document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
 
-    breathingSessionStartTime = Date.now(); // XP se přizná až při stopBreathing, pokud cvičení trvalo dost dlouho
-
-    // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav, pak teprve spustit plynulý cyklus
+    // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav a nechat appku
+    // čekat v pozastaveném stavu - samotný cyklus i odpočet XP času se spustí
+    // až v resumeBreathCycle() při skutečném stisku START.
     lastBreathVisual = OUT_VISUAL;
     setBreathTransitionDuration(0);
     applyBreathPhase(OUT_VISUAL);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(runBreathPhase);
-    });
+    breathPhaseEl.innerText = '';
+    breathCountEl.innerText = '';
+    document.getElementById('breathing-overlay').classList.add('breath-paused');
 
     updateBreathTechniqueUI();
     updateBreathControlsUI();
     breathSloganQueue = [];
     breathSloganEl.classList.remove('visible');
-    scheduleNextBreathSlogan(10000);
   };
 
   // STOP tlačítko uvnitř overlaye - pozastaví cyklus, ale zůstane otevřený (na rozdíl od ✖)
@@ -3855,14 +3958,27 @@
     updateBreathControlsUI();
   };
 
-  // START tlačítko uvnitř overlaye - pokud bylo cvičení pozastaveno, znovu ho spustí
+  // START tlačítko uvnitř overlaye - buď skutečně poprvé spustí cyklus (appka do
+  // té doby jen čekala), nebo znovu rozjede cvičení pozastavené tlačítkem STOP
   window.resumeBreathCycle = function() {
     if (!breathingActive) { window.startBreathing(); return; }
     if (!breathingPaused) return;
     breathingPaused = false;
     document.getElementById('breathing-overlay').classList.remove('breath-paused');
-    runBreathPhase();
-    scheduleNextBreathSlogan(4000);
+
+    if (!breathCycleStarted) {
+      // Skutečný první start cyklu - teprve odsud se počítá čas pro XP (ochrana
+      // proti tomu, aby se XP počítalo i za čas strávený čekáním na obrazovce).
+      breathCycleStarted = true;
+      breathingSessionStartTime = Date.now();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(runBreathPhase);
+      });
+      scheduleNextBreathSlogan(10000);
+    } else {
+      runBreathPhase();
+      scheduleNextBreathSlogan(4000);
+    }
     updateBreathControlsUI();
   };
 
@@ -3970,6 +4086,7 @@
     if (!breathingActive) return;
     breathingActive = false;
     breathingPaused = false;
+    breathCycleStarted = false;
 
     // XP za dokončené cvičení - jen pokud reálně trvalo aspoň BREATHING_XP_MIN_SECONDS,
     // aby nešlo nasbírat XP rychlým klikáním start/stop
@@ -4298,6 +4415,18 @@
     const panel = document.getElementById('main-reminders');
     if (!panel) return;
     panel.classList.toggle('visible');
+    updateReminderPanelUI();
+  };
+
+  // REMINDERS teď nemá vlastní tlačítko na hlavní obrazovce (kvůli úspoře místa) -
+  // otevírá se zevnitř sekce S. Nejdřív schová S, aby se panely nepřekrývaly
+  // (oba jsou přes celou obrazovku), pak rovnou otevře REMINDERS.
+  window.openRemindersFromStats = function() {
+    const statsPanel = document.getElementById('main-stats');
+    if (statsPanel) statsPanel.classList.remove('visible');
+    const panel = document.getElementById('main-reminders');
+    if (!panel) return;
+    panel.classList.add('visible');
     updateReminderPanelUI();
   };
 
@@ -5923,6 +6052,18 @@
     if (willShow) renderHistory();
   };
 
+  // HISTORY teď nemá vlastní tlačítko na hlavní obrazovce (kvůli úspoře místa) -
+  // otevírá se zevnitř sekce F. Nejdřív schová F, aby se panely nepřekrývaly
+  // (oba jsou přes celou obrazovku), pak rovnou otevře HISTORY.
+  window.openHistoryFromFiles = function() {
+    const filesPanel = document.getElementById('main-files');
+    if (filesPanel) filesPanel.classList.remove('visible');
+    const panel = document.getElementById('history-panel');
+    if (!panel) return;
+    panel.classList.add('visible');
+    renderHistory();
+  };
+
   window.clearHistory = function() {
     try { localStorage.removeItem(HISTORY_KEY); } catch (e) { /* ignore */ }
     renderHistory();
@@ -6448,6 +6589,8 @@
     settings.sunset = sunsetMode;
     settings.breathLogoHidden = breathLogoHidden;
     settings.crossfade = crossfadeDuration;
+    settings.logoGlowEnabled = logoGlowEnabled;
+    settings.logoPulseEnabled = logoPulseEnabled;
     localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
     
     // Malý vizuální feedback
@@ -6555,8 +6698,15 @@
                 currentBreathTechnique = settings.breathTechnique;
             }
             if (typeof settings.crossfade === 'number') savedCrossfade = settings.crossfade;
+            // Vypnuté/zapnuté logo a jeho podsvícení se sice ukládají hned při každém
+            // kliknutí na 💡/✨ (vlastní klíče), ale SAVE tlačítko má tohle nastavení
+            // ukládat/obnovovat taky - promítneme ho tedy i sem.
+            if (typeof settings.logoGlowEnabled === 'boolean') logoGlowEnabled = settings.logoGlowEnabled;
+            if (typeof settings.logoPulseEnabled === 'boolean') logoPulseEnabled = settings.logoPulseEnabled;
         }
     } catch (e) { console.error("Nelze načíst nastavení:", e); }
+    applyLogoGlowUI();
+    applyLogoPulseUI();
 
     const crossfadeBtn = Array.from(document.querySelectorAll('.btn-crossfade'))
       .find(b => parseInt(b.dataset.cf, 10) === savedCrossfade);
