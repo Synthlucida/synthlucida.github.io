@@ -12,6 +12,7 @@
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <link rel="canonical" href="https://synthlucida.com/denik-vozidla.html">
 <link rel="alternate" hreflang="cs" href="https://synthlucida.com/denik-vozidla.html">
+<link rel="alternate" hreflang="en" href="https://synthlucida.com/denik-vozidla-en.html">
 <link rel="alternate" hreflang="x-default" href="https://synthlucida.com/denik-vozidla.html">
 <meta name="language" content="Czech">
 
@@ -42,7 +43,7 @@
 <link rel="manifest" href="denik-vozidla-manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DENÍK VOZIDLA">
+<meta name="apple-mobile-web-app-title" content="Deník vozidla">
 <meta name="mobile-web-app-capable" content="yes">
 
 <script type="application/ld+json">
@@ -121,7 +122,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<script data-goatcounter="https://deníkvozidla.goatcounter.com/count"
+<script data-goatcounter="https://denikvozidla.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
 
 <style>
@@ -258,7 +259,7 @@
   }
   .field-label > span:first-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .field-label .unit{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:rgba(255,255,255,0.4); white-space:nowrap; flex-shrink:0; margin-left:6px; }
-  .field input[type="number"], .field input[type="text"], .field input[type="date"]{
+  .field input[type="number"], .field input[type="text"], .field input[type="date"], .field input[type="url"]{
     width:100%; font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:500;
     padding:12px 14px; border-radius:14px; border:1px solid rgba(255,255,255,0.16);
     background:rgba(255,255,255,0.04); color:#fff; outline:none; transition:0.25s;
@@ -466,17 +467,88 @@
   footer .sep{ opacity:0.5; margin:0 2px; }
 
   .toast{
-    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); z-index:50;
+    position:fixed; left:50%; bottom:calc(26px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px); z-index:50;
     background:rgba(10,15,13,0.92); border:1px solid rgba(45,212,191,0.4); color:#fff;
     font-family:'Poppins', sans-serif; font-size:12.5px; padding:10px 18px; border-radius:30px;
     opacity:0; pointer-events:none; transition:0.3s; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    width:max-content; max-width:calc(100vw - 32px); text-align:center; line-height:1.45;
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
+
+  /* ---- review 09/2026 ---- */
+  .field input[type="date"]{ min-height:46px; display:block; }
+  .field input[type="date"]::-webkit-date-and-time-value{ text-align:left; }
+  .unit-select{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; color:rgba(255,255,255,0.75);
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.16); border-radius:8px;
+    padding:1px 4px; margin-left:6px; flex-shrink:0; outline:none; color-scheme:dark; cursor:pointer;
+  }
+  .unit-select:focus-visible{ border-color:var(--accent-color); }
+  .empty-hint.err{ color:#f87171; }
+  .route-chip .rc-name.multiline{ white-space:normal; overflow:visible; }
+  .route-chip.editing{ border-color:rgba(251,191,36,0.6); background:rgba(251,191,36,0.07); }
+  .edit-banner{
+    display:none; align-items:center; justify-content:space-between; gap:8px 10px; flex-wrap:wrap;
+    margin:0 0 16px; padding:9px 12px; border-radius:12px; border:1px solid rgba(251,191,36,0.4);
+    background:rgba(251,191,36,0.10); color:#fde68a; font-size:12px;
+  }
+  .edit-banner.show{ display:flex; }
+  .edit-banner button{
+    padding:5px 12px; border-radius:30px; border:1px solid rgba(251,191,36,0.45); background:transparent;
+    color:#fde68a; font-family:'Poppins', sans-serif; font-size:11px; cursor:pointer;
+  }
+  .edit-banner button:hover{ background:rgba(251,191,36,0.15); }
+  .summary-all{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:rgba(255,255,255,0.45); text-align:center; margin-top:-4px; }
+  @media (max-width:420px){
+    .section-toggle{ padding:16px 14px; }
+    .section-toggle-content .card{ padding:16px 14px; }
+    .result-actions .btn{ flex:1 1 calc(50% - 4px); justify-content:center; padding:10px 8px; }
+    .result-actions .btn.primary{ flex-basis:100%; }
+  }
   @media (max-width:360px){
     .result-grid{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+    .routes-card-actions .btn-sm svg{ display:none; }
     .fuel-btn{ font-size:9.5px; padding:8px 2px; }
   }
+
+  /* ---- home pill (Domů -> landing, synthlucida.com) ---- */
+  .home-pill{ display:inline-flex; align-items:center; border-radius:999px; border:1px solid rgba(45,212,191,0.35);
+    background:rgba(45,212,191,0.07); font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.5px; }
+  .home-pill a{ display:inline-flex; align-items:center; gap:6px; padding:7px 12px; color:rgba(255,255,255,0.75); text-decoration:none; transition:color .2s; border-radius:999px; }
+  .home-pill a:hover{ color:var(--accent-color); }
+  .home-pill a:focus-visible{ outline:2px solid var(--accent-color); outline-offset:2px; }
+  .home-pill .hp-main{ color:#fff; font-weight:600; text-transform:uppercase; padding-right:10px; }
+  .home-pill .hp-main svg{ width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .home-pill .hp-sub{ border-left:1px solid rgba(45,212,191,0.3); border-radius:0 999px 999px 0; padding-left:10px; }
+
+  /* ---- relaxplayer promo ---- */
+  .promo-card{ text-align:center; background:linear-gradient(135deg, rgba(167,139,250,0.16), rgba(255,255,255,0.03)); border-color:rgba(167,139,250,0.35); }
+  .promo-icon{ font-size:30px; line-height:1; margin-bottom:8px; }
+  .promo-title{ font-family:'Poppins', sans-serif; font-size:15px; font-weight:500; color:#fff; margin-bottom:6px; }
+  .promo-desc{ font-family:'Poppins', sans-serif; font-size:12.5px; line-height:1.55; color:rgba(255,255,255,0.65); margin:0 auto 16px; max-width:340px; }
+  a.btn{ text-decoration:none; }
+  .btn.promo-btn{ display:inline-flex; border-color:rgba(167,139,250,0.55); background:rgba(167,139,250,0.18); }
+  .btn.promo-btn:hover{ background:rgba(167,139,250,0.32); box-shadow:0 0 18px rgba(167,139,250,0.35); }
+
+  /* ---- install pop-up (PWA) ---- */
+  .install-pop{ position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); z-index:60;
+    max-width:440px; margin:0 auto; opacity:0; transform:translateY(24px); transition:opacity .3s ease, transform .3s ease; }
+  .install-pop.show{ opacity:1; transform:none; }
+  .install-pop[hidden]{ display:none; }
+  .install-card{ display:grid; grid-template-columns:auto 1fr; gap:12px 14px; padding:16px; border-radius:20px;
+    background:linear-gradient(180deg, rgba(16,36,32,0.97), rgba(7,10,9,0.97)); border:1px solid rgba(45,212,191,0.35);
+    box-shadow:0 18px 44px rgba(0,0,0,0.6), 0 0 24px rgba(45,212,191,0.08); }
+  .install-icon{ width:48px; height:48px; border-radius:12px; display:block; object-fit:cover; background:rgba(45,212,191,0.12); }
+  .install-title{ margin:2px 0 6px; font-family:'Poppins', sans-serif; font-size:14px; font-weight:500; line-height:1.4; color:#fff; }
+  .install-points{ margin:0; padding:0; list-style:none; font-size:12px; line-height:1.5; color:rgba(255,255,255,0.6); }
+  .install-points li{ position:relative; padding-left:15px; margin-bottom:3px; }
+  .install-points li::before{ content:''; position:absolute; left:2px; top:0.55em; width:6px; height:6px; border-radius:50%; background:var(--accent-color); }
+  .install-ios{ margin:8px 0 0; font-size:12.5px; line-height:1.55; color:#fff; }
+  .install-ios svg{ width:15px; height:15px; vertical-align:-3px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .install-actions{ grid-column:1 / -1; display:flex; gap:8px; justify-content:flex-end; }
+  .install-actions .btn{ justify-content:center; }
+  @media (max-width:480px){ .install-actions .btn{ flex:1; font-size:13px; padding:11px 12px; } }
 </style>
 </head>
 <body>
@@ -484,16 +556,13 @@
 
 <div class="wrap">
   <header>
+    <nav class="home-pill" aria-label="Domů"><a class="hp-main" href="https://synthlucida.com/denik-vozidla-landing.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg>Domů</a><a class="hp-sub" href="https://synthlucida.com/">synthlucida.com</a></nav>
     <div class="brand-block">
       <div class="brand">SYNTHLUCIDA <span class="dot">·</span> DENÍK VOZIDLA</div>
       <div class="brand-slogan">Kniha jízd, která si vše pamatuje za vás</div>
     </div>
     <div class="brand-tagline">Bezplatná elektronická kniha jízd – evidence podle tachometru, účelu jízdy a vozidla</div>
     <div class="header-links">
-      <a href="https://synthlucida.com" aria-label="Synthlucida.com">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
-        SYNTHLUCIDA
-      </a>
       <a href="https://synthlucida.com/tripcost.html" aria-label="Trip Cost">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
         TRIP COST
@@ -511,7 +580,7 @@
         WEBZENith
       </a>
       <a href="https://synthlucida.com/michani-liquidu.html" aria-label="Míchárna">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v7l-6 9a3 3 0 002.5 5h7A3 3 0 0018 18l-6-9V2"/><path d="M9 15h6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/></svg>
         MÍCHÁRNA
       </a>
       <a href="https://synthlucida.com/progrese-cz.html" aria-label="Progrese">
@@ -530,12 +599,16 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 13h18"/></svg>
         DĚLŇAS
       </a>
+      <a href="https://synthreviews.github.io/dzmaster/dzmaster-landing.html" aria-label="DZMASTER">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h2l2-6 3 12 3-9 2 5 2-2h4"/></svg>
+        DZMASTER
+      </a>
       <a href="https://uklidnito.eu" aria-label="Uklidnito.eu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/></svg>
         UKLIDNITO
       </a>
       <a href="https://relaxplayer.eu" aria-label="RelaxPlayer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/></svg>
         RELAXPLAYER
       </a>
       <a href="https://synthlucida.com/denik-vozidla-en.html" aria-label="Switch to English" hreflang="en" style="opacity:0.75;">
@@ -572,8 +645,9 @@
       <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
     <div class="section-toggle-content">
-  <section class="card" aria-label="Nový záznam jízdy">
+  <section class="card" id="tripFormCard" aria-label="Nový záznam jízdy">
     <h2>Nová jízda</h2>
+    <div class="edit-banner" id="editBanner" role="status"><span id="editBannerText"></span><button type="button" id="cancelEditBtn">Zrušit úpravu</button></div>
 
     <div class="fuel-seg" id="purposeSeg" role="group" aria-label="Účel jízdy">
       <button type="button" class="fuel-btn active" data-purpose="sluzebni"><span class="ic">💼</span>Služební</button>
@@ -622,7 +696,7 @@
 
     <div class="field">
       <div class="field-label"><span>Odkaz na mapu <span style="opacity:.6">(volitelné)</span></span><span class="unit">mapy.cz / Google</span></div>
-      <input type="url" id="mapLink" inputmode="url" placeholder="vlož odkaz z mapy.cz nebo Google Maps" aria-label="Odkaz na mapu trasy">
+      <input type="url" id="mapLink" inputmode="url" placeholder="vložte odkaz z mapy.cz nebo Google Maps" aria-label="Odkaz na mapu trasy">
     </div>
 
     <div class="field">
@@ -663,7 +737,7 @@
       <div class="result-actions">
         <button class="btn primary" id="saveBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 17.3l-6.16 3.6 1.64-7-5.36-4.64 7.06-.6L12 2l2.82 6.66 7.06.6-5.36 4.64 1.64 7z"/></svg>
-          Uložit záznam
+          <span id="saveBtnLabel">Uložit záznam</span>
         </button>
         <button class="btn" id="copyBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
@@ -707,6 +781,7 @@
       <span><span class="dot2" style="background:var(--private);"></span>soukromá</span>
       <span><span class="dot2" style="background:var(--commute);"></span>dojíždění</span>
     </div>
+    <div class="summary-all" id="sAllTime"></div>
   </section>
 
   <section class="card" id="entriesCard" style="display:none;" aria-label="Záznamy jízd">
@@ -752,8 +827,9 @@
       <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
     <div class="section-toggle-content">
-  <section class="card" aria-label="Nový servisní záznam">
+  <section class="card" id="serviceFormCard" aria-label="Nový servisní záznam">
     <h2>Servisní deník</h2>
+    <div class="edit-banner" id="sEditBanner" role="status"><span id="sEditBannerText"></span><button type="button" id="sCancelEditBtn">Zrušit úpravu</button></div>
 
     <div class="fuel-seg" id="serviceTypeSeg" role="group" aria-label="Typ úkonu">
       <button type="button" class="fuel-btn active" data-type="servis"><span class="ic">🔧</span>Servis</button>
@@ -780,7 +856,7 @@
         <input type="text" id="sOdo" inputmode="decimal" placeholder="např. 45120" aria-label="Stav tachometru">
       </div>
       <div>
-        <div class="field-label"><span>Cena <span style="opacity:.6">(volitelné)</span></span><span class="unit">Kč</span></div>
+        <div class="field-label"><span>Cena <span style="opacity:.6">(volitelné)</span></span><select id="sCurrency" class="unit-select" aria-label="Měna"><option value="CZK">Kč</option><option value="EUR">€</option><option value="USD">$</option><option value="GBP">£</option><option value="PLN">zł</option></select></div>
         <input type="text" id="sPrice" inputmode="decimal" placeholder="např. 2500" aria-label="Cena">
       </div>
     </div>
@@ -798,7 +874,7 @@
     <div class="result-actions" style="margin-top:6px;">
       <button class="btn primary" id="serviceSaveBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 17.3l-6.16 3.6 1.64-7-5.36-4.64 7.06-.6L12 2l2.82 6.66 7.06.6-5.36 4.64 1.64 7z"/></svg>
-        Uložit záznam
+        <span id="serviceSaveBtnLabel">Uložit záznam</span>
       </button>
       <button class="btn ghost" id="serviceResetBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -857,6 +933,16 @@
     </div>
   </details>
 
+  <section class="card promo-card" aria-label="RelaxPlayer – ambientní hudba na cesty">
+    <div class="promo-icon">🌙🎧</div>
+    <div class="promo-title">Dlouhá cesta? Zpříjemněte si jízdu</div>
+    <div class="promo-desc">RelaxPlayer je bezplatný ambientní přehrávač s uklidňující hudbou a zvuky přírody – ideální společník na dálnici i při vyplňování knihy jízd.</div>
+    <a href="https://relaxplayer.eu/cs.html" class="btn primary promo-btn" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 8.5v7l6-3.5z" fill="currentColor" stroke="none"/></svg>
+      Vyzkoušet RelaxPlayer zdarma
+    </a>
+  </section>
+
   <details class="card info-card" id="infoSection">
     <summary>
       <span class="info-icon">
@@ -901,7 +987,7 @@
       </div>
       <div class="faq-item">
         <div class="faq-q">K čemu slouží servisní deník?</div>
-        <div class="faq-a">Do servisní deníku si zapisujete servis, STK, výměnu pneu, pojištění nebo dálniční známku ke konkrétnímu vozidlu – s datem, cenou a volitelně příštím termínem. Blížící se (do 30 dnů) nebo prošlý termín se v seznamu barevně zvýrazní, aby vám nic neuteklo.</div>
+        <div class="faq-a">Do servisního deníku si zapisujete servis, STK, výměnu pneu, pojištění nebo dálniční známku ke konkrétnímu vozidlu – s datem, cenou a volitelně příštím termínem. Blížící se (do 30 dnů) nebo prošlý termín se v seznamu barevně zvýrazní, aby vám nic neuteklo.</div>
       </div>
     </div>
   </details>
@@ -925,6 +1011,10 @@
   <footer>
     SYNTHLUCIDA DENÍK VOZIDLA
     <span class="sep">·</span>
+    <a href="https://synthlucida.com/denik-vozidla-landing.html">DOMŮ</a>
+    <span class="sep">·</span>
+    <a href="https://synthlucida.com/">SYNTHLUCIDA.COM</a>
+    <span class="sep">·</span>
     <a href="https://synthlucida.com/tripcost.html">TRIP COST</a>
     <span class="sep">·</span>
     <a href="https://synthlucida.com/weather.html">WEATHER</a>
@@ -935,17 +1025,37 @@
     <span class="sep">·</span>
     <a href="https://synthlucida.com/delnas.html">DĚLŇAS</a>
     <span class="sep">·</span>
+    <a href="https://synthreviews.github.io/dzmaster/dzmaster-landing.html">DZMASTER</a>
+    <span class="sep">·</span>
     <a href="https://uklidnito.eu">UKLIDNITO</a>
     <span class="sep">·</span>
     <a href="https://relaxplayer.eu">RELAXPLAYER</a>
     <span class="sep">·</span>
     <a href="https://synthlucida.com/denik-vozidla-privacy.html">Zásady ochrany soukromí</a>
     <br>
-    <span style="opacity:0.8;">If you enjoy the app and want to support the project, we'd really appreciate it. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Buy us a coffee</a>. Thank you!</span>
+    <span style="opacity:0.8;">Pokud vás aplikace baví a chcete podpořit projekt, budeme moc rádi. <a href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener">Kupte nám kávu</a>. Děkujeme!</span>
   </footer>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="install-pop" id="installPop" role="dialog" aria-labelledby="installTitle" hidden>
+  <div class="install-card">
+    <img class="install-icon" src="denik-vozidla-icon-192.png" alt="" width="48" height="48" onerror="this.style.visibility='hidden'">
+    <div>
+      <p class="install-title" id="installTitle">Ikona na ploše – knihu jízd otevřete jedním klepnutím</p>
+      <ul class="install-points">
+        <li>Běží přes celou obrazovku jako normální appka, bez lišty prohlížeče</li>
+        <li>Jízdy a servisní záznamy zůstávají dál jen ve vašem zařízení</li>
+      </ul>
+      <p class="install-ios" id="installIos" hidden>Klepněte na <b>Sdílet</b> <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11v9h12v-9"/></svg> a pak na <b>Přidat na plochu</b>.</p>
+    </div>
+    <div class="install-actions">
+      <button class="btn" id="installLater" type="button">Teď ne</button>
+      <button class="btn primary" id="installGo" type="button" data-ios="Rozumím">Nainstalovat</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -1046,6 +1156,297 @@
   var activeServiceFilter = "all";
   var activeServiceVehicle = "all";
 
+  function pl(n, one, few, many){ n = Math.abs(n); return n === 1 ? one : (n >= 2 && n <= 4 ? few : many); }
+  var T = {
+    lang:"cs", locale:"cs-CZ", decSep:",", defaultCur:"CZK", unnamed:"Bez názvu",
+    odoHint:"Zadejte stav tachometru na začátku a na konci jízdy.",
+    odoErr:"Konečný stav tachometru musí být vyšší než počáteční.",
+    fillFirst:"Nejdřív vyplňte jízdu",
+    saved:"Záznam uložen", changesSaved:"Změny uloženy", svcSaved:"Servisní záznam uložen",
+    editing:"Upravujete záznam z ", saveLabel:"Uložit záznam", saveChanges:"Uložit změny",
+    loaded:"Záznam načten k úpravě", editCancelled:"Úprava zrušena", formCleared:"Formulář vymazán",
+    confirmDelTrip:"Smazat tento záznam jízdy?", confirmDelSvc:"Smazat tento servisní záznam?", deleted:"Záznam smazán",
+    autofill:function(v, km){ return "Doplněno z posledního záznamu vozidla „" + v + "“ (" + km + " km)"; },
+    trips:function(n){ return pl(n, "jízda", "jízdy", "jízd"); },
+    svcs:function(n){ return pl(n, "servisní záznam", "servisní záznamy", "servisních záznamů"); },
+    entries:function(n){ return pl(n, "záznam", "záznamy", "záznamů"); },
+    importedPrefix:"Naimportováno: ", backupImported:"Záloha naimportována", skippedSuffix:" · přeskočeno duplicit: ",
+    nothingNew:"Všechno už v deníku je – nic nového k importu",
+    readErr:"Soubor se nepodařilo přečíst", badFormat:"Neplatný formát souboru", noValid:"V souboru nejsou žádné platné záznamy",
+    noExport:"Žádné záznamy k exportu", csvDone:"CSV exportováno",
+    pdfBlocked:"Export PDF byl zablokován prohlížečem", pdfHint:"Otevřete dialog tisku a zvolte „Uložit jako PDF“",
+    noMatch:"Žádné záznamy pro zvolený filtr.", noRoute:"Bez trasy",
+    delEntry:"Smazat záznam", openMap:"Otevřít trasu na mapě",
+    allTime:function(km, n){ return "Celkem za celé období: " + km + " km · " + n + " " + pl(n, "jízda", "jízdy", "jízd"); },
+    due:function(d){ return d < 0 ? "po termínu" : d === 0 ? "dnes" : d === 1 ? "zítra" : "za " + d + (d <= 4 ? " dny" : " dní"); },
+    badgeDue:"Po termínu", badgeSoon:"Blíží se",
+    thisYear:"tento rok",
+    csvTrips:["Datum","Vozidlo","Účel","Odkud","Kam","Tachometr start (km)","Tachometr konec (km)","Vzdálenost (km)","Řidič","Poznámka","Odkaz na mapu"],
+    csvSvc:["Datum","Vozidlo","Typ","Tachometr (km)","Cena","Měna","Příští termín","Poznámka"],
+    fileTrips:"denik-vozidla-", fileSvc:"servisni-denik-",
+    appName:"SYNTHLUCIDA DENÍK VOZIDLA", appUrl:"synthlucida.com/denik-vozidla.html", generated:"Vygenerováno v ",
+    pdfTripsSub:"Kniha jízd", pdfTripsTotal:"Celkem ujeto", pdfTripsHead:["Datum","Vozidlo","Účel","Trasa / řidič / poznámka","Tachometr","Km"],
+    pdfSvcSub:"Servisní deník", pdfSvcTotal:"Celkem utraceno", pdfSvcHead:["Datum","Vozidlo","Typ","Tachometr","Příští termín","Poznámka","Cena"],
+    pdfPeriod:"období "
+  };
+
+  /* ---- shared helpers (review 09/2026) ---- */
+  var STORAGE_CURRENCY = "denik_vozidla_currency_v1";
+  var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  var CURRENCIES = { CZK:"Kč", EUR:"€", USD:"$", GBP:"£", PLN:"zł" };
+  var editingId = null, editingServiceId = null;
+  var restoring = false;
+  var autoOdo = null;
+  els.sCurrency = document.getElementById("sCurrency");
+
+  function isUnnamed(v){ return !v || v === "Bez názvu" || v === "Unnamed"; }
+  function vehName(v){ return isUnnamed(v) ? T.unnamed : String(v); }
+  function fmtKm(n){ return fmt(n, hasNum(n) && Math.round(n * 10) % 10 !== 0 ? 1 : 0); }
+  function fmtDate(iso){
+    iso = String(iso || "");
+    if(!DATE_RE.test(iso)) return iso;
+    var p = iso.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(T.locale);
+  }
+  function csvNum(n){ return hasNum(n) ? String(Math.round(n * 100) / 100).replace(".", T.decSep) : ""; }
+  function curOf(e){ return e && CURRENCIES[e.currency] ? e.currency : "CZK"; }
+  function getCurrency(){
+    var c = null;
+    try { c = localStorage.getItem(STORAGE_CURRENCY); } catch(e){}
+    return CURRENCIES[c] ? c : T.defaultCur;
+  }
+  function fmtMoney(n, code){
+    var s = fmt(n, Math.round(n * 100) % 100 !== 0 ? 2 : 0), sym = CURRENCIES[code] || code;
+    return (T.lang === "en" && /^[€$£]$/.test(sym)) ? sym + s : s + " " + sym;
+  }
+  function sumByCur(list){
+    var sums = {}, order = [];
+    list.forEach(function(e){
+      if(!hasNum(e.price)) return;
+      var c = curOf(e);
+      if(!(c in sums)){ sums[c] = 0; order.push(c); }
+      sums[c] += e.price;
+    });
+    if(!order.length) return fmtMoney(0, getCurrency());
+    return order.map(function(c){ return fmtMoney(sums[c], c); }).join(" + ");
+  }
+  function tripCmp(a, b){
+    if(a.date !== b.date) return a.date < b.date ? 1 : -1;
+    var ea = hasNum(a.odoEnd) ? a.odoEnd : 0, eb = hasNum(b.odoEnd) ? b.odoEnd : 0;
+    if(ea !== eb) return eb - ea;
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
+  }
+  function svcCmp(a, b){
+    if(a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
+  }
+  function periodStr(list){
+    var dates = list.map(function(e){ return e.date; }).filter(function(d){ return DATE_RE.test(d); }).sort();
+    if(!dates.length) return "";
+    var a = fmtDate(dates[0]), b = fmtDate(dates[dates.length - 1]);
+    return a === b ? a : a + " – " + b;
+  }
+  function lastOdoFor(v){
+    if(isUnnamed(v)) return null;
+    var best = null;
+    loadEntries().forEach(function(e){
+      if(e.vehicle === v && hasNum(e.odoEnd) && (best === null || e.odoEnd > best)) best = e.odoEnd;
+    });
+    return best;
+  }
+  /* a due date is "done" once a newer record of the same kind exists for the same vehicle (e.g. the next STK was already passed) */
+  function isSuperseded(e, all){
+    if(e.type === "jine") return false;
+    return all.some(function(o){
+      return o !== e && o.vehicle === e.vehicle && o.type === e.type &&
+        (o.date > e.date || (o.date === e.date && (Number(o.id) || 0) > (Number(e.id) || 0)));
+    });
+  }
+  function safeId(id, taken){
+    var n = Number(id);
+    if(!isFinite(n) || n <= 0 || n % 1 !== 0 || taken[String(n)]){
+      n = Date.now() + Math.floor(Math.random() * 100000);
+      while(taken[String(n)]) n++;
+    }
+    taken[String(n)] = true;
+    return n;
+  }
+  function scrollToCard(id){
+    var el = document.getElementById(id);
+    if(el && el.scrollIntoView) el.scrollIntoView({ behavior:"smooth", block:"start" });
+  }
+
+  function autofillOdo(){
+    if(editingId !== null) return false;
+    var cur = els.odoStart.value;
+    if(cur && cur !== autoOdo) return false;
+    var v = els.vehicle.value.trim() || (currentVehicle !== "all" ? currentVehicle : "");
+    var last = lastOdoFor(v);
+    if(last === null){
+      if(cur){ els.odoStart.value = ""; autoOdo = null; els.autofillHint.style.display = "none"; return true; }
+      return false;
+    }
+    autoOdo = els.odoStart.value = String(last);
+    els.autofillHint.style.display = "block";
+    els.autofillHint.textContent = T.autofill(v, fmtKm(last));
+    return true;
+  }
+
+  function setEditing(entry){
+    editingId = entry ? entry.id : null;
+    var b = document.getElementById("editBanner");
+    b.classList.toggle("show", !!entry);
+    document.getElementById("editBannerText").textContent = entry ? T.editing + fmtDate(entry.date) : "";
+    document.getElementById("saveBtnLabel").textContent = entry ? T.saveChanges : T.saveLabel;
+    var chips = els.routesList.querySelectorAll(".route-chip");
+    for(var i=0;i<chips.length;i++) chips[i].classList.toggle("editing", editingId !== null && chips[i].getAttribute("data-id") === String(editingId));
+  }
+
+  function setServiceEditing(entry){
+    editingServiceId = entry ? entry.id : null;
+    document.getElementById("sEditBanner").classList.toggle("show", !!entry);
+    document.getElementById("sEditBannerText").textContent = entry ? T.editing + fmtDate(entry.date) : "";
+    document.getElementById("serviceSaveBtnLabel").textContent = entry ? T.saveChanges : T.saveLabel;
+    var chips = els.serviceList.querySelectorAll(".route-chip");
+    for(var i=0;i<chips.length;i++) chips[i].classList.toggle("editing", editingServiceId !== null && chips[i].getAttribute("data-id") === String(editingServiceId));
+  }
+
+  function clearTripForm(){
+    els.odoStart.value = ""; els.odoEnd.value = ""; els.fromPlace.value = ""; els.toPlace.value = "";
+    els.driver.value = ""; els.mapLink.value = ""; els.notes.value = "";
+    els.autofillHint.style.display = "none"; autoOdo = null;
+  }
+
+  function clearServiceForm(){
+    els.sOdo.value = ""; els.sPrice.value = ""; els.sNextDate.value = ""; els.sNotes.value = "";
+    els.sDate.value = todayStr();
+  }
+
+  /* ---- import: normalise + merge (skips records that are already stored) ---- */
+  function normTrip(e, id){
+    var s = parseFloat(e.odoStart), en = parseFloat(e.odoEnd);
+    return {
+      id: id,
+      purpose: PURPOSE_LABELS[e.purpose] ? e.purpose : "sluzebni",
+      date: String(e.date),
+      vehicle: (e.vehicle ? String(e.vehicle) : T.unnamed).slice(0,30),
+      fromPlace: e.fromPlace ? String(e.fromPlace).slice(0,60) : "",
+      toPlace: e.toPlace ? String(e.toPlace).slice(0,60) : "",
+      odoStart: s,
+      odoEnd: en,
+      distance: Math.round((en - s) * 100) / 100,
+      driver: e.driver ? String(e.driver).slice(0,40) : "",
+      mapLink: typeof e.mapLink === "string" ? e.mapLink.slice(0,500) : "",
+      notes: e.notes ? String(e.notes).slice(0,200) : ""
+    };
+  }
+
+  function normService(e, id){
+    var odo = parseFloat(e.odo), price = parseFloat(e.price);
+    return {
+      id: id,
+      type: SERVICE_TYPE_LABELS[e.type] ? e.type : "jine",
+      date: String(e.date),
+      vehicle: (e.vehicle ? String(e.vehicle) : T.unnamed).slice(0,30),
+      odo: isFinite(odo) ? odo : null,
+      price: isFinite(price) ? price : null,
+      currency: CURRENCIES[e.currency] ? e.currency : "CZK",
+      nextDate: DATE_RE.test(String(e.nextDate || "")) ? String(e.nextDate) : "",
+      notes: e.notes ? String(e.notes).slice(0,200) : ""
+    };
+  }
+
+  function mergeTrips(incoming){
+    var existing = loadEntries(), taken = {}, byId = {}, added = 0, skipped = 0;
+    existing.forEach(function(e){ taken[String(e.id)] = true; byId[String(e.id)] = e; });
+    incoming.forEach(function(raw){
+      var same = byId[String(raw.id)];
+      if(same && same.date === String(raw.date) && same.odoStart === parseFloat(raw.odoStart) && same.odoEnd === parseFloat(raw.odoEnd)){ skipped++; return; }
+      var rec = normTrip(raw, safeId(raw.id, taken));
+      existing.push(rec); byId[String(rec.id)] = rec; added++;
+    });
+    if(added && !saveToStorage(STORAGE_ENTRIES, existing)) return null;
+    return { added: added, skipped: skipped };
+  }
+
+  function mergeService(incoming){
+    var existing = loadServiceEntries(), taken = {}, byId = {}, added = 0, skipped = 0;
+    existing.forEach(function(e){ taken[String(e.id)] = true; byId[String(e.id)] = e; });
+    incoming.forEach(function(raw){
+      var same = byId[String(raw.id)], price = parseFloat(raw.price);
+      price = isFinite(price) ? price : null;
+      if(same && same.date === String(raw.date) && same.type === raw.type && same.price === price){ skipped++; return; }
+      var rec = normService(raw, safeId(raw.id, taken));
+      existing.push(rec); byId[String(rec.id)] = rec; added++;
+    });
+    if(added && !saveServiceEntries(existing)) return null;
+    return { added: added, skipped: skipped };
+  }
+
+  function importToast(tr, sv){
+    var parts = [];
+    if(tr && tr.added) parts.push(tr.added + " " + T.trips(tr.added));
+    if(sv && sv.added) parts.push(sv.added + " " + T.svcs(sv.added));
+    var skipped = (tr ? tr.skipped : 0) + (sv ? sv.skipped : 0);
+    if(!parts.length && skipped){ showToast(T.nothingNew); return; }
+    showToast((parts.length ? T.importedPrefix + parts.join(", ") : T.backupImported) + (skipped ? T.skippedSuffix + skipped : ""));
+  }
+
+  function printDoc(sub, totalLabel, totalValue, extraHtml, head, rowsHtml, maxW){
+    var html = "<!DOCTYPE html><html lang=\"" + T.lang + "\"><head><meta charset=\"UTF-8\"><title>" + T.appName + "</title><style>"
+      + "body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;max-width:" + maxW + "px;margin:0 auto;}"
+      + "h1{font-size:20px;margin:0 0 4px;letter-spacing:0.5px;}"
+      + ".sub{color:#777;font-size:12px;margin-bottom:18px;}"
+      + ".total-label{color:#999;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}"
+      + ".total{font-size:32px;font-weight:bold;margin:2px 0 6px;color:#0f766e;}"
+      + ".split{color:#555;font-size:12px;margin-bottom:18px;}"
+      + "table{width:100%;border-collapse:collapse;font-size:12px;}"
+      + "th{text-align:left;color:#999;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:6px;border-bottom:2px solid #ddd;}"
+      + "th:last-child{text-align:right;}"
+      + "td{padding:8px 6px;border-bottom:1px solid #eee;vertical-align:top;}"
+      + "td small{display:block;color:#888;font-size:11px;margin-top:2px;}"
+      + "tr{page-break-inside:avoid;} thead{display:table-header-group;}"
+      + "footer{margin-top:26px;font-size:11px;color:#999;}"
+      + "@media print{ body{padding:0;} }"
+      + "</style></head><body>"
+      + "<h1>" + T.appName + "</h1>"
+      + "<div class=\"sub\">" + sub.filter(Boolean).join(" &middot; ") + "</div>"
+      + "<div class=\"total-label\">" + totalLabel + "</div>"
+      + "<div class=\"total\">" + totalValue + "</div>"
+      + (extraHtml || "<div style=\"height:12px\"></div>")
+      + "<table><thead><tr>" + head.map(function(h){ return "<th>" + h + "</th>"; }).join("") + "</tr></thead><tbody>" + rowsHtml + "</tbody></table>"
+      + "<footer>" + T.generated + T.appName + " &middot; " + T.appUrl + " &middot; " + new Date().toLocaleDateString(T.locale) + "</footer>"
+      + "</body></html>";
+    var w = window.open("", "_blank");
+    if(!w){ showToast(T.pdfBlocked); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); }, 350);
+    showToast(T.pdfHint);
+  }
+
+  els.sCurrency.addEventListener("change", function(){
+    try { localStorage.setItem(STORAGE_CURRENCY, els.sCurrency.value); } catch(e){}
+  });
+
+  document.getElementById("cancelEditBtn").addEventListener("click", function(){
+    setEditing(null);
+    clearTripForm();
+    els.date.value = todayStr();
+    autofillOdo();
+    calc(); persistState();
+    showToast(T.editCancelled);
+  });
+
+  document.getElementById("sCancelEditBtn").addEventListener("click", function(){
+    setServiceEditing(null);
+    clearServiceForm();
+    showToast(T.editCancelled);
+  });
+
+
   function normalizeUrl(u){
     u = (u || "").trim();
     if(!u) return "";
@@ -1088,7 +1489,7 @@
     els.toast.textContent = msg;
     els.toast.classList.add("show");
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(function(){ els.toast.classList.remove("show"); }, 2200);
+    showToast._t = setTimeout(function(){ els.toast.classList.remove("show"); }, Math.min(5000, Math.max(2200, msg.length * 60)));
   }
 
   function setPurpose(p){
@@ -1138,6 +1539,7 @@
   ["odoStart","odoEnd"].forEach(function(id){
     els[id].addEventListener("input", function(){
       sanitizeDecimalInput(this);
+      if(id === "odoStart"){ autoOdo = null; els.autofillHint.style.display = "none"; }
       calc(); persistState();
     });
   });
@@ -1146,19 +1548,7 @@
   });
 
   els.vehicle.addEventListener("change", function(){
-    var v = els.vehicle.value.trim();
-    if(!v) return;
-    var entries = loadEntries();
-    var last = null;
-    for(var i=0;i<entries.length;i++){
-      if(entries[i].vehicle === v){ last = entries[i]; break; }
-    }
-    if(last && !els.odoStart.value){
-      els.odoStart.value = last.odoEnd;
-      els.autofillHint.style.display = "block";
-      els.autofillHint.textContent = "Doplněno z posledního záznamu vozidla „" + v + "“ (" + fmt(last.odoEnd,0) + " km)";
-      calc(); persistState();
-    }
+    if(autofillOdo()){ calc(); persistState(); }
   });
 
   function calc(){
@@ -1168,6 +1558,9 @@
     var valid = isFinite(odoStart) && isFinite(odoEnd) && odoEnd > odoStart;
 
     if(!valid){
+      var bad = isFinite(odoStart) && isFinite(odoEnd);
+      els.resultEmpty.textContent = bad ? T.odoErr : T.odoHint;
+      els.resultEmpty.classList.toggle("err", bad);
       els.resultEmpty.style.display = "block";
       els.resultBody.style.display = "none";
       els.rMapLink.style.display = "none";
@@ -1176,7 +1569,7 @@
       return;
     }
 
-    var distance = odoEnd - odoStart;
+    var distance = Math.round((odoEnd - odoStart) * 100) / 100;
 
     els.resultEmpty.style.display = "none";
     els.resultBody.style.display = "block";
@@ -1185,11 +1578,11 @@
     var subParts = [];
     var route = [els.fromPlace.value.trim(), els.toPlace.value.trim()].filter(Boolean).join(" → ");
     if(route) subParts.push(route);
-    subParts.push(els.date.value || todayStr());
+    subParts.push(fmtDate(els.date.value || todayStr()));
     els.rSub.textContent = subParts.join(" · ");
 
-    els.rOdoStart.textContent = fmt(odoStart,0) + " km";
-    els.rOdoEnd.textContent = fmt(odoEnd,0) + " km";
+    els.rOdoStart.textContent = fmtKm(odoStart) + " km";
+    els.rOdoEnd.textContent = fmtKm(odoEnd) + " km";
     els.rPurpose.textContent = PURPOSE_ICON[purpose] + " " + PURPOSE_LABELS[purpose];
 
     var mapLink = (els.mapLink.value || "").trim();
@@ -1218,10 +1611,10 @@
     if(!lastCalc) return "";
     var lines = [
       "SYNTHLUCIDA DENÍK VOZIDLA",
-      "Datum: " + lastCalc.date,
+      "Datum: " + fmtDate(lastCalc.date),
       "Účel: " + PURPOSE_LABELS[lastCalc.purpose],
       (lastCalc.fromPlace || lastCalc.toPlace) ? ("Trasa: " + [lastCalc.fromPlace, lastCalc.toPlace].filter(Boolean).join(" → ")) : null,
-      "Tachometr: " + fmt(lastCalc.odoStart,0) + " → " + fmt(lastCalc.odoEnd,0) + " km",
+      "Tachometr: " + fmtKm(lastCalc.odoStart) + " → " + fmtKm(lastCalc.odoEnd) + " km",
       "Ujeto: " + fmt(lastCalc.distance, lastCalc.distance % 1 === 0 ? 0 : 1) + " km",
       lastCalc.vehicle ? ("Vozidlo: " + lastCalc.vehicle) : null,
       lastCalc.driver ? ("Řidič: " + lastCalc.driver) : null,
@@ -1232,7 +1625,7 @@
   }
 
   els.copyBtn.addEventListener("click", function(){
-    if(!lastCalc){ showToast("Nejdřív vyplň jízdu"); return; }
+    if(!lastCalc){ showToast("Nejdřív vyplňte jízdu"); return; }
     var text = resultText();
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(function(){ showToast("Záznam zkopírován"); })
@@ -1243,16 +1636,16 @@
   });
 
   els.exportPdfBtn.addEventListener("click", function(){
-    if(!lastCalc){ showToast("Nejdřív vyplň jízdu"); return; }
+    if(!lastCalc){ showToast("Nejdřív vyplňte jízdu"); return; }
     var route = [lastCalc.fromPlace, lastCalc.toPlace].filter(Boolean).join(" → ");
     var rowsData = [
-      ["Datum", lastCalc.date],
+      ["Datum", fmtDate(lastCalc.date)],
       ["Účel jízdy", PURPOSE_LABELS[lastCalc.purpose]],
       ["Vozidlo", lastCalc.vehicle || "—"]
     ];
     if(route) rowsData.push(["Trasa", route]);
-    rowsData.push(["Tachometr start", fmt(lastCalc.odoStart,0) + " km"]);
-    rowsData.push(["Tachometr konec", fmt(lastCalc.odoEnd,0) + " km"]);
+    rowsData.push(["Tachometr start", fmtKm(lastCalc.odoStart) + " km"]);
+    rowsData.push(["Tachometr konec", fmtKm(lastCalc.odoEnd) + " km"]);
     if(lastCalc.driver) rowsData.push(["Řidič", lastCalc.driver]);
     if(lastCalc.mapLink) rowsData.push(["Odkaz na mapu", normalizeUrl(lastCalc.mapLink)]);
     if(lastCalc.notes) rowsData.push(["Poznámka", lastCalc.notes]);
@@ -1290,13 +1683,14 @@
     w.document.close();
     w.focus();
     setTimeout(function(){ w.print(); }, 350);
-    showToast("Otevři dialog tisku a zvol „Uložit jako PDF“");
+    showToast("Otevřete dialog tisku a zvolte „Uložit jako PDF“");
   });
 
   els.resetBtn.addEventListener("click", function(){
+    setEditing(null);
     els.odoStart.value = ""; els.odoEnd.value = ""; els.fromPlace.value = ""; els.toPlace.value = "";
     els.driver.value = ""; els.mapLink.value = ""; els.notes.value = "";
-    els.autofillHint.style.display = "none";
+    els.autofillHint.style.display = "none"; autoOdo = null;
     calc(); persistState();
     showToast("Formulář vymazán");
   });
@@ -1304,13 +1698,13 @@
   els.saveBtn.addEventListener("click", saveEntry);
 
   function saveEntry(){
-    if(!lastCalc){ showToast("Nejdřív vyplň jízdu"); return; }
+    if(!lastCalc){ showToast(T.fillFirst); return; }
     var entries = loadEntries();
-    entries.unshift({
+    var rec = {
       id: Date.now(),
       purpose: lastCalc.purpose,
       date: lastCalc.date,
-      vehicle: lastCalc.vehicle || (currentVehicle !== "all" ? currentVehicle : "Bez názvu"),
+      vehicle: lastCalc.vehicle || (currentVehicle !== "all" ? currentVehicle : T.unnamed),
       fromPlace: lastCalc.fromPlace,
       toPlace: lastCalc.toPlace,
       odoStart: lastCalc.odoStart,
@@ -1319,18 +1713,26 @@
       driver: lastCalc.driver,
       mapLink: lastCalc.mapLink || "",
       notes: lastCalc.notes
-    });
-    if(entries.length > 500) entries = entries.slice(0,500);
+    };
+    var idx = -1;
+    if(editingId !== null){
+      for(var i=0;i<entries.length;i++){ if(String(entries[i].id) === String(editingId)){ idx = i; break; } }
+    }
+    if(idx !== -1){ rec.id = entries[idx].id; entries[idx] = rec; }
+    else entries.unshift(rec);
     if(!saveToStorage(STORAGE_ENTRIES, entries)) return;
 
+    setEditing(null);
+    if(idx !== -1) els.date.value = todayStr();
     els.odoStart.value = ""; els.odoEnd.value = ""; els.fromPlace.value = ""; els.toPlace.value = "";
     els.mapLink.value = ""; els.notes.value = "";
-    els.autofillHint.style.display = "none";
-    calc(); persistState();
+    els.autofillHint.style.display = "none"; autoOdo = null;
     renderVehicleOptions();
     renderSummary();
     renderEntries();
-    showToast("Záznam uložen");
+    autofillOdo();
+    calc(); persistState();
+    showToast(idx !== -1 ? T.changesSaved : T.saved);
   }
 
   function loadEntries(){
@@ -1348,42 +1750,45 @@
   }
 
   function saveServiceEntries(entries){
-    if(entries.length > 500) entries = entries.slice(0,500);
     return saveToStorage(STORAGE_SERVICE, entries);
   }
 
   els.serviceSaveBtn.addEventListener("click", function(){
     var vehicle = els.sVehicle.value.trim();
-    var date = els.sDate.value || todayStr();
     var odo = parseFloat(els.sOdo.value);
     var price = parseFloat(els.sPrice.value);
-    var nextDate = els.sNextDate.value || "";
-    var notes = els.sNotes.value.trim();
-
-    var entries = loadServiceEntries();
-    entries.unshift({
+    var rec = {
       id: Date.now(),
       type: serviceType,
-      date: date,
-      vehicle: vehicle || (currentVehicle !== "all" ? currentVehicle : "Bez názvu"),
+      date: els.sDate.value || todayStr(),
+      vehicle: vehicle || (currentVehicle !== "all" ? currentVehicle : T.unnamed),
       odo: isFinite(odo) ? odo : null,
       price: isFinite(price) ? price : null,
-      nextDate: nextDate,
-      notes: notes
-    });
+      currency: CURRENCIES[els.sCurrency.value] ? els.sCurrency.value : getCurrency(),
+      nextDate: els.sNextDate.value || "",
+      notes: els.sNotes.value.trim()
+    };
+    var entries = loadServiceEntries(), idx = -1;
+    if(editingServiceId !== null){
+      for(var i=0;i<entries.length;i++){ if(String(entries[i].id) === String(editingServiceId)){ idx = i; break; } }
+    }
+    if(idx !== -1){ rec.id = entries[idx].id; entries[idx] = rec; }
+    else entries.unshift(rec);
     if(!saveServiceEntries(entries)) return;
 
-    els.sOdo.value = ""; els.sPrice.value = ""; els.sNextDate.value = ""; els.sNotes.value = "";
+    setServiceEditing(null);
+    clearServiceForm();
     renderVehicleOptions();
     renderServiceVehicleOptions();
     renderServiceSummary();
     renderServiceEntries();
-    showToast("Servisní záznam uložen");
+    showToast(idx !== -1 ? T.changesSaved : T.svcSaved);
   });
 
   els.serviceResetBtn.addEventListener("click", function(){
-    els.sOdo.value = ""; els.sPrice.value = ""; els.sNextDate.value = ""; els.sNotes.value = "";
-    showToast("Formulář vymazán");
+    setServiceEditing(null);
+    clearServiceForm();
+    showToast(T.formCleared);
   });
 
   function daysUntil(dateStr){
@@ -1394,12 +1799,12 @@
     return Math.round((target - now) / 86400000);
   }
 
-  function serviceBadge(nextDate){
-    if(!nextDate) return "";
-    var d = daysUntil(nextDate);
-    if(d === null) return "";
-    if(d < 0) return '<span class="service-badge due">Po termínu</span>';
-    if(d <= 30) return '<span class="service-badge soon">Blíží se</span>';
+  function serviceBadge(e, all){
+    if(!e.nextDate || isSuperseded(e, all)) return "";
+    var d = daysUntil(e.nextDate);
+    if(d === null || !isFinite(d)) return "";
+    if(d < 0) return '<span class="service-badge due">' + T.badgeDue + '</span>';
+    if(d <= 30) return '<span class="service-badge soon">' + T.badgeSoon + '</span>';
     return "";
   }
 
@@ -1424,7 +1829,7 @@
     if(activeServiceFilter === "year") entries = entries.filter(function(e){ return isThisYear(e.date); });
     else if(activeServiceFilter !== "all") entries = entries.filter(function(e){ return e.type === activeServiceFilter; });
     if(activeServiceVehicle !== "all") entries = entries.filter(function(e){ return e.vehicle === activeServiceVehicle; });
-    return entries;
+    return entries.sort(svcCmp);
   }
 
   function renderServiceSummary(){
@@ -1433,22 +1838,23 @@
     els.serviceSummaryCard.style.display = "block";
 
     var entries = filteredServiceEntries();
-    els.serviceSummaryScope.textContent = activeServiceVehicle !== "all" ? "· " + activeServiceVehicle : "";
+    var scope = [];
+    if(activeServiceFilter === "year") scope.push(T.thisYear);
+    else if(activeServiceFilter !== "all") scope.push(SERVICE_TYPE_LABELS[activeServiceFilter] || activeServiceFilter);
+    if(activeServiceVehicle !== "all") scope.push(activeServiceVehicle);
+    els.serviceSummaryScope.textContent = scope.length ? "· " + scope.join(" · ") : "";
 
-    var totalCost = 0;
-    entries.forEach(function(e){ if(hasNum(e.price)) totalCost += e.price; });
-    els.sSumCost.textContent = fmt(totalCost,0) + " Kč";
+    els.sSumCost.textContent = sumByCur(entries);
 
     var upcoming = all.filter(function(e){
-      return e.nextDate && (activeServiceVehicle === "all" || e.vehicle === activeServiceVehicle);
-    }).sort(function(a,b){ return a.nextDate < b.nextDate ? -1 : 1; });
+      return DATE_RE.test(String(e.nextDate || "")) && (activeServiceVehicle === "all" || e.vehicle === activeServiceVehicle) && !isSuperseded(e, all);
+    }).sort(function(a,b){ return a.nextDate < b.nextDate ? -1 : (a.nextDate > b.nextDate ? 1 : 0); });
 
     if(upcoming.length){
       var next = upcoming[0];
       var d = daysUntil(next.nextDate);
-      var label = SERVICE_TYPE_LABELS[next.type] + " · " + next.vehicle + " · " + next.nextDate;
-      if(d < 0) label += " (po termínu)";
-      else if(d <= 30) label += " (za " + d + " dní)";
+      var label = (SERVICE_TYPE_LABELS[next.type] || next.type) + " · " + vehName(next.vehicle) + " · " + fmtDate(next.nextDate);
+      if(d <= 30) label += " (" + T.due(d) + ")";
       els.sSumNext.textContent = label;
       els.sSumNextWrap.style.display = "block";
     } else {
@@ -1463,23 +1869,25 @@
     var entries = filteredServiceEntries();
 
     if(!entries.length){
-      els.serviceList.innerHTML = '<div class="empty-hint">Žádné záznamy pro zvolený filtr.</div>';
+      els.serviceList.innerHTML = '<div class="empty-hint">' + T.noMatch + '</div>';
       return;
     }
 
     var html = "";
     for(var i=0;i<entries.length;i++){
-      var e = entries[i];
-      var metaParts = [e.date, e.vehicle||""];
-      if(hasNum(e.odo)) metaParts.push(fmt(e.odo,0) + " km");
-      if(hasNum(e.price)) metaParts.push(fmt(e.price,0) + " Kč");
-      var name = SERVICE_TYPE_ICON[e.type] + " " + SERVICE_TYPE_LABELS[e.type] + serviceBadge(e.nextDate);
-      html += '<div class="route-chip" data-id="'+e.id+'">'
-        + '<div class="rc-purpose '+e.type+'"></div>'
-        + '<div class="rc-body"><div class="rc-name">'+name+'</div>'
+      var e = entries[i], id = escapeHtml(e.id);
+      var typeKey = SERVICE_TYPE_LABELS[e.type] ? e.type : "jine";
+      var metaParts = [fmtDate(e.date), vehName(e.vehicle)];
+      if(hasNum(e.odo)) metaParts.push(fmtKm(e.odo) + " km");
+      if(hasNum(e.price)) metaParts.push(fmtMoney(e.price, curOf(e)));
+      var name = SERVICE_TYPE_ICON[typeKey] + " " + escapeHtml(SERVICE_TYPE_LABELS[typeKey]) + serviceBadge(e, all);
+      var isEd = editingServiceId !== null && String(e.id) === String(editingServiceId);
+      html += '<div class="route-chip' + (isEd ? ' editing' : '') + '" data-id="'+id+'">'
+        + '<div class="rc-purpose '+typeKey+'"></div>'
+        + '<div class="rc-body"><div class="rc-name multiline">'+name+'</div>'
         + '<div class="rc-meta">'+metaParts.filter(Boolean).map(escapeHtml).join(" · ")+(e.notes?(' · '+escapeHtml(e.notes)):"")+'</div></div>'
         + '<div class="rc-actions">'
-        + '<button class="rc-del" data-id="'+e.id+'" aria-label="Smazat záznam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
+        + '<button class="rc-del" data-id="'+id+'" aria-label="'+T.delEntry+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
         + '</div></div>';
     }
     els.serviceList.innerHTML = html;
@@ -1488,10 +1896,13 @@
   els.serviceList.addEventListener("click", function(e){
     var delBtn = e.target.closest(".rc-del");
     if(delBtn){
+      if(!window.confirm(T.confirmDelSvc)) return;
       var id = delBtn.getAttribute("data-id");
       var entries = loadServiceEntries().filter(function(r){ return String(r.id) !== String(id); });
       if(!saveServiceEntries(entries)) return;
+      if(editingServiceId !== null && String(editingServiceId) === String(id)){ setServiceEditing(null); clearServiceForm(); }
       renderServiceVehicleOptions(); renderServiceSummary(); renderServiceEntries();
+      showToast(T.deleted);
       return;
     }
     var chip = e.target.closest(".route-chip");
@@ -1499,14 +1910,17 @@
       var rid = chip.getAttribute("data-id");
       var entry = loadServiceEntries().filter(function(r){ return String(r.id) === String(rid); })[0];
       if(!entry) return;
-      setServiceType(entry.type);
+      setServiceType(SERVICE_TYPE_LABELS[entry.type] ? entry.type : "jine");
       els.sDate.value = entry.date;
       els.sVehicle.value = entry.vehicle || "";
       els.sOdo.value = hasNum(entry.odo) ? entry.odo : "";
       els.sPrice.value = hasNum(entry.price) ? entry.price : "";
+      els.sCurrency.value = curOf(entry);
       els.sNextDate.value = entry.nextDate || "";
       els.sNotes.value = entry.notes || "";
-      showToast("Záznam načten do formuláře");
+      setServiceEditing(entry);
+      showToast(T.loaded);
+      scrollToCard("serviceFormCard");
     }
   });
 
@@ -1527,64 +1941,34 @@
   });
 
   els.exportServiceCsvBtn.addEventListener("click", function(){
-    var entries = filteredServiceEntries();
-    if(!entries.length){ showToast("Žádné záznamy k exportu"); return; }
-    var rows = [["Datum","Vozidlo","Typ","Tachometr (km)","Cena (Kč)","Příští termín","Poznámka"]];
+    var entries = filteredServiceEntries().slice().reverse();
+    if(!entries.length){ showToast(T.noExport); return; }
+    var rows = [T.csvSvc];
     entries.forEach(function(e){
       rows.push([
-        e.date, e.vehicle||"", SERVICE_TYPE_LABELS[e.type]||e.type,
-        hasNum(e.odo) ? fmt(e.odo,0) : "", hasNum(e.price) ? fmt(e.price,0) : "",
-        e.nextDate||"", e.notes||""
+        e.date, vehName(e.vehicle), SERVICE_TYPE_LABELS[e.type] || e.type,
+        csvNum(e.odo), csvNum(e.price), hasNum(e.price) ? curOf(e) : "",
+        e.nextDate || "", e.notes || ""
       ]);
     });
-    downloadBlob("servisni-denik-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
-    showToast("CSV exportováno");
+    downloadBlob(T.fileSvc + Date.now() + ".csv", "﻿" + rowsToCsv(rows), "text/csv;charset=utf-8;");
+    showToast(T.csvDone);
   });
 
   els.exportServicePdfBtn.addEventListener("click", function(){
-    var entries = filteredServiceEntries();
-    if(!entries.length){ showToast("Žádné záznamy k exportu"); return; }
-
-    var totalCost = 0;
-    entries.forEach(function(e){ if(hasNum(e.price)) totalCost += e.price; });
+    var entries = filteredServiceEntries().slice().reverse();
+    if(!entries.length){ showToast(T.noExport); return; }
 
     var rowsHtml = entries.map(function(e){
-      return "<tr><td>" + escapeHtml(e.date) + "</td><td>" + escapeHtml(e.vehicle||"") + "</td><td>"
-        + escapeHtml(SERVICE_TYPE_LABELS[e.type]||e.type) + "</td><td>"
-        + (hasNum(e.odo) ? fmt(e.odo,0) + " km" : "—") + "</td><td>"
-        + (e.nextDate || "—") + "</td><td>" + escapeHtml(e.notes||"") + "</td><td style='text-align:right;font-weight:600;'>"
-        + (hasNum(e.price) ? fmt(e.price,0) + " Kč" : "—") + "</td></tr>";
+      return "<tr><td style='white-space:nowrap;'>" + escapeHtml(fmtDate(e.date)) + "</td><td>" + escapeHtml(vehName(e.vehicle)) + "</td><td>"
+        + escapeHtml(SERVICE_TYPE_LABELS[e.type] || e.type) + "</td><td style='white-space:nowrap;'>"
+        + (hasNum(e.odo) ? fmtKm(e.odo) + " km" : "—") + "</td><td style='white-space:nowrap;'>"
+        + (e.nextDate ? escapeHtml(fmtDate(e.nextDate)) : "—") + "</td><td>" + escapeHtml(e.notes || "") + "</td><td style='text-align:right;font-weight:600;white-space:nowrap;'>"
+        + (hasNum(e.price) ? escapeHtml(fmtMoney(e.price, curOf(e))) : "—") + "</td></tr>";
     }).join("");
 
-    var dateStr = new Date().toLocaleDateString("cs-CZ");
-    var html = "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>SYNTHLUCIDA DENÍK VOZIDLA</title><style>"
-      + "body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;max-width:900px;margin:0 auto;}"
-      + "h1{font-size:20px;margin:0 0 4px;letter-spacing:0.5px;}"
-      + ".sub{color:#777;font-size:12px;margin-bottom:18px;}"
-      + ".total-label{color:#999;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}"
-      + ".total{font-size:32px;font-weight:bold;margin:2px 0 18px;color:#0f766e;}"
-      + "table{width:100%;border-collapse:collapse;font-size:12px;}"
-      + "th{text-align:left;color:#999;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:6px;border-bottom:2px solid #ddd;}"
-      + "td{padding:8px 6px;border-bottom:1px solid #eee;}"
-      + "footer{margin-top:26px;font-size:11px;color:#999;}"
-      + "@media print{ body{padding:0;} }"
-      + "</style></head><body>"
-      + "<h1>SYNTHLUCIDA DENÍK VOZIDLA</h1>"
-      + "<div class=\"sub\">Servisní deník &middot; " + dateStr + "</div>"
-      + "<div class=\"total-label\">Celkem utraceno (" + entries.length + " záznamů)</div>"
-      + "<div class=\"total\">" + fmt(totalCost,0) + " Kč</div>"
-      + "<table><thead><tr><th>Datum</th><th>Vozidlo</th><th>Typ</th><th>Tachometr</th><th>Příští termín</th><th>Poznámka</th><th>Cena</th></tr></thead><tbody>" + rowsHtml + "</tbody></table>"
-      + "<footer>Vygenerováno v SYNTHLUCIDA DENÍK VOZIDLA &middot; synthlucida.com/denik-vozidla.html</footer>"
-      + "</body></html>";
-
-    var w = window.open("", "_blank");
-    if(!w){ showToast("Export PDF byl zablokován prohlížečem"); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(function(){ w.print(); }, 350);
-    showToast("Otevři dialog tisku a zvol „Uložit jako PDF“");
+    var sub = [T.pdfSvcSub, activeServiceVehicle !== "all" ? escapeHtml(activeServiceVehicle) : "", escapeHtml(T.pdfPeriod + periodStr(entries))];
+    printDoc(sub, T.pdfSvcTotal + " (" + entries.length + " " + T.entries(entries.length) + ")", escapeHtml(sumByCur(entries)), "", T.pdfSvcHead, rowsHtml, 900);
   });
 
   els.exportServiceJsonBtn.addEventListener("click", function(){
@@ -1602,7 +1986,7 @@
   });
 
   function isValidServiceEntry(e){
-    return e && typeof e === "object" && !!e.date && !!e.type;
+    return !!e && typeof e === "object" && DATE_RE.test(String(e.date || "")) && !!e.type;
   }
 
   els.importServiceFile.addEventListener("change", function(){
@@ -1611,45 +1995,22 @@
     var reader = new FileReader();
     reader.onload = function(){
       var data;
-      try { data = JSON.parse(reader.result); } catch(e){ showToast("Soubor se nepodařilo přečíst"); return; }
-      var incoming = Array.isArray(data) ? data : (Array.isArray(data.entries) ? data.entries : null);
-      if(!incoming){ showToast("Neplatný formát souboru"); return; }
+      try { data = JSON.parse(reader.result); } catch(e){ showToast(T.readErr); return; }
+      var incoming = Array.isArray(data) ? data
+        : (data && Array.isArray(data.service) ? data.service
+        : (data && Array.isArray(data.entries) ? data.entries : null));
+      if(!incoming){ showToast(T.badFormat); return; }
       incoming = incoming.filter(isValidServiceEntry);
-      if(!incoming.length){ showToast("V souboru nejsou žádné platné záznamy"); return; }
-
-      var existing = loadServiceEntries();
-      var existingIds = {};
-      existing.forEach(function(e){ existingIds[String(e.id)] = true; });
-
-      var added = 0;
-      incoming.forEach(function(e){
-        var id = e.id;
-        if(id === undefined || id === null || existingIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + added;
-        existingIds[String(id)] = true;
-        var typeVal = SERVICE_TYPE_LABELS[e.type] ? e.type : "jine";
-        var odo = parseFloat(e.odo);
-        var price = parseFloat(e.price);
-        existing.unshift({
-          id: id,
-          type: typeVal,
-          date: String(e.date),
-          vehicle: (e.vehicle ? String(e.vehicle) : "Bez názvu").slice(0,30),
-          odo: isFinite(odo) ? odo : null,
-          price: isFinite(price) ? price : null,
-          nextDate: e.nextDate ? String(e.nextDate) : "",
-          notes: e.notes ? String(e.notes).slice(0,200) : ""
-        });
-        added++;
-      });
-
-      if(!saveServiceEntries(existing)) return;
+      if(!incoming.length){ showToast(T.noValid); return; }
+      var res = mergeService(incoming);
+      if(!res) return;
       renderVehicleOptions();
       renderServiceVehicleOptions();
       renderServiceSummary();
       renderServiceEntries();
-      showToast(added === 1 ? "Naimportován 1 záznam" : "Naimportováno " + added + " záznamů");
+      importToast(null, res);
     };
-    reader.onerror = function(){ showToast("Soubor se nepodařilo přečíst"); };
+    reader.onerror = function(){ showToast(T.readErr); };
     reader.readAsText(file);
   });
 
@@ -1677,7 +2038,7 @@
     registry.forEach(function(v){ known[v] = true; });
     var changed = false;
     loadEntries().concat(loadServiceEntries()).forEach(function(e){
-      if(e.vehicle && e.vehicle !== "Bez názvu" && !known[e.vehicle]){
+      if(!isUnnamed(e.vehicle) && !known[e.vehicle]){
         known[e.vehicle] = true;
         registry.push(e.vehicle);
         changed = true;
@@ -1728,14 +2089,14 @@
 
     if(v !== "all"){
       var curTripVal = els.vehicle.value.trim();
-      if(!curTripVal || registry.indexOf(curTripVal) !== -1) els.vehicle.value = v;
+      if(editingId === null && (!curTripVal || registry.indexOf(curTripVal) !== -1)) els.vehicle.value = v;
       var curSvcVal = els.sVehicle.value.trim();
-      if(!curSvcVal || registry.indexOf(curSvcVal) !== -1) els.sVehicle.value = v;
+      if(editingServiceId === null && (!curSvcVal || registry.indexOf(curSvcVal) !== -1)) els.sVehicle.value = v;
     } else {
       var curTripVal2 = els.vehicle.value.trim();
-      if(curTripVal2 && registry.indexOf(curTripVal2) !== -1) els.vehicle.value = "";
+      if(editingId === null && curTripVal2 && registry.indexOf(curTripVal2) !== -1) els.vehicle.value = "";
       var curSvcVal2 = els.sVehicle.value.trim();
-      if(curSvcVal2 && registry.indexOf(curSvcVal2) !== -1) els.sVehicle.value = "";
+      if(editingServiceId === null && curSvcVal2 && registry.indexOf(curSvcVal2) !== -1) els.sVehicle.value = "";
     }
 
     persistCurrentVehicle();
@@ -1744,6 +2105,7 @@
     renderEntries();
     renderServiceSummary();
     renderServiceEntries();
+    autofillOdo();
     calc();
     persistState();
   }
@@ -1773,7 +2135,7 @@
 
   function addVehicle(){
     var name = (els.newVehicleName.value || "").trim().slice(0,30);
-    if(!name){ showToast("Zadej název vozidla"); return; }
+    if(!name){ showToast("Zadejte název vozidla"); return; }
     var registry = loadVehicleRegistry();
     var existing = registry.filter(function(v){ return v.toLowerCase() === name.toLowerCase(); })[0];
     if(existing){
@@ -1800,7 +2162,7 @@
     var serviceCount = serviceForVehicle(name).length;
     var msg = "Smazat vozidlo „" + name + "“?";
     if(tripCount || serviceCount){
-      msg += " Smažou se i všechny jeho záznamy (" + tripCount + " jízd, " + serviceCount + " servisních záznamů).";
+      msg += " Smažou se i všechny jeho záznamy (" + tripCount + " " + T.trips(tripCount) + ", " + serviceCount + " " + T.svcs(serviceCount) + ").";
     }
     if(!window.confirm(msg)) return;
 
@@ -1895,7 +2257,7 @@
     if(activeFilter === "month") entries = entries.filter(function(e){ return isThisMonth(e.date); });
     else if(activeFilter !== "all") entries = entries.filter(function(e){ return e.purpose === activeFilter; });
     if(activeVehicle !== "all") entries = entries.filter(function(e){ return e.vehicle === activeVehicle; });
-    return entries;
+    return entries.sort(tripCmp);
   }
 
   function renderSummary(){
@@ -1908,6 +2270,7 @@
 
     var total = 0, work = 0, priv = 0, commute = 0;
     entries.forEach(function(e){
+      if(!hasNum(e.distance)) return;
       total += e.distance;
       if(e.purpose === "sluzebni") work += e.distance;
       else if(e.purpose === "soukroma") priv += e.distance;
@@ -1928,6 +2291,12 @@
     els.splitPrivate.style.background = "var(--private)";
     els.splitCommute.style.width = pctCommute + "%";
     els.splitCommute.style.background = "var(--commute)";
+
+    var allE = loadEntries();
+    if(activeVehicle !== "all") allE = allE.filter(function(e){ return e.vehicle === activeVehicle; });
+    var allKm = 0;
+    allE.forEach(function(e){ if(hasNum(e.distance)) allKm += e.distance; });
+    document.getElementById("sAllTime").textContent = T.allTime(fmtKm(allKm), allE.length);
   }
 
   function renderEntries(){
@@ -1937,24 +2306,26 @@
     var entries = filteredEntries();
 
     if(!entries.length){
-      els.routesList.innerHTML = '<div class="empty-hint">Žádné záznamy pro zvolený filtr.</div>';
+      els.routesList.innerHTML = '<div class="empty-hint">' + T.noMatch + '</div>';
       return;
     }
 
     var html = "";
     for(var i=0;i<entries.length;i++){
-      var e = entries[i];
+      var e = entries[i], id = escapeHtml(e.id);
+      var pKey = PURPOSE_LABELS[e.purpose] ? e.purpose : "sluzebni";
       var mapBtn = e.mapLink
-        ? '<a class="rc-map" href="'+escapeHtml(normalizeUrl(e.mapLink))+'" target="_blank" rel="noopener" aria-label="Otevřít trasu na mapě"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></a>'
+        ? '<a class="rc-map" href="'+escapeHtml(normalizeUrl(String(e.mapLink)))+'" target="_blank" rel="noopener" aria-label="'+T.openMap+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></a>'
         : '';
-      var route = [e.fromPlace, e.toPlace].filter(Boolean).join(" → ") || "Bez trasy";
-      html += '<div class="route-chip" data-id="'+e.id+'">'
-        + '<div class="rc-purpose '+e.purpose+'"></div>'
+      var route = [e.fromPlace, e.toPlace].filter(Boolean).join(" → ") || T.noRoute;
+      var isEd = editingId !== null && String(e.id) === String(editingId);
+      html += '<div class="route-chip' + (isEd ? ' editing' : '') + '" data-id="'+id+'">'
+        + '<div class="rc-purpose '+pKey+'"></div>'
         + '<div class="rc-body"><div class="rc-name">'+escapeHtml(route)+'</div>'
-        + '<div class="rc-meta">'+escapeHtml(e.date)+' · '+escapeHtml(e.vehicle||"")+' · '+fmt(e.distance,0)+' km · '+PURPOSE_LABELS[e.purpose]+'</div></div>'
+        + '<div class="rc-meta">'+escapeHtml(fmtDate(e.date))+' · '+escapeHtml(vehName(e.vehicle))+' · '+fmtKm(e.distance)+' km · '+PURPOSE_LABELS[pKey]+'</div></div>'
         + '<div class="rc-actions">'
         + mapBtn
-        + '<button class="rc-del" data-id="'+e.id+'" aria-label="Smazat záznam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
+        + '<button class="rc-del" data-id="'+id+'" aria-label="'+T.delEntry+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
         + '</div></div>';
     }
     els.routesList.innerHTML = html;
@@ -1964,10 +2335,15 @@
     if(e.target.closest(".rc-map")) return;
     var delBtn = e.target.closest(".rc-del");
     if(delBtn){
+      if(!window.confirm(T.confirmDelTrip)) return;
       var id = delBtn.getAttribute("data-id");
       var entries = loadEntries().filter(function(r){ return String(r.id) !== String(id); });
       if(!saveToStorage(STORAGE_ENTRIES, entries)) return;
+      if(editingId !== null && String(editingId) === String(id)){ setEditing(null); clearTripForm(); }
       renderVehicleOptions(); renderSummary(); renderEntries();
+      autofillOdo(); calc();
+      persistState();
+      showToast(T.deleted);
       return;
     }
     var chip = e.target.closest(".route-chip");
@@ -1975,20 +2351,21 @@
       var rid = chip.getAttribute("data-id");
       var entry = loadEntries().filter(function(r){ return String(r.id) === String(rid); })[0];
       if(!entry) return;
-      setPurpose(entry.purpose);
+      setEditing(entry);
+      setPurpose(PURPOSE_LABELS[entry.purpose] ? entry.purpose : "sluzebni");
       els.date.value = entry.date;
       els.vehicle.value = entry.vehicle || "";
       els.fromPlace.value = entry.fromPlace || "";
       els.toPlace.value = entry.toPlace || "";
-      els.odoStart.value = entry.odoStart;
-      els.odoEnd.value = entry.odoEnd;
+      els.odoStart.value = hasNum(entry.odoStart) ? entry.odoStart : "";
+      els.odoEnd.value = hasNum(entry.odoEnd) ? entry.odoEnd : "";
       els.driver.value = entry.driver || "";
       els.mapLink.value = entry.mapLink || "";
       els.notes.value = entry.notes || "";
-      els.autofillHint.style.display = "none";
+      els.autofillHint.style.display = "none"; autoOdo = null;
       calc(); persistState();
-      showToast("Záznam načten do formuláře");
-      window.scrollTo({ top:0, behavior:"smooth" });
+      showToast(T.loaded);
+      scrollToCard("tripFormCard");
     }
   });
 
@@ -2008,10 +2385,12 @@
   });
 
   function persistState(){
+    if(restoring) return;
     try {
       localStorage.setItem(STORAGE_STATE, JSON.stringify({
         purpose: purpose,
         date: els.date.value,
+        day: todayStr(),
         vehicle: els.vehicle.value,
         fromPlace: els.fromPlace.value,
         toPlace: els.toPlace.value,
@@ -2019,7 +2398,9 @@
         odoEnd: els.odoEnd.value,
         driver: els.driver.value,
         mapLink: els.mapLink.value,
-        notes: els.notes.value
+        notes: els.notes.value,
+        autoOdo: autoOdo,
+        editId: editingId
       }));
     } catch(e){}
   }
@@ -2027,23 +2408,36 @@
   function restoreState(){
     var s = null;
     try { s = JSON.parse(localStorage.getItem(STORAGE_STATE)); } catch(e){}
-    els.date.value = (s && s.date) || todayStr();
-    if(!s) return;
-    if(s.purpose) setPurpose(s.purpose);
-    if(s.vehicle) els.vehicle.value = s.vehicle;
-    if(s.fromPlace) els.fromPlace.value = s.fromPlace;
-    if(s.toPlace) els.toPlace.value = s.toPlace;
-    if(s.odoStart) els.odoStart.value = s.odoStart;
-    if(s.odoEnd) els.odoEnd.value = s.odoEnd;
-    if(s.driver) els.driver.value = s.driver;
-    if(s.mapLink) els.mapLink.value = s.mapLink;
-    if(s.notes) els.notes.value = s.notes;
+    if(!s || typeof s !== "object"){ els.date.value = todayStr(); return; }
+    restoring = true;
+    try {
+      if(PURPOSE_LABELS[s.purpose]) setPurpose(s.purpose);
+      /* the trip date follows "today" — an older date is kept only on the same day or while an entry is being edited */
+      var keepDate = DATE_RE.test(String(s.date || "")) && (s.editId != null || s.day === todayStr());
+      els.date.value = keepDate ? s.date : todayStr();
+      if(s.vehicle) els.vehicle.value = s.vehicle;
+      if(s.fromPlace) els.fromPlace.value = s.fromPlace;
+      if(s.toPlace) els.toPlace.value = s.toPlace;
+      if(s.odoStart) els.odoStart.value = s.odoStart;
+      if(s.odoEnd) els.odoEnd.value = s.odoEnd;
+      if(s.driver) els.driver.value = s.driver;
+      if(s.mapLink) els.mapLink.value = s.mapLink;
+      if(s.notes) els.notes.value = s.notes;
+      if(s.autoOdo && s.autoOdo === s.odoStart) autoOdo = s.autoOdo;
+      if(s.editId != null){
+        var ed = loadEntries().filter(function(r){ return String(r.id) === String(s.editId); })[0];
+        if(ed) setEditing(ed);
+      }
+    } finally {
+      restoring = false;
+    }
   }
 
   /* ---- export: CSV + PDF + JSON ---- */
   function csvEscape(v){
     v = String(v === null || v === undefined ? "" : v);
-    if(/[;"\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    if(/^[=+@\t\r]/.test(v) || /^-[^\d]/.test(v)) v = "'" + v;
+    if(/[;"\n\r]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
     return v;
   }
 
@@ -2063,18 +2457,18 @@
   }
 
   els.exportRoutesCsvBtn.addEventListener("click", function(){
-    var entries = filteredEntries();
-    if(!entries.length){ showToast("Žádné záznamy k exportu"); return; }
-    var rows = [["Datum","Vozidlo","Účel","Odkud","Kam","Tachometr start (km)","Tachometr konec (km)","Vzdálenost (km)","Řidič","Poznámka","Odkaz na mapu"]];
+    var entries = filteredEntries().slice().reverse();
+    if(!entries.length){ showToast(T.noExport); return; }
+    var rows = [T.csvTrips];
     entries.forEach(function(e){
       rows.push([
-        e.date, e.vehicle||"", PURPOSE_LABELS[e.purpose]||e.purpose, e.fromPlace||"", e.toPlace||"",
-        fmt(e.odoStart,0), fmt(e.odoEnd,0), fmt(e.distance,0), e.driver||"", e.notes||"",
-        e.mapLink ? normalizeUrl(e.mapLink) : ""
+        e.date, vehName(e.vehicle), PURPOSE_LABELS[e.purpose] || e.purpose, e.fromPlace || "", e.toPlace || "",
+        csvNum(e.odoStart), csvNum(e.odoEnd), csvNum(e.distance), e.driver || "", e.notes || "",
+        e.mapLink ? normalizeUrl(String(e.mapLink)) : ""
       ]);
     });
-    downloadBlob("denik-vozidla-" + Date.now() + ".csv", "\uFEFF" + rowsToCsv(rows), "text/csv;charset=utf-8;");
-    showToast("CSV exportováno");
+    downloadBlob(T.fileTrips + Date.now() + ".csv", "﻿" + rowsToCsv(rows), "text/csv;charset=utf-8;");
+    showToast(T.csvDone);
   });
 
   els.exportRoutesJsonBtn.addEventListener("click", function(){
@@ -2092,7 +2486,9 @@
   });
 
   function isValidEntry(e){
-    return e && typeof e === "object" && e.date && isFinite(parseFloat(e.odoStart)) && isFinite(parseFloat(e.odoEnd));
+    if(!e || typeof e !== "object" || !DATE_RE.test(String(e.date || ""))) return false;
+    var s = parseFloat(e.odoStart), en = parseFloat(e.odoEnd);
+    return isFinite(s) && isFinite(en) && en > s;
   }
 
   els.importRoutesFile.addEventListener("change", function(){
@@ -2101,92 +2497,45 @@
     var reader = new FileReader();
     reader.onload = function(){
       var data;
-      try { data = JSON.parse(reader.result); } catch(e){ showToast("Soubor se nepodařilo přečíst"); return; }
-      var incoming = Array.isArray(data) ? data : (Array.isArray(data.entries) ? data.entries : null);
-      if(!incoming){ showToast("Neplatný formát souboru"); return; }
+      try { data = JSON.parse(reader.result); } catch(e){ showToast(T.readErr); return; }
+      var incoming = Array.isArray(data) ? data : (data && Array.isArray(data.entries) ? data.entries : null);
+      if(!incoming){ showToast(T.badFormat); return; }
       incoming = incoming.filter(isValidEntry);
-      if(!incoming.length){ showToast("V souboru nejsou žádné platné záznamy"); return; }
-
-      var existing = loadEntries();
-      var existingIds = {};
-      existing.forEach(function(e){ existingIds[String(e.id)] = true; });
-
-      var added = 0;
-      incoming.forEach(function(e){
-        var id = e.id;
-        if(id === undefined || id === null || existingIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + added;
-        existingIds[String(id)] = true;
-        var purposeVal = PURPOSE_LABELS[e.purpose] ? e.purpose : "sluzebni";
-        existing.unshift({
-          id: id,
-          purpose: purposeVal,
-          date: String(e.date),
-          vehicle: (e.vehicle ? String(e.vehicle) : "Bez názvu").slice(0,30),
-          fromPlace: e.fromPlace ? String(e.fromPlace).slice(0,60) : "",
-          toPlace: e.toPlace ? String(e.toPlace).slice(0,60) : "",
-          odoStart: parseFloat(e.odoStart) || 0,
-          odoEnd: parseFloat(e.odoEnd) || 0,
-          distance: parseFloat(e.distance) || (parseFloat(e.odoEnd) - parseFloat(e.odoStart)) || 0,
-          driver: e.driver ? String(e.driver).slice(0,40) : "",
-          mapLink: e.mapLink || "",
-          notes: e.notes ? String(e.notes).slice(0,200) : ""
-        });
-        added++;
-      });
-
-      if(existing.length > 500) existing = existing.slice(0,500);
-      if(!saveToStorage(STORAGE_ENTRIES, existing)) return;
+      if(!incoming.length){ showToast(T.noValid); return; }
+      var res = mergeTrips(incoming);
+      if(!res) return;
       renderVehicleOptions(); renderSummary(); renderEntries();
-      showToast(added === 1 ? "Naimportován 1 záznam" : "Naimportováno " + added + " záznamů");
+      importToast(res, null);
     };
-    reader.onerror = function(){ showToast("Soubor se nepodařilo přečíst"); };
+    reader.onerror = function(){ showToast(T.readErr); };
     reader.readAsText(file);
   });
 
   els.exportPdfAllBtn.addEventListener("click", function(){
-    var entries = filteredEntries();
-    if(!entries.length){ showToast("Žádné záznamy k exportu"); return; }
+    var entries = filteredEntries().slice().reverse();
+    if(!entries.length){ showToast(T.noExport); return; }
 
-    var totalKm = 0;
-    entries.forEach(function(e){ totalKm += e.distance; });
+    var totalKm = 0, byP = { sluzebni:0, soukroma:0, dojizdeni:0 };
+    entries.forEach(function(e){
+      var d = hasNum(e.distance) ? e.distance : 0;
+      totalKm += d;
+      if(e.purpose in byP) byP[e.purpose] += d;
+    });
 
     var rowsHtml = entries.map(function(e){
       var route = [e.fromPlace, e.toPlace].filter(Boolean).join(" → ");
-      return "<tr><td>" + escapeHtml(e.date) + "</td><td>" + escapeHtml(e.vehicle||"") + "</td><td>"
-        + escapeHtml(PURPOSE_LABELS[e.purpose]||e.purpose) + "</td><td>" + escapeHtml(route) + "</td><td>"
-        + fmt(e.odoStart,0) + "–" + fmt(e.odoEnd,0) + "</td><td style='text-align:right;font-weight:600;'>"
-        + fmt(e.distance,0) + " km</td></tr>";
+      var extra = [e.driver, e.notes].filter(Boolean).map(escapeHtml).join(" · ");
+      return "<tr><td style='white-space:nowrap;'>" + escapeHtml(fmtDate(e.date)) + "</td><td>" + escapeHtml(vehName(e.vehicle)) + "</td><td>"
+        + escapeHtml(PURPOSE_LABELS[e.purpose] || e.purpose) + "</td><td>" + (escapeHtml(route) || "—") + (extra ? "<small>" + extra + "</small>" : "") + "</td><td style='white-space:nowrap;'>"
+        + fmtKm(e.odoStart) + " – " + fmtKm(e.odoEnd) + "</td><td style='text-align:right;font-weight:600;white-space:nowrap;'>"
+        + fmtKm(e.distance) + " km</td></tr>";
     }).join("");
 
-    var dateStr = new Date().toLocaleDateString("cs-CZ");
-    var html = "<!DOCTYPE html><html lang=\"cs\"><head><meta charset=\"UTF-8\"><title>SYNTHLUCIDA DENÍK VOZIDLA</title><style>"
-      + "body{font-family:Arial,Helvetica,sans-serif;color:#222;padding:32px;max-width:820px;margin:0 auto;}"
-      + "h1{font-size:20px;margin:0 0 4px;letter-spacing:0.5px;}"
-      + ".sub{color:#777;font-size:12px;margin-bottom:18px;}"
-      + ".total-label{color:#999;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}"
-      + ".total{font-size:32px;font-weight:bold;margin:2px 0 18px;color:#0f766e;}"
-      + "table{width:100%;border-collapse:collapse;font-size:12px;}"
-      + "th{text-align:left;color:#999;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:6px;border-bottom:2px solid #ddd;}"
-      + "td{padding:8px 6px;border-bottom:1px solid #eee;}"
-      + "footer{margin-top:26px;font-size:11px;color:#999;}"
-      + "@media print{ body{padding:0;} }"
-      + "</style></head><body>"
-      + "<h1>SYNTHLUCIDA DENÍK VOZIDLA</h1>"
-      + "<div class=\"sub\">Kniha jízd &middot; " + dateStr + "</div>"
-      + "<div class=\"total-label\">Celkem ujeto (" + entries.length + " jízd)</div>"
-      + "<div class=\"total\">" + fmt(totalKm,0) + " km</div>"
-      + "<table><thead><tr><th>Datum</th><th>Vozidlo</th><th>Účel</th><th>Trasa</th><th>Tachometr</th><th>Km</th></tr></thead><tbody>" + rowsHtml + "</tbody></table>"
-      + "<footer>Vygenerováno v SYNTHLUCIDA DENÍK VOZIDLA &middot; synthlucida.com/denik-vozidla.html</footer>"
-      + "</body></html>";
-
-    var w = window.open("", "_blank");
-    if(!w){ showToast("Export PDF byl zablokován prohlížečem"); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(function(){ w.print(); }, 350);
-    showToast("Otevři dialog tisku a zvol „Uložit jako PDF“");
+    var split = "<div class=\"split\">" + ["sluzebni","soukroma","dojizdeni"].map(function(k){
+      return escapeHtml(PURPOSE_LABELS[k]) + ": <b>" + fmtKm(byP[k]) + " km</b>";
+    }).join(" &middot; ") + "</div>";
+    var sub = [T.pdfTripsSub, activeVehicle !== "all" ? escapeHtml(activeVehicle) : "", escapeHtml(T.pdfPeriod + periodStr(entries))];
+    printDoc(sub, T.pdfTripsTotal + " (" + entries.length + " " + T.trips(entries.length) + ")", fmtKm(totalKm) + " km", split, T.pdfTripsHead, rowsHtml, 860);
   });
 
   els.exportAllBtn.addEventListener("click", function(){
@@ -2218,82 +2567,27 @@
     var reader = new FileReader();
     reader.onload = function(){
       var data;
-      try { data = JSON.parse(reader.result); } catch(e){ showToast("Soubor se nepodařilo přečíst"); return; }
-      if(!data || typeof data !== "object"){ showToast("Neplatný formát souboru"); return; }
+      try { data = JSON.parse(reader.result); } catch(e){ showToast(T.readErr); return; }
+      if(!data || typeof data !== "object"){ showToast(T.badFormat); return; }
 
       var incomingEntries = Array.isArray(data.entries) ? data.entries.filter(isValidEntry) : [];
       var incomingService = Array.isArray(data.service) ? data.service.filter(isValidServiceEntry) : [];
-      var incomingVehicles = Array.isArray(data.vehicles) ? data.vehicles.filter(function(v){ return typeof v === "string" && v.trim(); }) : [];
+      var incomingVehicles = Array.isArray(data.vehicles) ? data.vehicles.filter(function(v){ return typeof v === "string" && !isUnnamed(v.trim()); }) : [];
 
       if(!incomingEntries.length && !incomingService.length && !incomingVehicles.length){
-        showToast("V souboru nejsou žádné platné záznamy");
+        showToast(T.noValid);
         return;
       }
 
-      var addedEntries = 0, addedService = 0;
-
-      if(incomingEntries.length){
-        var existingEntries = loadEntries();
-        var existingEntryIds = {};
-        existingEntries.forEach(function(e){ existingEntryIds[String(e.id)] = true; });
-        incomingEntries.forEach(function(e){
-          var id = e.id;
-          if(id === undefined || id === null || existingEntryIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + addedEntries;
-          existingEntryIds[String(id)] = true;
-          var purposeVal = PURPOSE_LABELS[e.purpose] ? e.purpose : "sluzebni";
-          existingEntries.unshift({
-            id: id,
-            purpose: purposeVal,
-            date: String(e.date),
-            vehicle: (e.vehicle ? String(e.vehicle) : "Bez názvu").slice(0,30),
-            fromPlace: e.fromPlace ? String(e.fromPlace).slice(0,60) : "",
-            toPlace: e.toPlace ? String(e.toPlace).slice(0,60) : "",
-            odoStart: parseFloat(e.odoStart) || 0,
-            odoEnd: parseFloat(e.odoEnd) || 0,
-            distance: parseFloat(e.distance) || (parseFloat(e.odoEnd) - parseFloat(e.odoStart)) || 0,
-            driver: e.driver ? String(e.driver).slice(0,40) : "",
-            mapLink: e.mapLink || "",
-            notes: e.notes ? String(e.notes).slice(0,200) : ""
-          });
-          addedEntries++;
-        });
-        if(existingEntries.length > 500) existingEntries = existingEntries.slice(0,500);
-        saveToStorage(STORAGE_ENTRIES, existingEntries);
-      }
-
-      if(incomingService.length){
-        var existingService = loadServiceEntries();
-        var existingServiceIds = {};
-        existingService.forEach(function(e){ existingServiceIds[String(e.id)] = true; });
-        incomingService.forEach(function(e){
-          var id = e.id;
-          if(id === undefined || id === null || existingServiceIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + addedService;
-          existingServiceIds[String(id)] = true;
-          var typeVal = SERVICE_TYPE_LABELS[e.type] ? e.type : "jine";
-          var odo = parseFloat(e.odo);
-          var price = parseFloat(e.price);
-          existingService.unshift({
-            id: id,
-            type: typeVal,
-            date: String(e.date),
-            vehicle: (e.vehicle ? String(e.vehicle) : "Bez názvu").slice(0,30),
-            odo: isFinite(odo) ? odo : null,
-            price: isFinite(price) ? price : null,
-            nextDate: e.nextDate ? String(e.nextDate) : "",
-            notes: e.notes ? String(e.notes).slice(0,200) : ""
-          });
-          addedService++;
-        });
-        saveServiceEntries(existingService);
-      }
+      var tr = incomingEntries.length ? mergeTrips(incomingEntries) : null;
+      var sv = incomingService.length ? mergeService(incomingService) : null;
 
       if(incomingVehicles.length){
-        var registry = loadVehicleRegistry();
-        var known = {};
-        registry.forEach(function(v){ known[v] = true; });
+        var registry = loadVehicleRegistry(), known = {};
+        registry.forEach(function(v){ known[String(v).toLowerCase()] = true; });
         incomingVehicles.forEach(function(v){
-          v = String(v).slice(0,30);
-          if(v && !known[v]){ known[v] = true; registry.push(v); }
+          v = v.trim().slice(0,30);
+          if(v && !known[v.toLowerCase()]){ known[v.toLowerCase()] = true; registry.push(v); }
         });
         saveVehicleRegistry(registry);
       }
@@ -2305,19 +2599,16 @@
       renderEntries();
       renderServiceSummary();
       renderServiceEntries();
-
-      var parts = [];
-      if(addedEntries) parts.push(addedEntries + " jízd");
-      if(addedService) parts.push(addedService + " servisních záznamů");
-      showToast(parts.length ? "Naimportováno: " + parts.join(", ") : "Záloha naimportována");
+      importToast(tr, sv);
     };
-    reader.onerror = function(){ showToast("Soubor se nepodařilo přečíst"); };
+    reader.onerror = function(){ showToast(T.readErr); };
     reader.readAsText(file);
   });
 
   function init(){
     restoreState();
     els.sDate.value = todayStr();
+    els.sCurrency.value = getCurrency();
     restoreCurrentVehicle();
     renderVehicleOptions();
     renderServiceVehicleOptions();
@@ -2327,15 +2618,58 @@
     renderEntries();
     renderServiceSummary();
     renderServiceEntries();
+    autofillOdo();
     calc();
+    persistState();
   }
   init();
-
-  if("serviceWorker" in navigator){
-    window.addEventListener("load", function(){
-      navigator.serviceWorker.register("denik-vozidla-sw.js").catch(function(){});
-    });
+})();
+</script>
+<script>
+/* ===== Install pop-up (PWA) — Chrome/Edge/Android via beforeinstallprompt, iPhone/iPad with instructions ===== */
+(function(){
+  var pop = document.getElementById('installPop');
+  if(!pop) return;
+  var goBtn = document.getElementById('installGo');
+  var laterBtn = document.getElementById('installLater');
+  var iosNote = document.getElementById('installIos');
+  var KEY = 'denik_vozidla_install_snooze', SNOOZE_DAYS = 14, DELAY_MS = 6000;
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var ua = navigator.userAgent || '';
+  var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var deferred = null, delayDone = false, iosMode = false;
+  function snoozed(){ try{ var t = Number(localStorage.getItem(KEY)); return t > 0 && Date.now() - t < SNOOZE_DAYS * 864e5; }catch(e){ return false; } }
+  function snooze(){ try{ localStorage.setItem(KEY, String(Date.now())); }catch(e){} }
+  function onKey(e){ if(e.key === 'Escape'){ snooze(); hide(); } }
+  function show(ios){
+    if(standalone || snoozed() || !pop.hidden) return;
+    iosMode = ios;
+    iosNote.hidden = !ios;
+    if(!goBtn.getAttribute('data-label')) goBtn.setAttribute('data-label', goBtn.textContent);
+    goBtn.textContent = ios ? goBtn.getAttribute('data-ios') : goBtn.getAttribute('data-label');
+    pop.hidden = false;
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ pop.classList.add('show'); }); });
+    document.addEventListener('keydown', onKey);
   }
+  function hide(){
+    pop.classList.remove('show');
+    document.removeEventListener('keydown', onKey);
+    setTimeout(function(){ pop.hidden = true; }, reduced ? 0 : 320);
+  }
+  function maybeShow(){ if(!delayDone) return; if(deferred) show(false); else if(isIOS) show(true); }
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferred = e; maybeShow(); });
+  window.addEventListener('appinstalled', function(){ deferred = null; snooze(); if(!pop.hidden) hide(); });
+  laterBtn.addEventListener('click', function(){ snooze(); hide(); });
+  goBtn.addEventListener('click', function(){
+    if(iosMode || !deferred){ snooze(); hide(); return; }
+    var ev = deferred; deferred = null; hide();
+    try{
+      ev.prompt();
+      Promise.resolve(ev.userChoice).then(function(c){ if(!c || c.outcome !== 'accepted') snooze(); }).catch(function(){});
+    }catch(err){ snooze(); }
+  });
+  if(!standalone) setTimeout(function(){ delayDone = true; maybeShow(); }, DELAY_MS);
 })();
 </script>
 </body>
