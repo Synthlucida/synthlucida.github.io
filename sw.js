@@ -39,9 +39,17 @@
 // player, i když je na webu otevřená jiná stránka (dřív se přepnulo na
 // první nalezené okno, třeba TRIP COST). Cache zvýšena na v994, aby se
 // smazala stará cache i se všemi uloženými kopiemi testu připojení.
+// v38 - skladba se začne přehrávat hned, jakmile dorazí první data - dřív SW
+// čekal, až se do cache uloží CELÁ skladba, a teprve pak ji pustil přehrávači
+// (na pomalém mobilu i desítky sekund ticha). Ukládání teď doběhne na pozadí;
+// tlačítko DOWNLOAD OFFLINE dál čeká na kompletní uložení. Safari / iPhone
+// dostává hudbu online přímo ze sítě (jeho přehrávač vyžaduje odpovědi 206,
+// které z uložené kopie z GitHubu vyrobit nejde); uložená kopie je záloha
+// pro offline. Připravena podpora serverů s CORS (CORS_AUDIO_HOSTS): čitelné
+// kopie se kontrolují a z cache se vrací i části souboru (206).
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v994';
+const APP_CACHE_NAME = 'synthlucida-app-v999';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -173,13 +181,13 @@ self.addEventListener('fetch', (event) => {
       if (client && EXCLUDED_APPS.test(new URL(client.url).pathname)) {
         return fetch(event.request);
       }
-      return isAudioRequest(url) ? handleAudioRequest(event.request) : handleAppShellRequest(event.request);
+      return isAudioRequest(url) ? handleAudioRequest(event) : handleAppShellRequest(event.request);
     })());
     return;
   }
 
   if (isAudioRequest(url)) {
-    event.respondWith(handleAudioRequest(event.request));
+    event.respondWith(handleAudioRequest(event));
     return;
   }
 
@@ -210,52 +218,135 @@ async function handleAppShellRequest(request) {
   }
 }
 
-async function handleAudioRequest(request) {
+// Apple WebKit = Safari a všechny prohlížeče na iPhonu/iPadu. Jejich přehrávač
+// chce na požadavky s hlavičkou Range odpověď "206 Partial Content". Kopii
+// skladby uloženou z GitHubu (bez CORS = "opaque") ale service worker rozkrojit
+// neumí, proto tam hudba online jde rovnou ze sítě (s původní Range hlavičkou)
+// a uložená kopie slouží jen jako záloha, když síť není.
+const IS_APPLE_WEBKIT = (() => {
+  const ua = (self.navigator && self.navigator.userAgent) || '';
+  return /iPhone|iPad|iPod/.test(ua) ||
+    (/AppleWebKit/.test(ua) && /Safari/.test(ua) && !/(Chrome|Chromium|CriOS|Edg|OPR|Android)/.test(ua));
+})();
+
+// Servery s MP3, které posílají CORS hlavičku (Access-Control-Allow-Origin).
+// Z nich se skladby stahují čitelně - SW pak ověří, že je soubor v pořádku
+// (ne chybová stránka), a umí vracet části souboru (206) pro Safari.
+// GitHub Releases CORS neposílá, proto je seznam zatím prázdný. Po případném
+// přesunu MP3 na server s CORS sem stačí doplnit jeho doménu.
+const CORS_AUDIO_HOSTS = [];
+
+function offlineAudioResponse() {
+  return new Response('Offline - this track is not cached.', {
+    status: 503,
+    statusText: 'Offline',
+    headers: { 'Content-Type': 'text/plain' }
+  });
+}
+
+// Z celé (čitelné) odpovědi vyrobí odpověď na Range požadavek: 206 s danou
+// částí souboru. Bez Range hlavičky vrátí odpověď beze změny.
+async function rangeResponse(request, response) {
+  const range = request.headers.get('range');
+  const m = range && /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+  if (!m || (m[1] === '' && m[2] === '')) return response;
+  const blob = await response.blob();
+  const size = blob.size;
+  let start;
+  let end;
+  if (m[1] === '') {
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) {
+    return new Response(null, { status: 416, statusText: 'Range Not Satisfiable', headers: { 'Content-Range': 'bytes */' + size } });
+  }
+  return new Response(blob.slice(start, end + 1), {
+    status: 206,
+    statusText: 'Partial Content',
+    headers: {
+      'Content-Type': response.headers.get('Content-Type') || 'audio/mpeg',
+      'Content-Range': 'bytes ' + start + '-' + end + '/' + size,
+      'Content-Length': String(end - start + 1),
+      'Accept-Ranges': 'bytes'
+    }
+  });
+}
+
+async function handleAudioRequest(event) {
+  const request = event.request;
+  const url = new URL(request.url);
   const cache = await caches.open(AUDIO_CACHE_NAME);
 
   // Always match by plain URL, ignoring any Range header on the incoming request,
   // so we always find (and return) the full cached file if we have it.
   const cached = await cache.match(request.url);
+
+  // Požadavek přímo od přehrávače (<audio>), ne stažení tlačítkem DOWNLOAD OFFLINE.
+  const isMedia = request.destination === 'audio' || request.destination === 'video' || request.headers.has('range');
+
+  // Čitelná uložená kopie (server s CORS) - rovnou z cache, i s částmi souboru (206).
+  if (cached && cached.type !== 'opaque') {
+    return rangeResponse(request, cached);
+  }
+
+  // Safari / iPhone: online přímo ze sítě s původní Range hlavičkou, cache jen offline.
+  if (IS_APPLE_WEBKIT && isMedia) {
+    try {
+      return await fetch(request);
+    } catch (err) {
+      return cached || offlineAudioResponse();
+    }
+  }
+
   if (cached) {
     return cached;
   }
 
   try {
-    // Build a clean request with the SAME mode/credentials as the original
-    // (important: audio elements load cross-origin files in "no-cors" mode,
-    // and we must preserve that or the fetch gets blocked by CORS).
+    const corsHost = url.origin === self.location.origin || CORS_AUDIO_HOSTS.includes(url.hostname);
+    // Build a clean request (no Range header -> the whole file). GitHub MP3s have
+    // no CORS headers, so they are fetched in the same "no-cors" mode the <audio>
+    // element uses; servers from CORS_AUDIO_HOSTS are fetched readable ("cors").
     const cleanRequest = new Request(request.url, {
       method: 'GET',
-      mode: request.mode,
-      credentials: request.credentials,
+      mode: corsHost ? 'cors' : request.mode,
+      credentials: corsHost ? 'same-origin' : request.credentials,
       redirect: 'follow'
     });
 
     const networkResponse = await fetch(cleanRequest);
 
-    // Cache it even if it's an "opaque" response (no CORS headers from the
-    // server) - that's normal for cross-origin media and still works fine
-    // for playback, we just can't read its bytes in JS.
-    // IMPORTANT: we now AWAIT this before returning, so that by the time the
-    // page's fetch() promise resolves, the file is *guaranteed* to already be
-    // fully written into Cache Storage - not just "probably done in the
-    // background". Without this await, the page could think a track is
-    // downloaded (and show "OFFLINE") a moment before it's actually saved.
-    if (networkResponse) {
-      try {
-        await cache.put(request.url, networkResponse.clone());
-      } catch (err) {
-        console.log('[SW] Could not cache audio:', err);
-      }
+    // U čitelné odpovědi se uloží jen opravdu v pořádku stažený soubor (ne 404
+    // ani přihlašovací stránka hotelové wifi). U "opaque" odpovědi z GitHubu
+    // stav vidět není, ta se ukládá jako dřív.
+    const readable = networkResponse.type !== 'opaque';
+    if (readable && networkResponse.status !== 200) {
+      return networkResponse;
     }
 
+    const putDone = cache.put(request.url, networkResponse.clone()).catch((err) => {
+      console.log('[SW] Could not cache audio:', err);
+    });
+
+    if (isMedia) {
+      // Přehrávač dostane odpověď hned a hraje, jakmile dorazí první data;
+      // uložení celé skladby do cache doběhne na pozadí. (Dřív se čekalo na
+      // stažení CELÉ skladby, takže na pomalém mobilním připojení trvalo
+      // i desítky sekund, než se hudba vůbec rozehrála.)
+      try { event.waitUntil(putDone); } catch (e) { /* ignore */ }
+      return networkResponse;
+    }
+
+    // DOWNLOAD OFFLINE (fetch z appky): odpověď až ve chvíli, kdy je skladba
+    // opravdu celá uložená - "✓ OFFLINE" tak vždy odpovídá realitě.
+    await putDone;
     return networkResponse;
   } catch (err) {
-    return new Response('Offline - this track is not cached.', {
-      status: 503,
-      statusText: 'Offline',
-      headers: { 'Content-Type': 'text/plain' }
-    });
+    return offlineAudioResponse();
   }
 }
 
