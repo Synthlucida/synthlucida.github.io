@@ -28,9 +28,20 @@
 // synthlucida-audio-*) - dřív se smazalo úplně všechno na synthlucida.com, tedy
 // i cache jiných appek s vlastním SW. POST a jiné ne-GET požadavky (formuláře)
 // jdou rovnou na síť. Odstraněn duplicitní draw.html v seznamu souborů.
+// v37 - player: test připojení (icon.png?probe=… každých 30 s, fetch s
+// cache:'no-store') se už NEUKLÁDÁ do cache - dřív každý test přidal do
+// synthlucida-app cache další kopii ikony, takže při otevřeném playeru
+// cache rostla o ~2 880 souborů denně. Požadavky s cache:'no-store' jdou
+// teď rovnou na síť. Cizí servery (počítadlo návštěv countapi, Firebase
+// chat, …) se už také necachují - do cache jdou jen soubory z vlastního
+// webu, písma Google Fonts a skripty z www.gstatic.com (Firebase SDK)
+// a samozřejmě MP3 do audio cache. Kliknutí na notifikaci teď otevře
+// player, i když je na webu otevřená jiná stránka (dřív se přepnulo na
+// první nalezené okno, třeba TRIP COST). Cache zvýšena na v994, aby se
+// smazala stará cache i se všemi uloženými kopiemi testu připojení.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v993';
+const APP_CACHE_NAME = 'synthlucida-app-v994';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -106,6 +117,10 @@ function isAudioRequest(url) {
   return /\.mp3($|\?)/i.test(url.pathname);
 }
 
+// Cizí servery, jejichž soubory má smysl mít i offline (písma a Firebase SDK).
+// Vše ostatní z cizích domén (API, počítadla, chat) jde rovnou na síť bez cache.
+const CACHEABLE_CDN = /^(fonts\.googleapis\.com|fonts\.gstatic\.com|www\.gstatic\.com)$/i;
+
 self.addEventListener('fetch', (event) => {
   // Jen GET se dá cachovat - odeslání formulářů apod. (POST) nechat jít rovnou na síť.
   if (event.request.method !== 'GET') {
@@ -130,6 +145,19 @@ self.addEventListener('fetch', (event) => {
   // Hlídá se podle domény, protože tyhle požadavky odcházejí ze stránek appek
   // (např. Dělňasu), ale jejich vlastní URL žádné jméno appky neobsahuje.
   if (/(^|\.)(goatcounter\.com|zgo\.at)$/i.test(url.hostname)) {
+    return;
+  }
+
+  // Požadavky, které si výslovně nepřejí cache (cache:'no-store' - např. test
+  // připojení v playeru, icon.png?probe=…), nechat jít rovnou na síť. Jinak by
+  // se každý z nich uložil do synthlucida-app cache jako nový soubor.
+  if (event.request.cache === 'no-store') {
+    return;
+  }
+
+  // Cizí domény kromě MP3 a písem/Firebase SDK (API počítadla návštěv,
+  // Firebase chat, …) - rovnou na síť, nic necachovat.
+  if (url.origin !== self.location.origin && !isAudioRequest(url) && !CACHEABLE_CDN.test(url.hostname)) {
     return;
   }
 
@@ -237,12 +265,18 @@ async function handleAudioRequest(request) {
 // ==========================================
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // Notifikace posílá player (připomínky, komunitní chat) - přepnout na okno
+  // s playerem. Jiné otevřené stránky webu (TRIP COST, Deník vozidla…) se
+  // přeskočí; když player otevřený není, otevře se.
+  const target = (event.notification.data && event.notification.data.url) || './player.html';
+  const targetPath = new URL(target, self.location.href).pathname;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((allClients) => {
-      if (allClients.length > 0) {
-        return allClients[0].focus();
+      const match = allClients.find((c) => new URL(c.url).pathname === targetPath);
+      if (match) {
+        return match.focus();
       }
-      return self.clients.openWindow('./player.html');
+      return self.clients.openWindow(target);
     })
   );
 });

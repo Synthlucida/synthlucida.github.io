@@ -7688,11 +7688,28 @@
     // znamená to, že je nainstalovaná nová verze appky. U nainstalované appky (Add to
     // Home Screen) Android stránku sám neobnoví - jen ji uspí/probudí - takže bez
     // tohoto reloadu by v paměti dál běžel starý JS/HTML, i když cache je už nová.
+    // - Při úplně první návštěvě (stránka ještě neměla SW) se nereloaduje - HTML je
+    //   právě stažené ze sítě, reload by jen zbytečně přerušil start (a hudbu).
+    // - Když zrovna hraje hudba, reload se odloží, dokud appka nepůjde do pozadí
+    //   se zastavenou hudbou - nová verze sw.js tak nikomu neutne skladbu.
     let swRefreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
+    let swReloadPending = false;
+    const swHadController = !!navigator.serviceWorker.controller;
+    function swMusicPlaying() {
+      return (audio && !audio.paused) || (typeof crossfadeAudio !== 'undefined' && crossfadeAudio && !crossfadeAudio.paused);
+    }
+    function swReloadNow() {
       if (swRefreshing) return;
       swRefreshing = true;
       window.location.reload();
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!swHadController) return;
+      if (swMusicPlaying()) { swReloadPending = true; return; }
+      swReloadNow();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (swReloadPending && document.visibilityState === 'hidden' && !swMusicPlaying()) swReloadNow();
     });
 
     // Nainstalovaná appka se po návratu z pozadí (multitasking) typicky jen "probudí",
