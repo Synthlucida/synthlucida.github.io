@@ -30,7 +30,7 @@
 // jdou rovnou na síť. Odstraněn duplicitní draw.html v seznamu souborů.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v992';
+const APP_CACHE_NAME = 'synthlucida-app-v993';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
