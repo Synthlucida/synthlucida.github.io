@@ -15,9 +15,22 @@
 // (CZ delnas.html tam už byl) a nově se vůbec nezachytávají požadavky na
 // analytiku GoatCounter (gc.zgo.at, *.goatcounter.com) - tenhle SW má scope
 // na celý web, takže jinak by řídil i počítání návštěv z Dělňasu.
+// v35 - vyloučena i anglická Míchárna (e-liquid-mixing-calculator*.html /
+// -manifest.json), která se dosud cachovala, protože seznam znal jen českou
+// michani-liquidu. A nově jdou rovnou na síť (bez cache) i požadavky, které
+// odcházejí ZE stránek vyloučených appek na cizí servery (Google Fonts, jsPDF
+// z CDN apod.) - dřív se jejich písma ukládala do synthlucida-app cache. Číslo cache
+// zvýšeno, aby se při aktualizaci smazaly už zacachované soubory těchto appek.
+// v36 - vyloučeny i SEO landingy appek, které se jmenují jinak než appka
+// (landing_vapetrack, landing_weather, landing_webzenith… = vše "landing_*",
+// xtally-landing(-cz), relax-landing(-cz)). Cache znovu zvýšena, aby se smazaly.
+// Při aktivaci se teď mažou jen staré verze VLASTNÍCH cachí (synthlucida-app-*,
+// synthlucida-audio-*) - dřív se smazalo úplně všechno na synthlucida.com, tedy
+// i cache jiných appek s vlastním SW. POST a jiné ne-GET požadavky (formuláře)
+// jdou rovnou na síť. Odstraněn duplicitní draw.html v seznamu souborů.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v989';
+const APP_CACHE_NAME = 'synthlucida-app-v992';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -35,7 +48,6 @@ const ASSETS_TO_CACHE = [
   './news.html',
   './manifest.json',
   './privacy_policy.html',
-  './draw.html',
   './icon.png',
   './favicon.png',
   './logo.jpg'
@@ -68,7 +80,12 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
-          if (name !== APP_CACHE_NAME && name !== AUDIO_CACHE_NAME) {
+          // Mazat jen staré verze vlastních cachí - cache jiných appek na stejné
+          // doméně (s vlastním service workerem) nechat být.
+          const isOwnOld =
+            (name.startsWith('synthlucida-app-') && name !== APP_CACHE_NAME) ||
+            (name.startsWith('synthlucida-audio-') && name !== AUDIO_CACHE_NAME);
+          if (isOwnOld) {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
           }
@@ -79,21 +96,32 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Appky s vlastním manifestem / bez offline podpory, které tenhle master SW
+// nemá vůbec řešit. Shoduje se se začátkem názvu souboru, takže pokrývá i jejich
+// landingy, zásady, manifesty a obrázky (tripcost-landing.html, michani-liquidu-og.png...).
+// "landing_" pokrývá všechny landingy pojmenované landing_něco.html.
+const EXCLUDED_APPS = /\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|e-liquid-mixing-calculator|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|delnas-en|seochecker|seochecker-en|landing_|xtally-landing|relax-landing)/i;
+
 function isAudioRequest(url) {
   return /\.mp3($|\?)/i.test(url.pathname);
 }
 
 self.addEventListener('fetch', (event) => {
+  // Jen GET se dá cachovat - odeslání formulářů apod. (POST) nechat jít rovnou na síť.
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(event.request.url);
 
-  // Weather, Progrese, Deník vozidla, Tripcost, Webzen, Dělňas (CZ/EN) a SEOCHECKER mají
+  // Weather, Progrese, Deník vozidla, Tripcost, Webzen, Míchárna (CZ/EN), Dělňas (CZ/EN) a SEOCHECKER mají
   // vlastní scope (nebo žádnou offline podporu) a tenhle master SW to řešit
   // nemá - necháme jejich requesty projít přímo na síť, bez event.respondWith().
   // Bez tohohle vyloučení by je totiž handleAppShellRequest() tiše
   // zachytával a plnil jimi synthlucida-app cache, i když s playerem
   // vůbec nesouvisí. Kdyby jednou dostaly vlastní offline podporu,
   // dostanou vlastní sw.js se scope jen na sebe.
-  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|delnas-en|seochecker|seochecker-en)/i.test(url.pathname)) {
+  if (EXCLUDED_APPS.test(url.pathname)) {
     return;
   }
 
@@ -102,6 +130,23 @@ self.addEventListener('fetch', (event) => {
   // Hlídá se podle domény, protože tyhle požadavky odcházejí ze stránek appek
   // (např. Dělňasu), ale jejich vlastní URL žádné jméno appky neobsahuje.
   if (/(^|\.)(goatcounter\.com|zgo\.at)$/i.test(url.hostname)) {
+    return;
+  }
+
+  // Požadavky, které odcházejí ZE stránky vyloučené appky (Google Fonts, jsPDF
+  // z CDN apod.) - poslat rovnou na síť bez cache, jinak by se jejich soubory
+  // ukládaly do synthlucida-app cache. Stránka se pozná podle klienta (okna),
+  // ne podle Referer hlavičky - ta u cizích serverů obsahuje jen doménu.
+  // Navigace (přechod na jinou stránku) se neřeší, aby se např. player.html
+  // otevřený z TRIP COSTu dál normálně cachoval.
+  if (event.request.mode !== 'navigate' && event.clientId) {
+    event.respondWith((async () => {
+      const client = await self.clients.get(event.clientId);
+      if (client && EXCLUDED_APPS.test(new URL(client.url).pathname)) {
+        return fetch(event.request);
+      }
+      return isAudioRequest(url) ? handleAudioRequest(event.request) : handleAppShellRequest(event.request);
+    })());
     return;
   }
 
