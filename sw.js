@@ -11,9 +11,13 @@
 // Přidán SEOCHECKER (seochecker.html / seochecker-en.html) do seznamu appek
 // vyloučených z tohoto master SW - má vlastní manifest a žádnou offline
 // podporu, ať se s tímhle SW (a jeho cachí pro player) nijak nekříží.
+// Přidán Dělňas EN (delnas-en.html) výslovně do seznamu vyloučených appek
+// (CZ delnas.html tam už byl) a nově se vůbec nezachytávají požadavky na
+// analytiku GoatCounter (gc.zgo.at, *.goatcounter.com) - tenhle SW má scope
+// na celý web, takže jinak by řídil i počítání návštěv z Dělňasu.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v986';
+const APP_CACHE_NAME = 'synthlucida-app-v987';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -82,14 +86,22 @@ function isAudioRequest(url) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Weather, Progrese, Deník vozidla, Tripcost, Webzen a SEOCHECKER mají
+  // Weather, Progrese, Deník vozidla, Tripcost, Webzen, Dělňas (CZ/EN) a SEOCHECKER mají
   // vlastní scope (nebo žádnou offline podporu) a tenhle master SW to řešit
   // nemá - necháme jejich requesty projít přímo na síť, bez event.respondWith().
   // Bez tohohle vyloučení by je totiž handleAppShellRequest() tiše
   // zachytával a plnil jimi synthlucida-app cache, i když s playerem
   // vůbec nesouvisí. Kdyby jednou dostaly vlastní offline podporu,
   // dostanou vlastní sw.js se scope jen na sebe.
-  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|seochecker|seochecker-en)/i.test(url.pathname)) {
+  if (/\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|delnas-en|seochecker|seochecker-en)/i.test(url.pathname)) {
+    return;
+  }
+
+  // Analytika (GoatCounter: skript z gc.zgo.at + počítání na *.goatcounter.com)
+  // - nikdy nezachytávat ani necachovat, ať každé počítání jde rovnou na síť.
+  // Hlídá se podle domény, protože tyhle požadavky odcházejí ze stránek appek
+  // (např. Dělňasu), ale jejich vlastní URL žádné jméno appky neobsahuje.
+  if (/(^|\.)(goatcounter\.com|zgo\.at)$/i.test(url.hostname)) {
     return;
   }
 
