@@ -54,7 +54,7 @@
   "url": "https://synthlucida.com/progrese-en.html",
   "applicationCategory": "MultimediaApplication",
   "operatingSystem": "Web",
-  "description": "Online chord progression generator with automatic melody and bassline suggestions. Play back in the browser and export to a standard MIDI file.",
+  "description": "Online chord progression generator with melody, bassline, arpeggio and drums. Browser playback, a mixer, a Mini DAW for note edits, export to MIDI and to sheet music (PDF), and sharing via link.",
   "inLanguage": "en",
   "isAccessibleForFree": true,
   "offers": {
@@ -66,7 +66,13 @@
     "Chord progression generation by key and mood",
     "Automatic melody, bassline, arpeggio and drum suggestions",
     "Playback directly in the browser, including individual layers",
-    "Export to a MIDI file (.mid) with 5 tracks"
+    "Export to a MIDI file (.mid) with 5 tracks, whole or per layer",
+    "Per-instrument volume mixer",
+    "Mini DAW for editing individual notes and bars",
+    "Sheet music export to PDF",
+    "Transpose by ±12 semitones",
+    "Live note output to a MIDI device or DAW",
+    "Share a progression via link"
   ]
 }
 </script>
@@ -83,7 +89,7 @@
     {
       "@type": "Question",
       "name": "Are the generated progressions musically correct?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes — every progression is built solely from chords diatonic to the chosen key and scale, so it always sounds coherent. The melody and bassline are generated from the tones of those chords." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — every progression is built solely from chords diatonic to the chosen key and scale, so it always sounds coherent and \"in tune.\" The melody and bassline are generated from the tones of those chords." }
     },
     {
       "@type": "Question",
@@ -97,8 +103,38 @@
     },
     {
       "@type": "Question",
+      "name": "What chord types can the generator create?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The foundation is triads and 7th chords, with occasional color chords woven in depending on the mood: sus2 and sus4 (no third), 9 (a 9th chord), 6 (an added sixth), 6/9 (sixth and ninth together), and add9 (a ninth with no seventh). All of them are built purely from the notes of the chosen scale, so they always stay in tune — see the \"Music theory\" section above for more." }
+    },
+    {
+      "@type": "Question",
       "name": "Can I use the exported MIDI files without restriction?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Any MIDI file you generate and download is yours to use freely, in personal or commercial music, with no license fees or attribution required." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Any MIDI file you generate and download here is yours to use freely — in personal or commercial music, with no license fees, credit, or attribution required." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I set the volume of each instrument separately?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — the \"Instrument mixer\" panel lets you set the volume of chords, melody, bass, arp and drums independently, so you can tuck a layer back or bring it forward before you play or export." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I edit individual notes after generating a progression?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, in the \"Mini DAW\" panel. Pick a bar and mute individual melody, bass, arp or drum steps, shift a note up or down an octave, pick a completely different note for any step, or re-roll just that one bar. Edits show up in playback and the MIDI export right away." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I export the progression as sheet music?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — the \"Sheet music (PDF)\" button exports the current progression as standard music notation (treble and bass clef, chord symbols above the staff) into a PDF you can print or send along. Below the notation, each bar also gets a piano key diagram with the keys marked, so it works even if you can't read notes. It reflects any edits made in the Mini DAW too." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I hear the progression through my own synth in a DAW, without exporting a MIDI file?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — the \"Live to MIDI\" panel sends playback in real time to a virtual MIDI port. Set up a virtual port on your computer (loopMIDI is free on Windows; the built-in IAC Driver works on Mac), point an instrument track in your DAW at it with any synth loaded, then enable MIDI access in the app and turn on \"Live sending\". Works in Chrome, Edge, and Firefox — unfortunately Safari doesn't support the Web MIDI API." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I transpose the generated progression to a different pitch?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — the \"Pitch\" slider next to Volume shifts the whole progression by -12 to +12 semitones, with no need to regenerate anything. It applies to playback, the live MIDI output, the MIDI file export, and the sheet music (PDF) export (including recalculated chord symbols and key name in the header). Drums are not transposed." }
     }
   ]
 }
@@ -107,9 +143,8 @@
 <!-- Playback now runs on the native Web Audio API (see the PLAYBACK section
      below) — the Tone.js library is no longer loaded, so playback no longer
      depends on a CDN. -->
-<!-- VexFlow (music notation) and jsPDF (PDF export) — only used by the "Sheet music (PDF)" button -->
-<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<!-- VexFlow (music notation) and jsPDF (PDF export) are loaded only after a
+     click on "Sheet music (PDF)" — see ensurePdfLibs() in the script. -->
 <style>
   :root{
     color-scheme:dark;
@@ -852,7 +887,7 @@
       <button class="cta" id="newBassBtn" disabled>New bass</button>
       <button class="cta" id="newArpBtn" disabled>New arp</button>
       <button class="cta" id="newDrumsBtn" disabled>New drums</button>
-      <button class="cta" id="shareBtn" disabled title="Copies a link to exactly this generated progression (chords, melody, bass, arp, drums). Manual Mini DAW edits are not captured by the link.">🔗 Share link</button>
+      <button class="cta" id="shareBtn" disabled title="Copies a link to exactly this generated progression (chords, melody, bass, arp, drums). The link also keeps your Mini DAW edits and transpose.">🔗 Share link</button>
     </div>
     <div class="status-msg" id="statusMsg" role="status" aria-live="polite"></div>
   </div>
@@ -1550,7 +1585,7 @@ function genMelody(chords, style){
 function genBass(chords, style){
   return chords.map(c=>{
     const root = c.tones[0] - 12;
-    const fifth = root + 7;
+    const fifth = c.tones[2] - 12; // the scale's fifth — diminished on a diminished chord, so the bass never plays outside the key
     const tones = [root, fifth, root + 12];
     const p = pickPattern(BASS_PATTERNS, style);
     return p.pat.map(i => tones[i % tones.length]);
@@ -1953,9 +1988,9 @@ function styleName(select, list){
    Encodes the exact generated result (root, mood, layer styles, tempo and
    the 5 RNG seeds) into the URL's query string, so pasting the link
    reproduces the identical progression — chords, melody, bass, arp and
-   drums included. Manual Mini DAW edits (per-step mute, octave shifts,
-   single-bar reroll) are NOT captured — kept out on purpose to keep this
-   simple and robust. */
+   drums included. Manual Mini DAW edits (muted steps, note changes,
+   rerolled bars, drum hits) and the transpose are added on top as the "e"
+   and "p" parameters — see encodeDawEdits()/applyDawEdits() below. */
 function buildShareParams(){
   if(!current || !current.seeds) return null;
   const p = new URLSearchParams();
@@ -1972,8 +2007,90 @@ function buildShareParams(){
   p.set('sb', s.bass.toString(36));
   p.set('sa', s.arp.toString(36));
   p.set('sd', s.drums.toString(36));
+  if(globalPitchSemitones) p.set('p', globalPitchSemitones);
+  const edits = encodeDawEdits();
+  if(edits) p.set('e', edits);
   return p;
 }
+/* Mini DAW edits in the share link: regenerate the "untouched" progression
+   from the same seeds, compare it with the current one and store only the
+   bars that differ in the "e" parameter. Segments are separated by "_";
+   the first char is the layer (m/b/a = melody/bass/arp notes, 2 base36 chars
+   each; d = drums, 4 hex masks kick/snare/hh/oh; M/B/A/C = muted-step mask
+   for melody/bass/arp/chord), the second char is the bar (base36), the rest
+   is the data. */
+function encodeDawEdits(){
+  if(!current || !current.seeds || !current.chords) return '';
+  let base;
+  try{
+    base = generateProgression(current.rootIdx, current.vibeKey, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value, current.seeds);
+  }catch(e){ return ''; }
+  if(!base || base.chords.length !== current.chords.length) return '';
+  const DRUM_ROWS_KEYS = ['kick','snare','hh','oh'];
+  const sameArr = (a,b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v,i)=>v === b[i]);
+  const notesStr = bar => bar.map(n=>Math.max(0, Math.min(127, Math.round(n)||0)).toString(36).padStart(2,'0')).join('');
+  const maskOf = arr => arr.reduce((acc,v,i)=>acc + (v ? (1<<i) : 0), 0);
+  const segs = [];
+  for(let i=0;i<current.chords.length;i++){
+    const bi = i.toString(36);
+    [['m','melody'],['b','bass'],['a','arp']].forEach(([k,layer])=>{
+      const bar = current[layer] && current[layer][i];
+      if(bar && !sameArr(bar, base[layer][i])) segs.push(k + bi + notesStr(bar));
+    });
+    const d = current.drums && current.drums[i], bd = base.drums[i];
+    if(d && !DRUM_ROWS_KEYS.every(r=>sameArr(d[r].map(v=>v?1:0), bd[r].map(v=>v?1:0)))){
+      segs.push('d' + bi + DRUM_ROWS_KEYS.map(r=>maskOf(d[r]).toString(16).padStart(4,'0')).join(''));
+    }
+    [['M','melodyMute'],['B','bassMute'],['A','arpMute'],['C','chordsMute']].forEach(([k,key])=>{
+      const m = current[key] && current[key][i];
+      if(m && m.some(Boolean)) segs.push(k + bi + maskOf(m).toString(36));
+    });
+  }
+  return segs.join('_');
+}
+
+function applyDawEdits(str){
+  if(!str || !current) return false;
+  ensureDawState(current);
+  const nBars = current.chords.length;
+  const segs = String(str).split('_').filter(s=>s.length >= 3 && /^[mbadMBAC][0-9a-z][0-9a-z]+$/.test(s));
+  const barOf = s => { const b = parseInt(s[1],36); return (b >= 0 && b < nBars) ? b : -1; };
+  let applied = 0;
+  // notes/drums first, then the mute masks (so nothing overwrites a mask)
+  segs.filter(s=>/[mbad]/.test(s[0])).forEach(s=>{
+    const k = s[0], bar = barOf(s), data = s.slice(2);
+    if(bar < 0) return;
+    if(k === 'd'){
+      if(!/^[0-9a-f]{16}$/.test(data)) return;
+      const pat = current.drums[bar];
+      ['kick','snare','hh','oh'].forEach((r,ri)=>{
+        const mask = parseInt(data.slice(ri*4, ri*4+4), 16);
+        pat[r] = pat[r].map((_,st)=>(mask >> st) & 1);
+      });
+      const known = DRUM_PATTERNS.find(p=>['kick','snare','hh','oh'].every(r=>p[r].every((v,i)=>(v ? 1 : 0) === pat[r][i])));
+      if(known) pat.name = known.name;
+      applied++;
+      return;
+    }
+    const layer = k === 'm' ? 'melody' : k === 'b' ? 'bass' : 'arp';
+    if(data.length % 2 || data.length/2 !== current[layer][bar].length) return;
+    const notes = [];
+    for(let j=0;j<data.length;j+=2) notes.push(parseInt(data.slice(j,j+2),36));
+    if(notes.some(n=>isNaN(n) || n < 0 || n > 127)) return;
+    current[layer][bar] = notes;
+    applied++;
+  });
+  const MASK_KEYS = { M:'melodyMute', B:'bassMute', A:'arpMute', C:'chordsMute' };
+  segs.filter(s=>/[MBAC]/.test(s[0])).forEach(s=>{
+    const bar = barOf(s), mask = parseInt(s.slice(2),36);
+    if(bar < 0 || isNaN(mask)) return;
+    const key = MASK_KEYS[s[0]];
+    current[key][bar] = current[key][bar].map((_,st)=>!!((mask >> st) & 1));
+    applied++;
+  });
+  return applied > 0;
+}
+
 function updateShareUrl(){
   const p = buildShareParams();
   if(!p) return;
@@ -2013,11 +2130,18 @@ function tryLoadFromShareUrl(){
   if(!isNaN(t) && t>=55 && t<=150){ tempoSlider.value = t; tempoVal.textContent = t + ' BPM'; }
   current = generateProgression(rootIdx, vibeKey, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value, seeds);
   if(!isNaN(t)) current.tempo = t;
+  const pv = parseInt(params.get('p'),10);
+  if(!isNaN(pv) && pv >= -12 && pv <= 12){
+    pitchSlider.value = pv;
+    pitchSlider.dispatchEvent(new Event('input'));
+  }
+  let editsApplied = false;
+  try{ editsApplied = params.has('e') && applyDawEdits(params.get('e')); }catch(e){ editsApplied = false; }
   renderProgression(current);
   setResultButtonsEnabled(true);
   dawBarIndex = 0;
   refreshDawIfOpen();
-  showStatus('Shared progression loaded');
+  showStatus(editsApplied ? 'Shared progression loaded, including Mini DAW edits' : 'Shared progression loaded');
   return true;
 }
 document.getElementById('shareBtn').addEventListener('click', async ()=>{
@@ -2970,6 +3094,15 @@ function buildTempoTrack(bpm, endTick){
   return [...strBytes('MTrk'), ...u32(data.length), ...data];
 }
 
+/* One naming scheme for exported files (MIDI and PDF): key after transpose
+   (# -> s) + mood name without diacritics, e.g. progrese_A_sad.mid */
+function exportFileBase(){
+  const root = pitchedRootName(current.rootIdx, globalPitchSemitones).replace('#','s');
+  const vibe = VIBES[current.vibeKey].name.normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || current.vibeKey;
+  return `progrese_${root}_${vibe}`;
+}
+
 function exportMidi(){
   if(!current) return;
   const barTicks = TPQN * 4;
@@ -3049,9 +3182,8 @@ function exportMidi(){
   const blob = new Blob([fileBytes], {type:'audio/midi'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const vibeName = VIBES[current.vibeKey].name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
   a.href = url;
-  a.download = `progrese_${current.rootName.replace('#','s')}_${vibeName}.mid`;
+  a.download = `${exportFileBase()}.mid`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -3134,9 +3266,47 @@ function drawPianoChordDiagram(doc, x, y, w, h, tones, label){
   doc.text(`${label}: ${noteLetters.join(' – ')}`, x, y + h + 12, { maxWidth: w + 20 });
 }
 
-function exportPdfSheet(){
+/* VexFlow (notation) and jsPDF (PDF) are only needed for the "Sheet music
+   (PDF)" button — they're loaded on first use (or when the pointer moves
+   over the button), not on page load, so the app starts faster and makes
+   no CDN requests until then. */
+const PDF_LIB_URLS = {
+  vexflow: 'https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js',
+  jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'
+};
+let pdfLibsPromise = null;
+function loadScriptTag(src){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = ()=>resolve();
+    s.onerror = ()=>{ s.remove(); reject(new Error('Failed to load ' + src)); };
+    document.head.appendChild(s);
+  });
+}
+function pdfLibsReady(){
+  return typeof Vex !== 'undefined' && typeof window.jspdf !== 'undefined';
+}
+function ensurePdfLibs(){
+  if(pdfLibsReady()) return Promise.resolve();
+  if(!pdfLibsPromise){
+    const jobs = [];
+    if(typeof Vex === 'undefined') jobs.push(loadScriptTag(PDF_LIB_URLS.vexflow));
+    if(typeof window.jspdf === 'undefined') jobs.push(loadScriptTag(PDF_LIB_URLS.jspdf));
+    pdfLibsPromise = Promise.all(jobs).catch(e=>{ pdfLibsPromise = null; throw e; });
+  }
+  return pdfLibsPromise;
+}
+
+async function exportPdfSheet(){
   if(!current) return;
-  if(typeof Vex === 'undefined' || typeof window.jspdf === 'undefined'){
+  if(!pdfLibsReady()){
+    showStatus('Preparing the PDF export…');
+    try{ await ensurePdfLibs(); }catch(e){ console.warn(e); }
+  }
+  if(!current) return;
+  if(!pdfLibsReady()){
     showStatus("Couldn't prepare the PDF export — the required libraries failed to load (check your internet connection)");
     return;
   }
@@ -3284,8 +3454,7 @@ function exportPdfSheet(){
     doc.setTextColor(150);
     doc.text('Made with Progrese — synthlucida.com/progrese-en.html', 40, doc.internal.pageSize.getHeight() - 24);
 
-    const vibeSlug = current.vibeKey.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-    doc.save(`progrese_${pitchedRoot.replace('#','s')}_${vibeSlug}.pdf`);
+    doc.save(`${exportFileBase()}.pdf`);
     showStatus('Sheet music exported as PDF');
   }catch(e){
     console.error('exportPdfSheet failed', e);
@@ -3294,6 +3463,8 @@ function exportPdfSheet(){
 }
 
 document.getElementById('exportPdfBtn').addEventListener('click', exportPdfSheet);
+// preload the libraries as soon as the pointer/focus reaches the button
+['pointerenter','focus'].forEach(ev=>document.getElementById('exportPdfBtn').addEventListener(ev, ()=>{ ensurePdfLibs().catch(()=>{}); }, {once:true}));
 
 /* ---- single-part exports (chords / melody / bass) ---- */
 const PART_LABELS = { chords:'Chords', melody:'Melody', bass:'Bass', arp:'Arp', drums:'Drums' };
@@ -3373,9 +3544,8 @@ function exportMidiPart(part){
   const blob = new Blob([fileBytes], {type:'audio/midi'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const vibeName = VIBES[current.vibeKey].name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
   a.href = url;
-  a.download = `progrese_${current.rootName.replace('#','s')}_${vibeName}_${part}.mid`;
+  a.download = `${exportFileBase()}_${part}.mid`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -3764,9 +3934,10 @@ document.getElementById('dawExportBtn').addEventListener('click', ()=>{
   function showSupportModal(){
     if(document.hidden) return; // don't pop up while the tab isn't active
     if(isReminderOff()) return;
+    if(!overlay.hidden) return; // already open — don't count it as another showing
     bumpShownCount();
     // the code field itself is visible from the very first showing — someone
-    // arriving with a code from Gumroad (ProgreseFull2026) shouldn't have to
+    // arriving with the full code from Gumroad shouldn't have to
     // wait for the popup to show 5 times. The "in case you're wondering"
     // explanation and the openly-printed Progrese2026 hint stay hidden until
     // the 5th real showing, same as before.
