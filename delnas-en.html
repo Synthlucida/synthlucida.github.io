@@ -748,7 +748,7 @@
           <li>In the “New shift” card at the top, pick the date (today is preselected).</li>
           <li>If you had a day off, tick “I didn't work today” – the task form hides and the day is saved as a day off.</li>
           <li>Otherwise fill in the task row: task (from what you've set up in Settings), size/grade, quantity and hours worked.</li>
-          <li>The “+ Add task” button adds another row to the same shift if you did more than one thing that day – add as many as you need.</li>
+          <li>The “+ Add task” button adds another row to the same shift if you did more than one thing that day – add as many as you need. One day holds one shift – if you save another record on a date that's already in your history, the app asks whether to add the tasks to the existing one.</li>
           <li>Remove a task row with the cross (×) in its top right corner.</li>
           <li>Optionally add a note (e.g. what happened, why your output was different) and save with the “Save shift” button.</li>
         </ol>
@@ -761,7 +761,7 @@
         </ol>
 
         <h3>XP, levels and charts</h3>
-        <p>The XP card at the top shows a game level based on your logged shifts and performance – it's just for fun and has no effect on your pay. Below it, the app tracks whether your average hourly rate is improving or getting worse, shows a summary by task for the last 30 days, and charts for the last 14 shifts, 12 weeks, 12 months and the past year (the greener a square in the yearly map, the higher the ladder tier on that day).</p>
+        <p>The XP card at the top shows a game level based on your logged shifts and performance – it's just for fun and has no effect on your pay. Every worked shift earns <strong>15 XP</strong>, plus up to <strong>45 bonus XP</strong> depending on how high up the ladder your pace got (top tier = the full 60 XP). Each day counts only once, and XP is “locked” into a shift when you save it – editing your wage tiers later won't take away XP you've already earned. The 🔥 streak counts shifts in a row on the upper part of the ladder. Below it, the app tracks whether your average hourly rate is improving or getting worse, shows a summary by task for the last 30 days, and charts for the last 14 shifts, 12 weeks, 12 months and the past year (the greener a square in the yearly map, the higher the ladder tier on that day).</p>
 
         <h3>Settings &amp; wage tiers (quotas) – what each field means</h3>
         <p>In the “Settings &amp; wage tiers” section you set up your wage ladder in detail:</p>
@@ -772,7 +772,7 @@
           <li><strong>Tier</strong> – one row of the ladder: <strong>threshold</strong> (the pace from which the tier applies), <strong>hourly rate</strong> (hourly wage at this tier), <strong>bonus min %</strong> and <strong>bonus max %</strong> (how many percent the wage can still move up/down depending on quality – the app uses this to calculate an estimated pay range, not an exact number). “+ Add tier” adds another level, the cross (✕) next to a tier deletes it (at least one must remain). The app sorts tiers by threshold on its own, so the order you enter them in doesn't matter.</li>
           <li><strong>Currency</strong> – the currency shown next to hourly rates and pay throughout the app. It only changes the symbol, it doesn't convert any numbers.</li>
         </ul>
-        <p>After you change a number in Settings, the app immediately recalculates shifts, charts and history. If you switch a task's unit (kg ↔ pcs), the app automatically switches “Measured per” as well and resets the tier thresholds to zero (a number for pieces can't simply be converted to kilos) – so after switching you need to enter the thresholds again.</p>
+        <p>After you change a number in Settings, the app immediately recalculates shifts, charts and history (only the XP of already-saved shifts stays as it was – to recalculate it for a shift, open it via “edit” and save it again). If you switch a task's unit (kg ↔ pcs), the app automatically switches “Measured per” as well and resets the tier thresholds to zero (a number for pieces can't simply be converted to kilos) – so after switching you need to enter the thresholds again.</p>
 
         <h3>Color themes</h3>
         <p>The palette button at the top switches the app's color theme (emerald, violet, cyan, rose, amber) – it's saved on your phone and stays for next time.</p>
@@ -1040,6 +1040,15 @@
     { title:"Line Legend",        min:2000 }
   ];
 
+  // XP per worked shift = XP_BASE (for showing up and working) + up to
+  // XP_PERF depending on how high your pace got on the ladder (lowest tier = 0,
+  // top tier = full XP_PERF). XP is "locked" into the shift when it's saved
+  // (shift.xp / shift.xpPos), so later wage-tier edits (adding a tier, changing
+  // a threshold, switching the unit…) no longer take away or inflate earned
+  // XP. XP_GOOD_POS = ladder position from which a shift counts towards the
+  // "on a good tier" streak.
+  var XP_BASE = 15, XP_PERF = 45, XP_GOOD_POS = 0.6;
+
   var ADVICE = {
     great: [
       "Today's pace took you straight to the top of the wage ladder! 🚀💪 Nobody on the floor could touch you today.",
@@ -1101,6 +1110,7 @@
   }
 
   var data = loadData();
+  if(backfillShiftXP()) saveData();
   var editingShiftId = null;
   var rowSeq = 0;
   var pendingConfirmAction = null;
@@ -1465,41 +1475,90 @@
     var note = document.getElementById("shiftNote").value.trim();
     var entries = [];
     if(!dayOff){
+      // No task set up yet -> refuse, otherwise "orphan" entries without a
+      // task get saved and are never counted anywhere.
+      if(!data.settings.tasks.length){
+        showToast("First add your first task in Settings 💪");
+        var settingsEl = document.getElementById("settingsSection");
+        settingsEl.open = true;
+        settingsEl.scrollIntoView({behavior:"smooth", block:"start"});
+        return;
+      }
+      if(date > todayISO()){ showToast("You can't log a worked shift in the future – check the date 📅"); return; }
       var rows = document.querySelectorAll("#entryRowsContainer .entry-row");
       rows.forEach(function(row){
         var taskId = row.querySelector('[data-act="task"]').value;
         var sizeId = row.querySelector('[data-act="size"]').value;
         var qty = parseFloat(row.querySelector('[data-act="qty"]').value);
         var hours = parseFloat(row.querySelector('[data-act="hours"]').value);
+        if(!sizeById(taskById(taskId), sizeId)) return;
         if(!isNaN(qty) && !isNaN(hours) && qty>0 && hours>0){
           entries.push({ taskId:taskId, sizeId:sizeId, qty:qty, hours:hours });
         }
       });
       if(!entries.length){ showToast("Add at least one task with quantity and hours 💪"); return; }
     }
-    var shift;
-    var prevLevel = levelForXP(computeXP().xp).level;
-    if(editingShiftId){
-      shift = data.shifts.find(function(s){ return s.id===editingShiftId; });
-      if(shift){ shift.date=date; shift.dayOff=dayOff; shift.note=note; shift.entries=entries; }
-    } else {
-      shift = { id:genId(), date:date, dayOff:dayOff, note:note, entries:entries };
-      data.shifts.push(shift);
+
+    // One day = one record. Previously several shifts could be saved on the
+    // same date (each one earning XP again), while the heatmap showed only one.
+    var clash = data.shifts.filter(function(s){ return s.date===date && s.id!==editingShiftId; })[0];
+    if(clash){
+      var dayTxt = fmtHuman(parseISO(date));
+      if(editingShiftId){
+        showToast("There's already another record on "+dayTxt+" – pick a different date 📅");
+        return;
+      }
+      if(!clash.dayOff && !dayOff){
+        openConfirm("You already have a shift logged on "+dayTxt+". Add these tasks to it?", function(){
+          commitShift(function(){
+            clash.entries = (clash.entries||[]).concat(entries);
+            if(note) clash.note = clash.note ? clash.note+" · "+note : note;
+            return clash;
+          }, "Tasks added to the shift on "+dayTxt+" 💪");
+        }, "Add");
+      } else {
+        openConfirm("There's already a "+(clash.dayOff?"day off":"shift")+" logged on "+dayTxt+". Replace it with this record?", function(){
+          commitShift(function(){
+            clash.dayOff = dayOff; clash.note = note; clash.entries = entries;
+            return clash;
+          }, dayOff ? "Day off saved 💪" : "Shift saved 💪");
+        }, "Replace");
+      }
+      return;
     }
+
+    commitShift(function(){
+      var shift;
+      if(editingShiftId){
+        shift = data.shifts.find(function(s){ return s.id===editingShiftId; });
+        if(shift){ shift.date=date; shift.dayOff=dayOff; shift.note=note; shift.entries=entries; }
+      } else {
+        shift = { id:genId(), date:date, dayOff:dayOff, note:note, entries:entries };
+        data.shifts.push(shift);
+      }
+      return shift;
+    }, dayOff ? "Day off saved 💪" : "Shift saved 💪");
+  });
+
+  // Applies a shift change (applyFn returns the changed/new shift), locks in
+  // its XP using the current ladder, saves, re-renders and announces level-ups.
+  function commitShift(applyFn, okMsg){
+    var prevLevel = levelForXP(computeXP().xp).level;
+    var shift = applyFn();
+    if(shift) stampShiftXP(shift);
     saveData();
     var newLevel = levelForXP(computeXP().xp).level;
-    var isNewLevelUp = newLevel>prevLevel;
     resetEntryForm();
     renderAll();
-    if(isNewLevelUp){
+    if(newLevel>prevLevel){
       var xc = document.getElementById("xpCard");
       xc.classList.add("level-up");
       setTimeout(function(){ xc.classList.remove("level-up"); }, 1300);
       showToast("Level up! 🎉💪 You've reached level "+newLevel+"!");
     } else {
-      showToast(dayOff ? "Day off saved 💪" : "Shift saved 💪");
+      showToast(okMsg);
     }
-  });
+  }
 
   // polyfill closest for older webviews
   if(!Element.prototype.closest){
@@ -1511,13 +1570,58 @@
   }
 
   // ---------- XP & levels ----------
+  // Computes a shift's XP from the CURRENT ladder. pos = position on the
+  // ladder 0..1 weighted by hours (lowest tier = 0, top tier = 1, single tier
+  // = 1, below the ladder = 0). Independent of the number of tiers – before,
+  // the lowest tier of a 3+ tier ladder gave 0 XP, so you could log dozens of
+  // shifts and still sit at Level 1.
+  function calcShiftXP(shift){
+    if(!shift || shift.dayOff || !shift.entries || !shift.entries.length) return null;
+    var hours=0, wPos=0;
+    shift.entries.forEach(function(e){
+      var h = Number(e.hours)||0;
+      if(h<=0) return;
+      hours += h;
+      var r = computeEntryResult(e);
+      if(r && r.tier) wPos += (r.tierCount>1 ? r.tierIndex/(r.tierCount-1) : 1) * h;
+    });
+    if(hours<=0) return null;
+    var pos = Math.round(wPos/hours*1000)/1000;
+    return { pts: XP_BASE + Math.round(XP_PERF*pos), pos: pos };
+  }
+  function stampShiftXP(shift){
+    var info = calcShiftXP(shift);
+    if(info){ shift.xp = info.pts; shift.xpPos = info.pos; }
+    else { delete shift.xp; delete shift.xpPos; }
+  }
+  // Fills in locked XP for shifts that don't have it yet (data from an older
+  // version or an older backup). Returns true if anything changed.
+  function backfillShiftXP(){
+    var changed = false;
+    data.shifts.forEach(function(s){
+      if(!s.dayOff && typeof s.xp!=="number"){ stampShiftXP(s); changed = true; }
+    });
+    return changed;
+  }
+  function shiftXP(s){
+    if(typeof s.xp==="number") return { pts:s.xp, pos:(typeof s.xpPos==="number" ? s.xpPos : null) };
+    return calcShiftXP(s);
+  }
   function computeXP(){
-    var xp=0, streak=0, maxStreak=0;
-    validShiftsAsc().forEach(function(x){
-      var p = x.stats.avgProgress;
-      var gain = Math.max(0, Math.min(65, Math.round(p-35)));
-      xp += gain;
-      if(p>=70){ streak++; if(streak>maxStreak) maxStreak=streak; } else { streak=0; }
+    // Each day counts only once (for old duplicate records, the best one)
+    // and shifts dated in the future don't count towards XP.
+    var today = todayISO(), byDate = {};
+    data.shifts.forEach(function(s){
+      if(s.dayOff || !s.date || s.date>today) return;
+      var info = shiftXP(s);
+      if(!info) return;
+      if(!byDate[s.date] || info.pts>byDate[s.date].pts) byDate[s.date] = info;
+    });
+    var xp=0, streak=0;
+    Object.keys(byDate).sort().forEach(function(d){
+      var i = byDate[d];
+      xp += i.pts;
+      if(i.pos!=null && i.pos>=XP_GOOD_POS) streak++; else streak=0;
     });
     return { xp:xp, streak:streak };
   }
@@ -1535,7 +1639,11 @@
     document.getElementById("xpTitle").textContent = lvl.title;
     document.getElementById("xpAmount").innerHTML = res.xp+' <span>XP</span>';
     var streakEl = document.getElementById("xpStreak");
-    if(res.streak>=2){ streakEl.hidden=false; streakEl.textContent="🔥 "+res.streak+" shifts in a row on a good tier"; }
+    if(res.streak>=2){
+      streakEl.hidden=false;
+      streakEl.textContent="🔥 "+res.streak+" shifts in a row";
+      streakEl.title = "Streak of shifts in a row on the upper part of the wage ladder";
+    }
     else { streakEl.hidden = true; }
     var fill = document.getElementById("xpProgressFill");
     var label = document.getElementById("xpProgressLabel");
@@ -1586,7 +1694,9 @@
 
   // ---------- chips + trends ----------
   function renderChips(){
-    document.getElementById("chipShifts").textContent = data.shifts.filter(function(s){return !s.dayOff;}).length;
+    var workDays = {};
+    data.shifts.forEach(function(s){ if(!s.dayOff) workDays[s.date] = 1; });
+    document.getElementById("chipShifts").textContent = Object.keys(workDays).length;
     var today = new Date(); today.setHours(0,0,0,0);
     var last7start = fmtISO(addDays(today,-6));
     var agg7 = windowAggregate(last7start, fmtISO(addDays(today,1)));
@@ -2114,6 +2224,7 @@
   document.getElementById("importOk").addEventListener("click", function(){
     if(pendingImportData){
       data = loadDataFromObject(pendingImportData);
+      backfillShiftXP();
       saveData();
       resetEntryForm();
       renderAll();
@@ -2252,9 +2363,14 @@
   // Shows #confirmOverlay with custom text; runs `onConfirm` only if the
   // user actually taps "Delete". Used for anything destructive, not just
   // the full data reset below.
-  function openConfirm(text, onConfirm){
+  // okLabel (optional) = confirm button text for non-destructive actions
+  // (e.g. "Add") – the button is then green instead of the red "Delete".
+  function openConfirm(text, onConfirm, okLabel){
     pendingConfirmAction = onConfirm;
     document.getElementById("confirmText").textContent = text;
+    var okBtn = document.getElementById("confirmOk");
+    okBtn.textContent = okLabel || "Delete";
+    okBtn.className = okLabel ? "btn-confirm" : "btn-danger";
     document.getElementById("confirmOverlay").classList.remove("hidden");
   }
   document.getElementById("confirmCancel").addEventListener("click", function(){
