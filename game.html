@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1a0033">
 <title>SYNTHLUCIDA BLOCKS — Free Online Block-Puzzle Game That Unlocks Ambient Music</title>
 <meta name="description" content="Play a free browser block-clearing puzzle game and unlock real SYNTHLUCIDA ambient tracks (ASMR, piano, chill) as you clear lines. Bonus rounds, bombs, levels, and permanent progress — no sign-up required.">
-<meta name="keywords" content="free online tetris, block puzzle game, browser puzzle game, ambient music game, relaxing puzzle game, line clearing game, no download puzzle game">
+<meta name="keywords" content="block puzzle game, browser puzzle game, ambient music game, relaxing puzzle game, line clearing game, no download puzzle game">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://synthlucida.com/game.html">
 
@@ -464,7 +464,7 @@
 
     <div class="game-actions-container">
       <div class="actions-row">
-        <button class="btn-action" onclick="saveGameProgress()">SAVE</button>
+        <button class="btn-action" id="btn-save" onclick="saveGameProgress()">SAVE</button>
         <button class="btn-action" onclick="toggleFullscreen()">RESIZE</button>
         <button class="btn-action btn-pause-ui" id="btn-pause" onclick="togglePause()">⏸ PAUSE</button>
       </div>
@@ -489,7 +489,7 @@
       <div class="stats-row"><span>LEVEL:</span> <span class="stats-val" id="level">1</span></div>
       <div class="stats-row"><span>LINES (RUN):</span> <span class="stats-val" id="lines">0</span></div>
       <div class="stats-row highlight career-stat"><span>CAREER LINES:</span> <span class="stats-val" id="career-lines">0</span></div>
-      <div class="stats-row highlight" id="bonus-row" style="display:none; color:#ffcc00;"><span>⚡ BONUS 2x SKÓRE:</span> <span class="stats-val" id="bonus-timer" style="color:#ffcc00; text-shadow:0 0 6px #ffcc00;">60s</span></div>
+      <div class="stats-row highlight" id="bonus-row" style="display:none; color:#ffcc00;"><span>⚡ BONUS 2x SCORE:</span> <span class="stats-val" id="bonus-timer" style="color:#ffcc00; text-shadow:0 0 6px #ffcc00;">60s</span></div>
     </div>
 
     <div class="glass-section">
@@ -650,19 +650,24 @@
     } catch (e) { console.error("Nelze načíst uložený postup.", e); }
   }
 
+  let saveFlashTimer = null;
+  function persistState() {
+    try { localStorage.setItem('synthlucida_tetris_progres', JSON.stringify(savedState)); } catch (e) { /* ignore */ }
+  }
+
   window.saveGameProgress = function(isAutoSave = false) {
     try {
       if (gameActive && !document.getElementById('game-over-overlay').style.display.includes('flex')) {
         savedState.boardState = {
           arena: arena.map(row => [...row]), score: player.score, lines: player.lines, level: player.level,
-          playerPos: { ...player.pos }, playerMatrix: player.matrix ? player.matrix.map(row => [...row]) : null, isSpecial: player.isSpecial || false
+          playerPos: { ...player.pos }, playerMatrix: player.matrix ? player.matrix.map(row => [...row]) : null, isSpecial: player.isSpecial || false,
+          bonusMs: bonusRoundActive ? Math.max(0, bonusRemainingMs) : 0
         };
       }
       localStorage.setItem('synthlucida_tetris_progres', JSON.stringify(savedState));
       if (!isAutoSave) {
-        let btn = document.querySelector('.btn-action:first-child');
-        let oldText = btn.innerText; btn.innerText = "SAVED!";
-        setTimeout(() => { btn.innerText = oldText; }, 1200);
+        const btn = document.getElementById('btn-save');
+        if (btn) { btn.innerText = "SAVED!"; clearTimeout(saveFlashTimer); saveFlashTimer = setTimeout(() => { btn.innerText = "SAVE"; }, 1200); }
       }
     } catch(e) { console.error("Chyba při ukládání.", e); }
   };
@@ -684,6 +689,7 @@
 
   audio.volume = 0.3;
   volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; });
+  volumeSlider.addEventListener('change', () => volumeSlider.blur());
 
   window.changePlaylist = function(key, btn) {
     currentPlaylistKey = key; activePlaylist = tracks[key];
@@ -691,10 +697,17 @@
     btn.classList.add('active'); updatePlaylistUI();
   };
 
+  // Skladba je odemčená, pokud splňuje limit NEBO už byla někdy odemčena (trvalý seznam podle src)
+  function isTrackUnlocked(track) {
+    return !!track && (savedState.totalCareerLines >= track.reqLines ||
+      (Array.isArray(savedState.unlockedTracks) && savedState.unlockedTracks.includes(track.src)));
+  }
+
   function updatePlaylistUI() {
     playlistEl.innerHTML = ''; if (!activePlaylist) return;
-    activePlaylist.forEach((track, index) => {
-      const isUnlocked = savedState.totalCareerLines >= track.reqLines;
+    const shownList = activePlaylist;
+    shownList.forEach((track, index) => {
+      const isUnlocked = isTrackUnlocked(track);
       const li = document.createElement('li');
       li.className = isUnlocked ? 'unlocked' : 'locked';
       const nameSpan = document.createElement('span');
@@ -704,47 +717,57 @@
       badge.innerText = isUnlocked ? '✓ READY' : `${track.reqLines} L`;
       li.appendChild(nameSpan); li.appendChild(badge);
       if(isUnlocked) {
-        li.onclick = () => playTrack(index);
+        li.onclick = () => playTrack(index, shownList);
       }
       playlistEl.appendChild(li);
     });
   }
 
-  function playTrack(index) {
-    if (index < 0 || index >= activePlaylist.length) return;
-    if (savedState.totalCareerLines < activePlaylist[index].reqLines) return;
-    currentTrackIndex = index; const track = activePlaylist[index];
+  // Playlist, ze kterého se právě hraje (může se lišit od zobrazené kategorie)
+  let playingPlaylist = null;
+  function setPlayingUI(state) { isPlaying = state; playBtn.innerText = state ? "⏸" : "▶"; }
+
+  function playTrack(index, list) {
+    list = list || activePlaylist;
+    if (!list || index < 0 || index >= list.length) return;
+    if (!isTrackUnlocked(list[index])) return;
+    playingPlaylist = list; currentTrackIndex = index; const track = list[index];
     audio.src = track.src; titleDiv.innerText = track.title;
-    audio.play().catch(() => console.log("Interakce nutná."));
-    isPlaying = true; playBtn.innerText = "⏸";
+    setPlayingUI(true);
+    audio.play().catch(() => { setPlayingUI(false); console.log("Interakce nutná."); });
   }
 
   window.toggleShuffle = function() { shuffleEnabled = !shuffleEnabled; document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled); };
   window.toggleRepeat = function() { repeatEnabled = !repeatEnabled; document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled); };
 
   playBtn.addEventListener('click', () => {
-    if (isPlaying) { audio.pause(); isPlaying = false; playBtn.innerText = "▶"; } 
-    else {
-      if (currentTrackIndex === -1) {
-        let firstUn = activePlaylist.findIndex(t => savedState.totalCareerLines >= t.reqLines);
-        if(firstUn !== -1) playTrack(firstUn);
-      } else { audio.play(); isPlaying = true; playBtn.innerText = "⏸"; }
-    }
+    if (isPlaying) { audio.pause(); setPlayingUI(false); }
+    else if (currentTrackIndex === -1 || !playingPlaylist) {
+      const firstUn = activePlaylist.findIndex(t => isTrackUnlocked(t));
+      if (firstUn !== -1) playTrack(firstUn, activePlaylist);
+    } else { setPlayingUI(true); audio.play().catch(() => setPlayingUI(false)); }
   });
 
   function playNextTrack() {
+    const list = playingPlaylist || activePlaylist;
+    if (!list || !list.length) return;
     if (shuffleEnabled) {
-      let unlockedIndices = []; activePlaylist.forEach((t, idx) => { if(savedState.totalCareerLines >= t.reqLines) unlockedIndices.push(idx); });
-      if(unlockedIndices.length > 0) playTrack(unlockedIndices[Math.floor(Math.random() * unlockedIndices.length)]);
+      const unlockedIndices = []; list.forEach((t, idx) => { if (isTrackUnlocked(t)) unlockedIndices.push(idx); });
+      if (unlockedIndices.length > 0) { playTrack(unlockedIndices[Math.floor(Math.random() * unlockedIndices.length)], list); return; }
     } else {
-      let nextIndex = currentTrackIndex + 1;
-      if (nextIndex >= activePlaylist.length || savedState.totalCareerLines < activePlaylist[nextIndex].reqLines) nextIndex = 0;
-      if (savedState.totalCareerLines >= activePlaylist[nextIndex].reqLines) playTrack(nextIndex);
+      for (let k = 1; k <= list.length; k++) {
+        const i = (currentTrackIndex + k + list.length) % list.length;
+        if (isTrackUnlocked(list[i])) { playTrack(i, list); return; }
+      }
     }
+    audio.pause(); setPlayingUI(false);
   }
 
   nextBtn.addEventListener('click', playNextTrack);
-  audio.addEventListener('ended', () => { if (repeatEnabled) { playTrack(currentTrackIndex); } else { playNextTrack(); } });
+  audio.addEventListener('ended', () => {
+    if (repeatEnabled && currentTrackIndex !== -1) { audio.currentTime = 0; audio.play().catch(() => setPlayingUI(false)); }
+    else { playNextTrack(); }
+  });
 
   function formatTime(secs) {
     if (isNaN(secs) || secs < 0) return "00:00";
@@ -839,9 +862,9 @@
   }
 
   function draw() {
-    context.fillStyle = 'var(--tetris-bg)'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, 0, 10, 20); // pozadí dodává CSS (--tetris-bg) — canvas CSS proměnné neumí
     context.strokeStyle = 'rgba(255,255,255,0.025)'; context.lineWidth = 0.04;
-    for(let i=0; i<=10; i++) { context.getChannelData; context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }
+    for(let i=0; i<=10; i++) { context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }
     for(let i=0; i<=20; i++) { context.beginPath(); context.moveTo(0,i); context.lineTo(10,i); context.stroke(); }
     drawMatrix(arena, {x: 0, y: 0}); drawMatrix(player.matrix, player.pos);
   }
@@ -861,14 +884,26 @@
   }
 
   let dropCounter = 0; let dropInterval = 1000; let lastTime = 0; let gameActive = true; let isPaused = false; let isUnlockPaused = false;
-  let bonusRoundActive = false; let bonusRoundEndsAt = 0; let bonusRoundInterval = null;
+  let bonusRoundActive = false; let bonusRemainingMs = 0; let bonusLastTick = 0; let bonusRoundInterval = null;
+  let rafId = null;
+
+  // Jediná smyčka hry — zruší případnou předchozí, aby nikdy neběžely dvě najednou
+  function startLoop() {
+    if (rafId) cancelAnimationFrame(rafId);
+    lastTime = performance.now(); rafId = requestAnimationFrame(updateGameLoop);
+  }
+
+  function isOverlayOpen() {
+    const so = document.getElementById('start-overlay'), io = document.getElementById('info-overlay');
+    return (so && so.classList.contains('show')) || (io && io.classList.contains('show'));
+  }
   let wasPausedBeforeInfo = false;
 
   window.togglePause = function() {
     if (!gameActive || isUnlockPaused) return; isPaused = !isPaused;
     const btn = document.getElementById('btn-pause');
     if (isPaused) { btn.innerText = "▶ RESUME"; btn.classList.add('active'); } 
-    else { btn.innerText = "⏸ PAUSE"; btn.classList.remove('active'); lastTime = performance.now(); updateGameLoop(); }
+    else { btn.innerText = "⏸ PAUSE"; btn.classList.remove('active'); startLoop(); }
   };
 
   window.updateSpecialUI = function() {
@@ -892,10 +927,10 @@
   };
 
   function updateGameLoop(time = 0) {
-    if (!gameActive || isPaused || isUnlockPaused) return;
+    if (!gameActive || isPaused || isUnlockPaused) { rafId = null; return; }
     const deltaTime = time - lastTime; lastTime = time;
     dropCounter += deltaTime; if (dropCounter > dropInterval) { playerDrop(); }
-    draw(); requestAnimationFrame(updateGameLoop);
+    draw(); rafId = requestAnimationFrame(updateGameLoop);
   }
 
   function playerDrop() {
@@ -903,12 +938,15 @@
     if (collide(arena, player)) {
       player.pos.y--;
       const droppedWeight = player.matrix ? countPieceCells(player.matrix) : 4;
+      const wasSpecial = player.isSpecial;
       merge(arena, player);
       if (player.isSpecial) {
         arena.splice(15, 5); for (let i = 0; i < 5; i++) arena.unshift(new Array(10).fill(0));
         player.isSpecial = false; if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
       }
-      playerReset(); arenaSweep(droppedWeight); updateScoreUI();
+      // Nejdřív smazat plné řady, až potom nová kostka — jinak game over dřív, než se řada uvolní
+      const cleared = arenaSweep(droppedWeight); playerReset(); updateScoreUI();
+      if (gameActive && (cleared > 0 || wasSpecial)) saveGameProgress(true);
     }
     dropCounter = 0;
   }
@@ -933,7 +971,7 @@
     player.matrix = createPiece(pickRandomPieceType());
     player.pos.y = 0; player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0); player.isSpecial = false;
     if (collide(arena, player)) {
-      gameActive = false; savedState.boardState = null;
+      gameActive = false; savedState.boardState = null; stopBonusRound();
       document.getElementById('game-over-overlay').style.display = 'flex';
       document.getElementById('final-score').innerText = player.score;
       if (player.score > savedState.highScore) savedState.highScore = player.score;
@@ -975,43 +1013,54 @@
       }
       updateSpecialUI(); if (navigator.vibrate) navigator.vibrate(40);
       checkUnlocks(); player.level = Math.floor(player.lines / 10) + 1;
-      dropInterval = Math.max(80, 1000 - (player.level - 1) * 90); saveGameProgress(true);
+      dropInterval = Math.max(80, 1000 - (player.level - 1) * 90);
     }
+    return linesClearedThisTurn;
   }
 
-  function startBonusRound() {
-    bonusRoundActive = true; bonusRoundEndsAt = Date.now() + 60000;
+  // Bonusové kolo: odpočet běží jen když se opravdu hraje (ne v pauze, návodu, popupu ani na skryté kartě)
+  function startBonusRound(ms) {
+    bonusRoundActive = true; bonusRemainingMs = ms || 60000; bonusLastTick = Date.now();
     if (bonusRoundInterval) clearInterval(bonusRoundInterval);
     updateBonusRoundUI();
     bonusRoundInterval = setInterval(() => {
-      if (Date.now() >= bonusRoundEndsAt) {
-        bonusRoundActive = false; clearInterval(bonusRoundInterval); bonusRoundInterval = null;
-      }
+      const now = Date.now(), dt = now - bonusLastTick; bonusLastTick = now;
+      if (gameActive && !isPaused && !isUnlockPaused && !document.hidden) bonusRemainingMs -= dt;
+      if (bonusRemainingMs <= 0) { stopBonusRound(); return; }
       updateBonusRoundUI();
     }, 250);
-    if (navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 50]);
+    if (!ms && navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 50]);
+  }
+
+  function stopBonusRound() {
+    bonusRoundActive = false; bonusRemainingMs = 0;
+    if (bonusRoundInterval) { clearInterval(bonusRoundInterval); bonusRoundInterval = null; }
+    updateBonusRoundUI();
   }
 
   function updateBonusRoundUI() {
     const row = document.getElementById('bonus-row'); if (!row) return;
     if (bonusRoundActive) {
-      const remaining = Math.max(0, Math.ceil((bonusRoundEndsAt - Date.now()) / 1000));
+      const remaining = Math.max(0, Math.ceil(bonusRemainingMs / 1000));
       row.style.display = 'flex'; document.getElementById('bonus-timer').innerText = remaining + 's';
     } else { row.style.display = 'none'; }
   }
 
   function checkUnlocks() {
-    let newlyUnlocked = [], newHighest = savedState.highestUnlockedLines || 0;
-    Object.keys(tracks).forEach(cat => {
-      if(tracks[cat]) { tracks[cat].forEach(t => { if (savedState.totalCareerLines >= t.reqLines && t.reqLines > newHighest) { newlyUnlocked.push(t.title); newHighest = t.reqLines; } }); }
-    });
-    if (newlyUnlocked.length > 0) { savedState.highestUnlockedLines = newHighest; showUnlockMessage(newlyUnlocked[newlyUnlocked.length - 1]); updatePlaylistUI(); }
+    if (!Array.isArray(savedState.unlockedTracks)) savedState.unlockedTracks = [];
+    const newlyUnlocked = [];
+    Object.keys(tracks).forEach(cat => tracks[cat].forEach(t => {
+      if (savedState.totalCareerLines >= t.reqLines && !savedState.unlockedTracks.includes(t.src)) {
+        savedState.unlockedTracks.push(t.src); newlyUnlocked.push(t.title);
+      }
+    }));
+    if (newlyUnlocked.length > 0) { showUnlockMessage(newlyUnlocked[newlyUnlocked.length - 1]); updatePlaylistUI(); }
   }
 
   function showUnlockMessage(trackName) {
     isUnlockPaused = true; const overlay = document.getElementById('unlock-overlay');
     document.getElementById('unlock-track-name').innerText = trackName; overlay.classList.add('show');
-    setTimeout(() => { overlay.classList.remove('show'); isUnlockPaused = false; if (!isPaused) { lastTime = performance.now(); updateGameLoop(); } }, 3000);
+    setTimeout(() => { overlay.classList.remove('show'); isUnlockPaused = false; if (!isPaused) { startLoop(); } }, 3000);
   }
 
   function updateScoreUI() {
@@ -1023,18 +1072,18 @@
   window.resetGame = function() {
     arena.forEach(row => row.fill(0)); player.score = 0; player.lines = 0; player.level = 1; dropInterval = 1000;
     savedState.boardState = null; document.getElementById('game-over-overlay').style.display = 'none';
-    bonusRoundActive = false; if (bonusRoundInterval) { clearInterval(bonusRoundInterval); bonusRoundInterval = null; } updateBonusRoundUI();
-    gameActive = true; playerReset(); updateScoreUI(); updateSpecialUI(); lastTime = performance.now(); updateGameLoop();
+    stopBonusRound();
+    gameActive = true; playerReset(); updateScoreUI(); updateSpecialUI(); startLoop();
   };
 
   document.addEventListener('keydown', event => {
     const tag = (document.activeElement && document.activeElement.tagName) || '';
-    const isFormField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    const isFormField = (tag === 'INPUT' && document.activeElement.type !== 'range') || tag === 'TEXTAREA' || tag === 'SELECT';
 
     // Zabrání scrollování stránky/playlistu šipkami a mezerníkem (pokud nepíšeme do políčka)
     if (!isFormField && [32, 37, 38, 39, 40].includes(event.keyCode)) { event.preventDefault(); }
 
-    if (event.keyCode === 32) { if (!isFormField && gameActive && !isUnlockPaused) { togglePause(); } return; }
+    if (event.keyCode === 32) { if (!isFormField && gameActive && !isUnlockPaused && !isOverlayOpen()) { togglePause(); } return; }
 
     if (!gameActive || isPaused || isUnlockPaused) return;
     if (event.keyCode === 37) { playerMove(-1); } else if (event.keyCode === 39) { playerMove(1); }
@@ -1044,6 +1093,7 @@
   window.setVisualTheme = function(theme, btn) {
     savedState.theme = theme; body.className = body.className.replace(/theme-\S+/g, '').trim().concat(' theme-' + theme);
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active')); if(btn) btn.classList.add('active');
+    persistState();
   };
 
   // --- MOBILNÍ DOTYKOVÉ OVLÁDÁNÍ ---
@@ -1071,14 +1121,36 @@
 
   // --- INICIALIZACE SYSTÉMU ---
   buildAtmosphereButtons(); buildDynamicRequirements(); loadProgress();
+
+  // Trvalý seznam odemčených skladeb — přidání nové skladby už nikomu nic znovu nezamkne
+  if (!Array.isArray(savedState.unlockedTracks)) {
+    savedState.unlockedTracks = [];
+    if (savedState.totalCareerLines > 0) {
+      // Migrace starších uložení: limity bez později přidaných skladeb (štědřejší varianta, nic se neztratí)
+      let target = 0, gap = 5, count = 0;
+      Object.keys(tracks).forEach(cat => tracks[cat].forEach(t => {
+        if (t.added) return;
+        let req = 0;
+        if (count > 0) { target += gap; req = target; if (count % 2 === 0) gap += 1; }
+        count++;
+        if (savedState.totalCareerLines >= req) savedState.unlockedTracks.push(t.src);
+      }));
+    }
+  }
+  Object.keys(tracks).forEach(cat => tracks[cat].forEach(t => {
+    if (savedState.totalCareerLines >= t.reqLines && !savedState.unlockedTracks.includes(t.src)) savedState.unlockedTracks.push(t.src);
+  }));
   if(savedState.theme) {
-    const activeBtn = Array.from(document.querySelectorAll('.btn-theme')).find(b => b.textContent.trim().toUpperCase() === savedState.theme.toUpperCase());
+    const activeBtn = Array.from(document.querySelectorAll('.btn-theme')).find(b => (b.getAttribute('onclick') || '').includes("'" + savedState.theme + "'"));
     setVisualTheme(savedState.theme, activeBtn);
   }
   if (savedState.boardState && savedState.boardState.arena) {
     for(let y=0; y < arena.length; y++) { arena[y] = [...savedState.boardState.arena[y]]; }
     player.score = savedState.boardState.score; player.lines = savedState.boardState.lines; player.level = savedState.boardState.level;
     player.pos = {...savedState.boardState.playerPos}; player.matrix = savedState.boardState.playerMatrix; player.isSpecial = savedState.boardState.isSpecial || false;
+    dropInterval = Math.max(80, 1000 - (player.level - 1) * 90);
+    if (!player.matrix) playerReset();
+    if (savedState.boardState.bonusMs > 0) startBonusRound(savedState.boardState.bonusMs);
   } else { playerReset(); }
 
   updatePlaylistUI(); updateScoreUI(); updateSpecialUI(); setupMobileControls();
@@ -1091,13 +1163,20 @@
     startBtn.addEventListener('click', () => {
       if (startOverlay) startOverlay.classList.remove('show');
       if (pauseBtnRef) { pauseBtnRef.disabled = false; pauseBtnRef.style.opacity = ''; pauseBtnRef.style.pointerEvents = ''; }
-      isPaused = false; lastTime = performance.now(); updateGameLoop();
+      isPaused = false; startLoop();
     }, { once: true });
   }
 
   window.toggleFullscreen = function() {
-    if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(err => console.log(err.message)); } 
-    else { if (document.exitFullscreen) document.exitFullscreen(); }
+    const el = document.documentElement;
+    if (!(document.fullscreenElement || document.webkitFullscreenElement)) {
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return; // iPhone Safari fullscreen stránky nepodporuje
+      try { const p = req.call(el); if (p && p.catch) p.catch(err => console.log(err.message)); } catch (err) { console.log(err.message); }
+    } else {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) exit.call(document);
+    }
   };
 
   // --- CZ/EN PŘEKLAD panelu ⓘ (HOW TO PLAY) — sdílí stejné localStorage klíč jako v Relax Playeru,
@@ -1155,7 +1234,7 @@
       wasPausedBeforeInfo = isPaused; isPaused = true; overlay.classList.add('show');
     } else {
       overlay.classList.remove('show');
-      if (!wasPausedBeforeInfo && gameActive && !isUnlockPaused) { isPaused = false; lastTime = performance.now(); updateGameLoop(); }
+      if (!wasPausedBeforeInfo && gameActive) { isPaused = false; if (!isUnlockPaused) startLoop(); }
     }
   };
   document.getElementById('btn-info').addEventListener('click', () => toggleInfoOverlay(true));
