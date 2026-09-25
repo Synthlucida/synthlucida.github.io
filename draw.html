@@ -48,7 +48,7 @@
   "featureList": [
     "Glowing neon, ink, chalk and soft brush styles",
     "Ambient sound that follows the brush",
-    "Coloring pages (mandala, flower, butterfly and more)",
+    "34 detailed coloring pages (mandalas, animals, nature scenes) with one-tap fill",
     "Text and emoji stamps with graphic styles",
     "Bring-to-Life part animation (flap, sway, spin, bob, pulse, fade, drift, twinkle)",
     "Export as PNG image, animated GIF, or WEBM video"
@@ -135,7 +135,7 @@
   @keyframes move { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
   @media (prefers-reduced-motion: reduce) {
-    .blob, body::before, .canvas-panel { animation: none !important; }
+    .blob, body::before, .canvas-panel, .canvas-panel::before { animation: none !important; }
   }
 
   .header { padding: 8px 10px 2px; }
@@ -176,10 +176,11 @@
     transition: max-width 0.3s ease;
   }
 
+  /* Soft pulsing glow around the canvas. Only the opacity of a pseudo-element
+     animates, so the browser never has to repaint the (blurred) panel per frame. */
   @keyframes ambientGlow {
-    0% { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px var(--accent-color); }
-    50% { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 16px var(--accent-color), 0 0 10px var(--accent-glow); }
-    100% { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px var(--accent-color); }
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
   }
 
   .canvas-panel {
@@ -189,10 +190,16 @@
     border-radius: 12px;
     padding: 8px;
     position: relative;
-    animation: ambientGlow 4s ease-in-out infinite;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px var(--accent-color);
     flex: 1 1 480px;
-    max-width: 780px;
+    max-width: min(780px, calc(100vh - 110px));
+    min-width: 0;
     transition: max-width 0.3s ease;
+  }
+  .canvas-panel::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: 0 0 16px var(--accent-color), 0 0 10px var(--accent-glow);
+    opacity: 0; animation: ambientGlow 4s ease-in-out infinite;
   }
 
   .canvas-stack {
@@ -210,6 +217,7 @@
   }
   #draw-canvas, #template-canvas, #fx-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #template-canvas, #fx-canvas { pointer-events: none; }
+  .canvas-stack.fill-cursor { cursor: cell; }
 
   .side-panel {
     display: flex;
@@ -324,6 +332,12 @@
     transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
   }
   .template-gallery.open { max-height: 260px; overflow-y: auto; opacity: 1; margin-top: 8px; }
+  #template-gallery { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
+  #template-gallery.open { max-height: 360px; }
+  .btn-template-thumb { padding: 3px; background: rgba(0,0,0,0.35); }
+  .btn-template-thumb .tpl-thumb { width: 100%; height: 100%; display: block; pointer-events: none; }
+  .template-toggle-thumb { width: 18px; height: 18px; display: inline-block; vertical-align: middle; border-radius: 3px; background: rgba(0,0,0,0.4); }
+  .glass-section .actions-row + .actions-row { margin-top: 6px; }
   .btn-template {
     aspect-ratio: 1 / 1; background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; opacity: 0.7;
@@ -340,6 +354,7 @@
   .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0; transition: 0.2s; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
+  .btn-ctrl-sub:hover { opacity: 0.9; }
 
   .game-actions-container { display: flex; flex-direction: column; gap: 6px; }
   .actions-row { display: flex; gap: 6px; width: 100%; }
@@ -401,12 +416,41 @@
   .footer { padding: 6px 10px; font-size: 8px; opacity: 0.25; }
 
   @media (max-width: 800px) {
-    body { height: auto; min-height: 100vh; overflow-y: auto; justify-content: flex-start; }
+    body { height: auto; min-height: 100vh; justify-content: flex-start; }
     .main-layout { flex-direction: column; align-items: center; padding-bottom: 10px; gap: 10px; }
     .canvas-panel { width: 100%; max-width: 620px; flex-basis: auto; }
-    .side-panel { width: 100%; max-width: 290px; flex-basis: auto; }
+    .side-panel { width: 100%; max-width: 620px; flex-basis: auto; }
     .hint-text { display: none; }
-    .header { padding: 10px 10px 2px; }
+    /* corner buttons scroll away with the header instead of floating over the canvas */
+    .corner-btn { position: absolute; }
+    body .corner-btn-fullscreen { top: 10px; bottom: auto; right: auto; left: 50px; }
+    .header { padding: 10px 88px 2px; }
+    .btn-theme { font-size: 9px; padding: 6px 4px; }
+  }
+  /* Phones in portrait: the canvas sticks to the top while the tools scroll
+     underneath, so you can change color/brush without losing sight of the picture. */
+  @media (max-width: 800px) and (orientation: portrait) {
+    .canvas-panel {
+      position: sticky; top: 0; z-index: 30;
+      background: #07040c;
+      background: var(--bg-color-2);
+      backdrop-filter: none;
+      border-radius: 0 0 12px 12px;
+      padding: 6px;
+    }
+  }
+  /* Short landscape screens (phones sideways, small laptops): keep the square canvas on screen. */
+  @media (min-width: 801px) and (max-height: 620px) {
+    .header { padding-top: 4px; }
+    .canvas-panel { max-width: calc(100vh - 70px); }
+  }
+  @media (max-width: 480px) {
+    .brand-name { font-size: 14px; letter-spacing: 1.5px; }
+  }
+  @media (pointer: coarse) {
+    .corner-btn { width: 34px; height: 34px; font-size: 14px; }
+    .text-input-overlay { font-size: 16px; }
+    .part-toolbar button { padding: 8px 7px; font-size: 9px; }
   }
 
   /* --- FULLSCREEN MODE (same principle as in the player) --- */
@@ -420,7 +464,8 @@
   body.is-fullscreen .side-panel,
   body.is-fullscreen .footer,
   body.is-fullscreen .ambient-blobs,
-  body.is-fullscreen .corner-btn-left {
+  body.is-fullscreen .corner-btn-left,
+  body.is-fullscreen .corner-btn-right {
     display: none !important;
   }
   body.is-fullscreen .main-layout {
@@ -434,8 +479,13 @@
     max-width: 96vmin;
     width: 96vmin;
     padding: 4px;
-    animation: none;
+    position: relative;
+    border-radius: 12px;
+    flex: 0 0 auto;
   }
+  body.is-fullscreen .canvas-panel::before { animation: none; }
+  body.is-fullscreen .corner-btn-fullscreen { position: fixed; top: auto; bottom: 10px; right: 10px; left: auto; z-index: 120; }
+  body.is-fullscreen .main-layout { justify-content: center; }
 </style>
 </head>
 <body class="theme-amber" id="body">
@@ -465,10 +515,11 @@
     </ul>
 
     <h3 data-i18n="h_coloring">COLORING PAGE</h3>
-    <p data-i18n="p_coloring">Pick an outline from COLORING PAGE — a mandala, flower, butterfly and more — and simply paint inside the lines with any brush and color. Your color always stays under the outline, and CLEAR only wipes your painting, not the outline. Pick "✕" to go back to a blank canvas.</p>
+    <p data-i18n="p_coloring">Open CHOOSE A PAGE and pick one of 34 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick "✕" to go back to a blank canvas.</p>
 
     <h3 data-i18n="h_tools">TOOLS</h3>
     <ul>
+      <li data-i18n="li_tools_10">🪣 FILL — tap an area to fill it with the current color (dragging still paints with the brush). On a coloring page the outline keeps the color inside its lines; on a blank canvas it fills the shape you drew around the tap</li>
       <li data-i18n="li_tools_1">🧹 ERASER — erase instead of draw</li>
       <li data-i18n="li_tools_2">✨ SPARKLE — turn the glowing trail on or off</li>
       <li data-i18n="li_tools_3">🔊 SOUND — turn ambient sound on or off (see AMBIENT SOUND below)</li>
@@ -549,6 +600,7 @@
       </div>
 
       <div class="controls">
+        <button class="btn-ctrl-sub" id="btn-fill" title="Fill an area" aria-label="Fill an area" aria-pressed="false">🪣</button>
         <button class="btn-ctrl-sub" id="btn-eraser" title="Eraser" aria-label="Eraser">🧹</button>
         <button class="btn-ctrl-sub" id="btn-sparkle" title="Sparkle trail" aria-label="Sparkle trail">✨</button>
         <button class="btn-ctrl-sub" id="btn-sound" title="Ambient sound" aria-label="Ambient sound">🔊</button>
@@ -579,44 +631,12 @@
 
     <div class="glass-section">
       <div class="panel-label">COLORING PAGE</div>
-      <div class="parts-hint">Pick an outline to relax and color inside the lines. Your fills stay under the outline.</div>
+      <div class="parts-hint" data-i18n="p_coloring_hint">Pick a page, then tap areas with 🪣 FILL or paint with any brush — your colors always stay under the lines.</div>
       <button class="btn-action btn-template-toggle" id="btn-template-toggle" type="button" aria-expanded="false">
-        <span id="template-toggle-icon">✕</span> <span data-i18n="btn_choose_outline">CHOOSE OUTLINE</span> <span class="template-toggle-caret" id="template-toggle-caret">▾</span>
+        <span id="template-toggle-icon">✕</span> <span data-i18n="btn_choose_outline">CHOOSE A PAGE</span> <span class="template-toggle-caret" id="template-toggle-caret">▾</span>
       </button>
       <div class="template-gallery" id="template-gallery">
-        <button class="btn-template active" data-template="none" type="button" title="Blank canvas">✕</button>
-        <button class="btn-template" data-template="mandala" type="button" title="Mandala">❋</button>
-        <button class="btn-template" data-template="flower" type="button" title="Flower">✿</button>
-        <button class="btn-template" data-template="butterfly" type="button" title="Butterfly">🦋</button>
-        <button class="btn-template" data-template="leaf" type="button" title="Leaf">🍃</button>
-        <button class="btn-template" data-template="wave" type="button" title="Waves">🌊</button>
-        <button class="btn-template" data-template="heart" type="button" title="Heart">♡</button>
-        <button class="btn-template" data-template="moon" type="button" title="Moon &amp; stars">☾</button>
-        <button class="btn-template" data-template="star" type="button" title="Star">★</button>
-        <button class="btn-template" data-template="sun" type="button" title="Sun">☀</button>
-        <button class="btn-template" data-template="tree" type="button" title="Tree">🌳</button>
-        <button class="btn-template" data-template="bird" type="button" title="Bird">🐦</button>
-        <button class="btn-template" data-template="fish" type="button" title="Fish">🐟</button>
-        <button class="btn-template" data-template="cat" type="button" title="Cat">🐱</button>
-        <button class="btn-template" data-template="house" type="button" title="House">🏠</button>
-        <button class="btn-template" data-template="cloud" type="button" title="Cloud">☁</button>
-        <button class="btn-template" data-template="snowflake" type="button" title="Snowflake">❄</button>
-        <button class="btn-template" data-template="spiral" type="button" title="Spiral">🌀</button>
-        <button class="btn-template" data-template="diamond" type="button" title="Gem">💎</button>
-        <button class="btn-template" data-template="owl" type="button" title="Owl">🦉</button>
-        <button class="btn-template" data-template="seashell" type="button" title="Seashell">🐚</button>
-        <button class="btn-template" data-template="mushroom" type="button" title="Mushroom">🍄</button>
-        <button class="btn-template" data-template="rainbow" type="button" title="Rainbow">🌈</button>
-        <button class="btn-template" data-template="rocket" type="button" title="Rocket">🚀</button>
-        <button class="btn-template" data-template="whale" type="button" title="Whale">🐳</button>
-        <button class="btn-template" data-template="turtle" type="button" title="Turtle">🐢</button>
-        <button class="btn-template" data-template="crown" type="button" title="Crown">👑</button>
-        <button class="btn-template" data-template="sailboat" type="button" title="Sailboat">⛵</button>
-        <button class="btn-template" data-template="icecream" type="button" title="Ice cream">🍦</button>
-        <button class="btn-template" data-template="dragonfly" type="button" title="Dragonfly">🐉</button>
-        <button class="btn-template" data-template="robot" type="button" title="Robot">🤖</button>
-        <button class="btn-template" data-template="panda" type="button" title="Panda">🐼</button>
-        <button class="btn-template" data-template="balloon" type="button" title="Balloon">🎈</button>
+        <button class="btn-template active" data-template="none" type="button" title="Blank canvas" aria-label="Blank canvas">✕</button>
       </div>
     </div>
 
@@ -675,8 +695,12 @@
   let soundOn = true;
   let soundVolume = 0.4;
   let activeTemplate = 'none';
+  let fillMode = false;
+  let templateLineCanvas = null;   // line art of the current coloring page (device px)
+  let templateBarrier = null;      // cached fill-boundary map for that page
 
   let dpr = Math.max(1, window.devicePixelRatio || 1);
+  let cssW = 0, cssH = 0;          // current canvas size in CSS px
   let drawing = false;
   let activePointerId = null;
   let lastX = 0, lastY = 0, lastT = 0;
@@ -689,6 +713,7 @@
   let currentStroke = null;
   let isAnimating = false;
   let animRafId = null;
+  let animStopHook = null;         // lets a running VIDEO/GIF export react to an early stop
 
   // --- BRING TO LIFE (LIVING PARTS) ---
   let livingParts = [];
@@ -769,10 +794,21 @@
 
   // --- CANVAS: RESOLUTION SETUP (ACCOUNTING FOR DPR) ---
   function resizeAll(preserve) {
-    dpr = Math.max(1, window.devicePixelRatio || 1);
+    const newDpr = Math.max(1, window.devicePixelRatio || 1);
     const rect = stack.getBoundingClientRect();
     const w = Math.max(1, Math.round(rect.width));
     const h = Math.max(1, Math.round(rect.height));
+    // Mobile browsers fire "resize" whenever the address bar slides in/out —
+    // nothing to do if the canvas itself didn't change size.
+    if (preserve && w === cssW && h === cssH && newDpr === dpr) return;
+    // Anything anchored to the old pixel grid has to be settled first.
+    if (isLive) stopLive();
+    if (isAnimating) stopAnimationAtEnd();
+    removeTextInput();
+    removeTextStylePicker();
+    removeToolbar();
+    if (addPartMode) { selStart = null; selRect = null; }
+    dpr = newDpr;
 
     let backup = null;
     if (preserve && drawCanvas.width > 0 && drawCanvas.height > 0) {
@@ -782,9 +818,10 @@
       backup.getContext('2d').drawImage(drawCanvas, 0, 0);
     }
 
-    drawCanvas.width = w * dpr; drawCanvas.height = h * dpr;
-    templateCanvas.width = w * dpr; templateCanvas.height = h * dpr;
-    fxCanvas.width = w * dpr; fxCanvas.height = h * dpr;
+    drawCanvas.width = Math.round(w * dpr); drawCanvas.height = Math.round(h * dpr);
+    templateCanvas.width = drawCanvas.width; templateCanvas.height = drawCanvas.height;
+    fxCanvas.width = drawCanvas.width; fxCanvas.height = drawCanvas.height;
+    cssW = w; cssH = h;
 
     if (backup) {
       dctx.drawImage(backup, 0, 0, backup.width, backup.height, 0, 0, drawCanvas.width, drawCanvas.height);
@@ -793,7 +830,7 @@
     dctx.scale(dpr, dpr);
     tctx.scale(dpr, dpr);
     fctx.scale(dpr, dpr);
-    if (typeof TEMPLATES !== 'undefined' && activeTemplate !== 'none') drawTemplateOutline(activeTemplate, true);
+    if (typeof TEMPLATE_ART !== 'undefined' && TEMPLATE_ART && activeTemplate !== 'none') drawTemplateOutline(activeTemplate, true);
   }
   resizeAll(false);
 
@@ -841,6 +878,10 @@
     savePrefs();
   }
   customColorInput.addEventListener('input', () => selectCustomColor(customColorInput.value));
+  if (!PALETTE.some(hex => hex.toLowerCase() === brushColor.toLowerCase())) {
+    customSwatch.classList.add('active');
+    customSwatch.style.setProperty('--c', brushColor);
+  }
 
   // --- BRUSH SIZE ---
   const sizeSlider = document.getElementById('brush-size');
@@ -872,6 +913,7 @@
   btnEraser.addEventListener('click', () => {
     eraseMode = !eraseMode;
     btnEraser.classList.toggle('active', eraseMode);
+    if (eraseMode && fillMode) setFillMode(false);
   });
   const btnSparkle = document.getElementById('btn-sparkle');
   btnSparkle.classList.toggle('active', sparkleOn);
@@ -881,614 +923,1936 @@
     savePrefs();
   });
 
-  // --- COLORING PAGE TEMPLATES (RELAXING OUTLINES TO PAINT INSIDE) ---
-  function outlineStyle() {
-    tctx.strokeStyle = 'rgba(255,255,255,0.45)';
-    tctx.lineWidth = 2;
-    tctx.lineCap = 'round';
-    tctx.lineJoin = 'round';
-    tctx.shadowColor = 'rgba(255,255,255,0.25)';
-    tctx.shadowBlur = 2;
+  // ===== COLORING PAGES: LINE-ART HELPERS =====
+  // Every page is drawn in a fixed 1000×1000 unit space (the canvas is always
+  // square), so the same code renders the full-size outline, the gallery
+  // thumbnail and the fill-boundary map. Randomness is seeded, so a page looks
+  // exactly the same on every redraw/resize.
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
   }
 
-  var TEMPLATES = {
-    mandala(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.42;
-      outlineStyle();
-      [0.25, 0.45, 0.65, 0.85, 1].forEach(f => { tctx.beginPath(); tctx.arc(cx, cy, R * f, 0, Math.PI * 2); tctx.stroke(); });
-      const petals = 12;
-      for (let i = 0; i < petals; i++) {
-        const a = (i / petals) * Math.PI * 2;
-        tctx.beginPath();
-        tctx.moveTo(cx + Math.cos(a) * R * 0.25, cy + Math.sin(a) * R * 0.25);
-        tctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
-        tctx.stroke();
-        tctx.beginPath();
-        tctx.ellipse(cx + Math.cos(a) * R * 0.7, cy + Math.sin(a) * R * 0.7, R * 0.13, R * 0.065, a, 0, Math.PI * 2);
-        tctx.stroke();
+  function makeArt(c, seed) {
+    const TAU = Math.PI * 2;
+    const rng = mulberry32(seed || 7);
+    const A = { c, TAU, rng };
+    A.rand = (a, b) => a + (b - a) * rng();
+    A.s = p => { c.stroke(p); return p; };
+    // Draw a shape "in front": wipe whatever lines are underneath it, then outline it.
+    A.front = p => {
+      c.save(); c.globalCompositeOperation = 'destination-out'; c.fill(p); c.restore();
+      c.stroke(p); return p;
+    };
+    A.frontEO = p => {
+      c.save(); c.globalCompositeOperation = 'destination-out'; c.fill(p, 'evenodd'); c.restore();
+      c.stroke(p); return p;
+    };
+    // Leaves along a curved stem (laurel / vine).
+    A.vine = (pts, count, len, w, veins) => {
+      A.s(A.smoothP(pts, true));
+      const seg = []; let total = 0;
+      for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+      for (let k = 1; k <= count; k++) {
+        let t = total * k / (count + 1), i = 0;
+        while (i < seg.length - 1 && t > seg[i]) { t -= seg[i]; i++; }
+        const f = t / seg[i], x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f, y = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f;
+        const ang = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]) + (k % 2 ? 0.7 : -0.7);
+        A.leaf(x, y, x + Math.cos(ang) * len, y + Math.sin(ang) * len, w, veins == null ? 1 : veins);
       }
-    },
-    flower(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.32;
-      outlineStyle();
-      const petals = 6;
-      for (let i = 0; i < petals; i++) {
-        const a = (i / petals) * Math.PI * 2;
-        tctx.beginPath();
-        tctx.ellipse(cx + Math.cos(a) * R * 0.62, cy + Math.sin(a) * R * 0.62, R * 0.55, R * 0.28, a, 0, Math.PI * 2);
-        tctx.stroke();
+    };
+    A.clip = (p, fn, rule) => { c.save(); c.clip(p, rule || 'nonzero'); fn(); c.restore(); };
+    A.mirrorX = fn => { c.save(); c.translate(1000, 0); c.scale(-1, 1); fn(); c.restore(); };
+    A.at = (x, y, ang, sc, fn) => { c.save(); c.translate(x, y); if (ang) c.rotate(ang); if (sc && sc !== 1) { c.scale(sc, sc); c.lineWidth = c.lineWidth / sc; } fn(); c.restore(); };
+    // Copy of a path scaled (and optionally rotated) around a point — line width stays the same.
+    A.xform = (p, x, y, sc, ang) => { const q = new Path2D(); let m = new DOMMatrix().translate(x, y); if (ang) m = m.rotate(ang * 180 / Math.PI); m = m.scale(sc, sc).translate(-x, -y); q.addPath(p, m); return q; };
+
+    A.circleP = (x, y, r) => { const p = new Path2D(); p.arc(x, y, r, 0, TAU); return p; };
+    A.ellipseP = (x, y, rx, ry, rot) => { const p = new Path2D(); p.ellipse(x, y, rx, ry, rot || 0, 0, TAU); return p; };
+    A.polyP = (pts, open) => {
+      const p = new Path2D();
+      pts.forEach((q, i) => i ? p.lineTo(q[0], q[1]) : p.moveTo(q[0], q[1]));
+      if (!open) p.closePath();
+      return p;
+    };
+    A.rectP = (x, y, w, h, r) => {
+      const p = new Path2D();
+      r = Math.min(r || 0, w / 2, h / 2);
+      if (!r) { p.rect(x, y, w, h); return p; }
+      p.moveTo(x + r, y);
+      p.arcTo(x + w, y, x + w, y + h, r); p.arcTo(x + w, y + h, x, y + h, r);
+      p.arcTo(x, y + h, x, y, r); p.arcTo(x, y, x + w, y, r); p.closePath();
+      return p;
+    };
+    // Smooth Catmull-Rom curve through points (closed or open).
+    A.smoothP = (pts, open, tension) => {
+      const t = tension == null ? 1 : tension;
+      const p = new Path2D();
+      const n = pts.length;
+      const get = i => open ? pts[Math.max(0, Math.min(n - 1, i))] : pts[(i + n) % n];
+      p.moveTo(pts[0][0], pts[0][1]);
+      const segs = open ? n - 1 : n;
+      for (let i = 0; i < segs; i++) {
+        const p0 = get(i - 1), p1 = get(i), p2 = get(i + 1), p3 = get(i + 2);
+        p.bezierCurveTo(
+          p1[0] + (p2[0] - p0[0]) / 6 * t, p1[1] + (p2[1] - p0[1]) / 6 * t,
+          p2[0] - (p3[0] - p1[0]) / 6 * t, p2[1] - (p3[1] - p1[1]) / 6 * t,
+          p2[0], p2[1]);
       }
-      tctx.beginPath(); tctx.arc(cx, cy, R * 0.32, 0, Math.PI * 2); tctx.stroke();
-      const stemY = cy + R * 1.05;
-      tctx.beginPath(); tctx.moveTo(cx, stemY); tctx.quadraticCurveTo(cx - R * 0.1, cy + R * 1.7, cx, h * 0.92); tctx.stroke();
-      tctx.beginPath();
-      tctx.ellipse(cx - R * 0.28, cy + R * 1.35, R * 0.32, R * 0.14, -0.5, 0, Math.PI * 2);
-      tctx.stroke();
-    },
-    butterfly(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.5); tctx.lineTo(cx, cy + s * 0.6); tctx.stroke();
-      [1, -1].forEach(side => {
-        tctx.beginPath();
-        tctx.moveTo(cx, cy - s * 0.35);
-        tctx.bezierCurveTo(cx + side * s * 1.1, cy - s * 1.1, cx + side * s * 1.3, cy - s * 0.05, cx, cy + s * 0.05);
-        tctx.stroke();
-        tctx.beginPath();
-        tctx.moveTo(cx, cy + s * 0.08);
-        tctx.bezierCurveTo(cx + side * s * 0.9, cy + s * 0.2, cx + side * s * 0.8, cy + s * 0.95, cx, cy + s * 0.65);
-        tctx.stroke();
-      });
-      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.5); tctx.quadraticCurveTo(cx - s * 0.18, cy - s * 0.8, cx - s * 0.28, cy - s * 0.95); tctx.stroke();
-      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.5); tctx.quadraticCurveTo(cx + s * 0.18, cy - s * 0.8, cx + s * 0.28, cy - s * 0.95); tctx.stroke();
-    },
-    leaf(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.4;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx, cy - s * 0.75);
-      tctx.bezierCurveTo(cx + s * 0.8, cy - s * 0.5, cx + s * 0.8, cy + s * 0.55, cx, cy + s * 0.85);
-      tctx.bezierCurveTo(cx - s * 0.8, cy + s * 0.55, cx - s * 0.8, cy - s * 0.5, cx, cy - s * 0.75);
-      tctx.stroke();
-      tctx.beginPath(); tctx.moveTo(cx, cy - s * 0.7); tctx.lineTo(cx, cy + s * 0.82); tctx.stroke();
-      for (let i = 1; i <= 4; i++) {
-        const t = i / 5, y = cy - s * 0.6 + t * s * 1.3;
-        tctx.beginPath(); tctx.moveTo(cx, y); tctx.lineTo(cx + s * 0.45 * (1 - t * 0.5), y - s * 0.12); tctx.stroke();
-        tctx.beginPath(); tctx.moveTo(cx, y); tctx.lineTo(cx - s * 0.45 * (1 - t * 0.5), y - s * 0.12); tctx.stroke();
+      if (!open) p.closePath();
+      return p;
+    };
+    A.circle = (x, y, r) => A.s(A.circleP(x, y, r));
+    A.fcircle = (x, y, r) => A.front(A.circleP(x, y, r));
+    A.ellipse = (x, y, rx, ry, rot) => A.s(A.ellipseP(x, y, rx, ry, rot));
+    A.fellipse = (x, y, rx, ry, rot) => A.front(A.ellipseP(x, y, rx, ry, rot));
+    A.line = (x0, y0, x1, y1) => { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
+    A.curve = (pts, tension) => A.s(A.smoothP(pts, true, tension));
+    A.arc = (x, y, r, a0, a1, ccw) => { c.beginPath(); c.arc(x, y, r, a0, a1, !!ccw); c.stroke(); };
+
+    // Petal from radius r0 to r1 around (cx,cy) at angle ang; w = half-width.
+    A.petalP = (cx, cy, ang, r0, r1, w, shape) => {
+      const dx = Math.cos(ang), dy = Math.sin(ang), px = -dy, py = dx;
+      const L = r1 - r0;
+      const bx = cx + dx * r0, by = cy + dy * r0, tx = cx + dx * r1, ty = cy + dy * r1;
+      let a1, a2, b1, b2;
+      if (shape === 'round') { a1 = 0.12; b1 = 1.35; a2 = 1.08; b2 = 1.0; }
+      else if (shape === 'drop') { a1 = 0.05; b1 = 0.2; a2 = 1.25; b2 = 1.25; }
+      else if (shape === 'lotus') { a1 = 0.08; b1 = 1.45; a2 = 0.72; b2 = 1.05; }
+      else { a1 = 0.33; b1 = 1.3; a2 = 0.8; b2 = 0.85; }
+      const p = new Path2D();
+      p.moveTo(bx, by);
+      p.bezierCurveTo(bx + dx * L * a1 + px * w * b1, by + dy * L * a1 + py * w * b1,
+        bx + dx * L * a2 + px * w * b2, by + dy * L * a2 + py * w * b2, tx, ty);
+      p.bezierCurveTo(bx + dx * L * a2 - px * w * b2, by + dy * L * a2 - py * w * b2,
+        bx + dx * L * a1 - px * w * b1, by + dy * L * a1 - py * w * b1, bx, by);
+      p.closePath();
+      return p;
+    };
+    A.petalRing = (cx, cy, n, r0, r1, w, rot, o) => {
+      o = o || {};
+      const shape = o.shape || 'pointy';
+      for (let i = 0; i < n; i++) {
+        const a = (rot || 0) + i * TAU / n;
+        const p = A.petalP(cx, cy, a, r0, r1, w, shape);
+        if (o.front === false) A.s(p); else A.front(p);
+        const L = r1 - r0;
+        if (o.inner) A.s(A.petalP(cx, cy, a, r0 + L * 0.2, r1 - L * 0.17, w * 0.52, shape));
+        if (o.inner2) A.s(A.petalP(cx, cy, a, r0 + L * 0.36, r1 - L * 0.32, w * 0.24, shape));
+        if (o.vein) A.line(cx + Math.cos(a) * (r0 + L * 0.12), cy + Math.sin(a) * (r0 + L * 0.12), cx + Math.cos(a) * (r1 - L * 0.12), cy + Math.sin(a) * (r1 - L * 0.12));
+        if (o.tipDot) A.circle(cx + Math.cos(a) * (r1 + o.tipDot * 1.7), cy + Math.sin(a) * (r1 + o.tipDot * 1.7), o.tipDot);
+        if (o.dot) A.circle(cx + Math.cos(a) * (r0 + L * 0.42), cy + Math.sin(a) * (r0 + L * 0.42), o.dot);
       }
-    },
-    wave(w, h) {
-      outlineStyle();
-      const rows = 5;
-      for (let r = 0; r < rows; r++) {
-        const y = h * (0.22 + r * 0.15);
-        tctx.beginPath();
-        for (let x = 0; x <= w; x += 4) {
-          const yy = y + Math.sin((x / w) * Math.PI * 4 + r) * h * 0.035;
-          if (x === 0) tctx.moveTo(x, yy); else tctx.lineTo(x, yy);
+    };
+    A.dotRing = (cx, cy, r, n, dr, rot) => {
+      for (let i = 0; i < n; i++) {
+        const a = (rot || 0) + i * TAU / n;
+        A.circle(cx + Math.cos(a) * r, cy + Math.sin(a) * r, dr);
+      }
+    };
+    A.scallopP = (cx, cy, r, n, depth, rot) => {
+      const p = new Path2D();
+      const step = TAU / n;
+      rot = rot || 0;
+      p.moveTo(cx + Math.cos(rot) * r, cy + Math.sin(rot) * r);
+      for (let i = 0; i < n; i++) {
+        const a0 = rot + i * step, am = a0 + step / 2, a1 = a0 + step;
+        p.quadraticCurveTo(cx + Math.cos(am) * (r + depth * 2), cy + Math.sin(am) * (r + depth * 2), cx + Math.cos(a1) * r, cy + Math.sin(a1) * r);
+      }
+      p.closePath();
+      return p;
+    };
+    A.zigzagP = (cx, cy, r0, r1, n, rot) => {
+      const pts = [];
+      for (let i = 0; i < n * 2; i++) {
+        const a = (rot || 0) + i * Math.PI / n;
+        const r = i % 2 ? r1 : r0;
+        pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+      }
+      return A.polyP(pts);
+    };
+    A.rays = (cx, cy, r0, r1, n, rot) => {
+      for (let i = 0; i < n; i++) {
+        const a = (rot || 0) + i * TAU / n;
+        A.line(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0, cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      }
+    };
+    A.starP = (cx, cy, R, r, n, rot) => {
+      const pts = [];
+      rot = rot == null ? -Math.PI / 2 : rot;
+      for (let i = 0; i < n * 2; i++) {
+        const a = rot + i * Math.PI / n;
+        const rr = i % 2 ? r : R;
+        pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+      }
+      return A.polyP(pts);
+    };
+    A.softStarP = (cx, cy, R, r, n, rot) => {
+      const pts = [];
+      rot = rot == null ? -Math.PI / 2 : rot;
+      for (let i = 0; i < n * 2; i++) {
+        const a = rot + i * Math.PI / n;
+        const rr = i % 2 ? r : R;
+        pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+      }
+      return A.smoothP(pts, false, 0.55);
+    };
+    A.heartP = (cx, cy, s) => {
+      const p = new Path2D();
+      p.moveTo(cx, cy + s * 0.95);
+      p.bezierCurveTo(cx - s * 1.45, cy - s * 0.02, cx - s * 0.78, cy - s * 1.2, cx, cy - s * 0.5);
+      p.bezierCurveTo(cx + s * 0.78, cy - s * 1.2, cx + s * 1.45, cy - s * 0.02, cx, cy + s * 0.95);
+      p.closePath();
+      return p;
+    };
+    A.leafP = (x0, y0, x1, y1, w) => {
+      const L = Math.hypot(x1 - x0, y1 - y0) || 1;
+      const dx = (x1 - x0) / L, dy = (y1 - y0) / L, px = -dy, py = dx;
+      const p = new Path2D();
+      p.moveTo(x0, y0);
+      p.bezierCurveTo(x0 + dx * L * 0.25 + px * w * 1.3, y0 + dy * L * 0.25 + py * w * 1.3, x0 + dx * L * 0.72 + px * w, y0 + dy * L * 0.72 + py * w, x1, y1);
+      p.bezierCurveTo(x0 + dx * L * 0.72 - px * w, y0 + dy * L * 0.72 - py * w, x0 + dx * L * 0.25 - px * w * 1.3, y0 + dy * L * 0.25 - py * w * 1.3, x0, y0);
+      p.closePath();
+      return p;
+    };
+    // Leaf with a midrib and side veins that run all the way to the edge, so
+    // every section between veins is its own fillable area.
+    A.leaf = (x0, y0, x1, y1, w, veins, isFront) => {
+      const p = A.leafP(x0, y0, x1, y1, w);
+      if (isFront === false) A.s(p); else A.front(p);
+      const L = Math.hypot(x1 - x0, y1 - y0) || 1;
+      const dx = (x1 - x0) / L, dy = (y1 - y0) / L, px = -dy, py = dx;
+      A.clip(p, () => {
+        c.beginPath(); c.moveTo(x0, y0);
+        c.quadraticCurveTo(x0 + dx * L * 0.5 + px * w * 0.08, y0 + dy * L * 0.5 + py * w * 0.08, x1, y1); c.stroke();
+        const n = veins == null ? 3 : veins;
+        for (let i = 1; i <= n; i++) {
+          const t = i / (n + 1) * 0.9;
+          const mx = x0 + dx * L * t, my = y0 + dy * L * t;
+          [1, -1].forEach(s => {
+            c.beginPath(); c.moveTo(mx, my);
+            c.quadraticCurveTo(mx + dx * L * 0.08 + px * w * 0.8 * s, my + dy * L * 0.08 + py * w * 0.8 * s, mx + dx * L * 0.2 + px * w * 2 * s, my + dy * L * 0.2 + py * w * 2 * s);
+            c.stroke();
+          });
         }
-        tctx.stroke();
+      });
+      return p;
+    };
+    A.spiralPts = (cx, cy, r0, r1, turns, rot) => {
+      const pts = [];
+      const steps = Math.max(24, Math.round(turns * 48));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps, a = (rot || 0) + t * turns * TAU, r = r0 + (r1 - r0) * t;
+        pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
       }
-    },
-    heart(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx, cy + s * 0.9);
-      tctx.bezierCurveTo(cx - s * 1.4, cy - s * 0.1, cx - s * 0.6, cy - s * 1.25, cx, cy - s * 0.55);
-      tctx.bezierCurveTo(cx + s * 0.6, cy - s * 1.25, cx + s * 1.4, cy - s * 0.1, cx, cy + s * 0.9);
-      tctx.stroke();
-    },
-    moon(w, h) {
-      const cx = w * 0.56, cy = h * 0.42, R = Math.min(w, h) * 0.28;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.arc(cx, cy, R, Math.PI * 0.15, Math.PI * 1.85);
-      tctx.arc(cx + R * 0.55, cy, R * 0.92, Math.PI * 1.9, Math.PI * 1.1, true);
-      tctx.stroke();
-      const stars = [[0.18, 0.22, 0.045], [0.28, 0.68, 0.03], [0.12, 0.5, 0.025], [0.75, 0.78, 0.035]];
-      stars.forEach(([fx, fy, fr]) => {
-        const sx = w * fx, sy = h * fy, r = Math.min(w, h) * fr;
-        tctx.beginPath();
+      return pts;
+    };
+    A.spiral = (cx, cy, r0, r1, turns, rot) => A.s(A.polyP(A.spiralPts(cx, cy, r0, r1, turns, rot), true));
+    A.cloudP = (cx, cy, w, h, bumps) => {
+      bumps = bumps || 5;
+      const p = new Path2D();
+      const left = cx - w / 2, right = cx + w / 2, base = cy + h * 0.3;
+      p.moveTo(left, base);
+      for (let i = 0; i < bumps; i++) {
+        const a0 = Math.PI + (i / bumps) * Math.PI, a1 = Math.PI + ((i + 1) / bumps) * Math.PI, am = (a0 + a1) / 2;
+        const ex = cx + Math.cos(a1) * w / 2, ey = base + Math.sin(a1) * h * (i === bumps - 1 ? 0 : 1);
+        const bulge = 1.55 - Math.abs(Math.cos(am)) * 0.2;
+        p.quadraticCurveTo(cx + Math.cos(am) * w / 2 * 1.18, base + Math.sin(am) * h * bulge, ex, ey);
+      }
+      p.bezierCurveTo(right + h * 0.25, base + h * 0.25, right - w * 0.1, base + h * 0.28, cx, base + h * 0.24);
+      p.bezierCurveTo(left + w * 0.1, base + h * 0.28, left - h * 0.25, base + h * 0.25, left, base);
+      p.closePath();
+      return p;
+    };
+    A.sparkleP = (x, y, r) => {
+      const p = new Path2D();
+      p.moveTo(x, y - r);
+      p.quadraticCurveTo(x + r * 0.12, y - r * 0.12, x + r, y);
+      p.quadraticCurveTo(x + r * 0.12, y + r * 0.12, x, y + r);
+      p.quadraticCurveTo(x - r * 0.12, y + r * 0.12, x - r, y);
+      p.quadraticCurveTo(x - r * 0.12, y - r * 0.12, x, y - r);
+      p.closePath();
+      return p;
+    };
+    A.sparkle = (x, y, r) => A.front(A.sparkleP(x, y, r));
+    A.star5 = (x, y, r, rot) => A.front(A.softStarP(x, y, r, r * 0.46, 5, rot == null ? -Math.PI / 2 : rot));
+    A.dropP = (x, y, r) => {
+      const p = new Path2D();
+      p.moveTo(x, y - r * 1.9);
+      p.bezierCurveTo(x + r * 0.5, y - r * 1.1, x + r, y - r * 0.5, x + r, y);
+      p.arc(x, y, r, 0, Math.PI);
+      p.bezierCurveTo(x - r, y - r * 0.5, x - r * 0.5, y - r * 1.1, x, y - r * 1.9);
+      p.closePath();
+      return p;
+    };
+    A.flowerSmall = (x, y, r, n, rot) => {
+      n = n || 5;
+      A.petalRing(x, y, n, r * 0.28, r, r * 0.42, rot || 0, { shape: 'round' });
+      A.fcircle(x, y, r * 0.3);
+    };
+    A.tuft = (x, y, s) => { [[-0.5, 34], [0, 48], [0.5, 34]].forEach(([a, L]) => A.front(A.petalP(x, y, -Math.PI / 2 + a, 0, L * s, 7 * s, 'pointy'))); };
+    A.bird = (x, y, s) => { s = s || 1; A.s(A.smoothP([[x - 30 * s, y + 8 * s], [x - 14 * s, y - 7 * s], [x, y + 6 * s]], true)); A.s(A.smoothP([[x, y + 6 * s], [x + 14 * s, y - 7 * s], [x + 30 * s, y + 8 * s]], true)); };
+    A.gearP = (x, y, r, teeth) => {
+      const pts = [];
+      const n = teeth * 4;
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU;
+        const rr = (i % 4 === 0 || i % 4 === 1) ? r : r * 0.84;
+        pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]);
+      }
+      return A.polyP(pts);
+    };
+
+    // --- patterns (call inside A.clip) ---
+    const B = b => b || [0, 0, 1000, 1000];
+    A.stripes = (sp, ang, box) => {
+      const [x, y, w, h] = B(box);
+      const cx = x + w / 2, cy = y + h / 2, R = Math.hypot(w, h) / 2 + sp;
+      c.save(); c.translate(cx, cy); c.rotate(ang || 0);
+      c.beginPath();
+      for (let k = -R; k <= R; k += sp) { c.moveTo(-R, k); c.lineTo(R, k); }
+      c.stroke(); c.restore();
+    };
+    A.grid = (sp, ang, box) => { A.stripes(sp, ang || 0, box); A.stripes(sp, (ang || 0) + Math.PI / 2, box); };
+    A.dots = (sp, r, box) => {
+      const [x, y, w, h] = B(box);
+      let row = 0;
+      for (let yy = y; yy <= y + h + sp; yy += sp * 0.87, row++) {
+        for (let xx = x + (row % 2 ? sp / 2 : 0); xx <= x + w + sp; xx += sp) A.circle(xx, yy, r);
+      }
+    };
+    A.scales = (r, box) => {
+      const [x, y, w, h] = B(box);
+      let row = 0;
+      for (let yy = y - r; yy <= y + h + r; yy += r, row++) {
+        c.beginPath();
+        for (let xx = x - r * 2 + (row % 2 ? r : 0); xx <= x + w + r * 2; xx += r * 2) {
+          c.moveTo(xx + r, yy); c.arc(xx, yy, r, 0, Math.PI);
+        }
+        c.stroke();
+      }
+    };
+    A.seigaiha = (r, box) => {
+      const [x, y, w, h] = B(box);
+      let row = 0;
+      for (let yy = y; yy <= y + h + r; yy += r * 0.5, row++) {
+        for (let xx = x - r + (row % 2 ? r : 0); xx <= x + w + r; xx += r * 2) {
+          const p = new Path2D(); p.moveTo(xx - r, yy); p.arc(xx, yy, r, Math.PI, TAU); p.closePath();
+          A.front(p);
+          A.arc(xx, yy, r * 0.68, Math.PI, TAU);
+          A.arc(xx, yy, r * 0.36, Math.PI, TAU);
+        }
+      }
+    };
+    A.hexes = (r, box) => {
+      const [x, y, w, h] = B(box);
+      const hw = Math.sqrt(3) * r;
+      let row = 0;
+      c.beginPath();
+      for (let yy = y - r; yy <= y + h + r; yy += r * 1.5, row++) {
+        for (let xx = x - hw + (row % 2 ? hw / 2 : 0); xx <= x + w + hw; xx += hw) {
+          for (let k = 0; k <= 6; k++) {
+            const a = Math.PI / 6 + k * Math.PI / 3;
+            const px = xx + Math.cos(a) * r, py = yy + Math.sin(a) * r;
+            if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
+          }
+        }
+      }
+      c.stroke();
+    };
+    A.wavy = (sp, amp, period, box) => {
+      const [x, y, w, h] = B(box);
+      for (let yy = y; yy <= y + h + sp; yy += sp) {
+        c.beginPath();
+        for (let xx = x - 10; xx <= x + w + 10; xx += 8) {
+          const py = yy + Math.sin((xx - x) / period * TAU) * amp;
+          if (xx === x - 10) c.moveTo(xx, py); else c.lineTo(xx, py);
+        }
+        c.stroke();
+      }
+    };
+    // Scatter decorations on the empty background (seeded, so always the same).
+    A.scatter = (n, minD, ok, fn, margin) => {
+      const pts = [];
+      margin = margin == null ? 40 : margin;
+      let tries = 0;
+      while (pts.length < n && tries < n * 60) {
+        tries++;
+        const x = A.rand(margin, 1000 - margin), y = A.rand(margin, 1000 - margin);
+        if (ok && !ok(x, y)) continue;
+        if (pts.some(q => Math.hypot(q[0] - x, q[1] - y) < minD)) continue;
+        pts.push([x, y]);
+      }
+      pts.forEach((q, i) => fn(q[0], q[1], i));
+      return pts;
+    };
+    A.away = (shapes) => (x, y) => shapes.every(s => {
+      if (s.length === 3) return Math.hypot(x - s[0], y - s[1]) > s[2];
+      return !(x > s[0] && x < s[0] + s[2] && y > s[1] && y < s[1] + s[3]);
+    });
+    return A;
+  }
+
+  // Order + names shown in the COLORING PAGE gallery.
+  const TEMPLATE_META = [
+    ['mandala', 'Mandala'],
+    ['lotus', 'Lotus mandala'],
+    ['starmandala', 'Star mandala'],
+    ['flower', 'Flower'],
+    ['butterfly', 'Butterfly'],
+    ['leaf', 'Leaf & ladybug'],
+    ['wave', 'Waves'],
+    ['heart', 'Heart'],
+    ['moon', 'Moon & stars'],
+    ['star', 'Star'],
+    ['sun', 'Sun'],
+    ['tree', 'Apple tree'],
+    ['bird', 'Songbird'],
+    ['fish', 'Tropical fish'],
+    ['cat', 'Cat'],
+    ['house', 'Cottage'],
+    ['cloud', 'Rainy cloud'],
+    ['snowflake', 'Snowflake'],
+    ['spiral', 'Swirls'],
+    ['diamond', 'Gems'],
+    ['owl', 'Owl'],
+    ['seashell', 'Seashells'],
+    ['mushroom', 'Mushrooms'],
+    ['rainbow', 'Rainbow'],
+    ['rocket', 'Rocket'],
+    ['whale', 'Whale'],
+    ['turtle', 'Sea turtle'],
+    ['crown', 'Crown'],
+    ['sailboat', 'Sailboat'],
+    ['icecream', 'Ice cream'],
+    ['dragonfly', 'Dragonfly'],
+    ['robot', 'Robot'],
+    ['panda', 'Panda'],
+    ['balloon', 'Hot air balloon']
+  ];
+
+  // Each page draws itself with the helpers above (A) in 1000×1000 units.
+  var TEMPLATE_ART = {
+      mandala(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        // corner rosettes (drawn first, the big mandala sits on top)
+        [[0, 0], [1000, 0], [0, 1000], [1000, 1000]].forEach(([x, y]) => {
+          A.circle(x, y, 150); A.circle(x, y, 110);
+          A.petalRing(x, y, 16, 110, 150, 12, 0, { front: false });
+          A.circle(x, y, 60);
+          A.petalRing(x, y, 10, 60, 105, 18, 0, { shape: 'round' });
+          A.circle(x, y, 32);
+        });
+        A.fcircle(cx, cy, 462);
+        A.petalRing(cx, cy, 24, 330, 440, 30, TAU / 48, { shape: 'pointy', inner: true, tipDot: 8 });
+        A.petalRing(cx, cy, 24, 330, 415, 34, 0, { shape: 'round', inner: true, inner2: true });
+        A.fcircle(cx, cy, 332);
+        A.front(A.zigzagP(cx, cy, 300, 332, 36));
+        A.fcircle(cx, cy, 300);
+        A.front(A.scallopP(cx, cy, 262, 30, 13));
+        A.dotRing(cx, cy, 278, 30, 7, TAU / 60);
+        A.fcircle(cx, cy, 262);
+        A.petalRing(cx, cy, 16, 150, 250, 32, TAU / 32, { shape: 'pointy', inner: true });
+        A.petalRing(cx, cy, 16, 150, 232, 30, 0, { shape: 'round', inner: true, dot: 7 });
+        A.fcircle(cx, cy, 152);
+        A.dotRing(cx, cy, 136, 24, 9);
+        A.fcircle(cx, cy, 120);
+        A.petalRing(cx, cy, 8, 44, 118, 26, TAU / 16, { shape: 'pointy' });
+        A.petalRing(cx, cy, 8, 44, 110, 28, 0, { shape: 'round', inner: true });
+        A.fcircle(cx, cy, 44);
+        A.front(A.softStarP(cx, cy, 34, 16, 8));
+        A.circle(cx, cy, 9);
+      },
+
+      lotus(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        // soft square frame with corner lotus fans
+        A.s(A.rectP(24, 24, 952, 952, 40));
+        A.s(A.rectP(44, 44, 912, 912, 28));
+        [[44, 44, 0], [956, 44, 1], [956, 956, 2], [44, 956, 3]].forEach(([x, y, k]) => {
+          const base = k * TAU / 4;
+          for (let i = 0; i < 4; i++) A.front(A.petalP(x, y, base + (i + 0.5) * TAU / 16, 20, 150, 26, 'lotus'));
+          A.fcircle(x, y, 40);
+        });
+        A.fcircle(cx, cy, 455);
+        A.dotRing(cx, cy, 440, 48, 8);
+        A.petalRing(cx, cy, 16, 290, 425, 44, TAU / 32, { shape: 'lotus', inner: true, inner2: true });
+        A.petalRing(cx, cy, 16, 290, 380, 40, 0, { shape: 'round', inner: true });
+        A.fcircle(cx, cy, 292);
+        A.front(A.scallopP(cx, cy, 250, 36, 10));
+        A.fcircle(cx, cy, 250);
+        A.petalRing(cx, cy, 12, 128, 244, 44, TAU / 24, { shape: 'lotus', inner: true, vein: true });
+        A.petalRing(cx, cy, 12, 128, 215, 38, 0, { shape: 'lotus', inner: true });
+        A.fcircle(cx, cy, 130);
+        A.dotRing(cx, cy, 114, 20, 8);
+        A.fcircle(cx, cy, 98);
+        A.petalRing(cx, cy, 8, 30, 96, 24, 0, { shape: 'round' });
+        A.fcircle(cx, cy, 30);
+        A.dotRing(cx, cy, 16, 6, 5);
+      },
+
+      starmandala(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        A.fcircle(cx, cy, 470);
+        A.dotRing(cx, cy, 452, 64, 6);
+        A.fcircle(cx, cy, 438);
+        A.front(A.starP(cx, cy, 436, 350, 16, 0));
+        A.dotRing(cx, cy, 398, 16, 14); A.dotRing(cx, cy, 398, 16, 6);
+        A.fcircle(cx, cy, 350);
+        // two overlapping squares -> 8-point star with facets
+        const sq = rot => A.polyP([0, 1, 2, 3].map(k => [cx + Math.cos(rot + k * TAU / 4) * 335, cy + Math.sin(rot + k * TAU / 4) * 335]));
+        A.s(sq(0)); A.s(sq(TAU / 8));
+        A.clip(A.circleP(cx, cy, 350), () => {
+          A.fcircle(cx, cy, 240);
+          for (let i = 0; i < 8; i++) {
+            const a = i * TAU / 8;
+            A.line(cx + Math.cos(a) * 240, cy + Math.sin(a) * 240, cx + Math.cos(a) * 335, cy + Math.sin(a) * 335);
+          }
+        });
+        A.dotRing(cx, cy, 300, 8, 16, TAU / 16);
+        A.front(A.zigzagP(cx, cy, 205, 240, 32));
+        A.fcircle(cx, cy, 205);
+        A.front(A.starP(cx, cy, 200, 120, 8, 0));
+        A.front(A.starP(cx, cy, 200, 120, 8, TAU / 16));
+        A.fcircle(cx, cy, 118);
+        A.petalRing(cx, cy, 12, 40, 116, 20, 0, { shape: 'pointy', inner: true });
+        A.fcircle(cx, cy, 40);
+        A.front(A.starP(cx, cy, 36, 16, 6, 0));
+      },
+
+      flower(A) {
+        const cx = 500, cy = 380, TAU = A.TAU;
+        // background: little daisies + sparkles
+        const keep = A.away([[cx, cy, 330], [500, 780, 200], [260, 720, 150], [760, 830, 150]]);
+        A.scatter(10, 110, keep, (x, y, i) => i % 3 === 0 ? A.flowerSmall(x, y, 34, 5, i) : (i % 3 === 1 ? A.sparkle(x, y, 20) : A.circle(x, y, 9)));
+        // stem + leaves
+        A.front(A.smoothP([[488, 620], [470, 760], [455, 900], [462, 1010], [492, 1010], [486, 900], [500, 760], [516, 620]]));
+        A.leaf(476, 790, 170, 650, 72, 4);
+        A.leaf(482, 900, 820, 800, 70, 4);
+        // back petals
+        A.petalRing(cx, cy, 12, 70, 310, 72, TAU / 24, { shape: 'round', inner: true });
+        // front petals
+        A.petalRing(cx, cy, 12, 60, 250, 58, 0, { shape: 'round', inner: true, vein: true });
+        // center with sunflower seed spiral
+        A.fcircle(cx, cy, 98);
+        A.clip(A.circleP(cx, cy, 98), () => {
+          for (let i = 1; i < 34; i++) {
+            const r = 15.5 * Math.sqrt(i), a = i * 2.39996;
+            if (r < 86) A.circle(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 7);
+          }
+        });
+      },
+
+      butterfly(A) {
+        const TAU = A.TAU;
+        const upper = () => A.smoothP([[512, 440], [600, 280], [760, 150], [905, 160], [945, 250], [900, 380], [800, 470], [650, 500], [512, 500]]);
+        const lower = () => A.smoothP([[512, 520], [650, 525], [790, 580], [830, 690], [770, 810], [660, 840], [575, 760], [520, 620]]);
+        // background
+        const keep = A.away([[500, 480, 470]]);
+        A.scatter(14, 90, keep, (x, y, i) => i % 2 ? A.sparkle(x, y, 18) : A.flowerSmall(x, y, 30, 5, i), 30);
+        const wing = (pathFn, base, spots) => {
+          const p = pathFn();
+          A.front(p);
+          A.clip(p, () => {
+            // inner border bands (scaled copies toward the body)
+            [0.78, 0.5].forEach(k => A.s(A.xform(p, base[0], base[1], k)));
+            // veins
+            for (let i = 0; i < 7; i++) {
+              const a = spots.a0 + (spots.a1 - spots.a0) * i / 6;
+              A.line(base[0], base[1], base[0] + Math.cos(a) * 600, base[1] + Math.sin(a) * 600);
+            }
+            spots.dots.forEach(d => { A.fcircle(d[0], d[1], d[2]); if (d[2] > 22) A.circle(d[0], d[1], d[2] * 0.5); });
+          });
+        };
+        const side = () => {
+          wing(lower, [512, 540], { a0: -0.1, a1: 1.45, dots: [[720, 690, 42], [790, 640, 16], [640, 790, 18]] });
+          wing(upper, [512, 470], { a0: -1.35, a1: 0.35, dots: [[860, 230, 30], [780, 200, 16], [905, 320, 14], [700, 420, 20]] });
+        };
+        side();
+        A.mirrorX(side);
+        // body
+        A.fellipse(500, 520, 26, 170);
+        A.clip(A.ellipseP(500, 520, 26, 170), () => { for (let y = 420; y < 690; y += 34) A.line(460, y, 540, y + 8); });
+        A.fellipse(500, 355, 40, 38);
+        A.fcircle(500, 312, 36);
+        A.circle(486, 305, 7); A.circle(514, 305, 7);
+        [[1, 1], [-1, 1]].forEach(([s]) => {
+          A.s(A.smoothP([[500 + s * 10, 282], [500 + s * 40, 220], [500 + s * 90, 170], [500 + s * 120, 150]], true));
+          A.fcircle(500 + s * 128, 144, 14);
+        });
+      },
+
+      leaf(A) {
+        // background sprigs
+        A.leaf(120, 960, 60, 700, 50, 3);
+        A.leaf(150, 960, 330, 770, 46, 3);
+        A.leaf(900, 70, 960, 300, 44, 3);
+        A.leaf(880, 60, 700, 170, 40, 3);
+        const keep = A.away([[500, 500, 380], [150, 860, 170], [880, 160, 170]]);
+        A.scatter(12, 90, keep, (x, y, i) => i % 2 ? A.fcircle(x, y, 12) : A.front(A.dropP(x, y, 16)), 30);
+        // stem
+        A.front(A.smoothP([[330, 990], [360, 900], [405, 840], [425, 850], [385, 910], [360, 995]]));
+        // big leaf
+        const x0 = 410, y0 = 850, x1 = 640, y1 = 80, w = 250;
+        const p = A.leafP(x0, y0, x1, y1, w);
+        A.front(p);
+        A.clip(p, () => {
+          A.s(A.xform(p, 525, 470, 0.84));
+          const L = Math.hypot(x1 - x0, y1 - y0), dx = (x1 - x0) / L, dy = (y1 - y0) / L, px = -dy, py = dx;
+          A.line(x0, y0, x1, y1);
+          for (let i = 1; i <= 7; i++) {
+            const t = i / 8 * 0.95, mx = x0 + dx * L * t, my = y0 + dy * L * t;
+            [1, -1].forEach(s => A.s(A.smoothP([[mx, my], [mx + dx * 50 + px * 120 * s, my + dy * 50 + py * 120 * s], [mx + dx * 150 + px * 330 * s, my + dy * 150 + py * 330 * s]], true)));
+          }
+          // ladybug
+          A.at(560, 560, -0.5, 1, () => {
+            A.fcircle(0, -48, 22); A.line(-8, -66, -18, -90); A.line(8, -66, 18, -90); A.fcircle(-18, -92, 5); A.fcircle(18, -92, 5);
+            A.fcircle(0, 0, 50); A.line(0, -50, 0, 50); A.s(A.smoothP([[-48, -14], [0, -26], [48, -14]], true));
+            [[-24, 8, 9], [24, 8, 9], [-18, 30, 6], [18, 30, 6], [-30, -30, 5], [30, -30, 5]].forEach(([x, y, r]) => A.fcircle(x, y, r));
+          });
+          // dew drops
+          [[430, 700, 16], [600, 330, 13], [470, 420, 11], [650, 470, 12], [560, 220, 10]].forEach(d => { A.fcircle(d[0], d[1], d[2]); });
+        });
+      },
+
+      wave(A) {
+        const TAU = A.TAU;
+        // sky
+        A.fcircle(780, 190, 78);
+        A.circle(780, 190, 52);
+        A.front(A.zigzagP(780, 190, 95, 140, 16));
+        A.fcircle(780, 190, 95);
+        A.fcircle(780, 190, 78); A.circle(780, 190, 52);
+        A.front(A.cloudP(230, 170, 300, 90, 5));
+        A.front(A.cloudP(520, 250, 200, 60, 4));
+        [[380, 120], [440, 90], [620, 110]].forEach(([x, y]) => { A.s(A.smoothP([[x - 30, y + 8], [x - 15, y - 6], [x, y + 6]], true)); A.s(A.smoothP([[x, y + 6], [x + 15, y - 6], [x + 30, y + 8]], true)); });
+        // big curling wave
+        const waveTop = [];
+        for (let x = -20; x <= 1020; x += 20) waveTop.push([x, 480 + Math.sin(x / 1000 * TAU * 2 + 0.6) * 55]);
+        const wavePath = new Path2D();
+        waveTop.forEach((q, i) => i ? wavePath.lineTo(q[0], q[1]) : wavePath.moveTo(q[0], q[1]));
+        wavePath.lineTo(1020, 1020); wavePath.lineTo(-20, 1020); wavePath.closePath();
+        A.front(wavePath);
+        A.clip(wavePath, () => {
+          A.wavy(40, 12, 250, [0, 520, 1000, 120]);
+        });
+        [[130, 440], [630, 440]].forEach(([x, y]) => { A.fcircle(x, y, 62); A.spiral(x, y, 4, 56, 2.4, 0.3); [[-70, 30, 14], [72, 34, 12], [-40, -62, 10]].forEach(([dx, dy, r]) => A.fcircle(x + dx, y + dy, r)); });
+        // seigaiha sea
+        const sea = new Path2D(); sea.rect(0, 660, 1000, 340);
+        A.front(sea);
+        A.clip(sea, () => A.seigaiha(70, [0, 690, 1000, 330]));
+      },
+
+      heart(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        const keep = A.away([[500, 470, 390], [150, 820, 0, 0]]);
+        A.scatter(16, 90, (x, y) => keep(x, y) && y < 840, (x, y, i) => i % 3 === 2 ? A.sparkle(x, y, 18) : A.front(A.heartP(x, y, 22 + (i % 3) * 8)), 34);
+        // ribbon banner
+        const ban = A.smoothP([[180, 860], [500, 890], [820, 860], [830, 950], [500, 975], [170, 950]]);
+        A.front(A.polyP([[90, 880], [190, 875], [180, 960], [80, 960], [120, 920]]));
+        A.front(A.polyP([[910, 880], [810, 875], [820, 960], [920, 960], [880, 920]]));
+        A.front(ban);
+        A.clip(ban, () => A.dots(46, 7, [180, 860, 650, 120]));
+        const outer = A.heartP(cx, cy, 330);
+        A.front(outer);
+        const inner = A.heartP(cx, cy + 10, 272);
+        A.s(inner);
+        // band between the hearts, cut into little segments
+        const band = new Path2D(); band.addPath(outer); band.addPath(inner);
+        A.clip(band, () => { for (let i = 0; i < 36; i++) { const a = i * TAU / 36; A.line(cx, cy + 40, cx + Math.cos(a) * 700, cy + 40 + Math.sin(a) * 700); } }, 'evenodd');
+        A.clip(inner, () => {
+          A.wavy(48, 14, 170, [0, 150, 1000, 800]);
+          A.fcircle(cx, cy + 10, 175);
+          A.front(A.scallopP(cx, cy + 10, 150, 20, 10));
+          A.fcircle(cx, cy + 10, 150);
+          A.petalRing(cx, cy + 10, 10, 50, 145, 26, 0, { shape: 'round', inner: true });
+          A.fcircle(cx, cy + 10, 50);
+          A.front(A.heartP(cx, cy + 10, 30));
+        });
+      },
+
+      moon(A) {
+        const TAU = A.TAU;
+        const big = A.circleP(520, 450, 300), cut = A.circleP(660, 350, 265);
+        const outside = new Path2D(); outside.rect(-10, -10, 1020, 1020); outside.addPath(cut);
+        const keep = A.away([[520, 450, 350], [0, 780, 1000, 300], [140, 150, 120]]);
+        A.scatter(18, 85, keep, (x, y, i) => i % 3 === 0 ? A.sparkle(x, y, 20) : (i % 3 === 1 ? A.star5(x, y, 26 + (i % 4) * 6) : A.circle(x, y, 8)), 30);
+        // crescent: big circle minus the cut circle
+        A.clip(outside, () => { A.front(big); }, 'evenodd');
+        A.clip(big, () => { A.s(cut); });
+        A.clip(big, () => A.clip(outside, () => {
+          [[330, 560, 46], [300, 420, 26], [430, 690, 34], [560, 720, 18], [270, 300, 18], [650, 680, 26], [380, 330, 14]].forEach(d => { A.fcircle(d[0], d[1], d[2]); A.arc(d[0], d[1], d[2] * 0.62, 0.3, 2.2); });
+          [[470, 560, 20], [520, 620, 12], [300, 650, 16], [410, 460, 22]].forEach(d => { A.fcircle(d[0], d[1], d[2]); A.arc(d[0], d[1], d[2] * 0.62, 0.3, 2.2); });
+        }, 'evenodd'));
+        // ringed planet
+        A.ellipse(140, 150, 95, 22, -0.3); A.fcircle(140, 150, 55);
+        A.clip(A.polyP([[0, 170], [300, 80], [300, 300], [0, 300]]), () => { A.ellipse(140, 150, 95, 22, -0.3); });
+        A.clip(A.circleP(140, 150, 55), () => { A.line(80, 130, 200, 110); A.line(85, 175, 200, 160); });
+        // hanging stars
+        [[760, 0, 560, 40], [860, 0, 460, 32]].forEach(([x, y0, y1, r]) => { A.line(x, y0, x, y1 - r); A.star5(x, y1, r); });
+        // clouds
+        A.front(A.cloudP(250, 860, 460, 150, 6));
+        A.front(A.cloudP(760, 890, 480, 150, 6));
+        A.front(A.cloudP(520, 960, 420, 110, 5));
+      },
+
+      star(A) {
+        const cx = 500, cy = 540, TAU = A.TAU;
+        const keep = A.away([[cx, cy, 380]]);
+        A.scatter(18, 80, keep, (x, y, i) => i % 3 === 0 ? A.star5(x, y, 22 + (i % 3) * 6) : (i % 3 === 1 ? A.sparkle(x, y, 22) : A.circle(x, y, 9)), 30);
+        // shooting stars
+        [[150, 160, 0.5], [820, 150, 2.5]].forEach(([x, y, a]) => {
+          for (let k = -1; k <= 1; k++) {
+            const ox = Math.cos(a + Math.PI / 2) * k * 16, oy = Math.sin(a + Math.PI / 2) * k * 16;
+            A.line(x + ox, y + oy, x + ox - Math.cos(a) * (140 - Math.abs(k) * 40), y + oy - Math.sin(a) * (140 - Math.abs(k) * 40));
+          }
+          A.star5(x, y, 34, a);
+        });
+        const R = 360, r = 150;
+        const outer = A.starP(cx, cy, R, r, 5);
+        A.front(outer);
+        A.clip(outer, () => {
+          for (let i = 0; i < 10; i++) {
+            const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r : R;
+            A.line(cx, cy, cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+          }
+          A.s(A.starP(cx, cy, R * 0.72, r * 0.72, 5));
+          A.s(A.starP(cx, cy, R * 0.44, r * 0.44, 5));
+        });
+        A.fcircle(cx, cy, 44);
+        A.front(A.softStarP(cx, cy, 36, 16, 5));
+      },
+
+      sun(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        A.front(A.cloudP(170, 900, 320, 100, 5));
+        A.front(A.cloudP(860, 130, 260, 80, 4));
+        A.petalRing(cx, cy, 12, 200, 440, 46, TAU / 24, { shape: 'pointy', inner: true });
+        A.petalRing(cx, cy, 12, 200, 350, 40, 0, { shape: 'drop', inner: true });
+        A.fcircle(cx, cy, 225);
+        A.dotRing(cx, cy, 208, 28, 7);
+        A.fcircle(cx, cy, 192);
+        // face
+        [[-1], [1]].forEach(([s]) => {
+          A.fellipse(cx + s * 70, cy - 30, 30, 38);
+          A.fcircle(cx + s * 70, cy - 22, 17);
+          A.circle(cx + s * 76, cy - 30, 5);
+          A.s(A.smoothP([[cx + s * 40, cy - 90], [cx + s * 70, cy - 102], [cx + s * 100, cy - 92]], true));
+          A.fcircle(cx + s * 115, cy + 40, 26);
+        });
+        A.s(A.smoothP([[cx - 70, cy + 60], [cx, cy + 110], [cx + 70, cy + 60]], true));
+        A.s(A.smoothP([[cx - 70, cy + 60], [cx, cy + 80], [cx + 70, cy + 60]], true));
+        A.line(cx - 70, cy + 60, cx - 80, cy + 50); A.line(cx + 70, cy + 60, cx + 80, cy + 50);
+        // birds
+        [[120, 150], [200, 110], [800, 850]].forEach(([x, y]) => { A.s(A.smoothP([[x - 34, y + 8], [x - 16, y - 8], [x, y + 6]], true)); A.s(A.smoothP([[x, y + 6], [x + 16, y - 8], [x + 34, y + 8]], true)); });
+      },
+
+      tree(A) {
+        const TAU = A.TAU;
+        // sky
+        A.fcircle(120, 120, 70);
+        A.rays(120, 120, 90, 140, 12, 0.13);
+        A.front(A.cloudP(840, 110, 220, 70, 4));
+        [[330, 90], [390, 60]].forEach(([x, y]) => { A.s(A.smoothP([[x - 28, y + 7], [x - 13, y - 6], [x, y + 5]], true)); A.s(A.smoothP([[x, y + 5], [x + 13, y - 6], [x + 28, y + 7]], true)); });
+        // ground
+        const hill = A.smoothP([[-20, 850], [250, 815], [520, 835], [800, 810], [1020, 830], [1020, 1020], [-20, 1020]]);
+        A.front(hill);
+        [[60, 900], [230, 880], [400, 960], [560, 900], [760, 970], [940, 880], [640, 870]].forEach(([x, y]) => A.tuft(x, y, 1));
+        [[120, 900, 32], [860, 910, 30], [300, 950, 24], [700, 960, 26]].forEach(([x, y, r], i) => { A.line(x, y + r * 0.3, x, y + r * 2.2); A.flowerSmall(x, y, r, 5 + (i % 2), i); });
+        // trunk with roots
+        const trunk = A.smoothP([[455, 520], [445, 640], [430, 760], [380, 850], [340, 875], [430, 868], [470, 845], [500, 875], [530, 845], [570, 868], [660, 875], [620, 850], [570, 760], [555, 640], [545, 520]]);
+        A.front(trunk);
+        A.clip(trunk, () => {
+          A.s(A.smoothP([[480, 560], [470, 660], [485, 760]], true));
+          A.s(A.smoothP([[525, 600], [530, 700], [515, 800]], true));
+          A.fellipse(505, 700, 22, 34); A.ellipse(505, 700, 12, 22);
+        });
+        // branches up into the crown
+        A.front(A.smoothP([[460, 530], [380, 440], [300, 380], [310, 368], [400, 420], [475, 500]]));
+        A.front(A.smoothP([[540, 530], [620, 440], [700, 380], [690, 368], [600, 420], [525, 500]]));
+        // crown: overlapping leafy puffs, back to front
+        const puffs = [[500, 200, 120], [330, 270, 115], [670, 270, 115], [220, 390, 100], [780, 390, 100], [400, 330, 110], [600, 330, 110], [320, 450, 95], [680, 450, 95], [500, 360, 125], [500, 470, 90]];
+        puffs.forEach(([x, y, r], i) => {
+          const p = A.scallopP(x, y, r * 0.86, 9 + (i % 3), r * 0.07, i);
+          A.front(p);
+          A.clip(p, () => { for (let k = 0; k < 3; k++) { const a = i * 1.7 + k * 2.1, rr = r * 0.42; A.s(A.leafP(x + Math.cos(a) * rr * 0.3, y + Math.sin(a) * rr * 0.3, x + Math.cos(a) * rr * 1.3, y + Math.sin(a) * rr * 1.3, 14)); } });
+        });
+        // apples + a little bird house
+        [[300, 300], [690, 250], [430, 420], [610, 420], [240, 420], [520, 260], [760, 420]].forEach(([x, y]) => {
+          A.fcircle(x, y, 22); A.line(x, y - 22, x + 4, y - 34); A.front(A.leafP(x + 4, y - 30, x + 26, y - 42, 7));
+        });
+      },
+
+      bird(A) {
+        const TAU = A.TAU;
+        // music notes + blossoms in the background
+        const note = (x, y, s) => { A.fellipse(x, y, 16 * s, 12 * s, -0.4); A.line(x + 14 * s, y - 4 * s, x + 14 * s, y - 70 * s); A.s(A.smoothP([[x + 14 * s, y - 70 * s], [x + 36 * s, y - 55 * s], [x + 40 * s, y - 34 * s]], true)); };
+        note(170, 220, 1.2); note(260, 140, 0.9); note(820, 210, 1.1); note(890, 330, 0.8);
+        A.scatter(8, 110, A.away([[480, 470, 360], [0, 600, 1000, 400], [150, 60, 180, 220], [760, 120, 200, 260]]), (x, y, i) => A.sparkle(x, y, 18), 30);
+        // branch
+        const branch = A.smoothP([[-20, 745], [300, 710], [620, 690], [1020, 640], [1020, 680], [620, 732], [300, 752], [-20, 790]]);
+        A.front(branch);
+        A.clip(branch, () => { A.s(A.smoothP([[40, 760], [120, 752], [200, 758]], true)); A.s(A.smoothP([[700, 700], [800, 690], [880, 680]], true)); });
+        A.front(A.smoothP([[760, 672], [820, 600], [870, 560], [880, 572], [830, 615], [790, 675]]));
+        A.leaf(840, 590, 940, 500, 34, 3); A.leaf(800, 640, 880, 720, 30, 3);
+        A.leaf(150, 760, 90, 880, 36, 3); A.leaf(230, 745, 320, 860, 34, 3); A.leaf(600, 700, 690, 810, 32, 3);
+        [[880, 720, 18], [905, 745, 16], [870, 760, 15], [120, 900, 17], [150, 915, 15]].forEach(([x, y, r]) => A.fcircle(x, y, r));
+        // legs
+        A.s(A.polyP([[470, 612], [462, 700], [440, 712]], true)); A.s(A.polyP([[462, 700], [478, 714]], true));
+        A.s(A.polyP([[540, 612], [548, 694], [528, 706]], true)); A.s(A.polyP([[548, 694], [566, 706]], true));
+        // tail feathers
+        A.front(A.petalP(640, 520, 0.45, 0, 280, 40, 'round'));
+        A.front(A.petalP(640, 520, 0.7, 0, 260, 38, 'round'));
+        A.front(A.petalP(640, 520, 0.2, 0, 250, 36, 'round'));
+        // body
+        const body = A.ellipseP(500, 500, 190, 135, 0.3);
+        A.front(body);
+        A.clip(body, () => {
+          const belly = A.smoothP([[330, 470], [420, 600], [560, 640], [650, 590], [700, 700], [300, 700]]);
+          A.s(belly);
+          A.clip(belly, () => A.scales(26, [300, 480, 420, 240]));
+        });
+        // head + crest
+        A.front(A.petalP(350, 300, -2.05, 0, 130, 20, 'round'));
+        A.front(A.petalP(350, 300, -1.7, 0, 145, 22, 'round'));
+        A.front(A.petalP(350, 300, -1.35, 0, 115, 18, 'round'));
+        A.fcircle(360, 370, 108);
+        A.fcircle(325, 350, 26); A.fcircle(318, 345, 12); A.circle(330, 338, 5);
+        A.fcircle(380, 420, 20);
+        A.front(A.polyP([[262, 360], [190, 392], [262, 418]]));
+        A.line(262, 389, 205, 392);
+        // wing
+        const wing = A.smoothP([[430, 430], [560, 400], [700, 470], [780, 590], [700, 560], [640, 610], [560, 560], [460, 520]]);
+        A.front(wing);
+        A.clip(wing, () => {
+          A.scales(30, [400, 380, 280, 120]);
+          [0, 1, 2].forEach(i => A.s(A.petalP(560 + i * 45, 520 + i * 20, 0.55, 0, 160 - i * 20, 20, 'round')));
+        });
+      },
+
+      fish(A) {
+        const TAU = A.TAU;
+        // sea floor with seaweed, coral, pebbles
+        const sand = A.smoothP([[-20, 900], [300, 880], [650, 905], [1020, 885], [1020, 1020], [-20, 1020]]);
+        [[90, 930, -0.05, 330], [180, 940, 0.12, 250], [860, 930, 0.08, 330], [930, 940, -0.1, 230]].forEach(([x, y, lean, hgt]) => {
+          const pts = [];
+          for (let k = 0; k <= 6; k++) pts.push([x + Math.sin(k * 1.3) * 26 + lean * k * 40, y - k * hgt / 6]);
+          const back = pts.slice().reverse().map(([px, py], k) => [px + 34 - k * 4, py]);
+          A.front(A.smoothP(pts.concat(back)));
+        });
+        A.front(sand);
+        A.clip(sand, () => A.dots(46, 5, [0, 900, 1000, 120]));
+        [[330, 930, 40, 22], [390, 945, 26, 16], [640, 935, 36, 20]].forEach(([x, y, rx, ry]) => A.fellipse(x, y, rx, ry));
+        // bubbles
+        [[160, 400, 22], [120, 320, 30], [150, 220, 16], [110, 150, 24], [820, 150, 18], [870, 90, 12]].forEach(([x, y, r]) => { A.fcircle(x, y, r); A.arc(x, y, r * 0.6, 3.6, 4.6); });
+        // little fish friend
+        A.front(A.polyP([[780, 250], [820, 225], [820, 275]]));
+        A.fellipse(730, 250, 60, 30); A.circle(705, 245, 7);
+        A.clip(A.ellipseP(730, 250, 60, 30), () => { A.line(740, 210, 740, 290); A.line(760, 210, 760, 290); });
+        // fins behind body
+        const dorsal = A.smoothP([[310, 330], [380, 210], [520, 170], [640, 250], [650, 360], [500, 330]]);
+        A.front(dorsal);
+        A.clip(dorsal, () => { for (let i = 0; i < 8; i++) A.line(470, 380, 300 + i * 50, 150); });
+        const vent = A.smoothP([[380, 620], [430, 740], [540, 760], [580, 620]]);
+        A.front(vent);
+        A.clip(vent, () => { for (let i = 0; i < 6; i++) A.line(480, 590, 380 + i * 45, 790); });
+        const tail = A.smoothP([[680, 480], [790, 350], [900, 300], [870, 480], [900, 660], [790, 610]]);
+        A.front(tail);
+        A.clip(tail, () => { for (let i = 0; i < 9; i++) { const a = -0.9 + i * 0.225; A.line(690, 480, 690 + Math.cos(a) * 300, 480 + Math.sin(a) * 300); } A.s(A.xform(tail, 690, 480, 0.55)); });
+        // body
+        const body = A.smoothP([[160, 480], [240, 350], [420, 290], [600, 340], [710, 470], [600, 610], [420, 660], [240, 610]]);
+        A.front(body);
+        A.clip(body, () => {
+          A.s(A.smoothP([[330, 250], [300, 480], [340, 700]], true));
+          A.s(A.smoothP([[370, 250], [345, 480], [385, 700]], true));
+          A.s(A.smoothP([[530, 250], [500, 480], [540, 700]], true));
+          A.s(A.smoothP([[575, 250], [548, 480], [585, 700]], true));
+          A.clip(A.polyP([[385, 200], [520, 200], [490, 720], [390, 720]]), () => A.scales(26, [340, 280, 220, 400]));
+          A.clip(A.polyP([[590, 200], [800, 200], [800, 720], [590, 720]]), () => A.scales(24, [560, 300, 200, 360]));
+        });
+        A.fcircle(240, 440, 32); A.fcircle(240, 446, 16); A.circle(246, 436, 5);
+        A.s(A.smoothP([[165, 500], [190, 510], [210, 500]], true));
+        const pec = A.leafP(330, 500, 450, 590, 34);
+        A.front(pec);
+        A.clip(pec, () => { for (let i = 0; i < 5; i++) A.line(330, 500, 470, 520 + i * 25); });
+      },
+
+      cat(A) {
+        const TAU = A.TAU;
+        // paw prints + hearts
+        const paw = (x, y, s) => { A.fellipse(x, y, 26 * s, 21 * s); [[-26, -26], [-9, -38], [9, -38], [26, -26]].forEach(([dx, dy]) => A.fcircle(x + dx * s, y + dy * s, 9 * s)); };
+        paw(110, 150, 1.1); paw(210, 90, 0.8); paw(880, 140, 1); paw(900, 320, 0.8);
+        [[130, 330], [870, 470]].forEach(([x, y]) => A.front(A.heartP(x, y, 30)));
+        // yarn ball
+        const yarn = A.circleP(160, 720, 95);
+        A.s(A.smoothP([[160, 815], [220, 870], [330, 880], [300, 930], [380, 940]], true));
+        A.front(yarn);
+        A.clip(yarn, () => { [-60, -20, 20, 60].forEach(o => A.ellipse(160 + o, 720, 110, 60, 1.1)); A.ellipse(160, 720, 100, 40, -0.4); });
+        // cushion
+        const cushion = A.rectP(250, 860, 500, 110, 50);
+        A.front(A.petalP(255, 915, Math.PI, 0, 70, 18, 'round'));
+        A.front(A.petalP(745, 915, 0, 0, 70, 18, 'round'));
+        A.front(cushion);
+        A.clip(cushion, () => A.grid(46, Math.PI / 4, [250, 860, 500, 110]));
+        // tail
+        const tail = A.smoothP([[640, 880], [800, 870], [880, 760], [850, 620], [800, 600], [815, 640], [835, 740], [780, 830], [640, 845]]);
+        A.front(tail);
+        A.clip(tail, () => { [[760, 820], [830, 760], [845, 690]].forEach(([x, y]) => A.line(x - 30, y - 50, x + 60, y + 30)); });
+        // body
+        const body = A.smoothP([[390, 560], [330, 700], [320, 880], [680, 880], [670, 700], [610, 560]]);
+        A.front(body);
+        A.clip(body, () => {
+          A.ellipse(500, 740, 95, 140);
+          A.s(A.smoothP([[430, 700], [420, 800], [430, 880]], true));
+          A.s(A.smoothP([[570, 700], [580, 800], [570, 880]], true));
+        });
+        [[430, 885], [570, 885]].forEach(([x, y]) => { A.fellipse(x, y, 60, 30); A.line(x - 15, y - 10, x - 15, y + 25); A.line(x + 15, y - 10, x + 15, y + 25); });
+        // collar + bell
+        A.clip(body, () => A.s(A.smoothP([[360, 575], [500, 610], [640, 575], [640, 610], [500, 645], [360, 610]])));
+        A.fcircle(500, 650, 26); A.line(474, 650, 526, 650); A.circle(500, 662, 5);
+        // ears
+        [[-1], [1]].forEach(([s]) => {
+          A.front(A.polyP([[500 + s * 170, 380], [500 + s * 175, 190], [500 + s * 60, 300]]));
+          A.s(A.polyP([[500 + s * 150, 350], [500 + s * 158, 235], [500 + s * 90, 305]]));
+        });
+        // head
+        const head = A.smoothP([[500, 285], [640, 310], [700, 420], [660, 530], [500, 575], [340, 530], [300, 420], [360, 310]]);
+        A.front(head);
+        A.clip(head, () => {
+          [[-40], [0], [40]].forEach(([dx]) => A.front(A.petalP(500 + dx, 285, Math.PI / 2, 0, 60 - Math.abs(dx) * 0.4, 12)));
+          A.s(A.smoothP([[380, 540], [440, 470], [500, 460], [560, 470], [620, 540], [500, 600]]));
+        });
+        [[-1], [1]].forEach(([s]) => {
+          A.front(A.leafP(500 + s * 25, 420, 500 + s * 125, 405, 32));
+          A.fellipse(500 + s * 75, 414, 14, 26);
+          A.circle(500 + s * 70, 404, 5);
+          for (let k = -1; k <= 1; k++) A.line(500 + s * 90, 495 + k * 14, 500 + s * 250, 470 + k * 40);
+        });
+        A.front(A.polyP([[480, 470], [520, 470], [500, 492]]));
+        A.s(A.smoothP([[500, 492], [490, 515], [470, 518]], true)); A.s(A.smoothP([[500, 492], [510, 515], [530, 518]], true));
+      },
+
+      house(A) {
+        const TAU = A.TAU;
+        A.fcircle(120, 120, 60); A.rays(120, 120, 78, 118, 12);
+        A.front(A.cloudP(420, 110, 220, 70, 4)); A.front(A.cloudP(830, 90, 200, 60, 4));
+        // ground + path
+        const ground = A.smoothP([[-20, 800], [300, 790], [700, 795], [1020, 785], [1020, 1020], [-20, 1020]]);
+        A.front(ground);
+        [[60, 880], [180, 960], [300, 870], [700, 880], [820, 960], [940, 870]].forEach(([x, y]) => A.tuft(x, y, 1));
+        const path = A.polyP([[445, 810], [555, 810], [640, 1020], [360, 1020]]);
+        A.front(path);
+        A.clip(path, () => { [[500, 850, 40, 16], [485, 905, 50, 20], [515, 965, 62, 22]].forEach(([x, y, rx, ry]) => A.ellipse(x, y, rx, ry)); });
+        // fences
+        [[20, 250], [750, 980]].forEach(([x0, x1]) => {
+          A.front(A.rectP(x0, 700, x1 - x0, 22, 4)); A.front(A.rectP(x0, 752, x1 - x0, 22, 4));
+          for (let x = x0 + 8; x < x1 - 20; x += 48) A.front(A.polyP([[x, 800], [x, 680], [x + 17, 660], [x + 34, 680], [x + 34, 800]]));
+        });
+        // chimney + smoke
+        A.front(A.rectP(610, 180, 70, 180)); A.front(A.rectP(596, 165, 98, 30, 4));
+        [[660, 120, 22], [690, 70, 28], [650, 30, 20]].forEach(([x, y, r]) => { A.fcircle(x, y, r); A.spiral(x, y, 2, r * 0.7, 1.3); });
+        // walls
+        const wall = A.rectP(250, 470, 500, 340);
+        A.front(wall);
+        A.clip(wall, () => { [[270, 700], [320, 740], [690, 500], [650, 540], [690, 760]].forEach(([x, y]) => A.s(A.rectP(x, y, 44, 22, 6))); });
+        // roof with tiles
+        const roof = A.polyP([[200, 490], [500, 200], [800, 490]]);
+        A.front(roof);
+        A.clip(roof, () => {
+          A.scales(34, [180, 190, 640, 320]);
+          A.fcircle(500, 380, 48); A.circle(500, 380, 34); A.line(466, 380, 534, 380); A.line(500, 346, 500, 414);
+        });
+        A.front(A.polyP([[180, 500], [500, 190], [820, 500], [790, 510], [500, 228], [210, 510]]));
+        // door
+        const door = new Path2D(); door.moveTo(440, 810); door.lineTo(440, 670); door.arc(500, 670, 60, Math.PI, 0); door.lineTo(560, 810); door.closePath();
+        A.front(door);
+        A.clip(door, () => { A.line(480, 600, 480, 810); A.line(520, 600, 520, 810); });
+        A.fcircle(500, 665, 22); A.line(478, 665, 522, 665); A.fcircle(542, 740, 8);
+        // windows with flower boxes
+        [[290, 560], [600, 560]].forEach(([x, y]) => {
+          A.front(A.rectP(x, y, 110, 100, 6)); A.s(A.rectP(x + 10, y + 10, 90, 80, 4));
+          A.line(x + 55, y + 10, x + 55, y + 90); A.line(x + 10, y + 50, x + 100, y + 50);
+          [0, 1, 2].forEach(k => A.flowerSmall(x + 20 + k * 35, y + 106, 20, 5, k));
+          A.front(A.rectP(x - 8, y + 110, 126, 32, 6));
+        });
+      },
+
+      cloud(A) {
+        const TAU = A.TAU;
+        // sun peeking behind the cloud
+        A.petalRing(760, 250, 12, 120, 200, 28, 0.1, { shape: 'pointy' });
+        A.fcircle(760, 250, 120); A.circle(760, 250, 92);
+        // small clouds
+        A.front(A.cloudP(170, 130, 220, 70, 4));
+        A.front(A.cloudP(870, 560, 200, 60, 4));
+        // rain drops
+        for (let row = 0; row < 4; row++) for (let k = 0; k < 5; k++) {
+          const x = 230 + k * 90 + (row % 2) * 45, y = 600 + row * 80;
+          if (x < 700) A.front(A.dropP(x, y, 15));
+        }
+        // puddles with ripples
+        [[330, 930, 150, 30], [680, 945, 110, 24]].forEach(([x, y, rx, ry]) => { A.fellipse(x, y, rx, ry); A.ellipse(x, y, rx * 0.6, ry * 0.55); A.ellipse(x, y, rx * 0.25, ry * 0.25); });
+        // umbrella
+        const um = new Path2D(); um.moveTo(700, 760); um.arc(820, 760, 120, Math.PI, 0);
+        for (let k = 0; k < 4; k++) um.quadraticCurveTo(940 - k * 60 - 30, 735, 940 - (k + 1) * 60, 760);
+        um.closePath();
+        A.front(um);
+        A.clip(um, () => { A.s(A.smoothP([[820, 640], [790, 700], [760, 760]], true)); A.s(A.smoothP([[820, 640], [850, 700], [880, 760]], true)); A.line(820, 640, 820, 760); });
+        A.s(A.smoothP([[820, 760], [820, 880], [800, 900], [782, 882]], true));
+        A.fcircle(820, 632, 10);
+        // big smiling cloud
+        const big = A.cloudP(470, 420, 620, 230, 6);
+        A.front(big);
+        A.clip(big, () => { A.s(A.xform(big, 470, 450, 0.7)); });
+        [[-1], [1]].forEach(([s]) => { A.arc(470 + s * 70, 430, 24, 0.2, Math.PI - 0.2); A.fcircle(470 + s * 130, 470, 26); });
+        A.s(A.smoothP([[430, 480], [470, 510], [510, 480]], true));
+      },
+
+      snowflake(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        const mini = (x, y, r) => { for (let i = 0; i < 6; i++) { const a = i * TAU / 6; A.line(x, y, x + Math.cos(a) * r, y + Math.sin(a) * r); A.line(x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, x + Math.cos(a + 0.5) * r * 0.8, y + Math.sin(a + 0.5) * r * 0.8); } A.fcircle(x, y, r * 0.22); };
+        A.scatter(12, 100, A.away([[cx, cy, 450]]), (x, y, i) => i % 2 ? mini(x, y, 34) : A.fcircle(x, y, 10), 36);
+        for (let i = 0; i < 6; i++) {
+          const a = i * TAU / 6 - Math.PI / 2;
+          A.at(cx, cy, a, 1, () => {
+            // arm (pointing along +x)
+            A.line(210, 0, 400, 0);
+            [[250, 95], [305, 75], [350, 50]].forEach(([d, L]) => { A.line(d, 0, d + L * 0.55, -L); A.line(d, 0, d + L * 0.55, L); A.fcircle(d + L * 0.55, -L, 8); A.fcircle(d + L * 0.55, L, 8); });
+            A.front(A.polyP([[60, 0], [130, -34], [210, 0], [130, 34]]));
+            A.s(A.polyP([[92, 0], [130, -16], [172, 0], [130, 16]]));
+            A.fcircle(232, 0, 20); A.circle(232, 0, 9);
+            A.front(A.polyP([[380, 0], [410, -20], [450, 0], [410, 20]]));
+            // between arms
+            A.front(A.petalP(0, 0, Math.PI / 6, 80, 200, 34, 'round'));
+            A.s(A.petalP(0, 0, Math.PI / 6, 100, 180, 16, 'round'));
+            A.fcircle(Math.cos(Math.PI / 6) * 225, Math.sin(Math.PI / 6) * 225, 12);
+          });
+        }
+        A.front(A.polyP([0, 1, 2, 3, 4, 5].map(k => [cx + Math.cos(k * TAU / 6) * 70, cy + Math.sin(k * TAU / 6) * 70])));
+        A.s(A.polyP([0, 1, 2, 3, 4, 5].map(k => [cx + Math.cos(k * TAU / 6 + TAU / 12) * 44, cy + Math.sin(k * TAU / 6 + TAU / 12) * 44])));
+        A.fcircle(cx, cy, 18);
+      },
+
+      spiral(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        // side swirls, each in its own bubble
+        [[140, 140, 95, 1], [860, 150, 80, -1], [120, 860, 85, -1], [870, 850, 100, 1], [880, 500, 55, 1], [110, 500, 60, -1], [500, 930, 50, 1], [500, 70, 45, -1]].forEach(([x, y, r, dir]) => {
+          A.fcircle(x, y, r);
+          const pts = A.spiralPts(x, y, 4, r * 0.8, 2.2, 0).map(([px, py]) => dir > 0 ? [px, py] : [2 * x - px, py]);
+          A.s(A.polyP(pts, true));
+        });
+        A.scatter(14, 70, A.away([[cx, cy, 380], [140, 140, 120], [860, 150, 110], [120, 860, 110], [870, 850, 125], [880, 500, 80], [110, 500, 85], [500, 930, 75], [500, 70, 70]]), (x, y) => A.fcircle(x, y, 10), 20);
+        // big ribbon spiral split into cells
+        const b = 30, turns = 3.3, a0 = 40;
+        const rA = th => a0 + b * th / Math.PI;
+        const ptsA = [], ptsB = [];
+        const end = turns * TAU;
+        for (let th = 0; th <= end; th += 0.05) {
+          ptsA.push([cx + Math.cos(th) * rA(th), cy + Math.sin(th) * rA(th)]);
+          ptsB.push([cx + Math.cos(th) * (rA(th) + b * 1.0), cy + Math.sin(th) * (rA(th) + b * 1.0)]);
+        }
+        A.fcircle(cx, cy, rA(end) + b + 12);
+        A.s(A.polyP(ptsA, true)); A.s(A.polyP(ptsB, true));
+        for (let th = 0.2; th <= end; th += 0.42) {
+          const r1 = rA(th), r2 = r1 + b;
+          A.line(cx + Math.cos(th) * r1, cy + Math.sin(th) * r1, cx + Math.cos(th) * r2, cy + Math.sin(th) * r2);
+        }
+        A.line(ptsA[ptsA.length - 1][0], ptsA[ptsA.length - 1][1], ptsB[ptsB.length - 1][0], ptsB[ptsB.length - 1][1]);
+        A.fcircle(cx, cy, 34); A.circle(cx, cy, 14);
+      },
+
+      diamond(A) {
+        const TAU = A.TAU;
+        A.scatter(12, 110, A.away([[500, 520, 400], [60, 700, 260, 300], [700, 720, 280, 300], [60, 40, 250, 250]]), (x, y, i) => A.sparkle(x, y, 26 - (i % 3) * 5), 30);
+        // big brilliant cut gem
+        const T = [330, 415, 500, 585, 670].map(x => [x, 330]);
+        const G = [180, 340, 500, 660, 820].map(x => [x, 450]);
+        const tip = [500, 880];
+        A.front(A.polyP([T[0], T[4], G[4], tip, G[0]]));
+        for (let i = 0; i < 4; i++) { A.line(T[i][0], T[i][1], G[i][0], G[i][1]); A.line(T[i][0], T[i][1], G[i + 1][0], G[i + 1][1]); A.line(T[i + 1][0], T[i + 1][1], G[i + 1][0], G[i + 1][1]); }
+        A.line(G[0][0], G[0][1], G[4][0], G[4][1]);
+        G.forEach(g => A.line(g[0], g[1], tip[0], tip[1]));
         for (let i = 0; i < 4; i++) {
-          const a = (i / 4) * Math.PI * 2;
-          tctx.moveTo(sx, sy);
-          tctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+          const mx = (G[i][0] + G[i + 1][0]) / 2, qx = mx + (tip[0] - mx) * 0.42, qy = 450 + (tip[1] - 450) * 0.42;
+          A.line(mx, 450, qx, qy); A.line(qx, qy, G[i][0], G[i][1]); A.line(qx, qy, G[i + 1][0], G[i + 1][1]);
         }
-        tctx.stroke();
-      });
-    },
-    star(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.4, r = R * 0.42;
-      outlineStyle();
-      tctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 5;
-        const rad = i % 2 === 0 ? R : r;
-        const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad;
-        if (i === 0) tctx.moveTo(x, y); else tctx.lineTo(x, y);
-      }
-      tctx.closePath();
-      tctx.stroke();
-      [[0.16, 0.18], [0.84, 0.2], [0.15, 0.82]].forEach(([fx, fy]) => {
-        const sx = w * fx, sy = h * fy, s = Math.min(w, h) * 0.03;
-        tctx.beginPath();
-        tctx.moveTo(sx - s, sy); tctx.lineTo(sx + s, sy);
-        tctx.moveTo(sx, sy - s); tctx.lineTo(sx, sy + s);
-        tctx.stroke();
-      });
-    },
-    sun(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.22;
-      outlineStyle();
-      tctx.beginPath(); tctx.arc(cx, cy, R, 0, Math.PI * 2); tctx.stroke();
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        tctx.beginPath();
-        tctx.moveTo(cx + Math.cos(a) * R * 1.18, cy + Math.sin(a) * R * 1.18);
-        tctx.lineTo(cx + Math.cos(a) * R * 1.65, cy + Math.sin(a) * R * 1.65);
-        tctx.stroke();
-      }
-    },
-    tree(w, h) {
-      const cx = w / 2, base = h * 0.9, s = Math.min(w, h);
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.05, base); tctx.lineTo(cx - s * 0.04, base - s * 0.3);
-      tctx.moveTo(cx + s * 0.05, base); tctx.lineTo(cx + s * 0.04, base - s * 0.3);
-      tctx.stroke();
-      const top = base - s * 0.3;
-      [[0, -0.18, 0.24], [-0.16, -0.05, 0.2], [0.16, -0.05, 0.2], [0, 0.1, 0.26]].forEach(([fx, fy, fr]) => {
-        tctx.beginPath();
-        tctx.arc(cx + s * fx, top + s * fy, s * fr, 0, Math.PI * 2);
-        tctx.stroke();
-      });
-    },
-    bird(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.32;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.ellipse(cx, cy, s * 0.55, s * 0.38, 0, 0, Math.PI * 2);
-      tctx.stroke();
-      tctx.beginPath(); tctx.arc(cx - s * 0.55, cy - s * 0.22, s * 0.22, 0, Math.PI * 2); tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.75, cy - s * 0.22); tctx.lineTo(cx - s * 0.95, cy - s * 0.14);
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.1, cy - s * 0.1);
-      tctx.quadraticCurveTo(cx + s * 0.1, cy - s * 0.55, cx + s * 0.45, cy - s * 0.3);
-      tctx.quadraticCurveTo(cx + s * 0.15, cy - s * 0.2, cx + s * 0.15, cy + s * 0.05);
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx + s * 0.5, cy + s * 0.2); tctx.lineTo(cx + s * 0.95, cy + s * 0.05);
-      tctx.moveTo(cx + s * 0.5, cy + s * 0.32); tctx.lineTo(cx + s * 0.95, cy + s * 0.32);
-      tctx.stroke();
-    },
-    fish(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.ellipse(cx - s * 0.1, cy, s * 0.6, s * 0.36, 0, 0, Math.PI * 2);
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx + s * 0.45, cy);
-      tctx.lineTo(cx + s * 0.95, cy - s * 0.35);
-      tctx.lineTo(cx + s * 0.95, cy + s * 0.35);
-      tctx.closePath();
-      tctx.stroke();
-      tctx.beginPath(); tctx.arc(cx - s * 0.5, cy - s * 0.06, s * 0.06, 0, Math.PI * 2); tctx.stroke();
-      for (let i = 0; i < 3; i++) {
-        tctx.beginPath();
-        tctx.arc(cx - s * 0.15 + i * s * 0.22, cy, s * 0.18, Math.PI * 0.2, Math.PI * 0.8);
-        tctx.stroke();
-      }
-    },
-    cat(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.3;
-      outlineStyle();
-      tctx.beginPath(); tctx.arc(cx, cy, R, 0, Math.PI * 2); tctx.stroke();
-      [-1, 1].forEach(side => {
-        tctx.beginPath();
-        tctx.moveTo(cx + side * R * 0.55, cy - R * 0.62);
-        tctx.lineTo(cx + side * R * 0.95, cy - R * 1.25);
-        tctx.lineTo(cx + side * R * 1.1, cy - R * 0.4);
-        tctx.closePath();
-        tctx.stroke();
-        tctx.beginPath(); tctx.arc(cx + side * R * 0.32, cy - R * 0.05, R * 0.09, 0, Math.PI * 2); tctx.stroke();
-        for (let i = -1; i <= 1; i++) {
-          tctx.beginPath();
-          tctx.moveTo(cx + side * R * 0.3, cy + R * 0.28 + i * R * 0.12);
-          tctx.lineTo(cx + side * R * 0.95, cy + R * 0.18 + i * R * 0.16);
-          tctx.stroke();
+        A.s(A.polyP([[415, 330], [500, 390], [585, 330]], true));
+        // small gems
+        const round = (x, y, r) => { A.fcircle(x, y, r); A.s(A.starP(x, y, r, r * 0.55, 8, 0)); A.circle(x, y, r * 0.5); };
+        round(170, 170, 90);
+        const em = (x, y, w, h) => {
+          const o = A.polyP([[x - w + 30, y - h], [x + w - 30, y - h], [x + w, y - h + 30], [x + w, y + h - 30], [x + w - 30, y + h], [x - w + 30, y + h], [x - w, y + h - 30], [x - w, y - h + 30]]);
+          A.front(o); A.s(A.rectP(x - w * 0.55, y - h * 0.5, w * 1.1, h, 0));
+          [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => A.line(x + sx * w * 0.55, y + sy * h * 0.5, x + sx * (w - 12), y + sy * (h - 12)));
+        };
+        em(830, 170, 110, 75);
+        const hp = A.heartP(170, 850, 95);
+        A.front(hp); A.s(A.heartP(170, 850, 50)); A.line(170, 802, 170, 755); A.line(170, 940, 170, 897);
+        round(830, 850, 80);
+      },
+
+      owl(A) {
+        const TAU = A.TAU;
+        // moon + stars
+        A.fcircle(800, 180, 110); [[760, 150, 20], [830, 220, 14], [840, 140, 10]].forEach(([x, y, r]) => A.circle(x, y, r));
+        A.scatter(12, 90, A.away([[500, 500, 330], [800, 180, 150], [0, 780, 1000, 300]]), (x, y, i) => i % 2 ? A.star5(x, y, 22) : A.sparkle(x, y, 18), 30);
+        // branch
+        const br = A.smoothP([[-20, 820], [400, 800], [1020, 780], [1020, 830], [400, 850], [-20, 870]]);
+        A.front(br);
+        A.leaf(120, 845, 60, 960, 38, 3); A.leaf(220, 840, 300, 950, 36, 3); A.leaf(820, 800, 900, 700, 36, 3); A.leaf(880, 810, 960, 920, 34, 3);
+        // ear tufts
+        [[-1], [1]].forEach(([s]) => A.front(A.petalP(500 + s * 150, 330, -Math.PI / 2 + s * 0.45, 0, 150, 40, 'pointy')));
+        // body
+        const body = A.smoothP([[500, 250], [680, 290], [730, 500], [700, 700], [500, 800], [300, 700], [270, 500], [320, 290]]);
+        A.front(body);
+        A.clip(body, () => {
+          const belly = A.ellipseP(500, 640, 150, 175);
+          A.front(belly);
+          A.clip(belly, () => A.scales(30, [340, 470, 320, 360]));
+        });
+        // wings
+        [[-1], [1]].forEach(([s]) => {
+          const w = A.smoothP([[500 + s * 200, 430], [500 + s * 250, 560], [500 + s * 220, 720], [500 + s * 170, 640], [500 + s * 170, 520]]);
+          A.front(w);
+          A.clip(w, () => { for (let k = 0; k < 5; k++) A.s(A.smoothP([[500 + s * 160, 480 + k * 55], [500 + s * 210, 510 + k * 55], [500 + s * 260, 480 + k * 55]], true)); });
+        });
+        // face
+        [[-1], [1]].forEach(([s]) => {
+          A.fcircle(500 + s * 85, 430, 98);
+          A.circle(500 + s * 85, 430, 70);
+          A.fcircle(500 + s * 85, 430, 44);
+          A.fcircle(500 + s * 85, 430, 22); A.circle(500 + s * 78, 420, 7);
+        });
+        A.front(A.polyP([[480, 470], [520, 470], [500, 530]]));
+        // feet
+        [[440], [560]].forEach(([x]) => [-18, 0, 18].forEach(d => A.fellipse(x + d, 805, 10, 18)));
+      },
+
+      seashell(A) {
+        const TAU = A.TAU;
+        // sand
+        const sand = A.smoothP([[-20, 820], [300, 800], [700, 830], [1020, 805], [1020, 1020], [-20, 1020]]);
+        A.front(sand);
+        A.clip(sand, () => A.dots(50, 5, [0, 800, 1000, 220]));
+        A.scatter(10, 100, A.away([[500, 470, 420], [0, 700, 1000, 300]]), (x, y, i) => { A.fcircle(x, y, 16 + (i % 3) * 6); A.arc(x, y, (16 + (i % 3) * 6) * 0.6, 3.6, 4.6); }, 36);
+        // scallop shell
+        const hx = 500, hy = 720, R = 390, n = 11, a0 = Math.PI * 1.12, a1 = Math.PI * 1.88;
+        const shell = new Path2D();
+        shell.moveTo(hx + Math.cos(a0) * 70, hy + Math.sin(a0) * 70);
+        shell.lineTo(hx + Math.cos(a0) * R, hy + Math.sin(a0) * R);
+        for (let i = 0; i < n; i++) {
+          const b0 = a0 + (a1 - a0) * i / n, b1 = a0 + (a1 - a0) * (i + 1) / n, bm = (b0 + b1) / 2;
+          shell.quadraticCurveTo(hx + Math.cos(bm) * (R + 55), hy + Math.sin(bm) * (R + 55), hx + Math.cos(b1) * R, hy + Math.sin(b1) * R);
         }
-      });
-      tctx.beginPath();
-      tctx.moveTo(cx - R * 0.08, cy + R * 0.15); tctx.lineTo(cx + R * 0.08, cy + R * 0.15);
-      tctx.lineTo(cx, cy + R * 0.28); tctx.closePath(); tctx.stroke();
-    },
-    house(w, h) {
-      const cx = w / 2, s = Math.min(w, h) * 0.34, base = h / 2 + s * 0.55;
-      outlineStyle();
-      tctx.strokeRect(cx - s * 0.7, base - s * 0.9, s * 1.4, s * 0.9);
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.85, base - s * 0.9);
-      tctx.lineTo(cx, base - s * 1.5);
-      tctx.lineTo(cx + s * 0.85, base - s * 0.9);
-      tctx.stroke();
-      tctx.strokeRect(cx - s * 0.18, base - s * 0.42, s * 0.36, s * 0.42);
-      tctx.beginPath(); tctx.arc(cx - s * 0.38, base - s * 0.55, s * 0.14, 0, Math.PI * 2); tctx.stroke();
-    },
-    cloud(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
-      outlineStyle();
-      [[-0.55, 0.1, 0.32], [-0.15, -0.15, 0.42], [0.3, -0.05, 0.4], [0.65, 0.15, 0.3]].forEach(([fx, fy, fr]) => {
-        tctx.beginPath();
-        tctx.arc(cx + s * fx, cy + s * fy, s * fr, 0, Math.PI * 2);
-        tctx.stroke();
-      });
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.85, cy + s * 0.35); tctx.lineTo(cx + s * 0.95, cy + s * 0.35);
-      tctx.stroke();
-    },
-    snowflake(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.38;
-      outlineStyle();
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        const ex = cx + Math.cos(a) * R, ey = cy + Math.sin(a) * R;
-        tctx.beginPath(); tctx.moveTo(cx, cy); tctx.lineTo(ex, ey); tctx.stroke();
-        [0.45, 0.72].forEach(f => {
-          const bx = cx + Math.cos(a) * R * f, by = cy + Math.sin(a) * R * f;
-          [1, -1].forEach(side => {
-            tctx.beginPath();
-            tctx.moveTo(bx, by);
-            tctx.lineTo(bx + Math.cos(a + side * 0.6) * R * 0.18, by + Math.sin(a + side * 0.6) * R * 0.18);
-            tctx.stroke();
+        shell.lineTo(hx + Math.cos(a1) * 70, hy + Math.sin(a1) * 70);
+        shell.closePath();
+        // hinge ears
+        A.front(A.polyP([[hx - 140, hy - 40], [hx - 60, hy - 70], [hx - 40, hy + 20], [hx - 150, hy + 30]]));
+        A.front(A.polyP([[hx + 140, hy - 40], [hx + 60, hy - 70], [hx + 40, hy + 20], [hx + 150, hy + 30]]));
+        A.front(shell);
+        A.clip(shell, () => {
+          for (let i = 0; i <= n; i++) { const b = a0 + (a1 - a0) * i / n; A.line(hx, hy, hx + Math.cos(b) * (R + 80), hy + Math.sin(b) * (R + 80)); }
+          [0.4, 0.62, 0.82].forEach(f => {
+            const p = new Path2D();
+            for (let i = 0; i <= n * 4; i++) {
+              const b = a0 - 0.1 + (a1 - a0 + 0.2) * i / (n * 4);
+              const bump = Math.abs(Math.sin((b - a0) / (a1 - a0) * n * Math.PI)) * 18 * f;
+              const r = R * f + bump;
+              const x = hx + Math.cos(b) * r, y = hy + Math.sin(b) * r;
+              if (i === 0) p.moveTo(x, y); else p.lineTo(x, y);
+            }
+            A.s(p);
           });
         });
-      }
-    },
-    spiral(w, h) {
-      const cx = w / 2, cy = h / 2, maxR = Math.min(w, h) * 0.42;
-      outlineStyle();
-      tctx.beginPath();
-      const turns = 3.2;
-      for (let t = 0; t <= 1; t += 0.01) {
-        const a = t * Math.PI * 2 * turns, r = t * maxR;
-        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-        if (t === 0) tctx.moveTo(x, y); else tctx.lineTo(x, y);
-      }
-      tctx.stroke();
-    },
-    diamond(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.36;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.6, cy - s * 0.35); tctx.lineTo(cx + s * 0.6, cy - s * 0.35);
-      tctx.lineTo(cx + s * 0.9, cy - s * 0.05); tctx.lineTo(cx, cy + s * 0.85);
-      tctx.lineTo(cx - s * 0.9, cy - s * 0.05); tctx.closePath();
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.3, cy - s * 0.35); tctx.lineTo(cx, cy - s * 0.05); tctx.lineTo(cx + s * 0.3, cy - s * 0.35);
-      tctx.moveTo(cx - s * 0.9, cy - s * 0.05); tctx.lineTo(cx, cy - s * 0.05); tctx.lineTo(cx + s * 0.9, cy - s * 0.05);
-      tctx.moveTo(cx, cy - s * 0.05); tctx.lineTo(cx, cy + s * 0.85);
-      tctx.stroke();
-    },
-    owl(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.32;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.ellipse(cx, cy + s * 0.1, s * 0.62, s * 0.75, 0, 0, Math.PI * 2);
-      tctx.stroke();
-      [-1, 1].forEach(side => {
-        tctx.beginPath();
-        tctx.moveTo(cx + side * s * 0.18, cy - s * 0.6);
-        tctx.lineTo(cx + side * s * 0.38, cy - s * 1.05);
-        tctx.lineTo(cx + side * s * 0.5, cy - s * 0.5);
-        tctx.stroke();
-        tctx.beginPath(); tctx.arc(cx + side * s * 0.28, cy - s * 0.28, s * 0.24, 0, Math.PI * 2); tctx.stroke();
-        tctx.beginPath(); tctx.arc(cx + side * s * 0.28, cy - s * 0.28, s * 0.09, 0, Math.PI * 2); tctx.stroke();
-      });
-      tctx.beginPath();
-      tctx.moveTo(cx, cy - s * 0.12); tctx.lineTo(cx - s * 0.1, cy + s * 0.06); tctx.lineTo(cx + s * 0.1, cy + s * 0.06);
-      tctx.closePath(); tctx.stroke();
-    },
-    seashell(w, h) {
-      const cx = w / 2, cy = h / 2, maxR = Math.min(w, h) * 0.4;
-      outlineStyle();
-      tctx.beginPath();
-      const turns = 1.6;
-      for (let t = 0; t <= 1; t += 0.01) {
-        const a = -Math.PI / 2 + t * Math.PI * 2 * turns, r = t * maxR;
-        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-        if (t === 0) tctx.moveTo(x, y); else tctx.lineTo(x, y);
-      }
-      tctx.stroke();
-      for (let i = 1; i <= 5; i++) {
-        const t = i / 6, a = -Math.PI / 2 + t * Math.PI * 2 * turns, r = t * maxR;
-        tctx.beginPath();
-        tctx.moveTo(cx, cy);
-        tctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-        tctx.stroke();
-      }
-    },
-    mushroom(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.arc(cx, cy - s * 0.05, s * 0.62, Math.PI, 0);
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.6, cy - s * 0.05); tctx.lineTo(cx + s * 0.6, cy - s * 0.05);
-      tctx.stroke();
-      [[-0.28, -0.28, 0.09], [0.22, -0.35, 0.07], [0, -0.05, 0.06], [-0.05, -0.5, 0.05]].forEach(([fx, fy, fr]) => {
-        tctx.beginPath(); tctx.arc(cx + s * fx, cy + s * fy, s * fr, 0, Math.PI * 2); tctx.stroke();
-      });
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.22, cy - s * 0.02); tctx.lineTo(cx - s * 0.18, cy + s * 0.78);
-      tctx.quadraticCurveTo(cx, cy + s * 0.92, cx + s * 0.18, cy + s * 0.78);
-      tctx.lineTo(cx + s * 0.22, cy - s * 0.02);
-      tctx.stroke();
-    },
-    rainbow(w, h) {
-      const cx = w / 2, base = h * 0.85, R = Math.min(w, h) * 0.55;
-      outlineStyle();
-      [1, 0.8, 0.6, 0.4].forEach(f => {
-        tctx.beginPath();
-        tctx.arc(cx, base, R * f, Math.PI, 0);
-        tctx.stroke();
-      });
-      [[-0.9, -0.05], [0.9, -0.05]].forEach(([fx, fy]) => {
-        [[-0.06, 0], [0.06, -0.03], [0, -0.06]].forEach(([ox, oy]) => {
-          tctx.beginPath();
-          tctx.arc(cx + R * (fx + ox), base + R * (fy + oy), R * 0.09, 0, Math.PI * 2);
-          tctx.stroke();
+        A.fellipse(hx, hy + 10, 70, 38);
+        // starfish
+        const sf = A.softStarP(190, 860, 130, 55, 5, -1.3);
+        A.front(sf);
+        A.clip(sf, () => { for (let i = 0; i < 5; i++) { const a = -1.3 + i * TAU / 5; [40, 70, 100].forEach(d => A.circle(190 + Math.cos(a) * d, 860 + Math.sin(a) * d, 9 - d / 25)); } A.circle(190, 860, 16); });
+        // spiral snail shell
+        const cone = A.smoothP([[760, 800], [900, 740], [950, 820], [900, 930], [800, 950], [730, 900]]);
+        A.front(cone);
+        A.clip(cone, () => A.spiral(860, 850, 4, 110, 2.6, 0));
+      },
+
+      mushroom(A) {
+        const TAU = A.TAU;
+        A.scatter(10, 100, A.away([[430, 450, 340], [760, 620, 200], [170, 740, 150], [0, 820, 1000, 200]]), (x, y, i) => i % 2 ? A.sparkle(x, y, 18) : A.fcircle(x, y, 9), 36);
+        const ground = A.smoothP([[-20, 850], [300, 830], [650, 855], [1020, 835], [1020, 1020], [-20, 1020]]);
+        A.front(ground);
+        A.clip(ground, () => A.dots(52, 5, [0, 850, 1000, 170]));
+        const shroom = (x, y, w, h, stemW, stemH, spots, i) => {
+          const stem = A.smoothP([[x - stemW * 0.45, y], [x - stemW * 0.5, y + stemH * 0.6], [x - stemW * 0.62, y + stemH], [x + stemW * 0.62, y + stemH], [x + stemW * 0.5, y + stemH * 0.6], [x + stemW * 0.45, y]]);
+          A.front(stem);
+          A.clip(stem, () => { A.s(A.smoothP([[x - stemW, y + stemH * 0.3], [x, y + stemH * 0.42], [x + stemW, y + stemH * 0.3]], true)); A.s(A.smoothP([[x - stemW, y + stemH * 0.4], [x, y + stemH * 0.55], [x + stemW, y + stemH * 0.4]], true)); });
+          const gills = A.ellipseP(x, y, w * 0.46, h * 0.16);
+          A.front(gills);
+          A.clip(gills, () => { for (let k = -8; k <= 8; k++) A.line(x, y + h * 0.05, x + k * w * 0.06, y - h * 0.3); });
+          const cap = new Path2D(); cap.moveTo(x - w / 2, y); cap.bezierCurveTo(x - w / 2, y - h * 1.3, x + w / 2, y - h * 1.3, x + w / 2, y); cap.quadraticCurveTo(x, y + h * 0.12, x - w / 2, y); cap.closePath();
+          A.front(cap);
+          A.clip(cap, () => spots.forEach(([fx, fy, fr]) => { A.fellipse(x + fx * w, y - fy * h, fr * w, fr * w * 0.8); }));
+        };
+        shroom(760, 690, 280, 170, 80, 170, [[0, 0.62, 0.07], [-0.26, 0.4, 0.05], [0.25, 0.42, 0.05], [0.1, 0.8, 0.04]], 1);
+        shroom(170, 790, 190, 110, 56, 80, [[0, 0.6, 0.08], [-0.25, 0.35, 0.06], [0.24, 0.38, 0.05]], 2);
+        shroom(430, 520, 540, 300, 140, 330, [[0, 0.72, 0.07], [-0.2, 0.5, 0.05], [0.2, 0.52, 0.055], [-0.34, 0.2, 0.04], [0.36, 0.22, 0.04], [-0.08, 0.3, 0.035], [0.12, 0.92, 0.03], [-0.16, 0.86, 0.03]], 3);
+        // grass tufts + a snail
+        [[60, 870], [300, 880], [560, 875], [620, 900], [940, 870]].forEach(([x, y]) => A.tuft(x, y, 1));
+        const shell = A.circleP(910, 930, 42);
+        A.front(A.smoothP([[850, 975], [870, 950], [960, 955], [1000, 975], [1010, 985], [840, 985]]));
+        A.line(975, 958, 985, 915); A.line(990, 962, 1005, 922);
+        A.front(shell); A.clip(shell, () => A.spiral(910, 930, 3, 38, 2.2, 0));
+      },
+
+      rainbow(A) {
+        const TAU = A.TAU, cx = 500, cy = 760;
+        A.fcircle(860, 150, 70); A.petalRing(860, 150, 12, 88, 140, 14, 0, { shape: 'pointy' });
+        A.scatter(12, 90, (x, y) => Math.hypot(x - cx, y - cy) > 480 && Math.hypot(x - 860, y - 150) > 170 && y < 760, (x, y, i) => i % 3 === 0 ? A.front(A.heartP(x, y, 24)) : (i % 3 === 1 ? A.sparkle(x, y, 20) : A.star5(x, y, 22)), 30);
+        const radii = [450, 390, 330, 270, 210];
+        radii.forEach(r => { const p = new Path2D(); p.arc(cx, cy, r, Math.PI, TAU); A.s(p); });
+        // decorate two of the bands
+        [[360, 11], [240, 9]].forEach(([r, dr]) => { for (let a = Math.PI + 0.12; a < TAU - 0.08; a += 0.105) A.circle(cx + Math.cos(a) * r, cy + Math.sin(a) * r, dr); });
+        for (let a = Math.PI + 0.08; a < TAU; a += 0.14) { const r0 = 390, r1 = 450; A.line(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0, cx + Math.cos(a + 0.07) * r1, cy + Math.sin(a + 0.07) * r1); }
+        // clouds at both ends
+        A.front(A.cloudP(170, 770, 360, 150, 5));
+        A.front(A.cloudP(830, 770, 360, 150, 5));
+        // hills
+        A.front(A.smoothP([[-20, 900], [250, 840], [520, 900], [520, 1020], [-20, 1020]]));
+        A.front(A.smoothP([[400, 930], [700, 850], [1020, 900], [1020, 1020], [400, 1020]]));
+        [[130, 930], [300, 965], [650, 940], [850, 950]].forEach(([x, y], i) => { A.line(x, y + 10, x, y + 50); A.flowerSmall(x, y, 22, 5, i); });
+      },
+
+      rocket(A) {
+        const TAU = A.TAU;
+        // space
+        const saturn = () => {
+          const ring = new Path2D(); ring.addPath(A.ellipseP(190, 250, 160, 44, -0.25)); ring.addPath(A.ellipseP(190, 250, 118, 28, -0.25));
+          A.s(ring);
+          A.fcircle(190, 250, 85);
+          A.clip(A.circleP(190, 250, 85), () => { A.s(A.smoothP([[90, 215], [190, 200], [290, 215]], true)); A.s(A.smoothP([[95, 290], [190, 305], [285, 290]], true)); });
+          A.clip(A.polyP([[0, 250 + 190 * Math.tan(0.25)], [400, 250 - 210 * Math.tan(0.25)], [400, 500], [0, 500]]), () => A.frontEO(ring));
+        };
+        saturn();
+        A.fcircle(830, 760, 95); [[800, 730, 22], [860, 790, 16], [850, 710, 10], [790, 800, 12]].forEach(([x, y, r]) => A.circle(x, y, r));
+        A.scatter(18, 80, A.away([[500, 520, 250], [190, 250, 180], [830, 760, 130], [380, 700, 240, 320]]), (x, y, i) => i % 3 === 0 ? A.star5(x, y, 22) : (i % 3 === 1 ? A.sparkle(x, y, 18) : A.circle(x, y, 7)), 30);
+        // flames
+        A.front(A.smoothP([[430, 770], [395, 860], [440, 930], [500, 985], [560, 930], [605, 860], [570, 770]]));
+        A.front(A.smoothP([[455, 770], [440, 840], [470, 895], [500, 930], [530, 895], [560, 840], [545, 770]]));
+        A.s(A.smoothP([[478, 770], [472, 820], [500, 870], [528, 820], [522, 770]]));
+        // fins
+        [[-1], [1]].forEach(([s]) => {
+          const f = A.polyP([[500 + s * 100, 560], [500 + s * 220, 720], [500 + s * 215, 800], [500 + s * 90, 720]]);
+          A.front(f); A.clip(f, () => { A.line(500 + s * 90, 650, 500 + s * 240, 720); A.line(500 + s * 90, 690, 500 + s * 240, 760); });
         });
-      });
-    },
-    rocket(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx, cy - s * 1.3);
-      tctx.bezierCurveTo(cx + s * 0.55, cy - s * 0.75, cx + s * 0.45, cy + s * 0.6, cx + s * 0.32, cy + s * 0.95);
-      tctx.lineTo(cx - s * 0.32, cy + s * 0.95);
-      tctx.bezierCurveTo(cx - s * 0.45, cy + s * 0.6, cx - s * 0.55, cy - s * 0.75, cx, cy - s * 1.3);
-      tctx.stroke();
-      tctx.beginPath(); tctx.arc(cx, cy - s * 0.2, s * 0.2, 0, Math.PI * 2); tctx.stroke();
-      [-1, 1].forEach(side => {
-        tctx.beginPath();
-        tctx.moveTo(cx + side * s * 0.3, cy + s * 0.45);
-        tctx.lineTo(cx + side * s * 0.7, cy + s * 1.05);
-        tctx.lineTo(cx + side * s * 0.28, cy + s * 0.95);
-        tctx.closePath(); tctx.stroke();
-      });
-      [-0.14, 0, 0.14].forEach(f => {
-        tctx.beginPath();
-        tctx.moveTo(cx + s * f, cy + s * 0.95);
-        tctx.lineTo(cx + s * f * 1.6, cy + s * (1.3 + Math.random() * 0.15));
-        tctx.stroke();
-      });
-    },
-    whale(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.32;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 1.1, cy - s * 0.1);
-      tctx.bezierCurveTo(cx - s * 1.15, cy - s * 0.7, cx - s * 0.4, cy - s * 0.85, cx + s * 0.15, cy - s * 0.55);
-      tctx.bezierCurveTo(cx + s * 0.6, cy - s * 0.75, cx + s * 0.95, cy - s * 0.35, cx + s * 0.85, cy + s * 0.05);
-      tctx.bezierCurveTo(cx + s * 0.7, cy + s * 0.45, cx + s * 0.1, cy + s * 0.55, cx - s * 0.5, cy + s * 0.4);
-      tctx.bezierCurveTo(cx - s * 0.85, cy + s * 0.32, cx - s * 1.05, cy + s * 0.2, cx - s * 1.1, cy - s * 0.1);
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx + s * 0.85, cy + s * 0.02);
-      tctx.lineTo(cx + s * 1.2, cy - s * 0.22);
-      tctx.lineTo(cx + s * 1.18, cy + s * 0.2);
-      tctx.closePath(); tctx.stroke();
-      tctx.beginPath(); tctx.arc(cx - s * 0.75, cy - s * 0.28, s * 0.05, 0, Math.PI * 2); tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.15, cy - s * 0.85);
-      tctx.quadraticCurveTo(cx - s * 0.1, cy - s * 1.15, cx - s * 0.22, cy - s * 1.3);
-      tctx.moveTo(cx, cy - s * 0.85);
-      tctx.quadraticCurveTo(cx + s * 0.05, cy - s * 1.2, cx - s * 0.05, cy - s * 1.4);
-      tctx.stroke();
-    },
-    turtle(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.3;
-      outlineStyle();
-      tctx.beginPath(); tctx.arc(cx, cy, R, 0, Math.PI * 2); tctx.stroke();
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        tctx.beginPath();
-        tctx.arc(cx + Math.cos(a) * R * 0.5, cy + Math.sin(a) * R * 0.5, R * 0.32, 0, Math.PI * 2);
-        tctx.stroke();
+        // body
+        const body = A.smoothP([[500, 100], [580, 220], [615, 420], [600, 620], [570, 750], [430, 750], [400, 620], [385, 420], [420, 220]]);
+        A.front(body);
+        A.clip(body, () => {
+          A.s(A.smoothP([[380, 250], [500, 275], [620, 250]], true));
+          A.s(A.smoothP([[380, 620], [500, 640], [620, 620]], true));
+          A.s(A.smoothP([[380, 660], [500, 680], [620, 660]], true));
+          A.stripes(40, -0.6, [380, 90, 240, 170]);
+          A.front(A.smoothP([[380, 250], [500, 275], [620, 250], [620, 90], [380, 90]]));
+          A.clip(A.smoothP([[380, 250], [500, 275], [620, 250], [620, 90], [380, 90]]), () => A.stripes(38, -0.6, [380, 90, 240, 190]));
+        });
+        A.fcircle(500, 400, 78); A.fcircle(500, 400, 56); A.arc(500, 400, 38, 3.6, 4.6);
+        A.dotRing(500, 400, 67, 12, 5);
+        A.fcircle(500, 540, 32); A.circle(500, 540, 20);
+        A.front(A.polyP([[440, 750], [560, 750], [580, 785], [420, 785]]));
+      },
+
+      whale(A) {
+        const TAU = A.TAU;
+        // sea
+        const sea = A.smoothP([[-20, 780], [200, 760], [420, 790], [650, 760], [850, 785], [1020, 765], [1020, 1020], [-20, 1020]]);
+        A.front(sea);
+        A.clip(sea, () => A.wavy(46, 12, 180, [0, 800, 1000, 240]));
+        [[900, 180, 22], [860, 250, 14], [940, 280, 10], [120, 720, 16], [80, 660, 11]].forEach(([x, y, r]) => { A.fcircle(x, y, r); A.arc(x, y, r * 0.6, 3.6, 4.6); });
+        // spout
+        [[-1], [0], [1]].forEach(([s]) => A.s(A.smoothP([[320, 320], [320 + s * 30, 230], [320 + s * 90, 170], [320 + s * 140, 190]], true)));
+        [[170, 200], [200, 150], [470, 200], [440, 150], [320, 120], [250, 110], [390, 110]].forEach(([x, y]) => A.front(A.dropP(x, y, 14)));
+        // tail flukes
+        const tail = A.smoothP([[820, 470], [880, 400], [950, 330], [975, 420], [920, 500], [975, 580], [950, 670], [880, 600], [820, 530]]);
+        A.front(tail);
+        A.clip(tail, () => { A.line(820, 500, 1000, 500); A.s(A.xform(tail, 830, 500, 0.6)); });
+        // body
+        const body = A.smoothP([[110, 500], [170, 380], [380, 320], [620, 370], [760, 440], [860, 470], [860, 530], [760, 570], [560, 660], [300, 670], [150, 610]]);
+        A.front(body);
+        A.clip(body, () => {
+          const belly = A.smoothP([[120, 530], [300, 560], [520, 575], [760, 530], [900, 520], [900, 800], [100, 800]]);
+          A.s(belly);
+          A.clip(belly, () => { for (let k = 0; k < 6; k++) A.s(A.smoothP([[150, 575 + k * 20], [400, 600 + k * 22], [700, 570 + k * 18]], true)); });
+          [[520, 400, 16, 10], [580, 420, 12, 8], [480, 430, 10, 7], [650, 430, 13, 9]].forEach(([x, y, rx, ry]) => A.ellipse(x, y, rx, ry, 0.2));
+        });
+        A.fcircle(250, 470, 18); A.circle(254, 466, 6);
+        A.s(A.smoothP([[115, 520], [180, 535], [260, 525]], true));
+        A.fellipse(300, 510, 22, 14);
+        const fin = A.leafP(360, 600, 470, 740, 42);
+        A.front(fin); A.clip(fin, () => { A.line(360, 600, 480, 700); A.line(360, 600, 440, 760); });
+        // little fish
+        [[720, 870, 1], [860, 930, -1], [180, 900, 1]].forEach(([x, y, d]) => { A.front(A.polyP([[x + d * 40, y], [x + d * 70, y - 20], [x + d * 70, y + 20]])); A.fellipse(x, y, 45, 22); A.circle(x - d * 22, y - 4, 5); });
+      },
+
+      turtle(A) {
+        const TAU = A.TAU, cx = 500, cy = 520;
+        // bubbles + seaweed
+        [[90, 1000, 0.1], [930, 1000, -0.12]].forEach(([x, y, lean]) => {
+          const pts = []; for (let k = 0; k <= 6; k++) pts.push([x + Math.sin(k * 1.4) * 24 + lean * k * 40, y - k * 55]);
+          const back = pts.slice().reverse().map(([px, py], k) => [px + 30 - k * 3, py]);
+          A.front(A.smoothP(pts.concat(back)));
+        });
+        A.scatter(12, 90, A.away([[cx, cy, 420]]), (x, y, i) => { const r = 12 + (i % 3) * 7; A.fcircle(x, y, r); A.arc(x, y, r * 0.6, 3.6, 4.6); }, 30);
+        // flippers + head + tail (behind the shell)
+        const flip = (x0, y0, x1, y1, w) => { const p = A.leafP(x0, y0, x1, y1, w); A.front(p); A.clip(p, () => A.scales(20, [Math.min(x0, x1) - 60, Math.min(y0, y1) - 60, Math.abs(x1 - x0) + 120, Math.abs(y1 - y0) + 120])); };
+        flip(360, 380, 120, 240, 62); flip(640, 380, 880, 240, 62);
+        flip(380, 700, 240, 830, 42); flip(620, 700, 760, 830, 42);
+        A.front(A.polyP([[480, 780], [520, 780], [500, 860]]));
+        const head = A.ellipseP(cx, 205, 72, 92);
+        A.front(head);
+        A.clip(head, () => { A.s(A.polyP([[455, 150], [500, 125], [545, 150], [520, 185], [480, 185]])); A.s(A.polyP([[480, 185], [520, 185], [500, 230]])); });
+        A.fcircle(462, 212, 14); A.fcircle(538, 212, 14); A.circle(462, 212, 6); A.circle(538, 212, 6);
+        // shell
+        const shell = A.ellipseP(cx, cy, 235, 285);
+        A.front(shell);
+        const inner = A.ellipseP(cx, cy, 190, 240);
+        A.s(inner);
+        const band = new Path2D(); band.addPath(shell); band.addPath(inner);
+        A.clip(band, () => { for (let i = 0; i < 26; i++) { const a = i * TAU / 26; A.line(cx, cy, cx + Math.cos(a) * 400, cy + Math.sin(a) * 400); } }, 'evenodd');
+        A.clip(inner, () => {
+          const hex = (y) => A.polyP([[cx - 55, y - 55], [cx + 55, y - 55], [cx + 80, y], [cx + 55, y + 55], [cx - 55, y + 55], [cx - 80, y]]);
+          const ys = [340, 450, 560, 670];
+          ys.forEach(y => { const p = hex(y); A.front(p); A.s(A.xform(p, cx, y, 0.55)); });
+          ys.forEach(y => { A.line(cx - 80, y, cx - 260, y); A.line(cx + 80, y, cx + 260, y); });
+          A.line(cx - 55, 285, cx - 200, 180); A.line(cx + 55, 285, cx + 200, 180);
+          A.line(cx - 55, 725, cx - 200, 860); A.line(cx + 55, 725, cx + 200, 860);
+        });
+      },
+
+      crown(A) {
+        const TAU = A.TAU;
+        A.scatter(12, 90, A.away([[500, 460, 380], [0, 700, 1000, 320], [60, 280, 160, 520], [780, 280, 160, 520]]), (x, y, i) => i % 2 ? A.sparkle(x, y, 24) : A.star5(x, y, 22), 30);
+        // laurel branches
+        A.vine([[250, 780], [130, 690], [80, 560], [100, 420], [170, 320]], 8, 70, 18, 1);
+        A.vine([[750, 780], [870, 690], [920, 560], [900, 420], [830, 320]], 8, 70, 18, 1);
+        // cushion
+        const cushion = A.rectP(140, 760, 720, 150, 70);
+        A.front(A.petalP(150, 835, Math.PI, 0, 90, 22, 'round')); A.front(A.petalP(850, 835, 0, 0, 90, 22, 'round'));
+        A.front(cushion);
+        A.clip(cushion, () => { A.grid(56, Math.PI / 4, [140, 760, 720, 150]); });
+        // crown points
+        const peaks = [[190, 330], [345, 250], [500, 170], [655, 250], [810, 330]];
+        const valleys = [[268, 520], [422, 470], [578, 470], [732, 520]];
+        const outline = [[200, 780], [180, 600]];
+        peaks.forEach((p, i) => { outline.push(p); if (valleys[i]) outline.push(valleys[i]); });
+        outline.push([820, 600], [800, 780]);
+        const crown = A.polyP(outline);
+        A.front(crown);
+        A.clip(crown, () => {
+          peaks.forEach(([x, y], i) => { const g = A.dropP(x, y + 150, 26); A.front(g); A.circle(x, y + 150, 12); });
+          A.s(A.smoothP([[160, 600], [500, 560], [840, 600]], true));
+        });
+        peaks.forEach(([x, y], i) => { A.fcircle(x, y - 22, i === 2 ? 34 : 26); A.circle(x, y - 22, i === 2 ? 18 : 12); });
+        A.front(A.polyP([[500, 90], [520, 110], [500, 130], [480, 110]]));
+        // band with jewels
+        const band = A.smoothP([[180, 610], [500, 580], [820, 610], [810, 770], [500, 790], [190, 770]]);
+        A.front(band);
+        A.clip(band, () => {
+          A.s(A.smoothP([[170, 640], [500, 612], [830, 640]], true));
+          A.s(A.smoothP([[170, 740], [500, 760], [830, 740]], true));
+          A.fellipse(500, 690, 60, 46); A.s(A.polyP([[500, 650], [540, 690], [500, 730], [460, 690]]));
+          [[330, 690], [670, 690]].forEach(([x, y]) => { A.front(A.polyP([[x, y - 40], [x + 40, y], [x, y + 40], [x - 40, y]])); A.circle(x, y, 14); });
+          [[235, 690], [765, 690], [415, 690], [585, 690]].forEach(([x, y]) => A.fcircle(x, y, 16));
+          for (let x = 200; x <= 800; x += 40) { A.circle(x, 624 + Math.abs(x - 500) * 0.06, 6); A.circle(x, 752 - Math.abs(x - 500) * 0.04, 6); }
+        });
+      },
+
+      sailboat(A) {
+        const TAU = A.TAU;
+        A.fcircle(130, 140, 70); A.rays(130, 140, 90, 130, 12, 0.1);
+        A.front(A.cloudP(420, 120, 230, 70, 4)); A.front(A.cloudP(780, 200, 200, 60, 4));
+        [[300, 250], [350, 225], [640, 90]].forEach(([x, y]) => { A.s(A.smoothP([[x - 28, y + 7], [x - 13, y - 6], [x, y + 5]], true)); A.s(A.smoothP([[x, y + 5], [x + 13, y - 6], [x + 28, y + 7]], true)); });
+        // lighthouse island
+        A.front(A.smoothP([[780, 700], [830, 640], [960, 630], [1020, 700]]));
+        const tower = A.polyP([[860, 640], [930, 640], [915, 420], [875, 420]]);
+        A.front(tower);
+        A.clip(tower, () => { A.line(850, 480, 940, 480); A.line(850, 530, 940, 530); A.line(850, 580, 940, 580); });
+        A.front(A.rectP(868, 380, 54, 42, 4)); A.front(A.polyP([[860, 382], [895, 340], [930, 382]]));
+        A.line(880, 380, 880, 420); A.line(910, 380, 910, 420);
+        // mast + sails
+        A.front(A.rectP(492, 150, 16, 520, 4));
+        A.front(A.polyP([[508, 130], [580, 150], [508, 172]]));
+        const main = A.smoothP([[515, 170], [560, 300], [700, 470], [790, 610], [515, 630]]);
+        A.front(A.polyP([[515, 170], [790, 610], [515, 630]]));
+        A.clip(A.polyP([[515, 170], [790, 610], [515, 630]]), () => { for (let y = 250; y < 640; y += 70) A.line(500, y, 820, y + 30); });
+        const jib = A.polyP([[485, 230], [485, 620], [250, 610]]);
+        A.front(jib);
+        A.clip(jib, () => { for (let k = 0; k < 5; k++) A.line(485, 300 + k * 70, 200, 400 + k * 70); });
+        // hull
+        const hull = A.smoothP([[220, 650], [500, 665], [780, 650], [700, 770], [500, 780], [300, 770]]);
+        A.front(hull);
+        A.clip(hull, () => { A.s(A.smoothP([[200, 690], [500, 705], [800, 690]], true)); [[380, 735], [500, 740], [620, 735]].forEach(([x, y]) => { A.fcircle(x, y, 18); A.circle(x, y, 9); }); });
+        // waves in front
+        for (let row = 0; row < 4; row++) {
+          const y0 = 740 + row * 70;
+          const p = new Path2D();
+          p.moveTo(-20, 1020);
+          for (let x = -20; x <= 1020; x += 10) p.lineTo(x, y0 + Math.sin((x + row * 60) / 1000 * TAU * 4) * 18);
+          p.lineTo(1020, 1020); p.closePath();
+          A.front(p);
+        }
+      },
+
+      icecream(A) {
+        const TAU = A.TAU;
+        A.scatter(14, 90, A.away([[500, 480, 330], [330, 520, 340, 450]]), (x, y, i) => i % 3 === 0 ? A.front(A.heartP(x, y, 22)) : (i % 3 === 1 ? A.sparkle(x, y, 20) : A.fcircle(x, y, 10)), 30);
+        // cone
+        const cone = A.polyP([[345, 590], [655, 590], [500, 960]]);
+        A.front(cone);
+        A.clip(cone, () => A.grid(52, Math.PI / 4, [300, 560, 400, 420]));
+        // wafer stick
+        const wafer = A.rectP(-50, -14, 190, 28, 6);
+        const m = new DOMMatrix().translate(640, 250).rotate(-50);
+        const waf = new Path2D(); waf.addPath(wafer, m);
+        A.front(waf);
+        A.clip(waf, () => A.grid(20, 0.87, [560, 120, 200, 240]));
+        // scoops (with drips)
+        const scoop = (x, y, r, drips) => {
+          const p = new Path2D();
+          p.moveTo(x - r, y);
+          p.bezierCurveTo(x - r, y - r * 1.35, x + r, y - r * 1.35, x + r, y);
+          const n = drips.length;
+          for (let i = 0; i < n; i++) {
+            const x0 = x + r - (i / n) * 2 * r, x1 = x + r - ((i + 1) / n) * 2 * r, xm = (x0 + x1) / 2, d = drips[i];
+            p.bezierCurveTo(x0, y + d, xm, y + d * 1.2, xm, y + d * 0.6);
+            p.bezierCurveTo(xm, y + d * 0.2, x1, y + 14, x1, y);
+          }
+          p.closePath();
+          return p;
+        };
+        const s1 = scoop(390, 520, 125, [30, 60, 25, 50]);
+        A.front(s1); A.clip(s1, () => [[330, 460], [390, 420], [440, 480], [360, 500], [420, 520]].forEach(([x, y]) => A.fcircle(x, y, 9)));
+        const s2 = scoop(610, 520, 125, [45, 20, 55, 30]);
+        A.front(s2); A.clip(s2, () => A.wavy(34, 8, 90, [480, 400, 260, 150]));
+        const s3 = scoop(500, 360, 135, [40, 70, 30, 55]);
+        A.front(s3);
+        A.clip(s3, () => {
+          A.scatter(14, 42, (x, y) => Math.hypot(x - 500, y - 320) < 110 && y < 380, (x, y, k) => A.front(A.xform(A.rectP(x - 14, y - 5, 28, 10, 5), x, y, 1, k * 1.3)), 0);
+        });
+        A.front(A.rectP(335, 575, 330, 36, 14));
+        // cherry
+        A.s(A.smoothP([[500, 220], [510, 170], [540, 130]], true));
+        A.front(A.leafP(530, 140, 600, 120, 16));
+        A.fcircle(500, 240, 38); A.arc(500, 240, 24, 3.6, 4.5);
+      },
+
+      dragonfly(A) {
+        const TAU = A.TAU;
+        // water, lily pads, lotus, reeds
+        const water = A.smoothP([[-20, 840], [300, 825], [700, 845], [1020, 830], [1020, 1020], [-20, 1020]]);
+        A.front(water);
+        A.clip(water, () => A.wavy(40, 6, 140, [0, 860, 1000, 180]));
+        [[80, 1000, 380], [140, 1000, 300], [900, 1000, 360]].forEach(([x, y, h], i) => {
+          A.front(A.rectP(x - 7, y - h, 14, h, 6));
+          A.front(A.rectP(x - 16, y - h - 90, 32, 100, 16));
+          A.front(A.leafP(x, y - 60, x + (i % 2 ? -1 : 1) * 110, y - h * 0.6, 18));
+        });
+        const pad = new Path2D(); pad.moveTo(330, 900); pad.arc(330, 900, 110, 0.15, TAU - 0.15); pad.closePath();
+        A.front(A.xform(pad, 330, 900, 1));
+        A.clip(pad, () => A.rays(330, 900, 0, 120, 9, 0.6));
+        A.fellipse(700, 915, 135, 34);
+        [-1.25, -0.8, 0.8, 1.25].forEach(d => { A.front(A.petalP(700, 900, -Math.PI / 2 + d, 0, 120, 34, 'lotus')); A.s(A.petalP(700, 900, -Math.PI / 2 + d, 25, 100, 16, 'lotus')); });
+        [-0.4, 0.4, 0].forEach(d => { A.front(A.petalP(700, 900, -Math.PI / 2 + d, 0, 140, 38, 'lotus')); A.s(A.petalP(700, 900, -Math.PI / 2 + d, 28, 115, 18, 'lotus')); });
+        // wings (behind body)
+        const wing = (x1, y1, w) => {
+          const p = A.leafP(500, 300, x1, y1, w);
+          A.front(p);
+          A.clip(p, () => { A.hexes(26, [Math.min(500, x1) - 40, Math.min(300, y1) - 120, Math.abs(x1 - 500) + 80, 300]); A.s(A.xform(p, 500, 300, 0.55)); });
+          const tx = 500 + (x1 - 500) * 0.88, ty = 300 + (y1 - 300) * 0.88;
+          A.fellipse(tx, ty, 18, 9, Math.atan2(y1 - 300, x1 - 500));
+        };
+        wing(120, 360, 58); wing(880, 360, 58);
+        wing(90, 200, 66); wing(910, 200, 66);
+        // body
+        const abd = A.smoothP([[486, 330], [480, 500], [488, 700], [500, 790], [512, 700], [520, 500], [514, 330]]);
+        A.front(abd);
+        A.clip(abd, () => { for (let y = 360; y < 790; y += 40) A.line(460, y, 540, y); });
+        A.fellipse(500, 290, 40, 58);
+        A.clip(A.ellipseP(500, 290, 40, 58), () => { A.line(460, 280, 540, 280); A.line(460, 305, 540, 305); });
+        A.fcircle(500, 215, 30);
+        A.fcircle(468, 200, 30); A.fcircle(532, 200, 30);
+        A.circle(468, 196, 12); A.circle(532, 196, 12);
+      },
+
+      robot(A) {
+        const TAU = A.TAU;
+        // gears + bolts
+        [[130, 150, 80, 12], [230, 250, 45, 9], [870, 820, 90, 12], [120, 860, 60, 10]].forEach(([x, y, r, t]) => { A.front(A.gearP(x, y, r, t)); A.circle(x, y, r * 0.55); A.circle(x, y, r * 0.2); });
+        A.scatter(10, 100, A.away([[500, 530, 380], [130, 150, 110], [230, 250, 70], [870, 820, 120], [120, 860, 90]]), (x, y, i) => i % 2 ? A.sparkle(x, y, 20) : A.star5(x, y, 20), 36);
+        // legs + feet
+        [[-1], [1]].forEach(([s]) => {
+          A.front(A.rectP(500 + s * 90 - 38, 760, 76, 140, 10));
+          A.clip(A.rectP(500 + s * 90 - 38, 760, 76, 140, 10), () => { A.line(400, 800, 600, 800); A.line(400, 850, 600, 850); });
+          A.front(A.rectP(500 + s * 90 - 80, 890, 160, 60, 28));
+          A.circle(500 + s * 90 - 40, 920, 10); A.circle(500 + s * 90 + 40, 920, 10);
+        });
+        // arms
+        [[-1], [1]].forEach(([s]) => {
+          [0, 1, 2].forEach(k => { const x = 500 + s * (230 + k * 45), y = 520 + k * 60; A.fellipse(x, y, 36, 34); });
+          const cx = 500 + s * 350, cy = 720;
+          const claw = new Path2D(); claw.arc(cx, cy, 50, s > 0 ? -0.2 : Math.PI + 0.2, s > 0 ? Math.PI * 0.9 : Math.PI * 0.1 + TAU, s < 0);
+          A.fcircle(cx, cy, 52); A.fcircle(cx, cy + 40, 30);
+        });
+        // body
+        const body = A.rectP(300, 430, 400, 340, 44);
+        A.front(body);
+        A.clip(body, () => {
+          A.front(A.rectP(355, 480, 290, 230, 24));
+          A.front(A.heartP(440, 560, 48));
+          [[580, 540, 36], [580, 640, 26]].forEach(([x, y, r]) => { A.fcircle(x, y, r); A.line(x, y, x + r * 0.7, y - r * 0.5); A.circle(x, y, 5); });
+          [390, 430, 470, 510].forEach(x => A.fcircle(x, 670, 14));
+          [[320, 450], [680, 450], [320, 750], [680, 750]].forEach(([x, y]) => A.circle(x, y, 8));
+        });
+        // neck
+        A.front(A.rectP(455, 395, 90, 45, 6)); A.line(455, 410, 545, 410); A.line(455, 425, 545, 425);
+        // head
+        const head = A.rectP(320, 140, 360, 260, 50);
+        [[-1], [1]].forEach(([s]) => { A.front(A.rectP(500 + s * 200 - 30, 210, 60, 110, 20)); A.circle(500 + s * 200, 265, 12); });
+        A.line(500, 140, 500, 70); A.fcircle(500, 58, 22); A.circle(500, 58, 9);
+        A.front(head);
+        A.clip(head, () => {
+          [[-1], [1]].forEach(([s]) => { A.fcircle(500 + s * 85, 250, 55); A.circle(500 + s * 85, 250, 36); A.fcircle(500 + s * 85, 250, 16); });
+          const mouth = A.rectP(410, 320, 180, 45, 16);
+          A.front(mouth); A.clip(mouth, () => { for (let x = 440; x < 590; x += 30) A.line(x, 310, x, 375); });
+          [[345, 165], [655, 165]].forEach(([x, y]) => A.circle(x, y, 8));
+        });
+      },
+
+      panda(A) {
+        const TAU = A.TAU;
+        // bamboo forest
+        const stalk = (x, y0, y1, w) => {
+          const p = A.rectP(x - w / 2, y0, w, y1 - y0, 10);
+          A.front(p);
+          A.clip(p, () => { for (let y = y0 + 100; y < y1; y += 120) { A.s(A.smoothP([[x - w, y - 6], [x, y + 6], [x + w, y - 6]], true)); A.s(A.smoothP([[x - w, y + 6], [x, y + 18], [x + w, y + 6]], true)); } });
+        };
+        stalk(90, -20, 1020, 50); stalk(900, -20, 1020, 56); stalk(190, 120, 1020, 40);
+        [[115, 250, 260, 180], [115, 480, 270, 430], [875, 300, 720, 230], [875, 560, 740, 520], [210, 700, 330, 660], [880, 800, 760, 760]].forEach(([x0, y0, x1, y1]) => A.leaf(x0, y0, x1, y1, 26, 2));
+        // ground
+        const ground = A.smoothP([[-20, 900], [500, 880], [1020, 900], [1020, 1020], [-20, 1020]]);
+        A.front(ground);
+        [[260, 930], [420, 950], [620, 945], [780, 925]].forEach(([x, y]) => A.tuft(x, y, 1.1));
+        // ears
+        [[-1], [1]].forEach(([s]) => { A.fcircle(500 + s * 150, 200, 62); A.circle(500 + s * 150, 200, 32); });
+        // body
+        const body = A.ellipseP(500, 680, 250, 225);
+        A.front(body);
+        A.clip(body, () => A.ellipse(500, 720, 150, 150));
+        // feet
+        [[-1], [1]].forEach(([s]) => {
+          A.fellipse(500 + s * 165, 870, 95, 72, s * 0.3);
+          A.fellipse(500 + s * 170, 885, 38, 30); [-36, 0, 36].forEach(d => A.fcircle(500 + s * 170 + d, 835, 13));
+        });
+        // bamboo held in paws
+        const stick = new Path2D(); stick.addPath(A.rectP(-22, -250, 44, 500, 12), new DOMMatrix().translate(560, 640).rotate(28));
+        A.front(stick);
+        A.clip(stick, () => { A.line(430, 560, 700, 700); A.line(480, 440, 720, 560); });
+        A.leaf(680, 430, 800, 350, 26, 2); A.leaf(680, 430, 780, 470, 22, 2);
+        // arms
+        A.front(A.smoothP([[330, 560], [400, 540], [520, 600], [560, 660], [520, 700], [440, 690], [340, 650]]));
+        A.front(A.smoothP([[670, 560], [640, 610], [600, 620], [560, 600], [540, 660], [600, 700], [680, 660]]));
+        // head
+        const head = A.ellipseP(500, 360, 205, 175);
+        A.front(head);
+        [[-1], [1]].forEach(([s]) => {
+          A.fellipse(500 + s * 80, 360, 52, 70, s * -0.55);
+          A.fcircle(500 + s * 75, 355, 22); A.fcircle(500 + s * 75, 355, 10); A.circle(500 + s * 82, 348, 5);
+          A.fcircle(500 + s * 130, 440, 24);
+        });
+        A.fellipse(500, 440, 34, 22);
+        A.s(A.smoothP([[500, 462], [490, 490], [465, 492]], true)); A.s(A.smoothP([[500, 462], [510, 490], [535, 492]], true));
+      },
+
+      balloon(A) {
+        const TAU = A.TAU;
+        A.fcircle(860, 120, 60); A.rays(860, 120, 78, 115, 12, 0.1);
+        A.front(A.cloudP(170, 250, 250, 80, 4)); A.front(A.cloudP(830, 540, 260, 80, 5)); A.front(A.cloudP(250, 830, 300, 90, 5));
+        [[720, 300], [760, 270], [150, 470]].forEach(([x, y]) => { A.s(A.smoothP([[x - 26, y + 7], [x - 12, y - 6], [x, y + 5]], true)); A.s(A.smoothP([[x, y + 5], [x + 12, y - 6], [x + 26, y + 7]], true)); });
+        // small balloons far away
+        const mini = (x, y, s) => { A.line(x - 12 * s, y + 70 * s, x - 8 * s, y + 92 * s); A.line(x + 12 * s, y + 70 * s, x + 8 * s, y + 92 * s); A.front(A.rectP(x - 12 * s, y + 90 * s, 24 * s, 20 * s, 3)); const e = A.smoothP([[x, y - 60 * s], [x + 50 * s, y - 20 * s], [x + 18 * s, y + 70 * s], [x - 18 * s, y + 70 * s], [x - 50 * s, y - 20 * s]]); A.front(e); A.clip(e, () => { A.line(x, y - 70 * s, x, y + 80 * s); A.s(A.smoothP([[x - 50 * s, y], [x, y + 12 * s], [x + 50 * s, y]], true)); }); };
+        mini(130, 110, 0.9); mini(860, 760, 1.1); mini(90, 620, 0.7);
+        // ropes + basket
+        A.line(430, 700, 445, 820); A.line(570, 700, 555, 820); A.line(470, 715, 480, 820); A.line(530, 715, 520, 820);
+        const basket = A.rectP(430, 820, 140, 110, 12);
+        A.front(basket);
+        A.clip(basket, () => A.grid(20, 0, [430, 840, 140, 90]));
+        A.front(A.rectP(418, 810, 164, 30, 10));
+        // envelope
+        const env = A.smoothP([[500, 80], [700, 130], [790, 300], [740, 480], [610, 640], [575, 700], [425, 700], [390, 640], [260, 480], [210, 300], [300, 130]]);
+        A.front(env);
+        A.clip(env, () => {
+          [-0.62, -0.3, 0, 0.3, 0.62].forEach(f => A.s(A.smoothP([[500, 60], [500 + f * 480, 330], [500 + f * 170, 710]], true)));
+          const band = (y, h) => { A.s(A.smoothP([[180, y], [500, y + 40], [820, y]], true)); A.s(A.smoothP([[180, y + h], [500, y + h + 40], [820, y + h]], true)); };
+          band(300, 60); band(470, 50);
+          A.clip(A.smoothP([[180, 300], [500, 340], [820, 300], [820, 360], [500, 400], [180, 360]]), () => { for (let x = 180; x < 840; x += 44) { A.line(x, 300, x + 22, 420); A.line(x + 22, 420, x + 44, 300); } });
+          A.clip(A.smoothP([[180, 470], [500, 510], [820, 470], [820, 520], [500, 560], [180, 520]]), () => { for (let x = 200; x < 820; x += 40) A.circle(x, 490 + (x - 500) * (x - 500) * -0.00013 + 45, 10); });
+          A.fcircle(500, 200, 44); A.front(A.heartP(500, 200, 24));
+        });
+        A.front(A.polyP([[425, 700], [575, 700], [560, 735], [440, 735]]));
       }
-      tctx.beginPath(); tctx.arc(cx + R * 1.15, cy, R * 0.22, 0, Math.PI * 2); tctx.stroke();
-      [[0.55,0.75],[0.55,-0.75],[-0.7,0.85],[-0.7,-0.85]].forEach(([fx,fy]) => {
-        tctx.beginPath();
-        tctx.ellipse(cx + R * fx, cy + R * fy, R * 0.22, R * 0.12, Math.atan2(fy,fx), 0, Math.PI * 2);
-        tctx.stroke();
-      });
-    },
-    crown(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx - s, cy + s * 0.5);
-      tctx.lineTo(cx - s, cy - s * 0.1);
-      tctx.lineTo(cx - s * 0.55, cy + s * 0.25);
-      tctx.lineTo(cx - s * 0.28, cy - s * 0.55);
-      tctx.lineTo(cx, cy + s * 0.1);
-      tctx.lineTo(cx + s * 0.28, cy - s * 0.55);
-      tctx.lineTo(cx + s * 0.55, cy + s * 0.25);
-      tctx.lineTo(cx + s, cy - s * 0.1);
-      tctx.lineTo(cx + s, cy + s * 0.5);
-      tctx.closePath();
-      tctx.stroke();
-      [[-s, cy - s * 0.1], [-s * 0.28, cy - s * 0.55], [s * 0.28, cy - s * 0.55], [s, cy - s * 0.1]].forEach(([px, py]) => {
-        tctx.beginPath(); tctx.arc(cx + px, py, s * 0.08, 0, Math.PI * 2); tctx.stroke();
-      });
-      tctx.beginPath(); tctx.arc(cx, cy + s * 0.18, s * 0.11, 0, Math.PI * 2); tctx.stroke();
-    },
-    sailboat(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.9, cy + s * 0.55);
-      tctx.lineTo(cx + s * 0.9, cy + s * 0.55);
-      tctx.lineTo(cx + s * 0.6, cy + s * 0.95);
-      tctx.lineTo(cx - s * 0.6, cy + s * 0.95);
-      tctx.closePath(); tctx.stroke();
-      tctx.beginPath(); tctx.moveTo(cx, cy + s * 0.55); tctx.lineTo(cx, cy - s * 1.1); tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx + s * 0.05, cy - s * 1.05);
-      tctx.lineTo(cx + s * 0.75, cy + s * 0.35);
-      tctx.lineTo(cx + s * 0.05, cy + s * 0.5);
-      tctx.closePath(); tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.05, cy - s * 0.55);
-      tctx.lineTo(cx - s * 0.55, cy + s * 0.4);
-      tctx.lineTo(cx - s * 0.05, cy + s * 0.5);
-      tctx.closePath(); tctx.stroke();
-      const wy = cy + s * 1.15;
-      tctx.beginPath();
-      for (let x = -s * 1.2; x <= s * 1.2; x += s * 0.15) {
-        const yy = wy + Math.sin((x / s) * 3) * s * 0.05;
-        if (x === -s * 1.2) tctx.moveTo(cx + x, yy); else tctx.lineTo(cx + x, yy);
-      }
-      tctx.stroke();
-    },
-    icecream(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.42, cy + s * 0.1);
-      tctx.lineTo(cx, cy + s * 1.35);
-      tctx.lineTo(cx + s * 0.42, cy + s * 0.1);
-      tctx.closePath(); tctx.stroke();
-      for (let f = -1; f <= 1; f++) {
-        tctx.beginPath();
-        tctx.moveTo(cx + f * s * 0.32, cy + s * 0.25);
-        tctx.lineTo(cx + f * s * 0.12, cy + s * 0.95);
-        tctx.stroke();
-      }
-      [[0, -0.75, 0.5], [-0.32, -0.35, 0.42], [0.32, -0.35, 0.42]].forEach(([fx, fy, fr]) => {
-        tctx.beginPath();
-        tctx.arc(cx + s * fx, cy + s * fy, s * fr, 0, Math.PI * 2);
-        tctx.stroke();
-      });
-    },
-    dragonfly(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.34;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.moveTo(cx, cy - s * 0.9);
-      tctx.quadraticCurveTo(cx + s * 0.12, cy + s * 0.1, cx, cy + s * 1.0);
-      tctx.quadraticCurveTo(cx - s * 0.12, cy + s * 0.1, cx, cy - s * 0.9);
-      tctx.stroke();
-      for (let i = 0; i < 5; i++) {
-        const y = cy + s * (0.1 + i * 0.16);
-        tctx.beginPath(); tctx.moveTo(cx - s * 0.08, y); tctx.lineTo(cx + s * 0.08, y); tctx.stroke();
-      }
-      tctx.beginPath(); tctx.arc(cx, cy - s * 1.05, s * 0.14, 0, Math.PI * 2); tctx.stroke();
-      [[-1, -0.15], [1, -0.15], [-1, 0.15], [1, 0.15]].forEach(([side, dy]) => {
-        tctx.beginPath();
-        tctx.ellipse(cx + side * s * 0.55, cy + s * dy, s * 0.55, s * 0.18, side * 0.15, 0, Math.PI * 2);
-        tctx.stroke();
-      });
-    },
-    robot(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
-      outlineStyle();
-      tctx.strokeRect(cx - s * 0.55, cy - s * 1.1, s * 1.1, s * 0.8);
-      [-1, 1].forEach(side => {
-        tctx.beginPath(); tctx.arc(cx + side * s * 0.22, cy - s * 0.72, s * 0.11, 0, Math.PI * 2); tctx.stroke();
-      });
-      tctx.beginPath(); tctx.moveTo(cx, cy - s * 1.1); tctx.lineTo(cx, cy - s * 1.35); tctx.stroke();
-      tctx.beginPath(); tctx.arc(cx, cy - s * 1.42, s * 0.08, 0, Math.PI * 2); tctx.stroke();
-      tctx.strokeRect(cx - s * 0.7, cy - s * 0.15, s * 1.4, s * 1.0);
-      [-1, 1].forEach(side => {
-        tctx.beginPath();
-        tctx.moveTo(cx + side * s * 0.7, cy);
-        tctx.lineTo(cx + side * s * 1.05, cy + s * 0.35);
-        tctx.stroke();
-      });
-      [-1, 1].forEach(side => {
-        tctx.beginPath();
-        tctx.moveTo(cx + side * s * 0.35, cy + s * 0.85);
-        tctx.lineTo(cx + side * s * 0.35, cy + s * 1.25);
-        tctx.stroke();
-      });
-    },
-    panda(w, h) {
-      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.32;
-      outlineStyle();
-      tctx.beginPath(); tctx.arc(cx, cy, R, 0, Math.PI * 2); tctx.stroke();
-      [-1, 1].forEach(side => {
-        tctx.beginPath(); tctx.arc(cx + side * R * 0.75, cy - R * 0.72, R * 0.24, 0, Math.PI * 2); tctx.stroke();
-        tctx.beginPath();
-        tctx.ellipse(cx + side * R * 0.42, cy - R * 0.12, R * 0.24, R * 0.3, side * 0.25, 0, Math.PI * 2);
-        tctx.stroke();
-        tctx.beginPath(); tctx.arc(cx + side * R * 0.4, cy - R * 0.1, R * 0.08, 0, Math.PI * 2); tctx.stroke();
-      });
-      tctx.beginPath(); tctx.ellipse(cx, cy + R * 0.25, R * 0.1, R * 0.07, 0, 0, Math.PI * 2); tctx.stroke();
-      tctx.beginPath(); tctx.moveTo(cx, cy + R * 0.32); tctx.quadraticCurveTo(cx, cy + R * 0.45, cx - R * 0.14, cy + R * 0.48); tctx.stroke();
-      tctx.beginPath(); tctx.moveTo(cx, cy + R * 0.32); tctx.quadraticCurveTo(cx, cy + R * 0.45, cx + R * 0.14, cy + R * 0.48); tctx.stroke();
-    },
-    balloon(w, h) {
-      const cx = w / 2, cy = h / 2, s = Math.min(w, h) * 0.3;
-      outlineStyle();
-      tctx.beginPath();
-      tctx.ellipse(cx, cy - s * 0.3, s * 0.6, s * 0.75, 0, 0, Math.PI * 2);
-      tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx - s * 0.12, cy + s * 0.42);
-      tctx.lineTo(cx + s * 0.12, cy + s * 0.42);
-      tctx.lineTo(cx, cy + s * 0.58);
-      tctx.closePath(); tctx.stroke();
-      tctx.beginPath();
-      tctx.moveTo(cx, cy + s * 0.58);
-      tctx.bezierCurveTo(cx + s * 0.3, cy + s * 0.85, cx - s * 0.3, cy + s * 1.1, cx, cy + s * 1.4);
-      tctx.stroke();
-    }
   };
 
-  function drawTemplateOutline(key, skipClearCheck) {
-    const rect = stack.getBoundingClientRect();
-    const w = rect.width, h = rect.height;
-    tctx.save();
-    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    tctx.clearRect(0, 0, w, h);
-    tctx.restore();
-    activeTemplate = key;
-    if (key !== 'none' && TEMPLATES[key]) TEMPLATES[key](w, h);
-    if (!skipClearCheck) savePrefs();
+  function templateSeed(key) {
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
   }
 
-  const templateBtns = document.querySelectorAll('.btn-template');
+  // Render a page's line art (white lines on transparent) into a square canvas.
+  function renderTemplateLines(key, px, lineWidthPx) {
+    const art = TEMPLATE_ART[key];
+    if (!art) return null;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = Math.max(1, Math.round(px));
+    const c = cv.getContext('2d');
+    const k = cv.width / 1000;
+    c.setTransform(k, 0, 0, k, 0, 0);
+    c.lineWidth = lineWidthPx / k;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.strokeStyle = '#ffffff';
+    c.fillStyle = '#ffffff';
+    try { art(makeArt(c, templateSeed(key))); } catch (e) { console.error('Coloring page failed: ' + key, e); }
+    return cv;
+  }
+
+  function templateLineWidthPx() {
+    // ~1.2–2.3 CSS px depending on canvas size, in device px
+    return Math.max(1.2, Math.min(2.3, cssW / 400)) * dpr;
+  }
+
+  function drawTemplateOutline(key, skipSave) {
+    if (key !== 'none' && !TEMPLATE_ART[key]) key = 'none';
+    activeTemplate = key;
+    templateLineCanvas = null;
+    templateBarrier = null;
+    tctx.save();
+    tctx.setTransform(1, 0, 0, 1, 0, 0);
+    tctx.clearRect(0, 0, templateCanvas.width, templateCanvas.height);
+    if (key !== 'none') {
+      templateLineCanvas = renderTemplateLines(key, templateCanvas.width, templateLineWidthPx());
+      if (templateLineCanvas) {
+        // light lines with a soft dark halo: readable on the dark canvas AND on top of bright fills
+        tctx.shadowColor = 'rgba(0,0,0,0.85)';
+        tctx.shadowBlur = 2.5 * dpr;
+        tctx.globalAlpha = 0.92;
+        tctx.drawImage(templateLineCanvas, 0, 0);
+      }
+    }
+    tctx.restore();
+    if (!skipSave) savePrefs();
+    // Build the fill-boundary map in the background, so the first 🪣 tap is instant.
+    clearTimeout(barrierTimer);
+    if (key !== 'none') {
+      barrierTimer = setTimeout(() => {
+        const run = () => { if (activeTemplate === key && !isAnimating && !isLive) { try { getTemplateBarrier(drawCanvas.width, drawCanvas.height); } catch (e) {} } };
+        if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 1200 }); else run();
+      }, 300);
+    }
+  }
+  let barrierTimer = null;
+
+  // Gallery of pages with real line-art thumbnails (rendered lazily on first open).
   const templateGallery = document.getElementById('template-gallery');
   const templateToggleBtn = document.getElementById('btn-template-toggle');
   const templateToggleIcon = document.getElementById('template-toggle-icon');
+  TEMPLATE_META.forEach(([key, title]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-template btn-template-thumb';
+    b.dataset.template = key;
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    templateGallery.appendChild(b);
+  });
+  let thumbsQueued = false;
+  function renderThumbs() {
+    if (thumbsQueued) return;
+    thumbsQueued = true;
+    const px = Math.round(58 * Math.min(2, Math.max(1, dpr)));
+    const todo = Array.from(templateGallery.querySelectorAll('.btn-template-thumb'));
+    (function batch() {
+      todo.splice(0, 6).forEach(b => {
+        const cv = renderTemplateLines(b.dataset.template, px, Math.max(1, px / 95));
+        if (cv) { cv.className = 'tpl-thumb'; b.appendChild(cv); }
+      });
+      if (todo.length) requestAnimationFrame(batch);
+    })();
+  }
+  function refreshTemplateButtons() {
+    templateGallery.querySelectorAll('.btn-template').forEach(x => x.classList.toggle('active', x.dataset.template === activeTemplate));
+    templateToggleIcon.textContent = '';
+    if (activeTemplate === 'none') { templateToggleIcon.textContent = '✕'; return; }
+    const cv = renderTemplateLines(activeTemplate, 36, 1);
+    if (cv) { cv.className = 'template-toggle-thumb'; templateToggleIcon.appendChild(cv); }
+  }
 
   function setGalleryOpen(open) {
     templateGallery.classList.toggle('open', open);
     templateToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderThumbs();
   }
 
   templateToggleBtn.addEventListener('click', () => {
     setGalleryOpen(!templateGallery.classList.contains('open'));
   });
 
-  templateBtns.forEach(b => {
-    b.addEventListener('click', () => {
-      templateBtns.forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      templateToggleIcon.textContent = b.textContent;
-      drawTemplateOutline(b.dataset.template);
-      showToast(b.dataset.template === 'none' ? 'BLANK CANVAS' : 'COLORING PAGE READY');
-      setGalleryOpen(false);
-    });
+  function clearDrawLayer() {
+    dctx.save();
+    dctx.setTransform(1, 0, 0, 1, 0, 0);
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    dctx.restore();
+  }
+
+  // Picking a page starts it fresh; the previous page + painting stay one UNDO away.
+  function selectTemplate(key) {
+    if (isAnimating) { showToast('STOP THE ANIMATION FIRST'); return false; }
+    if (isLive) stopLive();
+    if (addPartMode) exitAddPartMode();
+    removeToolbar();
+    const hadPaint = strokes.length > 0;
+    if (key === activeTemplate && !hadPaint) { if (key !== 'none') setFillMode(true); return true; }
+    pushUndo({ parts: livingParts.slice() });
+    if (hadPaint) {
+      clearDrawLayer();
+      strokes = [];
+      livingParts = [];
+      renderPartsList();
+    }
+    drawTemplateOutline(key);
+    refreshTemplateButtons();
+    if (key === 'none') {
+      setFillMode(false);
+      showToast(hadPaint ? 'BLANK CANVAS · ↺ UNDO BRINGS IT BACK' : 'BLANK CANVAS');
+    } else {
+      setFillMode(true);
+      showToast(hadPaint ? 'NEW PAGE · ↺ UNDO BRINGS BACK THE OLD ONE' : '🪣 TAP TO FILL · DRAG TO PAINT');
+    }
+    updateAnimateBtns();
+    return true;
+  }
+
+  templateGallery.addEventListener('click', e => {
+    const b = e.target.closest('.btn-template');
+    if (!b) return;
+    if (selectTemplate(b.dataset.template) !== false) setGalleryOpen(false);
   });
+
+  // --- FILL (PAINT BUCKET) ---
+  const btnFill = document.getElementById('btn-fill');
+  function setFillMode(on) {
+    fillMode = !!on;
+    btnFill.classList.toggle('active', fillMode);
+    btnFill.setAttribute('aria-pressed', fillMode ? 'true' : 'false');
+    stack.classList.toggle('fill-cursor', fillMode);
+    if (fillMode) {
+      eraseMode = false;
+      btnEraser.classList.remove('active');
+      if (textMode) exitTextMode();
+      if (emojiMode) exitEmojiMode();
+      if (addPartMode) exitAddPartMode();
+    }
+  }
+  btnFill.addEventListener('click', () => {
+    if (isAnimating || isLive) return;
+    setFillMode(!fillMode);
+    showToast(fillMode ? '🪣 TAP TO FILL · DRAG TO PAINT' : '🖌 BRUSH ONLY');
+  });
+
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    const num = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  }
+
+  function getTemplateBarrier(W, H) {
+    if (templateBarrier && templateBarrier.w === W && templateBarrier.h === H && templateBarrier.key === activeTemplate) return templateBarrier.data;
+    // A slightly thicker copy of the lines than what's shown, so thin diagonal
+    // lines can never "leak" the fill through their anti-aliased pixels.
+    const lw = Math.max(templateLineWidthPx() * 1.35, 1.8 * dpr);
+    const cv = renderTemplateLines(activeTemplate, Math.max(W, H), lw);
+    const d = cv.getContext('2d').getImageData(0, 0, W, H).data;
+    const out = new Uint8Array(W * H);
+    for (let i = 0, j = 3; i < out.length; i++, j += 4) out[i] = d[j] > 30 ? 1 : 0;
+    templateBarrier = { w: W, h: H, key: activeTemplate, data: out };
+    return out;
+  }
+
+  // Scanline flood fill -> colored bitmap of the region (or null if nothing to fill).
+  function computeFill(cssX, cssY, color, style) {
+    const W = drawCanvas.width, H = drawCanvas.height;
+    let sx = Math.floor(cssX * dpr), sy = Math.floor(cssY * dpr);
+    if (sx < 0 || sy < 0 || sx >= W || sy >= H) return null;
+    const usePage = activeTemplate !== 'none' && !!TEMPLATE_ART[activeTemplate];
+    let wall;
+    if (usePage) {
+      wall = getTemplateBarrier(W, H);
+    } else {
+      // Blank canvas: fill the area of similar color around the tap (bounded by your own strokes).
+      const img = dctx.getImageData(0, 0, W, H).data;
+      const si = (sy * W + sx) * 4;
+      const r0 = img[si], g0 = img[si + 1], b0 = img[si + 2], a0 = img[si + 3];
+      wall = new Uint8Array(W * H);
+      for (let i = 0, j = 0; i < wall.length; i++, j += 4) {
+        const a = img[j + 3];
+        const diff = Math.abs(a - a0) * 1.5 + (Math.abs(img[j] - r0) + Math.abs(img[j + 1] - g0) + Math.abs(img[j + 2] - b0)) * Math.min(a, a0) / 255;
+        wall[i] = diff > 70 ? 1 : 0;
+      }
+    }
+    // Tapped right on a line? Use the nearest open pixel instead.
+    if (wall[sy * W + sx]) {
+      const R = Math.round(6 * dpr);
+      let best = null, bestD = Infinity;
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const x = sx + dx, y = sy + dy;
+        if (x < 0 || y < 0 || x >= W || y >= H || wall[y * W + x]) continue;
+        const d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = [x, y]; }
+      }
+      if (!best) return null;
+      sx = best[0]; sy = best[1];
+    }
+    const mask = new Uint8Array(W * H);
+    let minX = sx, maxX = sx, minY = sy, maxY = sy;
+    const st = [sx, sy];
+    while (st.length) {
+      const y = st.pop();
+      let x = st.pop();
+      let i = y * W + x;
+      if (mask[i] || wall[i]) continue;
+      while (x > 0 && !wall[i - 1] && !mask[i - 1]) { x--; i--; }
+      let up = false, down = false;
+      while (x < W && !wall[i] && !mask[i]) {
+        mask[i] = 1;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y > 0) {
+          const u = i - W;
+          if (!wall[u] && !mask[u]) { if (!up) { st.push(x, y - 1); up = true; } } else up = false;
+        }
+        if (y < H - 1) {
+          const dn = i + W;
+          if (!wall[dn] && !mask[dn]) { if (!down) { st.push(x, y + 1); down = true; } } else down = false;
+        }
+        x++; i++;
+      }
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    // Store the region compactly (run-length encoded rows) — the history keeps
+    // this instead of a full bitmap, so hundreds of fills cost almost no memory.
+    const bw = maxX - minX + 1, bh = maxY - minY + 1;
+    const runs = [];
+    for (let y = minY; y <= maxY; y++) {
+      const src = y * W;
+      let x = minX;
+      while (x <= maxX) {
+        if (mask[src + x]) {
+          const x0 = x;
+          while (x <= maxX && mask[src + x]) x++;
+          runs.push(y - minY, x0 - minX, x - 1 - minX);
+        } else x++;
+      }
+    }
+    const r = usePage ? Math.max(1, Math.round(dpr)) : 1;
+    const spec = { runs: new Uint16Array(runs), w: bw, h: bh, cx: sx - minX, cy: sy - minY, color, style, r };
+    return { spec, bx: (minX - r) / dpr, by: (minY - r) / dpr, bw: (bw + 2 * r) / dpr, bh: (bh + 2 * r) / dpr };
+  }
+
+  // Region bitmap from a stored fill: the mask is written once, then color /
+  // gradient / grain are composited by the GPU. SOFT/NEON get a gentle glow from
+  // the tap point, CHALK a light grain, INK stays flat.
+  function renderFillImage(spec) {
+    const { runs, w: bw, h: bh, cx, cy, color, style, r } = spec;
+    const out = document.createElement('canvas');
+    out.width = bw; out.height = bh;
+    const octx = out.getContext('2d');
+    const id = octx.createImageData(bw, bh);
+    const px32 = new Uint32Array(id.data.buffer);
+    for (let k = 0; k < runs.length; k += 3) {
+      const row = runs[k] * bw;
+      px32.fill(0xFF000000, row + runs[k + 1], row + runs[k + 2] + 1);
+    }
+    octx.putImageData(id, 0, 0);
+    octx.globalCompositeOperation = 'source-in';
+    const glow = style === 'neon' ? 0.85 : (style === 'soft' ? 0.55 : 0);
+    if (glow) {
+      const base = hexToRgb(color), light = hexToRgb(shadeHex(color, 26));
+      const maxD = Math.max(1, Math.hypot(Math.max(cx, bw - cx), Math.max(cy, bh - cy)));
+      const g = octx.createRadialGradient(cx, cy, 0, cx, cy, maxD);
+      [[0, 1], [0.25, 0.63], [0.5, 0.33], [0.75, 0.11], [1, 0]].forEach(([t, k]) => {
+        const m = k * glow;
+        g.addColorStop(t, 'rgb(' + Math.round(base[0] + (light[0] - base[0]) * m) + ',' + Math.round(base[1] + (light[1] - base[1]) * m) + ',' + Math.round(base[2] + (light[2] - base[2]) * m) + ')');
+      });
+      octx.fillStyle = g;
+    } else {
+      octx.fillStyle = color;
+    }
+    octx.fillRect(0, 0, bw, bh);
+    if (style === 'chalk') {
+      octx.globalCompositeOperation = 'source-atop';
+      octx.fillStyle = octx.createPattern(chalkGrain(), 'repeat');
+      octx.fillRect(0, 0, bw, bh);
+    }
+    // Grow the region a little so it tucks under the lines (no hairline gaps):
+    // stamp it a few times at tiny offsets.
+    const fin = document.createElement('canvas');
+    fin.width = bw + 2 * r; fin.height = bh + 2 * r;
+    const fc = fin.getContext('2d');
+    const offs = [[0, 0], [-r, 0], [r, 0], [0, -r], [0, r]];
+    if (r > 1) offs.push([-(r - 1), -(r - 1)], [r - 1, -(r - 1)], [-(r - 1), r - 1], [r - 1, r - 1]);
+    offs.forEach(([dx, dy]) => fc.drawImage(out, r + dx, r + dy));
+    return fin;
+  }
+
+  let chalkGrainCanvas = null;
+  function chalkGrain() {
+    if (chalkGrainCanvas) return chalkGrainCanvas;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 96;
+    const c = cv.getContext('2d');
+    const id = c.createImageData(96, 96);
+    for (let i = 0; i < id.data.length; i += 4) {
+      const light = Math.random() < 0.5;
+      id.data[i] = id.data[i + 1] = id.data[i + 2] = light ? 255 : 0;
+      id.data[i + 3] = Math.random() * 46;
+    }
+    c.putImageData(id, 0, 0);
+    chalkGrainCanvas = cv;
+    return cv;
+  }
+
+  function drawFillStroke(st) {
+    dctx.drawImage(renderFillImage(st.spec), st.bx, st.by, st.bw, st.bh);
+  }
+
+  function fillAt(x, y) {
+    if (isAnimating || isLive) return;
+    const p = { x, y };
+    const res = computeFill(p.x, p.y, brushColor, brushStyle);
+    if (!res) return;
+    pushUndo();
+    const st = { type: 'fill', spec: res.spec, bx: res.bx, by: res.by, bw: res.bw, bh: res.bh, color: brushColor, x: p.x, y: p.y, refW: cssW };
+    drawFillStroke(st);
+    strokes.push(st);
+    if (sparkleOn) spawnParticles(p.x, p.y, 10);
+    playFillChime(p.y);
+    if (navigator.vibrate) navigator.vibrate(8);
+    updateUndoBtn();
+    updateAnimateBtns();
+  }
 
   // --- TEXT TOOL (WRITE LETTERS IN THE CURRENT BRUSH COLOR) ---
   function stampFont(kind, px) {
@@ -1869,7 +3233,7 @@
     removeTextStylePicker();
     pushUndo();
     drawTextStamp(text, x, y, brushColor, fontPx, 'text', styleKey, decorations);
-    strokes.push({ type: 'stamp', kind: 'text', text, x, y, color: brushColor, fontPx, style: styleKey, decorations });
+    strokes.push({ type: 'stamp', kind: 'text', text, x, y, color: brushColor, fontPx, style: styleKey, decorations, refW: cssW });
     if (sparkleOn) spawnParticles(x, y, 6);
     if (decorations.includes('sparkle')) {
       dctx.save(); dctx.font = stampFont('text', fontPx); const tw = dctx.measureText(text).width; dctx.restore();
@@ -1925,6 +3289,7 @@
   function onTextPointerDown(e) {
     if (pendingTextStyle) return; // style picker open — resolve it before writing more
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (textInputEl) { e.preventDefault(); textInputEl.blur(); return; } // commit the word being typed first
     const p = getPos(e);
     showTextInput(p.x, p.y);
     e.preventDefault();
@@ -1942,6 +3307,7 @@
     if (textMode) { exitTextMode(); return; }
     exitEmojiMode();
     if (addPartMode) exitAddPartMode();
+    if (fillMode) setFillMode(false);
     textMode = true;
     btnTextMode.classList.add('active');
     showToast('TAP THE CANVAS TO WRITE');
@@ -1975,6 +3341,7 @@
       if (isAnimating || isLive) return;
       exitTextMode();
       if (addPartMode) exitAddPartMode();
+      if (fillMode) setFillMode(false);
       emojiMode = true;
       selectedEmoji = em;
       document.querySelectorAll('#emoji-gallery .btn-template').forEach(x => x.classList.remove('active'));
@@ -2010,7 +3377,7 @@
     pushUndo();
     const fontPx = Math.max(24, Math.round(brushSize * 4.5));
     drawTextStamp(emoji, x, y, brushColor, fontPx, 'emoji');
-    strokes.push({ type: 'stamp', kind: 'emoji', text: emoji, x, y, color: brushColor, fontPx });
+    strokes.push({ type: 'stamp', kind: 'emoji', text: emoji, x, y, color: brushColor, fontPx, refW: cssW });
     if (sparkleOn) spawnParticles(x, y, 6);
     updateUndoBtn();
     updateAnimateBtns();
@@ -2196,6 +3563,33 @@
     activeVoice = null;
   }
 
+  // A soft, short bell tone when an area gets filled (same calm scale as the brush).
+  function playFillChime(y) {
+    if (!soundOn) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    try {
+      const now = audioCtx.currentTime;
+      const f = noteFreqFromY(y, cssH) * 2;
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now);
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.05, now + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0005, now + 1.4);
+      const wet = audioCtx.createGain();
+      wet.gain.value = 0.7;
+      osc.connect(g);
+      g.connect(masterGain);
+      g.connect(wet).connect(reverbNode);
+      osc.start(now);
+      osc.stop(now + 1.45);
+      osc.onended = () => { [osc, g, wet].forEach(n => { try { n.disconnect(); } catch (e) {} }); };
+    } catch (e) {}
+  }
+
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopVoice(0.1);
   });
@@ -2233,12 +3627,12 @@
   }
 
   // --- HISTORIE (UNDO) ---
-  function pushUndo() {
+  function pushUndo(extra) {
     const snap = document.createElement('canvas');
     snap.width = drawCanvas.width;
     snap.height = drawCanvas.height;
     snap.getContext('2d').drawImage(drawCanvas, 0, 0);
-    undoStack.push({ canvas: snap, strokesLen: strokes.length });
+    undoStack.push(Object.assign({ canvas: snap, strokes: strokes.slice(), template: activeTemplate }, extra || {}));
     if (undoStack.length > MAX_UNDO) undoStack.shift();
     updateUndoBtn();
   }
@@ -2250,8 +3644,10 @@
     document.getElementById('btn-animate').disabled = (strokes.length === 0 && !isAnimating) || isLive;
     document.getElementById('btn-save-video').disabled = !has || typeof MediaRecorder === 'undefined';
     document.getElementById('btn-save-gif').disabled = !has || typeof Worker === 'undefined' || gifExporting;
-    document.getElementById('btn-add-part').disabled = !(strokes.length > 0) || isAnimating || isLive;
-    document.getElementById('btn-live').disabled = !(strokes.length > 0 && livingParts.length > 0) || isAnimating || addPartMode;
+    const hasArt = strokes.length > 0 || activeTemplate !== 'none';
+    document.getElementById('btn-add-part').disabled = !hasArt || isAnimating || isLive;
+    document.getElementById('btn-live').disabled = !(hasArt && livingParts.length > 0) || isAnimating || addPartMode;
+    btnFill.disabled = isAnimating || isLive;
     document.getElementById('btn-text-mode').disabled = isAnimating || isLive;
     document.getElementById('btn-emoji-toggle').disabled = isAnimating || isLive;
     document.getElementById('btn-text-animate').disabled = isAnimating || isLive;
@@ -2259,12 +3655,18 @@
   document.getElementById('btn-undo').addEventListener('click', () => {
     if (!undoStack.length || isAnimating || isLive) return;
     const entry = undoStack.pop();
+    removeToolbar();
     dctx.save();
     dctx.setTransform(1, 0, 0, 1, 0, 0);
     dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     dctx.drawImage(entry.canvas, 0, 0, entry.canvas.width, entry.canvas.height, 0, 0, drawCanvas.width, drawCanvas.height);
     dctx.restore();
-    strokes.length = entry.strokesLen;
+    strokes = entry.strokes;
+    if (entry.parts) { livingParts = entry.parts; renderPartsList(); }
+    if (entry.template !== activeTemplate) {
+      drawTemplateOutline(entry.template);
+      refreshTemplateButtons();
+    }
     updateUndoBtn();
     updateAnimateBtns();
     showToast('UNDONE');
@@ -2274,11 +3676,9 @@
     if (isAnimating) return;
     if (isLive) stopLive();
     if (addPartMode) exitAddPartMode();
-    pushUndo();
-    dctx.save();
-    dctx.setTransform(1, 0, 0, 1, 0, 0);
-    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    dctx.restore();
+    removeToolbar();
+    pushUndo({ parts: livingParts.slice() });
+    clearDrawLayer();
     strokes = [];
     livingParts = [];
     renderPartsList();
@@ -2288,6 +3688,8 @@
 
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      const tg = e.target;
+      if (tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.isContentEditable)) return; // normal text undo while typing
       e.preventDefault();
       document.getElementById('btn-undo').click();
     }
@@ -2309,6 +3711,7 @@
     octx.fillStyle = grad;
     octx.fillRect(0, 0, w, h);
     octx.drawImage(drawCanvas, 0, 0);
+    if (activeTemplate !== 'none') octx.drawImage(templateCanvas, 0, 0);
 
     out.toBlob(blob => {
       if (!blob) { showToast('SAVE FAILED'); return; }
@@ -2457,9 +3860,12 @@
     if (particles.length > 220) particles.splice(0, particles.length - 220);
   }
 
+  let fxHadContent = false;
   function animateParticles() {
-    const rect = stack.getBoundingClientRect();
-    fctx.clearRect(0, 0, rect.width, rect.height);
+    const needsFx = particles.length > 0 || (addPartMode && !!selRect);
+    if (!needsFx && !fxHadContent) { requestAnimationFrame(animateParticles); return; }
+    fxHadContent = needsFx;
+    fctx.clearRect(0, 0, cssW, cssH);
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.x += p.vx; p.y += p.vy; p.vy += 0.01; p.life -= p.decay;
@@ -2502,22 +3908,42 @@
     if (emojiMode) { onEmojiPointerDown(e); return; }
     if (activePointerId !== null) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    activePointerId = e.pointerId;
-    try { drawCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+    const p = getPos(e);
+    if (fillMode) {
+      // 🪣 mode: a tap fills, a drag paints — decided once the pointer moves or lifts.
+      activePointerId = e.pointerId;
+      try { drawCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+      pendingFill = { x: p.x, y: p.y, id: e.pointerId };
+      e.preventDefault();
+      return;
+    }
+    beginStroke(p, e.pointerId);
+    e.preventDefault();
+  }
+
+  let pendingFill = null;
+  function beginStroke(p, pointerId) {
+    activePointerId = pointerId;
+    try { drawCanvas.setPointerCapture(pointerId); } catch (err) {}
     pushUndo();
     drawing = true;
-    const p = getPos(e);
     lastX = p.x; lastY = p.y; lastT = performance.now();
-    currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, style: brushStyle, points: [{ x: p.x, y: p.y, t: 0 }] };
+    currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, style: brushStyle, refW: cssW, points: [{ x: p.x, y: p.y, t: 0 }] };
     strokeSegment(p.x, p.y, p.x + 0.5, p.y, 1);
     if (sparkleOn) spawnParticles(p.x, p.y, 4);
     startVoice(p.x, p.y, drawCanvas.getBoundingClientRect(), eraseMode);
     if (navigator.vibrate) navigator.vibrate(12);
-    e.preventDefault();
   }
 
   function onPointerMove(e) {
     if (addPartMode) { onSelectPointerMove(e); return; }
+    if (pendingFill && e.pointerId === pendingFill.id) {
+      const q = getPos(e);
+      if (Math.hypot(q.x - pendingFill.x, q.y - pendingFill.y) < 8) return;
+      const start = pendingFill;
+      pendingFill = null;
+      beginStroke({ x: start.x, y: start.y }, e.pointerId);
+    }
     if (!drawing || e.pointerId !== activePointerId) return;
     const p = getPos(e);
     const now = performance.now();
@@ -2536,6 +3962,14 @@
 
   function endStroke(e) {
     if (addPartMode) { onSelectPointerUp(e); return; }
+    if (pendingFill) {
+      if (e && e.pointerId !== undefined && e.pointerId !== pendingFill.id) return;
+      const pf = pendingFill;
+      pendingFill = null;
+      activePointerId = null;
+      if (e && e.type === 'pointerup') fillAt(pf.x, pf.y);
+      return;
+    }
     if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
     drawing = false;
     activePointerId = null;
@@ -2552,22 +3986,36 @@
   window.addEventListener('pointerup', endStroke);
   window.addEventListener('pointercancel', endStroke);
 
-  // --- FULLSCREEN (SAME LOGIC AS IN THE PLAYER) ---
+  // --- FULLSCREEN (SAME LOGIC AS IN THE PLAYER, WITH A FALLBACK FOR iPHONE) ---
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function scheduleResize(ms) {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => resizeAll(true), ms || 160);
+  }
+  function setPseudoFullscreen(on) {
+    document.body.classList.toggle('is-fullscreen', on);
+    window.scrollTo(0, 0);
+    scheduleResize();
+  }
   window.toggleFullscreen = function () {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.log(`Chyba fullscreenu: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
+    if (fsElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
     }
+    if (document.body.classList.contains('is-fullscreen')) { setPseudoFullscreen(false); return; }
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) { setPseudoFullscreen(true); return; }
+    try {
+      const pr = req.call(el);
+      if (pr && pr.catch) pr.catch(() => setPseudoFullscreen(true));
+    } catch (err) { setPseudoFullscreen(true); }
   };
   document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
-  document.addEventListener('fullscreenchange', () => {
-    document.body.classList.toggle('is-fullscreen', !!document.fullscreenElement);
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => resizeAll(true), 160);
-  });
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => {
+    document.body.classList.toggle('is-fullscreen', !!fsElement());
+    scheduleResize();
+  }));
 
   // --- CZ/EN PŘEKLAD panelu ⓘ (HOW TO DRAW) — sdílí stejný localStorage klíč jako Relax Player
   // a Blocks, takže volba jazyka je jednotná napříč celou appkou. ---
@@ -2586,7 +4034,9 @@
     li_feel_3: { en: "🌾 CHALK — a dry, grainy pastel texture", cz: "🌾 CHALK — suchá, zrnitá pastelová textura" },
     li_feel_4: { en: "✨ NEON — the original bright glowing light trail", cz: "✨ NEON — původní jasná zářící světelná stopa" },
     h_coloring: { en: "COLORING PAGE", cz: "OMALOVÁNKA" },
-    p_coloring: { en: "Pick an outline from COLORING PAGE — a mandala, flower, butterfly and more — and simply paint inside the lines with any brush and color. Your color always stays under the outline, and CLEAR only wipes your painting, not the outline. Pick \"✕\" to go back to a blank canvas.", cz: "Vyberte si obrys z COLORING PAGE — mandalu, květinu, motýla a další — a jednoduše vybarvěte plochu uvnitř čar libovolným štětcem a barvou. Vaše barva vždy zůstane pod obrysem a CLEAR smaže jen vaši malbu, ne obrys. Volbou „✕“ se vrátíte k prázdnému plátnu." },
+    p_coloring: { en: "Open CHOOSE A PAGE and pick one of 34 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick \"✕\" to go back to a blank canvas.", cz: "Otevřete VYBRAT OMALOVÁNKU a vyberte si jednu z 34 detailních omalovánek — mandaly, zvířátka, přírodu a další. Automaticky se zapne 🪣 FILL: klepnutím na libovolnou plochu ji vyplníte barvou, tažením můžete volně malovat jakýmkoli štětcem. Barva vždy zůstane pod obrysem a CLEAR smaže jen vaši malbu, ne omalovánku. Výběrem nové omalovánky začnete načisto (↺ UNDO vám předchozí malbu vrátí). Volbou „✕“ se vrátíte k prázdnému plátnu." },
+    p_coloring_hint: { en: "Pick a page, then tap areas with 🪣 FILL or paint with any brush — your colors always stay under the lines.", cz: "Vyberte omalovánku a pak klepejte na plochy s 🪣 FILL, nebo malujte libovolným štětcem — barvy vždy zůstanou pod čarami." },
+    li_tools_10: { en: "🪣 FILL — tap an area to fill it with the current color (dragging still paints with the brush). On a coloring page the outline keeps the color inside its lines; on a blank canvas it fills the shape you drew around the tap", cz: "🪣 FILL — klepnutím vyplníte plochu aktuální barvou (tažením se dál maluje štětcem). U omalovánky drží barvu uvnitř čar obrys; na prázdném plátně se vyplní tvar, který jste kolem místa klepnutí nakreslili" },
     h_tools: { en: "TOOLS", cz: "NÁSTROJE" },
     li_tools_1: { en: "🧹 ERASER — erase instead of draw", cz: "🧹 ERASER — místo kreslení maže" },
     li_tools_2: { en: "✨ SPARKLE — turn the glowing trail on or off", cz: "✨ SPARKLE — zapne nebo vypne zářící stopu" },
@@ -2604,7 +4054,7 @@
     p_sound: { en: "While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound \"off\" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.", cz: "Zatímco kreslíte, tichý ambientní tón jemně sleduje váš štětec. Vždy je naladěn na klidnou pětitónovou stupnici, takže nikdy nemůže znít „mimo“ — výš na plátně zní vyšší tón, níž hlubší, a mezi nimi plynule klouže podle vašeho pohybu. Tón se posouvá vlevo a vpravo podle polohy štětce, pomalu se rozvine a při zvednutí prstu pomalu odezní, a má jemný nádech reverbu pro měkký, prostorový pocit. Každý styl štětce (BRUSH FEEL) mu dodá mírně jinou barvu tónu a gumování hraje svůj vlastní tichý, tlumený tón. Kdykoli ho přepnete tlačítkem 🔊 SOUND a posuvníkem vedle něj nastavíte hlasitost (výchozích 40 %) — obě volby se zapamatují." },
     h_life: { en: "BRING THE PICTURE TO LIFE", cz: "OŽIVTE SVŮJ OBRÁZEK" },
     p_life: { en: "Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), TWINKLE (a soft flicker, lovely for stars), SHAKE (a playful jitter), or RAINBOW (slowly cycling colors). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're \"attached\" to the body.", cz: "Nakreslete obrázek (např. ptáka), poté stiskněte ➕ MARK PART a přetáhněte přes část, kterou chcete rozhýbat (např. křídlo). Vyberte pohyb — FLAP, SWAY, SPIN, BOB, PULSE (jemné dýchání), FADE (jemné dýchání průhlednosti), DRIFT (pomalé plutí), TWINKLE (jemné blikání, skvělé pro hvězdy), SHAKE (hravé chvění) nebo RAINBOW (pomalu se měnící barvy). Přidejte tolik částí, kolik chcete, a stiskněte 🦋 LIVE — zbytek obrázku zůstane nehybný, zatímco označené části se pohybují kolem bodu, kde jsou „připojené“ k tělu." },
-    btn_choose_outline: { en: "CHOOSE OUTLINE", cz: "VYBRAT OBRYS" },
+    btn_choose_outline: { en: "CHOOSE A PAGE", cz: "VYBRAT OMALOVÁNKU" },
     h_themes: { en: "THEMES", cz: "MOTIVY" },
     p_themes: { en: "Pick a THEME from the row above the canvas to change the background mood, including the calm ZEN theme. It doesn't change your brush color.", cz: "Vyberte THEME z řady nad plátnem a změňte tak náladu pozadí, včetně klidného motivu ZEN. Barvu vašeho štětce to nijak nemění." }
   };
@@ -2637,33 +4087,58 @@
   document.getElementById('btn-info').addEventListener('click', () => toggleInfoOverlay(true));
   document.getElementById('btn-info-close').addEventListener('click', () => toggleInfoOverlay(false));
   document.getElementById('info-overlay').addEventListener('click', e => { if (e.target.id === 'info-overlay') toggleInfoOverlay(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); exitAddPartMode(); if (textMode) exitTextMode(); if (emojiMode) exitEmojiMode(); removeTextStylePicker(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); exitAddPartMode(); removeToolbar(); if (textMode) exitTextMode(); if (emojiMode) exitEmojiMode(); removeTextStylePicker(); } });
 
   // --- ANIMATION: BUILD TIMELINE FROM RECORDED STROKES ---
+  // Strokes are stored in the CSS px of the canvas size they were drawn at;
+  // if the canvas has been resized since (rotation, fullscreen…), scale on replay.
+  function strokeScale(stroke) {
+    return stroke.refW && cssW ? cssW / stroke.refW : 1;
+  }
+  function scaled(stroke, fn) {
+    const k = strokeScale(stroke);
+    if (Math.abs(k - 1) < 0.001) return () => fn(1);
+    return () => { dctx.save(); dctx.scale(k, k); fn(k); dctx.restore(); };
+  }
+
   function buildTimeline() {
     const timeline = [];
     let cum = 0;
     strokes.forEach(stroke => {
+      if (!stroke) return;
+      if (stroke.type === 'fill') {
+        cum += 120;
+        timeline.push({
+          t: cum,
+          draw: scaled(stroke, k => {
+            drawFillStroke(stroke);
+            if (sparkleOn) spawnParticles(stroke.x * k, stroke.y * k, 8);
+          })
+        });
+        cum += 160;
+        return;
+      }
       if (stroke.type === 'stamp') {
         cum += 120;
         timeline.push({
           t: cum,
-          draw: () => {
+          draw: scaled(stroke, k => {
             drawTextStamp(stroke.text, stroke.x, stroke.y, stroke.color, stroke.fontPx, stroke.kind, stroke.style, stroke.decorations);
-            if (sparkleOn) spawnParticles(stroke.x, stroke.y, 8);
+            if (sparkleOn) spawnParticles(stroke.x * k, stroke.y * k, 8);
             if (stroke.decorations && stroke.decorations.includes('sparkle')) {
               dctx.save(); dctx.font = stampFont(stroke.kind, stroke.fontPx); const tw = dctx.measureText(stroke.text).width; dctx.restore();
-              spawnTextSparkle(stroke.x, stroke.y, tw);
+              spawnTextSparkle(stroke.x * k, stroke.y * k, tw * k);
             }
-          }
+          })
         });
         cum += 220;
         return;
       }
       const pts = stroke.points;
+      if (!pts || !pts.length) return;
       if (pts.length < 2) {
         const p0 = pts[0];
-        timeline.push({ t: cum, draw: () => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, stroke.color, stroke.size, stroke.erase, stroke.style); if (sparkleOn) spawnParticles(p0.x, p0.y, 4); } });
+        timeline.push({ t: cum, draw: scaled(stroke, k => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, stroke.color, stroke.size, stroke.erase, stroke.style); if (sparkleOn) spawnParticles(p0.x * k, p0.y * k, 4); }) });
         cum += 60;
       } else {
         for (let i = 1; i < pts.length; i++) {
@@ -2672,11 +4147,11 @@
           cum += dt;
           timeline.push({
             t: cum,
-            draw: () => {
+            draw: scaled(stroke, k => {
               const sf = speedFactor(p1.x - p0.x, p1.y - p0.y, dt);
               drawSegment(p0.x, p0.y, p1.x, p1.y, sf, stroke.color, stroke.size, stroke.erase, stroke.style);
-              if (sparkleOn) spawnParticles(p1.x, p1.y, 2);
-            }
+              if (sparkleOn) spawnParticles(p1.x * k, p1.y * k, 2);
+            })
           });
         }
       }
@@ -2719,10 +4194,25 @@
       if (idx < timeline.length) {
         animRafId = requestAnimationFrame(frame);
       } else {
+        animStopHook = null;
         finishAnimation();
       }
     }
     animRafId = requestAnimationFrame(frame);
+  }
+
+  // Jump straight to the finished drawing and stop the replay.
+  function stopAnimationAtEnd() {
+    if (!isAnimating) return;
+    isAnimating = false;
+    if (animRafId) cancelAnimationFrame(animRafId);
+    animRafId = null;
+    clearDrawLayer();
+    buildTimeline().forEach(item => item.draw());
+    const hook = animStopHook;
+    animStopHook = null;
+    if (hook) hook();
+    finishAnimation();
   }
 
   function finishAnimation() {
@@ -2736,16 +4226,7 @@
 
   document.getElementById('btn-animate').addEventListener('click', () => {
     if (isAnimating) {
-      // Jump straight to the final drawing and stop
-      isAnimating = false;
-      if (animRafId) cancelAnimationFrame(animRafId);
-      const timeline = buildTimeline();
-      dctx.save();
-      dctx.setTransform(1, 0, 0, 1, 0, 0);
-      dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-      dctx.restore();
-      timeline.forEach(item => item.draw());
-      finishAnimation();
+      stopAnimationAtEnd();
       showToast('STOPPED');
       return;
     }
@@ -2753,27 +4234,60 @@
     showToast('▶ PLAYING');
   });
 
-  // --- EXPORT ANIMACE JAKO VIDEO (WEBM) ---
+  // --- EXPORT ANIMATION AS VIDEO (WEBM, OR MP4 WHERE WEBM ISN'T AVAILABLE) ---
+  function pickVideoType() {
+    const types = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+    for (const t of types) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
+    return '';
+  }
+  function themeBg(ctx, w, h) {
+    const style = getComputedStyle(body);
+    const c1 = style.getPropertyValue('--bg-color-1').trim() || '#1a0033';
+    const c2 = style.getPropertyValue('--bg-color-2').trim() || '#000010';
+    const grad = ctx.createRadialGradient(w / 2, h * 0.15, 0, w / 2, h / 2, Math.max(w, h) * 0.75);
+    grad.addColorStop(0, c1);
+    grad.addColorStop(1, c2);
+    return grad;
+  }
+
   document.getElementById('btn-save-video').addEventListener('click', () => {
-    if (isAnimating || !strokes.length) return;
-    if (typeof MediaRecorder === 'undefined' || !drawCanvas.captureStream) {
+    if (isAnimating || isLive || !strokes.length) return;
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
       showToast('VIDEO NOT SUPPORTED');
       return;
     }
+    const mimeType = pickVideoType();
+    if (!mimeType) { showToast('VIDEO NOT SUPPORTED'); return; }
     try {
-      const stream = drawCanvas.captureStream(30);
-      let mimeType = 'video/webm;codecs=vp9';
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+      const scale = Math.min(1, 1080 / Math.max(drawCanvas.width, drawCanvas.height));
+      const out = document.createElement('canvas');
+      out.width = Math.round(drawCanvas.width * scale);
+      out.height = Math.round(drawCanvas.height * scale);
+      const octx = out.getContext('2d');
+      const bg = themeBg(octx, out.width, out.height);
+      const paint = () => {
+        octx.fillStyle = bg;
+        octx.fillRect(0, 0, out.width, out.height);
+        octx.drawImage(drawCanvas, 0, 0, out.width, out.height);
+        if (activeTemplate !== 'none') octx.drawImage(templateCanvas, 0, 0, out.width, out.height);
+        octx.drawImage(fxCanvas, 0, 0, out.width, out.height);
+      };
+      paint();
+      const stream = out.captureStream(30);
       const recorder = new MediaRecorder(stream, { mimeType });
       const chunks = [];
+      let cancelled = false;
       recorder.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        stream.getTracks().forEach(t => t.stop());
+        if (cancelled) { showToast('VIDEO CANCELLED'); return; }
+        const isMp4 = mimeType.indexOf('mp4') !== -1;
+        const blob = new Blob(chunks, { type: isMp4 ? 'video/mp4' : 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
         a.href = url;
-        a.download = 'synthlucida-canvas-' + ts + '.webm';
+        a.download = 'synthlucida-canvas-' + ts + (isMp4 ? '.mp4' : '.webm');
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -2782,11 +4296,21 @@
       };
       recorder.start();
       showToast('● RECORDING');
+      let ending = false;
       playAnimation((elapsed, total) => {
-        if (elapsed >= total) {
-          setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 200);
+        paint();
+        if (elapsed >= total && !ending) {
+          ending = true;
+          // hold the finished picture for a moment (and let the sparkles settle)
+          let n = 0;
+          (function hold() {
+            paint();
+            if (++n < 50 && recorder.state !== 'inactive') requestAnimationFrame(hold);
+            else if (recorder.state !== 'inactive') recorder.stop();
+          })();
         }
       });
+      animStopHook = () => { cancelled = true; if (recorder.state !== 'inactive') recorder.stop(); };
     } catch (err) {
       showToast('VIDEO FAILED');
     }
@@ -2803,20 +4327,20 @@
             gifWorkerUrl = URL.createObjectURL(blob);
             resolve(window.GIF);
           })
-          .catch(reject);
+          .catch(err => { gifJsPromise = null; reject(err); });
       }
       if (window.GIF) { afterScript(); return; }
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js';
       script.onload = afterScript;
-      script.onerror = () => reject(new Error('gif.js load failed'));
+      script.onerror = () => { gifJsPromise = null; script.remove(); reject(new Error('gif.js load failed')); };
       document.head.appendChild(script);
     });
     return gifJsPromise;
   }
 
   document.getElementById('btn-save-gif').addEventListener('click', () => {
-    if (isAnimating || !strokes.length || gifExporting) return;
+    if (isAnimating || isLive || !strokes.length || gifExporting) return;
     if (typeof Worker === 'undefined') { showToast('GIF NOT SUPPORTED'); return; }
     gifExporting = true;
     updateAnimateBtns();
@@ -2844,6 +4368,7 @@
         cctx.fillStyle = grad;
         cctx.fillRect(0, 0, gw, gh);
         cctx.drawImage(drawCanvas, 0, 0, fullW, fullH, 0, 0, gw, gh);
+        if (activeTemplate !== 'none') cctx.drawImage(templateCanvas, 0, 0, fullW, fullH, 0, 0, gw, gh);
       }
 
       // Cap total captured frames so encoding stays fast regardless of how long the drawing took.
@@ -2924,6 +4449,7 @@
           watchdog = setTimeout(() => cleanupFail('GIF TIMED OUT'), 45000);
         }
       });
+      animStopHook = () => { try { gif.abort(); } catch (e) {} cleanupFail('GIF CANCELLED'); };
     }).catch(() => { gifExporting = false; showToast('GIF FAILED'); updateAnimateBtns(); });
   });
 
@@ -3072,6 +4598,9 @@
   document.getElementById('btn-add-part').addEventListener('click', () => {
     if (isAnimating || isLive) return;
     if (addPartMode) { exitAddPartMode(); return; }
+    if (fillMode) setFillMode(false);
+    if (textMode) exitTextMode();
+    if (emojiMode) exitEmojiMode();
     addPartMode = true;
     selRect = null;
     const btn = document.getElementById('btn-add-part');
@@ -3086,6 +4615,7 @@
     if (isLive || isAnimating || !livingParts.length) return;
     if (textMode) exitTextMode();
     if (emojiMode) exitEmojiMode();
+    removeToolbar();
     isLive = true;
     updateAnimateBtns();
     setDrawingEnabled(false);
@@ -3098,11 +4628,22 @@
     liveOriginalCanvas.height = drawCanvas.height;
     liveOriginalCanvas.getContext('2d').drawImage(drawCanvas, 0, 0);
 
+    // What moves = your painting + the coloring page outline (if any), merged.
+    const liveSource = document.createElement('canvas');
+    liveSource.width = drawCanvas.width;
+    liveSource.height = drawCanvas.height;
+    const lsctx = liveSource.getContext('2d');
+    lsctx.drawImage(drawCanvas, 0, 0);
+    if (activeTemplate !== 'none') {
+      lsctx.drawImage(templateCanvas, 0, 0);
+      templateCanvas.style.visibility = 'hidden';
+    }
+
     liveBaseCanvas = document.createElement('canvas');
     liveBaseCanvas.width = drawCanvas.width;
     liveBaseCanvas.height = drawCanvas.height;
     const bctx = liveBaseCanvas.getContext('2d');
-    bctx.drawImage(liveOriginalCanvas, 0, 0);
+    bctx.drawImage(liveSource, 0, 0);
 
     const stackRect = stack.getBoundingClientRect();
     const cssW = stackRect.width, cssH = stackRect.height;
@@ -3112,13 +4653,46 @@
       const pw = part.fw * cssW * dpr, ph = part.fh * cssH * dpr;
       const pc = document.createElement('canvas');
       pc.width = Math.max(1, pw); pc.height = Math.max(1, ph);
-      pc.getContext('2d').drawImage(liveOriginalCanvas, px, py, pw, ph, 0, 0, pw, ph);
+      pc.getContext('2d').drawImage(liveSource, px, py, pw, ph, 0, 0, pw, ph);
       bctx.clearRect(px, py, pw, ph);
+      patchLiveHole(bctx, liveSource, px, py, pw, ph);
       return { canvas: pc, part, px, py, pw, ph };
     });
 
     liveStart = performance.now();
     liveRafId = requestAnimationFrame(liveFrame);
+  }
+
+  // When a part is lifted out of the picture, the hole it leaves would show the
+  // bare canvas. If the area around the part is one solid color (e.g. a filled
+  // background), patch the hole with that color so the motion looks natural.
+  function patchLiveHole(bctx, src, px, py, pw, ph) {
+    const W = src.width, H = src.height;
+    const x0 = Math.max(0, Math.floor(px) - 2), y0 = Math.max(0, Math.floor(py) - 2);
+    const x1 = Math.min(W - 1, Math.ceil(px + pw) + 1), y1 = Math.min(H - 1, Math.ceil(py + ph) + 1);
+    if (x1 <= x0 || y1 <= y0) return;
+    let d;
+    try { d = src.getContext('2d').getImageData(x0, y0, x1 - x0 + 1, y1 - y0 + 1); } catch (e) { return; }
+    const w = d.width, h = d.height, data = d.data;
+    const counts = new Map();
+    let samples = 0;
+    const sample = (x, y) => {
+      const j = (y * w + x) * 4;
+      samples++;
+      if (data[j + 3] < 200) return;
+      const key = (data[j] >> 3) + ',' + (data[j + 1] >> 3) + ',' + (data[j + 2] >> 3);
+      const e = counts.get(key);
+      if (e) { e.n++; e.r += data[j]; e.g += data[j + 1]; e.b += data[j + 2]; }
+      else counts.set(key, { n: 1, r: data[j], g: data[j + 1], b: data[j + 2] });
+    };
+    const step = Math.max(1, Math.floor(Math.max(w, h) / 200));
+    for (let x = 0; x < w; x += step) { sample(x, 0); sample(x, h - 1); }
+    for (let y = 0; y < h; y += step) { sample(0, y); sample(w - 1, y); }
+    let best = null;
+    counts.forEach(e => { if (!best || e.n > best.n) best = e; });
+    if (!best || best.n < samples * 0.45) return;
+    bctx.fillStyle = 'rgb(' + Math.round(best.r / best.n) + ',' + Math.round(best.g / best.n) + ',' + Math.round(best.b / best.n) + ')';
+    bctx.fillRect(px, py, pw, ph);
   }
 
   function liveFrame(now) {
@@ -3188,6 +4762,8 @@
     dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     if (liveOriginalCanvas) dctx.drawImage(liveOriginalCanvas, 0, 0);
     dctx.restore();
+    templateCanvas.style.visibility = '';
+    liveOriginalCanvas = null; liveBaseCanvas = null; livePartCanvases = [];
     setDrawingEnabled(true);
     const btn = document.getElementById('btn-live');
     btn.classList.remove('active');
@@ -3203,13 +4779,12 @@
   });
 
   // --- INICIALIZACE ---
+  if (!TEMPLATE_ART[activeTemplate]) activeTemplate = 'none';
+  if (activeTemplate !== 'none') drawTemplateOutline(activeTemplate, true);
+  refreshTemplateButtons();
   updateUndoBtn();
   updateAnimateBtns();
   renderPartsList();
-  if (activeTemplate && activeTemplate !== 'none' && TEMPLATES[activeTemplate]) {
-    templateBtns.forEach(b => b.classList.toggle('active', b.dataset.template === activeTemplate));
-    drawTemplateOutline(activeTemplate, true);
-  }
 })();
 </script>
 </body>

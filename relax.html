@@ -251,6 +251,8 @@
   .volume-control {
     display: flex; align-items: center; gap: 8px;
   }
+  /* a sound button and its VOL slider always wrap onto a new row together */
+  .ctrl-pair { display: flex; align-items: center; gap: 20px; }
 
   .tap-synth-panel {
     position: absolute; bottom: 100%; left: 50%;
@@ -385,7 +387,8 @@
   .info-overlay.open { opacity: 1; pointer-events: auto; }
   
   .info-content {
-    max-width: 600px; max-height: 80vh; overflow-y: auto; padding: 30px; position: relative;
+    max-width: 600px; width: calc(100% - 24px); box-sizing: border-box;
+    max-height: 80vh; overflow-y: auto; padding: 30px; position: relative;
     background: rgba(20, 18, 30, 0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
     text-align: left; color: rgba(255,255,255,0.8); line-height: 1.6; font-size: 0.85rem;
   }
@@ -431,6 +434,7 @@
 
   @media (max-width: 480px) {
     .controls { gap: 12px; }
+    .ctrl-pair { gap: 12px; }
     .btn { padding: 9px 16px; font-size: 0.6rem; letter-spacing: 2px; }
     #rec-btn { min-width: 150px; }
     #timer-btn { min-width: 115px; }
@@ -441,6 +445,7 @@
 
   @media (max-width: 380px) {
     .controls { gap: 8px; }
+    .ctrl-pair { gap: 8px; }
     .btn { padding: 8px 12px; font-size: 0.55rem; letter-spacing: 1.5px; }
     #rec-btn { min-width: 128px; }
     #timer-btn { min-width: 100px; }
@@ -460,6 +465,7 @@
 
   @media (max-width: 480px) {
     .tap-synth-panel { max-height: 65vh; }
+    .info-content { padding: 22px 18px; }
   }
 </style>
 </head>
@@ -468,7 +474,7 @@
 <audio id="crickets-audio" src="cvrcci.mp3" loop></audio>
 
 <div class="top-bar">
-  <button id="info-btn" class="info-btn">ℹ</button>
+  <button id="info-btn" class="info-btn" aria-label="Information and guide">ℹ</button>
 </div>
 
 <div id="info-overlay" class="info-overlay">
@@ -526,23 +532,27 @@
 
 <div class="ui-container">
   <div class="headphones-notice">BEST EXPERIENCED WITH HEADPHONES</div>
-  <div class="tap-notice">TAP THE SKY TO PLAY A MELODY OR ONLY RELAXING</div>
+  <div class="tap-notice">TAP THE SKY TO PLAY A MELODY — OR JUST RELAX</div>
   <div id="binaural-status" class="binaural-status">DELTA WAVES (2Hz) - DEEP CALM</div>
   <div class="controls">
     <a href="player.html" class="btn">BACK TO PLAYER</a>
 
     <button id="fs-btn" class="btn">FULLSCREEN: OFF</button>
     
-    <button id="binaural-btn" class="btn">BINAURAL: OFF</button>
-    <div class="volume-control" id="volume-control">
-      <span class="vol-label">VOL</span>
-      <input type="range" id="binaural-volume" min="0" max="100" value="30">
+    <div class="ctrl-pair">
+      <button id="binaural-btn" class="btn">BINAURAL: OFF</button>
+      <div class="volume-control" id="volume-control">
+        <span class="vol-label">VOL</span>
+        <input type="range" id="binaural-volume" min="0" max="100" value="30" aria-label="Binaural volume">
+      </div>
     </div>
 
-    <button id="crickets-btn" class="btn">NATURE: OFF</button>
-    <div class="volume-control" id="crickets-volume-control">
-      <span class="vol-label">VOL</span>
-      <input type="range" id="crickets-volume" min="0" max="100" value="18">
+    <div class="ctrl-pair">
+      <button id="crickets-btn" class="btn">NATURE: OFF</button>
+      <div class="volume-control" id="crickets-volume-control">
+        <span class="vol-label">VOL</span>
+        <input type="range" id="crickets-volume" min="0" max="100" value="18" aria-label="Nature sound volume">
+      </div>
     </div>
     
     <button id="timer-btn" class="btn">TIMER: OFF</button>
@@ -818,17 +828,24 @@ setInterval(updateMoonPhase, 3600000);
   // --- Fullscreen logika ---
   const fsBtn = document.getElementById('fs-btn');
 
+  const fsRoot = document.documentElement;
+  const fsRequest = fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen;
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+  const syncFsLabel = () => { fsBtn.innerText = fsElement() ? "FULLSCREEN: ON" : "FULLSCREEN: OFF"; };
+  // iPhone Safari has no Fullscreen API at all (the app already fills the screen there) - hide the button.
+  if (!fsRequest) fsBtn.style.display = 'none';
+
   fsBtn.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.log(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-      fsBtn.innerText = "FULLSCREEN: ON";
+    if (!fsElement()) {
+      try {
+        const p = fsRequest.call(fsRoot);
+        if (p && p.catch) p.catch(err => console.log(`Error attempting to enable full-screen mode: ${err.message}`));
+      } catch (err) { console.log(`Error attempting to enable full-screen mode: ${err.message}`); }
     } else {
-      document.exitFullscreen();
-      fsBtn.innerText = "FULLSCREEN: OFF";
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
     }
   });
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, syncFsLabel));
 
   // --- CZ/EN PŘEKLAD panelu ⓘ (Information and Guide) — sdílí stejný localStorage klíč jako
   // Relax Player, Blocks a Canvas, takže volba jazyka je jednotná napříč celou appkou.
@@ -925,8 +942,16 @@ setInterval(updateMoonPhase, 3600000);
     })));
   }
 
+  let lastW = window.innerWidth, lastH = window.innerHeight;
+  let sceneReady = false;
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
+    if (sceneReady && (w !== lastW || h !== lastH)) {
+      const kx = w / (lastW || w), ky = h / (lastH || h);
+      stars.forEach(st => { st.x *= kx; st.y *= ky; });
+      drops.forEach(d => { d.x *= kx; d.y *= ky; });
+    }
+    lastW = w; lastH = h;
     dropsCanvas.width = w;
     dropsCanvas.height = h;
     starsCanvas.width = w;
@@ -975,9 +1000,9 @@ setInterval(updateMoonPhase, 3600000);
   // transition finishes, which used to leave a sliver of the canvas un-sized.
   // The CSS box itself now always fills the viewport (see #stars/#drops), and we
   // additionally re-check the pixel size a few times as the transition settles.
-  document.addEventListener("fullscreenchange", () => {
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => {
     [50, 200, 500, 900].forEach(delay => setTimeout(() => { resize(); updateSynthPanelMaxHeight(); }, delay));
-  });
+  }));
   resize();
   updateSynthPanelMaxHeight();
 
@@ -1025,9 +1050,15 @@ setInterval(updateMoonPhase, 3600000);
   }
 
   let isPageVisible = true;
+  let starsRaf = 0, dropsRaf = 0;
   document.addEventListener('visibilitychange', () => {
     isPageVisible = document.visibilityState === 'visible';
-    if (isPageVisible) { requestAnimationFrame(animateDrops); requestAnimationFrame(animateStars); }
+    if (isPageVisible) {
+      // A frame requested before the tab was hidden can still fire after it comes back;
+      // cancel it first so the loops don't double up (and double the CPU load) on every tab switch.
+      cancelAnimationFrame(starsRaf); cancelAnimationFrame(dropsRaf);
+      dropsRaf = requestAnimationFrame(animateDrops); starsRaf = requestAnimationFrame(animateStars);
+    }
   });
 
   function createStarSprite(radius) {
@@ -1161,11 +1192,14 @@ setInterval(updateMoonPhase, 3600000);
     for (let i = tapSparkles.length - 1; i >= 0; i--) {
       const tp = tapSparkles[i]; const elapsed = ts - tp.spawnTs;
       if (elapsed > tp.duration) { tapSparkles.splice(i, 1); continue; }
-      const p = elapsed / tp.duration;
+      // the frame timestamp can be slightly older than the tap itself - a negative radius here
+      // made arc() throw and froze the whole starfield for good
+      const p = Math.max(0, elapsed / tp.duration);
       starsCtx.globalAlpha = (1 - p) * 0.45; starsCtx.strokeStyle = '#dfe8ff'; starsCtx.lineWidth = 1.2; starsCtx.beginPath(); starsCtx.arc(tp.x, tp.y, 4 + p * 28, 0, Math.PI * 2); starsCtx.stroke(); starsCtx.globalAlpha = 1;
     }
-    requestAnimationFrame(animateStars);
+    starsRaf = requestAnimationFrame(animateStars);
   }
+  sceneReady = true;
   animateStars();
 
   function animateDrops() {
@@ -1196,7 +1230,7 @@ setInterval(updateMoonPhase, 3600000);
       if (d.y < -40) d.y = dropsCanvas.height + 40; if (d.y > dropsCanvas.height + 40) d.y = -40;
       ctx.drawImage(d.sprite, d.x - d.half, d.y - d.half);
     }
-    requestAnimationFrame(animateDrops);
+    dropsRaf = requestAnimationFrame(animateDrops);
   }
   animateDrops();
 
@@ -1223,6 +1257,51 @@ setInterval(updateMoonPhase, 3600000);
   const cricketsAudio = document.getElementById('crickets-audio');
   const cricketsBtn = document.getElementById('crickets-btn');
   const cricketsVolSlider = document.getElementById('crickets-volume');
+
+  // --- Nature sound through the audio engine ---
+  // The <audio> element still loads, loops and plays the file exactly as before; its
+  // sound is just routed into the mixer (gain -> globalMixer -> limiter -> speakers).
+  // That way REC records it, the output limiter covers it together with everything
+  // else, and the VOL slider also works on iPhone (iOS ignores audio.volume).
+  // Hooked up the first time NATURE is switched on; if the browser refuses, the
+  // element simply keeps playing on its own like it always did.
+  let natureGain = null;
+  let natureFadeId = 0;
+  // If the system paused the audio engine while the page was in the background
+  // (e.g. iPhone lock screen), pick it back up as soon as you return.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && audioCtx && audioCtx.state !== 'running' && audioCtx.state !== 'closed') {
+      audioCtx.resume().catch(() => {});
+    }
+  });
+
+  function routeNatureIntoEngine() {
+    if (natureGain) return true;
+    if (!audioCtx || !globalMixer || !audioCtx.createMediaElementSource) return false;
+    try {
+      const src = audioCtx.createMediaElementSource(cricketsAudio);
+      const g = audioCtx.createGain();
+      g.gain.value = cricketsVolSlider.value / 100;
+      src.connect(g);
+      g.connect(globalMixer);
+      natureGain = g;
+      try { cricketsAudio.volume = 1; } catch (e) {} // level is set by the gain node from now on
+      // iPhone: routed sound would otherwise obey the silent switch (the plain <audio>
+      // element never did) - keep it behaving like media playback, as before.
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  function setNatureVolume(v) {
+    if (natureGain && audioCtx) {
+      natureGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      natureGain.gain.setTargetAtTime(v, audioCtx.currentTime, 0.05);
+    } else {
+      try { cricketsAudio.volume = v; } catch (e) {}
+    }
+  }
 
   function initAudio() {
     if (!audioCtx) {
@@ -1255,7 +1334,7 @@ setInterval(updateMoonPhase, 3600000);
       gainL.connect(merger, 0, 0); gainR.connect(merger, 0, 1);
       gainL.gain.value = 0; gainR.gain.value = 0;
     }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
   }
 
   // --- WAV Recording Logic ---
@@ -1267,21 +1346,24 @@ setInterval(updateMoonPhase, 3600000);
   let recStartTime = 0;
   const recBtn = document.getElementById('rec-btn');
 
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    // revoking right away can cancel the download in Firefox/Safari - give it a moment
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
   async function exportWAV() {
-    const interleaved = new Float32Array(recLen * 2);
-    let offset = 0;
-    for(let i=0; i<recBuffers.length; i++) {
-        for(let j=0; j<recBuffers[i].l.length; j++) {
-            interleaved[offset++] = recBuffers[i].l[j];
-            interleaved[offset++] = recBuffers[i].r[j];
-        }
-    }
-    const buffer = new ArrayBuffer(44 + interleaved.length * 2);
+    // 16-bit stereo PCM written straight from the recorded chunks (no intermediate
+    // float copy, so long sessions need half the memory they used to).
+    const dataBytes = recLen * 4;
+    const buffer = new ArrayBuffer(44 + dataBytes);
     const view = new DataView(buffer);
     const writeString = (v, off, str) => { for (let i=0; i<str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); };
-    
+
     writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + interleaved.length * 2, true);
+    view.setUint32(4, 36 + dataBytes, true);
     writeString(view, 8, 'WAVE');
     writeString(view, 12, 'fmt ');
     view.setUint32(16, 16, true);
@@ -1292,13 +1374,19 @@ setInterval(updateMoonPhase, 3600000);
     view.setUint16(32, 4, true);
     view.setUint16(34, 16, true);
     writeString(view, 36, 'data');
-    view.setUint32(40, interleaved.length * 2, true);
-    
+    view.setUint32(40, dataBytes, true);
+
     let outOffset = 44;
-    for (let i = 0; i < interleaved.length; i++, outOffset += 2) {
-        let s = Math.max(-1, Math.min(1, interleaved[i]));
-        view.setInt16(outOffset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    for (let i = 0; i < recBuffers.length; i++) {
+      const l = recBuffers[i].l, r = recBuffers[i].r;
+      for (let j = 0; j < l.length; j++) {
+        let sL = Math.max(-1, Math.min(1, l[j]));
+        view.setInt16(outOffset, sL < 0 ? sL * 0x8000 : sL * 0x7FFF, true); outOffset += 2;
+        let sR = Math.max(-1, Math.min(1, r[j]));
+        view.setInt16(outOffset, sR < 0 ? sR * 0x8000 : sR * 0x7FFF, true); outOffset += 2;
+      }
     }
+    recBuffers = []; recLen = 0;
     const blob = new Blob([view], { type: 'audio/wav' });
 
     if (window.showSaveFilePicker) {
@@ -1310,19 +1398,15 @@ setInterval(updateMoonPhase, 3600000);
         const writable = await handle.createWritable();
         await writable.write(blob);
         await writable.close();
-        recBuffers = []; recLen = 0;
         return;
       } catch (err) {
-        if (err.name !== 'AbortError') console.error(err);
-        recBuffers = []; recLen = 0;
-        return;
+        if (err && err.name === 'AbortError') return; // you closed the save dialog
+        // Anything else (e.g. the dialog refused to open after a long recording) -
+        // don't throw the session away, download it the normal way instead.
+        console.error(err);
       }
     }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = 'synthlucida_session.wav';
-    a.click(); window.URL.revokeObjectURL(url);
-    recBuffers = []; recLen = 0;
+    downloadBlob(blob, 'synthlucida_session.wav');
   }
 
   recBtn.addEventListener('click', () => {
@@ -1363,10 +1447,44 @@ setInterval(updateMoonPhase, 3600000);
   let timerTarget = 0;
   const timerBtn = document.getElementById('timer-btn');
 
+  // Nature sound fades out over a few seconds instead of stopping dead in the middle of your sleep.
+  function fadeOutNature(sec) {
+    if (cricketsAudio.paused) return;
+    const myFade = ++natureFadeId; // pressing NATURE yourself cancels this fade
+    if (natureGain && audioCtx) {
+      // The fade runs inside the audio engine, so it stays smooth even when the phone
+      // is locked and page timers slow down.
+      const now = audioCtx.currentTime;
+      natureGain.gain.cancelScheduledValues(now);
+      natureGain.gain.setValueAtTime(natureGain.gain.value, now);
+      natureGain.gain.linearRampToValueAtTime(0, now + sec);
+      setTimeout(() => {
+        if (myFade !== natureFadeId) return;
+        if (!cricketsAudio.paused) cricketsBtn.click();                 // pause + update the button
+        setNatureVolume(cricketsVolSlider.value / 100);                 // your volume is back for next time
+      }, sec * 1000 + 150);
+      return;
+    }
+    const startVol = cricketsAudio.volume, t0 = performance.now();
+    const iv = setInterval(() => {
+      if (myFade !== natureFadeId) { clearInterval(iv); return; }
+      const k = Math.min(1, (performance.now() - t0) / (sec * 1000));
+      try { cricketsAudio.volume = startVol * (1 - k); } catch (e) {}
+      if (k >= 1) {
+        clearInterval(iv);
+        if (!cricketsAudio.paused) cricketsBtn.click();                 // pause + update the button
+        try { cricketsAudio.volume = cricketsVolSlider.value / 100; } catch (e) {} // restore your volume for next time
+      }
+    }, 100);
+  }
+
   function turnOffEverything() {
-    if(currentToneIndex !== 0) binBtn.click();
-    if(!cricketsAudio.paused) cricketsBtn.click();
+    // The binaural button cycles DELTA -> THETA -> ALPHA -> OFF, so clicking it once
+    // only switched to the next wave. Jump to the last mode so this click lands on OFF.
+    if(currentToneIndex !== 0) { currentToneIndex = tones.length - 1; binBtn.click(); }
+    if(!cricketsAudio.paused) fadeOutNature(4);
     if(seqIsPlaying) document.getElementById('seq-play').click();
+    clearLooper(3); // otherwise a loop keeps repeating for minutes after the timer ends
   }
 
   timerBtn.addEventListener('click', () => {
@@ -1410,14 +1528,29 @@ setInterval(updateMoonPhase, 3600000);
   });
 
   function playTone(base, beat) {
-    if (oscL) { oscL.stop(); oscL.disconnect(); } if (oscR) { oscR.stop(); oscR.disconnect(); }
+    const now = audioCtx.currentTime;
+    let startAt = now;
+    let fadeIn = 2.5;
+    if (oscL || oscR) {
+      // Switching DELTA -> THETA -> ALPHA: stopping the old pair mid-wave used to
+      // make an audible click. Dip the level for ~0.12 s instead, swap the
+      // oscillators at silence, then come back up quickly (a fresh start from OFF
+      // still gets the original slow 2.5 s bloom).
+      const wasAudible = gainL.gain.value > currentVolume * 0.3;
+      gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
+      gainL.gain.setValueAtTime(gainL.gain.value, now); gainR.gain.setValueAtTime(gainR.gain.value, now);
+      gainL.gain.linearRampToValueAtTime(0, now + 0.12); gainR.gain.linearRampToValueAtTime(0, now + 0.12);
+      const oldL = oscL, oldR = oscR;
+      [oldL, oldR].forEach(o => { if (!o) return; try { o.stop(now + 0.14); } catch (e) {} o.onended = () => { try { o.disconnect(); } catch (e) {} }; });
+      startAt = now + 0.13;
+      if (wasAudible) fadeIn = 0.35;
+    }
     oscL = audioCtx.createOscillator(); oscR = audioCtx.createOscillator();
     oscL.type = 'sine'; oscR.type = 'sine';
     oscL.frequency.value = base; oscR.frequency.value = base + beat;
-    oscL.connect(gainL); oscR.connect(gainR); oscL.start(); oscR.start();
-    const now = audioCtx.currentTime;
-    gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
-    gainL.gain.setTargetAtTime(currentVolume, now, 2.5); gainR.gain.setTargetAtTime(currentVolume, now, 2.5);
+    oscL.connect(gainL); oscR.connect(gainR); oscL.start(startAt); oscR.start(startAt);
+    if (startAt === now) { gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now); }
+    gainL.gain.setTargetAtTime(currentVolume, startAt, fadeIn); gainR.gain.setTargetAtTime(currentVolume, startAt, fadeIn);
   }
 
   function stopTone() {
@@ -1439,11 +1572,14 @@ setInterval(updateMoonPhase, 3600000);
   });
 
   cricketsAudio.volume = cricketsVolSlider.value / 100;
-  cricketsVolSlider.addEventListener('input', (e) => { cricketsAudio.volume = e.target.value / 100; });
+  cricketsVolSlider.addEventListener('input', (e) => { setNatureVolume(e.target.value / 100); });
 
   cricketsBtn.addEventListener('click', () => {
     initAudio();
+    routeNatureIntoEngine();
+    natureFadeId++;                                     // a running timer fade no longer applies
     if (cricketsAudio.paused) {
+      setNatureVolume(cricketsVolSlider.value / 100);   // start at your slider volume (even right after a timer fade)
       cricketsAudio.play().catch(err => console.log("Audio nezapuštěno: ", err));
       cricketsBtn.innerText = "NATURE: ON"; cricketsBtn.classList.add('active-btn');
     } else {
@@ -1530,6 +1666,7 @@ setInterval(updateMoonPhase, 3600000);
   };
   function playChordVoice(freq, yRatio, now, s) {
     if (!tapMasterGain) return;
+    const noteEnd = now + Math.max(0.015, s.attack) + s.decay + 0.2; // envelope = attack + decay
     const osc = audioCtx.createOscillator();
     applyWave(osc, s.wave);
     osc.frequency.value = freq;
@@ -1546,7 +1683,7 @@ setInterval(updateMoonPhase, 3600000);
     g.gain.setValueAtTime(0.001, now);
     g.gain.linearRampToValueAtTime(0.5, now + safeAttack);
     g.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + s.decay);
-    osc.start(now); osc.stop(now + s.decay + 0.2);
+    osc.start(now); osc.stop(noteEnd);
   }
 
   // --- OSC 2 ---
@@ -1663,6 +1800,29 @@ setInterval(updateMoonPhase, 3600000);
     looperDelay.connect(tapMasterGain);
   }
 
+  // Empty the looper: the old loop fades out over fadeSec and a fresh, working
+  // looper takes its place. (RESET used to set the loop feedback to 0 and never
+  // restore it, so after a RESET the looper stopped looping until a page reload.)
+  function clearLooper(fadeSec) {
+    if (!audioCtx || !looperDelay || !tapMasterGain) return;
+    const now = audioCtx.currentTime, f = Math.max(0.05, fadeSec || 0.25);
+    const oldDelay = looperDelay, oldFb = looperFeedback;
+    const fade = audioCtx.createGain();
+    fade.gain.setValueAtTime(1, now);
+    fade.gain.linearRampToValueAtTime(0, now + f);
+    try { oldDelay.disconnect(tapMasterGain); } catch (e) {}
+    oldDelay.connect(fade); fade.connect(tapMasterGain);
+    try { looperGain.disconnect(oldDelay); } catch (e) {}
+    setTimeout(() => { [oldDelay, oldFb, fade].forEach(n => { try { n.disconnect(); } catch (e) {} }); }, (f + 0.3) * 1000);
+
+    looperDelay = audioCtx.createDelay(10.0); looperDelay.delayTime.value = 8.0;
+    looperFeedback = audioCtx.createGain(); looperFeedback.gain.value = 0.92;
+    looperDelay.connect(looperFeedback); looperFeedback.connect(looperDelay);
+    looperDelay.connect(tapMasterGain);
+    looperGain.connect(looperDelay);
+  }
+
+  let lastDuckTime = -Infinity;
   function playKickNote(time) {
     if(tapKickVol <= 0) return;
     const osc = audioCtx.createOscillator();
@@ -1681,10 +1841,21 @@ setInterval(updateMoonPhase, 3600000);
     osc.start(time); osc.stop(time + tapKickDecay);
 
     if(sidechainGain) {
-       sidechainGain.gain.cancelScheduledValues(time);
-       sidechainGain.gain.setValueAtTime(1.0, time);
-       sidechainGain.gain.linearRampToValueAtTime(0.2, time + 0.02); 
-       sidechainGain.gain.exponentialRampToValueAtTime(1.0, time + 0.35); 
+       const sg = sidechainGain.gain;
+       const duckStillRunning = time < lastDuckTime + 0.35;
+       if (duckStillRunning && sg.cancelAndHoldAtTime) {
+         // Kick arrives before the previous duck has recovered (8th/16th kicks): duck from
+         // wherever the gain is right now. Resetting straight to 1.0 made the synth jump from
+         // 0.2 to full level on every such kick - an audible pop.
+         sg.cancelAndHoldAtTime(time);
+       } else {
+         // Normal case (and Firefox, which has no cancelAndHoldAtTime) - unchanged.
+         sg.cancelScheduledValues(time);
+         sg.setValueAtTime(1.0, time);
+       }
+       lastDuckTime = time;
+       sg.linearRampToValueAtTime(0.2, time + 0.02);
+       sg.exponentialRampToValueAtTime(1.0, time + 0.35);
     }
   }
 
@@ -1692,6 +1863,9 @@ setInterval(updateMoonPhase, 3600000);
     initTapAudio();
     const now = schedTime || audioCtx.currentTime;
     const s = settings || getLiveSettings(); // no settings passed = live "design" preview using the current panel
+    // Every voice of the note must keep running until the envelope (attack + decay) has
+    // fully faded - stopping at "decay + 0.2" cut long-ATTACK notes off mid-tail (click).
+    const noteEnd = now + Math.max(0.015, s.attack) + s.decay + 0.2;
 
     const activeScale = scales[s.scale];
     const noteIndex = Math.min(activeScale.length - 1, Math.floor(xRatio * activeScale.length));
@@ -1707,7 +1881,7 @@ setInterval(updateMoonPhase, 3600000);
     if (s.arp > 0) {
       const stepTime = 0.05 + (1 - s.arp) * 0.3; 
       let t = now; let step = 0;
-      while (t < now + s.decay + 0.5) {
+      while (t < noteEnd + 0.3) {
         let arpIndex;
         if (s.arpMode === 'up') arpIndex = Math.min(activeScale.length - 1, noteIndex + (step % 4));
         else if (s.arpMode === 'down') arpIndex = Math.max(0, noteIndex - (step % 4));
@@ -1729,10 +1903,18 @@ setInterval(updateMoonPhase, 3600000);
     osc3.frequency.value = baseFreq * Math.pow(2, s.osc2Oct);
     const osc3Gain = audioCtx.createGain(); osc3Gain.gain.value = s.osc2Vol * 0.6; 
     osc3.connect(osc3Gain); osc3Gain.connect(noteFilter);
-    osc3.start(now); osc3.stop(now + s.decay + 0.2);
+    osc3.start(now); osc3.stop(noteEnd);
 
     if(s.drive > 0) {
       noteFilter.connect(tapDriveNode); tapDriveNode.connect(noteGain);
+      // The drive node is shared by every note, so unhook this note from it once it's over.
+      // Before, each finished note stayed attached at ~-60 dB; after a few hundred DRIVE notes
+      // those leftovers added up - new notes stopped decaying, got cut off abruptly at the end,
+      // and the CPU load kept growing the longer you played.
+      osc1.addEventListener('ended', () => {
+        try { tapDriveNode.disconnect(noteGain); } catch (e) {}
+        try { noteFilter.disconnect(tapDriveNode); } catch (e) {}
+      });
     } else {
       noteFilter.connect(noteGain);
     }
@@ -1747,13 +1929,13 @@ setInterval(updateMoonPhase, 3600000);
       uOsc1.frequency.value = baseFreq * (1 + (s.unison * 0.02)); uOsc2.frequency.value = baseFreq * (1 - (s.unison * 0.02));
       const uGain = audioCtx.createGain(); uGain.gain.value = 0.5;
       uOsc1.connect(uGain); uOsc2.connect(uGain); uGain.connect(noteFilter);
-      uOsc1.start(now); uOsc2.start(now); uOsc1.stop(now + s.decay + 0.2); uOsc2.stop(now + s.decay + 0.2);
+      uOsc1.start(now); uOsc2.start(now); uOsc1.stop(noteEnd); uOsc2.stop(noteEnd);
     }
 
     if (s.lfo > 0) {
       const lfo = audioCtx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.5 + s.lfo * 10;
       const lfoGain = audioCtx.createGain(); lfoGain.gain.value = (900 + (1 - yRatio) * 2600) * s.brightness * (0.2 + s.lfo * 0.5);
-      lfo.connect(lfoGain); lfoGain.connect(noteFilter.frequency); lfo.start(now); lfo.stop(now + s.decay + 0.2);
+      lfo.connect(lfoGain); lfoGain.connect(noteFilter.frequency); lfo.start(now); lfo.stop(noteEnd);
     }
 
     const filterMax = (900 + (1 - yRatio) * 2600) * s.brightness;
@@ -1768,13 +1950,13 @@ setInterval(updateMoonPhase, 3600000);
     noteGain.gain.linearRampToValueAtTime(0.8, now + safeAttack); 
     noteGain.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + s.decay);
     
-    osc1.start(now); osc2.start(now); osc1.stop(now + s.decay + 0.2); osc2.stop(now + s.decay + 0.2);
+    osc1.start(now); osc2.start(now); osc1.stop(noteEnd); osc2.stop(noteEnd);
 
     if (s.noise > 0 && noiseBuffer) {
       const nSrc = audioCtx.createBufferSource(); nSrc.buffer = noiseBuffer; nSrc.loop = true;
       const nGain = audioCtx.createGain();
       nGain.gain.setValueAtTime(0, now); nGain.gain.linearRampToValueAtTime(s.noise, now + safeAttack); nGain.gain.exponentialRampToValueAtTime(0.001, now + safeAttack + s.decay);
-      nSrc.connect(nGain); nGain.connect(tapMasterGain); nSrc.start(now); nSrc.stop(now + s.decay + 0.2);
+      nSrc.connect(nGain); nGain.connect(tapMasterGain); nSrc.start(now); nSrc.stop(noteEnd);
     }
 
     if (s.chord !== 'off') {
@@ -1910,7 +2092,7 @@ setInterval(updateMoonPhase, 3600000);
     initAudio(); seqIsPlaying = !seqIsPlaying;
     const playBtn = document.getElementById('seq-play');
     if (seqIsPlaying) {
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
       nextNoteTime = audioCtx.currentTime + 0.1;
       seqScheduler();
       playBtn.style.background = 'rgba(255,107,107,0.4)'; playBtn.style.borderColor = '#ff6b6b'; playBtn.innerText = 'PAUSE';
@@ -2096,13 +2278,18 @@ setInterval(updateMoonPhase, 3600000);
   }
 
   saveBtn.addEventListener('click', () => {
-    localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj()));
-    presetSel.value = 'user'; saveBtn.innerText = 'OK'; setTimeout(() => saveBtn.innerText = 'SAVE', 1000);
+    try {
+      localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj()));
+      presetSel.value = 'user'; saveBtn.innerText = 'OK';
+    } catch (e) {
+      saveBtn.innerText = 'NO STORAGE'; // private mode / storage blocked - use EXP FILE instead
+    }
+    setTimeout(() => saveBtn.innerText = 'SAVE', 1400);
   });
 
   presetSel.addEventListener('change', (e) => {
     if(e.target.value === 'user') {
-      const saved = localStorage.getItem('synthlucida_preset'); if(saved) loadPresetObj(JSON.parse(saved));
+      try { const saved = localStorage.getItem('synthlucida_preset'); if(saved) loadPresetObj(JSON.parse(saved)); } catch (err) {}
     } else {
       loadPresetObj({
         scale: 'pentatonic', range: 1, looper: 0, chord: 'off', vol:46, bright:50, att:10, dec:43, timb:0, det:15, echo:51, delT:42, filQ:0, lfo:0, arp:0, arpMode: 'up', wave:'sine',
@@ -2114,7 +2301,7 @@ setInterval(updateMoonPhase, 3600000);
   });
 
   document.getElementById('tsp-reset').addEventListener('click', () => {
-    if (audioCtx && looperGain && looperFeedback) { const now = audioCtx.currentTime; looperGain.gain.cancelScheduledValues(now); looperFeedback.gain.cancelScheduledValues(now); looperGain.gain.setValueAtTime(0, now); looperFeedback.gain.setValueAtTime(0, now); }
+    if (audioCtx && looperGain && looperFeedback) { const now = audioCtx.currentTime; looperGain.gain.cancelScheduledValues(now); looperGain.gain.setValueAtTime(0, now); clearLooper(0.25); }
     loadPresetObj({
       scale: 'pentatonic', range: 1, looper: 0, chord: 'off', vol: 0, bright: 50, att: 10, dec: 43, timb: 0, det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
       osc2Wave: 'sawtooth', osc2Oct: -1, osc2Vol: 0, uni: 0, rev: 30, noi: 0, drive: 0, kickVol: 80, kickPitch: 120, kickDecay: 40,
@@ -2148,7 +2335,7 @@ setInterval(updateMoonPhase, 3600000);
         const obj = JSON.parse(evt.target.result);
         loadPresetObj(obj);
         presetSel.value = 'user';
-        localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj()));
+        try { localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj())); } catch (storageErr) {}
       } catch(err) {
         alert("Invalid preset file");
       }
@@ -2222,15 +2409,13 @@ setInterval(updateMoonPhase, 3600000);
     
     let u8 = new Uint8Array(midiBytes);
     let blob = new Blob([u8], {type: 'audio/midi'});
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement('a');
-    a.href = url; a.download = 'synthlucida_sequence.mid';
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, 'synthlucida_sequence.mid');
   }
 
-  const initialSaved = localStorage.getItem('synthlucida_preset');
-  if(initialSaved) { presetSel.value = 'user'; loadPresetObj(JSON.parse(initialSaved)); }
+  try {
+    const initialSaved = localStorage.getItem('synthlucida_preset');
+    if(initialSaved) { presetSel.value = 'user'; loadPresetObj(JSON.parse(initialSaved)); }
+  } catch (e) { /* storage blocked or a damaged saved preset - start from the defaults */ }
 </script>
 </body>
 </html>
