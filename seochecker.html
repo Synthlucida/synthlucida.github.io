@@ -309,7 +309,7 @@
   }
   .quick-wins ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
   .quick-wins li{
-    display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:10px 12px;
+    display:block;font-size:14px;padding:10px 12px;
     background:var(--ui-bg-2);border:1px solid var(--ui-line);border-left:3px solid var(--warn);
     border-radius:6px;
   }
@@ -692,7 +692,7 @@
           <span class="guide-step-num">2</span>
           <div class="guide-step-body">
             <h3>Spusťte kontrolu</h3>
-            <p>Stiskněte „Zkontrolovat“. SEOCHECKER stránku rozebere a ohodnotí podle 19 signálů z pěti kategorií — okamžitě, přímo ve vašem prohlížeči.</p>
+            <p>Stiskněte „Zkontrolovat“. SEOCHECKER stránku rozebere a ohodnotí podle až 18 signálů z pěti kategorií — okamžitě, přímo ve vašem prohlížeči.</p>
           </div>
         </li>
         <li class="guide-step">
@@ -720,7 +720,7 @@
           <span class="guide-step-num">6</span>
           <div class="guide-step-body">
             <h3>Nainstalujte si ho jako appku</h3>
-            <p>Na podporovaných zařízeních použijte banner nahoře na stránce a nainstalujte si SEOCHECKER na plochu pro rychlý přístup i bez připojení.</p>
+            <p>Na podporovaných zařízeních použijte banner nahoře na stránce a nainstalujte si SEOCHECKER na plochu pro rychlý přístup.</p>
           </div>
         </li>
       </ul>
@@ -898,7 +898,7 @@
 
   var T = {
     loadingMessages: ["Načítám soubor…","Prohledávám kód…","Sestavuji zprávu…"],
-    errorNoFiles: "Nejprve vyberte alespoň jeden HTML soubor exportovaný z WEBZENith nebo PAGEZEN.",
+    errorNoFiles: "Nejprve vyberte alespoň jeden HTML soubor (.html nebo .htm).",
     errorReadFailed: "Vybraný soubor se nepodařilo přečíst nebo se nejedná o platný HTML soubor. Zkuste stránku ve WEBZENith nebo PAGEZEN vyexportovat znovu.",
     errorDetailsLabel: "Technický detail",
     analyzedFor: "Výsledek pro soubor ",
@@ -965,10 +965,36 @@
   function readFileAsText(file){
     return new Promise(function(resolve, reject){
       var reader = new FileReader();
-      reader.onload = function(){ resolve(String(reader.result || "")); };
+      reader.onload = function(){
+        try{ resolve(decodeHtmlBytes(reader.result)); }
+        catch(e){ reject(e); }
+      };
       reader.onerror = function(){ reject(reader.error || new Error("chyba čtení souboru")); };
-      reader.readAsText(file, "UTF-8");
+      reader.readAsArrayBuffer(file);
     });
+  }
+
+  // Older sites are often saved as windows-1250 / ISO-8859-2 (common for Czech pages).
+  // Try strict UTF-8 first; if the bytes aren't valid UTF-8, use the declared charset.
+  function decodeHtmlBytes(buf){
+    var bytes = new Uint8Array(buf || new ArrayBuffer(0));
+    if(bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder("utf-16le").decode(bytes);
+    if(bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder("utf-16be").decode(bytes);
+    try{ return new TextDecoder("utf-8", {fatal:true}).decode(bytes); }catch(e){}
+    var head = new TextDecoder("windows-1252").decode(bytes.subarray(0, 4096));
+    var m = head.match(/<meta[^>]+charset\s*=\s*["']?\s*([a-z0-9_\-:.]+)/i);
+    var enc = m ? m[1].toLowerCase() : "windows-1250";
+    if(/^utf-?8$/.test(enc)) enc = "windows-1250"; // declared UTF-8 but the bytes aren't
+    try{ return new TextDecoder(enc).decode(bytes); }
+    catch(e2){ return new TextDecoder("windows-1250").decode(bytes); }
+  }
+
+  // The downloaded fixed file is always saved as UTF-8, so its declaration must say so too.
+  function forceUtf8Charset(doc){
+    var m = doc.querySelector("meta[charset]");
+    if(m && !/^utf-?8$/i.test(m.getAttribute("charset") || "")) m.setAttribute("charset", "UTF-8");
+    var h = doc.querySelector('meta[http-equiv="Content-Type"]');
+    if(h && !/charset\s*=\s*utf-?8/i.test(h.getAttribute("content") || "")) h.setAttribute("content", "text/html; charset=UTF-8");
   }
 
   function wordCount(doc){
@@ -1823,6 +1849,7 @@
   if(quickfixDownloadBtn){
     quickfixDownloadBtn.addEventListener("click", function(){
       if(!qfDoc) return;
+      forceUtf8Charset(qfDoc);
       var htmlStr = serializeDoc(qfDoc);
       var blob = new Blob([htmlStr], {type:"text/html"});
       var url = URL.createObjectURL(blob);
@@ -1876,6 +1903,7 @@
       selectedFilesEl.appendChild(row);
     });
     submitBtn.disabled = chosenPageIndex < 0;
+    if(chosenPageIndex < 0) setStatus(T.errorNoFiles, "error");
   }
 
   function handleFileSelection(fileList){
