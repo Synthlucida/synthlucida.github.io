@@ -157,6 +157,8 @@
   .corner-btn:active { transform: scale(0.92); }
   .corner-btn-left { left: 10px; font-style: italic; }
   .corner-btn-right { right: 10px; font-size: 11px; }
+  .corner-btn-home { right: 44px; }
+  .corner-btn-home svg { width: 13px; height: 13px; display: block; }
 
   .themes-container { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; padding: 0 10px; }
   .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.2s; padding: 2px; }
@@ -424,6 +426,7 @@
     /* corner buttons scroll away with the header instead of floating over the canvas */
     .corner-btn { position: absolute; }
     body .corner-btn-fullscreen { top: 10px; bottom: auto; right: auto; left: 50px; }
+    .corner-btn-home { right: 50px; }
     .header { padding: 10px 88px 2px; }
     .btn-theme { font-size: 9px; padding: 6px 4px; }
   }
@@ -449,6 +452,8 @@
   }
   @media (pointer: coarse) {
     .corner-btn { width: 34px; height: 34px; font-size: 14px; }
+    .corner-btn-home { right: 50px; }
+    .corner-btn-home svg { width: 15px; height: 15px; }
     .text-input-overlay { font-size: 16px; }
     .part-toolbar button { padding: 8px 7px; font-size: 9px; }
   }
@@ -465,7 +470,8 @@
   body.is-fullscreen .footer,
   body.is-fullscreen .ambient-blobs,
   body.is-fullscreen .corner-btn-left,
-  body.is-fullscreen .corner-btn-right {
+  body.is-fullscreen .corner-btn-right,
+  body.is-fullscreen .corner-btn-home {
     display: none !important;
   }
   body.is-fullscreen .main-layout {
@@ -492,6 +498,7 @@
 
 <button class="corner-btn corner-btn-left" id="btn-info" title="How to draw" aria-label="How to draw">i</button>
 <a href="player.html" class="corner-btn corner-btn-right" id="btn-close" title="Close canvas" aria-label="Close canvas">✕</a>
+<a href="https://synthlucida.com/" class="corner-btn corner-btn-home" id="btn-home" title="SYNTHLUCIDA home" aria-label="SYNTHLUCIDA home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg></a>
 <button class="corner-btn corner-btn-fullscreen" id="btn-fullscreen" title="Fullscreen" aria-label="Fullscreen">⛶</button>
 
 <div id="info-overlay">
@@ -4066,6 +4073,13 @@
     });
     const btn = document.getElementById('info-lang-toggle');
     if (btn) btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
+    const home = document.getElementById('btn-home');
+    if (home) {
+      home.href = guideLang === 'cz' ? 'https://synthlucida.com/index-cz.html' : 'https://synthlucida.com/';
+      const homeLabel = guideLang === 'cz' ? 'SYNTHLUCIDA domů' : 'SYNTHLUCIDA home';
+      home.title = homeLabel;
+      home.setAttribute('aria-label', homeLabel);
+    }
   }
 
   window.toggleInfoLanguage = function() {
@@ -4077,6 +4091,14 @@
   try {
     const savedLang = localStorage.getItem(GUIDE_LANG_KEY);
     if (savedLang === 'cz' || savedLang === 'en') guideLang = savedLang;
+  } catch (e) { /* ignore */ }
+  try {
+    const urlLang = (new URLSearchParams(window.location.search).get('lang') || '').toLowerCase();
+    const wanted = (urlLang === 'cz' || urlLang === 'cs') ? 'cz' : (urlLang === 'en' ? 'en' : '');
+    if (wanted) {
+      guideLang = wanted;
+      try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) { /* ignore */ }
+    }
   } catch (e) { /* ignore */ }
   applyGuideLanguage();
 
