@@ -559,6 +559,25 @@
     .theme-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); }
   }
 
+  /* ---- RelaxPlayer tip ---- */
+  .relax-promo{
+    display:flex; align-items:center; gap:16px; border-radius:22px; margin-bottom:18px;
+    border:1px solid color-mix(in srgb, var(--accent-color) 35%, transparent);
+    background:radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent-color) 14%, transparent), transparent 60%), rgba(255,255,255,0.03);
+    padding:18px 18px 18px 20px; color:#fff; text-decoration:none; transition:border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+  }
+  .relax-promo:hover{ border-color:var(--accent-color); box-shadow:0 0 22px color-mix(in srgb, var(--accent-color) 22%, transparent); transform:translateY(-1px); }
+  .relax-promo:focus-visible{ outline:2px solid var(--accent-color); outline-offset:3px; }
+  .relax-promo-icon{ width:34px; height:34px; flex-shrink:0; color:var(--accent-color); filter:drop-shadow(0 0 8px var(--accent-color)); }
+  .relax-promo-icon svg{ width:100%; height:100%; }
+  .relax-promo-text{ min-width:0; flex:1; }
+  .relax-promo-label{ font-family:'Orbitron', sans-serif; font-size:9.5px; letter-spacing:0.8px; text-transform:uppercase; color:var(--accent-color); opacity:0.85; margin-bottom:5px; }
+  .relax-promo-value{ font-size:13.5px; font-weight:500; line-height:1.4; }
+  .relax-promo-sub{ font-size:11.5px; opacity:0.55; margin-top:4px; line-height:1.4; }
+  .relax-promo-go{ flex-shrink:0; width:30px; height:30px; border-radius:50%; border:1px solid color-mix(in srgb, var(--accent-color) 50%, transparent);
+    display:flex; align-items:center; justify-content:center; color:var(--accent-color); }
+  .relax-promo-go svg{ width:14px; height:14px; }
+
   /* ---- outfit advice ---- */
   .outfit-block{
     display:flex; align-items:center; gap:16px; border-radius:16px;
@@ -905,7 +924,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           UKLIDNITO
         </a>
-        <a class="player-back" href="https://relaxplayer.eu" aria-label="RelaxPlayer">
+        <a class="player-back" href="https://relaxplayer.eu/cs.html" aria-label="RelaxPlayer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           RELAXPLAYER
         </a>
@@ -973,6 +992,16 @@
   <div id="content">
     <div class="state-msg" id="stateMsg">Načítám oblohu…</div>
   </div>
+
+  <a class="relax-promo" href="https://relaxplayer.eu/cs.html" target="_blank" rel="noopener" aria-label="Otevřít RelaxPlayer – klidná hudba zdarma">
+    <span class="relax-promo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.6"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.6"/></svg></span>
+    <span class="relax-promo-text">
+      <span class="relax-promo-label" style="display:block">Hudba k počasí · RelaxPlayer</span>
+      <span class="relax-promo-value" id="relaxPromoText" style="display:block">Nepřetržitý ambient, piano a chillout – na soustředění, relax i spánek.</span>
+      <span class="relax-promo-sub" style="display:block">Zdarma 24/7, bez registrace a bez reklam.</span>
+    </span>
+    <span class="relax-promo-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>
+  </a>
 
   <details class="card info-card" id="infoSection">
     <summary>
@@ -1056,7 +1085,7 @@
     <span class="sep">·</span>
     <a href="https://uklidnito.eu" target="_blank" rel="noopener">UKLIDNITO</a>
     <span class="sep">·</span>
-    <a href="https://relaxplayer.eu" target="_blank" rel="noopener">RELAXPLAYER</a>
+    <a href="https://relaxplayer.eu/cs.html" target="_blank" rel="noopener">RELAXPLAYER</a>
     <span class="sep">·</span>
     <a href="https://synthlucida.com/tripcost.html" target="_blank" rel="noopener">TRIP COST</a>
     <span class="sep">·</span>
@@ -2603,11 +2632,21 @@
     return html;
   }
 
+  // ---------- RelaxPlayer tip podle počasí ----------
+  var RELAX_TEXTS = {"rain": "Venku leje? Ideální chvíle na čaj, deku a klidnou hudbu.", "storm": "Venku hřmí, uvnitř může být klid. Pusť si ambient a nech bouřku za oknem.", "snow": "Sněží? K výhledu z okna se hodí klidné piano.", "fog": "Mlhavý den si říká o něco pomalého a měkkého.", "clear_day": "Hezky venku? Vezmi si na procházku do sluchátek klidnou hudbu.", "clear_night": "Hvězdná noc a tichá hudba na usnutí.", "cloudy": "Šedivý den? Trocha ambientu ho hned zlepší."};
+  function updateRelaxPromo(group, isDay){
+    var el = document.getElementById("relaxPromoText");
+    if(!el) return;
+    var key = group === "clear" ? (isDay ? "clear_day" : "clear_night") : group;
+    if(RELAX_TEXTS[key]) el.textContent = RELAX_TEXTS[key];
+  }
+
   function render(place, data, mush, iss){
     currentWeatherData = data;
     var cur = data.current;
     var info = weatherInfo(cur.weather_code, cur.is_day);
     applyAccent(info.group, cur.is_day === 1);
+    updateRelaxPromo(info.group, cur.is_day === 1);
     updateBrandWeatherIcon(info.icon);
     var placeLabel = placeName(place);
     if(place.admin1 && place.admin1 !== place.name) placeLabel += ", " + place.admin1;
