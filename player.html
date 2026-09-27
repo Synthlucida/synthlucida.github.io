@@ -2168,9 +2168,19 @@
   }
 
   // Nastaví název aktuálně hrané skladby a zajistí marquee skrolování, pokud se nevejde
+  // Zobrazovaný název skladby bez úvodního "SYNTHLUCIDA - " (šetří místo).
+  // POZOR: jen pro ZOBRAZENÍ - v seznamu tracks, v uložené historii, v My Playlist,
+  // v exportech a v názvech stahovaných souborů zůstává plný název beze změny,
+  // takže nové skladby se dál přidávají úplně stejně ("SYNTHLUCIDA - Název").
+  function displayTrackTitle(title) {
+    if (typeof title !== 'string') return title;
+    const short = title.replace(/^\s*SYNTHLUCIDA\s*[-–—:]\s*/i, '');
+    return short || title;
+  }
+
   function setTrackTitle(text, isNew = false) {
     titleDiv.classList.remove('marquee-on');
-    titleDiv.textContent = text;
+    titleDiv.textContent = displayTrackTitle(text);
     setupAutoMarquee(titleDiv);
     if (nowPlayingNewFlag) nowPlayingNewFlag.classList.toggle('visible', !!isNew);
   }
@@ -4278,7 +4288,7 @@
 
         const nameSpan = document.createElement('span');
         nameSpan.className = 'track-name';
-        nameSpan.innerText = entry.title;
+        nameSpan.innerText = displayTrackTitle(entry.title);
         setupHoverMarquee(nameSpan);
 
         li.appendChild(nameSpan);
@@ -4294,7 +4304,7 @@
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'track-name';
-      nameSpan.innerText = track.title;
+      nameSpan.innerText = displayTrackTitle(track.title);
       setupHoverMarquee(nameSpan);
 
       const badge = document.createElement('span');
@@ -5109,7 +5119,7 @@
     ['asmr', 'piano', 'chill'].forEach(key => {
       html += `<optgroup label="${key.toUpperCase()}">`;
       (tracks[key] || []).forEach((t, i) => {
-        html += `<option value="track|${key}|${i}">${escapeHtml(t.title)}</option>`;
+        html += `<option value="track|${key}|${i}">${escapeHtml(displayTrackTitle(t.title))}</option>`;
       });
       html += '</optgroup>';
     });
@@ -5224,7 +5234,7 @@
 
           const nameSpan = document.createElement('span');
           nameSpan.className = 'history-name';
-          nameSpan.innerText = `${pos + 1}. ${item.title}`;
+          nameSpan.innerText = `${pos + 1}. ${displayTrackTitle(item.title)}`;
           setupHoverMarquee(nameSpan);
 
           const metaSpan = document.createElement('span');
@@ -5546,7 +5556,7 @@
     if ('mediaSession' in navigator) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.title,
+          title: displayTrackTitle(track.title),
           artist: 'SYNTHLUCIDA',
           album: currentPlaylistKey.toUpperCase(),
           artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }]
@@ -5723,7 +5733,7 @@
     if ('mediaSession' in navigator) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: target.title,
+          title: displayTrackTitle(target.title),
           artist: 'SYNTHLUCIDA',
           album: target.kind === 'queue' ? 'MY PLAYLIST' : currentPlaylistKey.toUpperCase(),
           artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }]
@@ -6067,7 +6077,7 @@
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'history-name';
-      nameSpan.innerText = entry.title;
+      nameSpan.innerText = displayTrackTitle(entry.title);
       nameSpan.title = 'Tap to play now';
       nameSpan.onclick = () => playFromHistory(entry.playlist, entry.index);
       setupHoverMarquee(nameSpan);
@@ -6206,7 +6216,7 @@
     renderCustomQueue();
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
-    showToast(`Added to My Playlist: ${track.title}`, '✓');
+    showToast(`Added to My Playlist: ${displayTrackTitle(track.title)}`, '✓');
   };
 
   // Whether a given track (by playlist + index) is currently part of MY PLAYLIST
@@ -6249,7 +6259,7 @@
     renderCustomQueue();
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
-    showToast(liked ? `Added to My Playlist: ${tracks[playlistKey][index].title}` : 'Removed from My Playlist', liked ? '♥' : '✓');
+    showToast(liked ? `Added to My Playlist: ${displayTrackTitle(tracks[playlistKey][index].title)}` : 'Removed from My Playlist', liked ? '♥' : '✓');
   };
 
   window.removeFromCustomQueue = function(pos) {
@@ -6386,7 +6396,7 @@
     if ('mediaSession' in navigator) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: entry.title,
+          title: displayTrackTitle(entry.title),
           artist: 'SYNTHLUCIDA',
           album: 'MY PLAYLIST',
           artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }]
@@ -6428,7 +6438,7 @@
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'history-name';
-      nameSpan.innerText = `${pos + 1}. ${entry.title}`;
+      nameSpan.innerText = `${pos + 1}. ${displayTrackTitle(entry.title)}`;
       nameSpan.title = 'Tap to play from here';
       nameSpan.onclick = () => playCustomQueueAt(pos);
       setupHoverMarquee(nameSpan);
@@ -6829,7 +6839,7 @@
                 if ('mediaSession' in navigator) {
                     try {
                         navigator.mediaSession.metadata = new MediaMetadata({
-                            title: track.title,
+                            title: displayTrackTitle(track.title),
                             artist: 'SYNTHLUCIDA',
                             album: playlistKey.toUpperCase(),
                             artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }]
