@@ -114,7 +114,12 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--ui-bg-0);color:var(--ui-text);
-    font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+    font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  /* overflow-x jen na <html> (propaguje se na okno) a "clip" na <body> — dřív bylo
+     hidden na obou, čímž se <body> stalo scroll kontejnerem a lepicí (sticky)
+     horní lišta se přestala držet nahoře. */
+  html{overflow-x:hidden;}
+  body{overflow-x:clip;}
   body{line-height:1.55;}
   a{color:inherit;}
   a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{
@@ -149,10 +154,58 @@
     text-decoration:none;display:inline-flex;align-items:center;gap:5px;flex:none;
   }
   .save-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
-  @media(max-width:560px){
+  @media(max-width:699px){
     .save-btn{padding:7px 9px;}
     .save-btn span{display:none;}
   }
+  /* Na telefonech se lišta zalomí do dvou řádků — tam ji necháme normálně
+     odjet se stránkou, ať nezabírá místo; lepicí je od tabletu výš. */
+  @media(max-width:699px){.topbar{position:relative;}}
+  @media(min-width:700px){#guide,#articles,#results{scroll-margin-top:100px;}}
+
+  /* ---------- SYNTHLUCIDA HUB tlačítko v liště + odkazy HUB / RELAXPLAYER ---------- */
+  .hub-dot{
+    display:inline-block;flex:none;width:12px;height:12px;border-radius:50%;
+    background:linear-gradient(180deg,#fff1d6 0%,#ffc27a 25%,#ff8c4a 55%,#dd6178 100%);
+    box-shadow:0 0 8px rgba(255,150,90,.45);
+  }
+  .save-btn.hub-btn{border-color:rgba(124,92,255,.55);color:#d9d0ff;background:rgba(124,92,255,.08);}
+  .save-btn.hub-btn:hover{border-color:var(--ui-accent);color:#fff;}
+  .save-btn .hub-btn-short{display:none;}
+  @media(max-width:1180px){
+    .save-btn .hub-btn-long{display:none;}
+    .save-btn .hub-btn-short{display:inline;}
+  }
+  @media(max-width:699px){
+    .save-btn .hub-dot{display:inline-block;}
+    .save-btn .hub-btn-short{display:inline;}
+  }
+  @media(max-width:350px){.save-btn .hub-btn-short{display:none;}}
+  .topbar-actions .hub-btn{align-self:stretch;}
+
+  .brand-links{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px;}
+  .brand-links-label{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--ui-text-dim);margin:0 4px 0 0;
+  }
+  .brand-link{
+    display:inline-flex;align-items:center;gap:9px;padding:9px 16px;border-radius:999px;
+    background:var(--ui-bg-2);border:1px solid rgba(124,92,255,.45);color:var(--ui-text);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;letter-spacing:.05em;
+    text-decoration:none;white-space:nowrap;box-shadow:0 0 14px rgba(124,92,255,.12);
+    transition:border-color .15s,box-shadow .15s,transform .15s;
+  }
+  .brand-link:hover{border-color:var(--ui-accent);box-shadow:0 0 20px rgba(124,92,255,.3);transform:translateY(-1px);}
+  .brand-link-icon{font-size:15px;line-height:1;}
+  @media(max-width:560px){
+    .hero .brand-links-label{flex-basis:100%;}
+    .brand-link{padding:8px 13px;gap:7px;font-size:12.5px;letter-spacing:.04em;}
+  }
+  /* ".hero p" (16.5px, velký spodní okraj) přebíjel menší styly těchto drobných
+     textů — tip pod formulářem a poznámka u historie byly omylem velké. */
+  .hero .file-hint{font-size:12px;margin:10px 0 0;}
+  .hero .history-note{font-size:11px;margin:10px 0 0;}
+  .hero .brand-links-label{font-size:11.5px;margin:0 4px 0 0;color:var(--ui-text-dim);max-width:none;}
 
   /* ---------- hero ---------- */
   .hero{
@@ -528,10 +581,15 @@
     *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
   }
 
+  /* iOS Safari přibližuje stránku při kliknutí do pole s písmem menším než 16 px */
+  @media(max-width:600px){
+    .qf-input,.promo-unlock-input{font-size:16px;}
+  }
+
   /* ---------- print / PDF export (via the browser's print dialog) ---------- */
   @media print{
     body{background:#fff;color:#111;}
-    .topbar,.hero,.guide-wrap,.articles-wrap,footer.app-footer,.promo-overlay,.install-banner,#reset-btn,.export-pdf-btn,.score-compare,.quickfix{
+    .topbar,.hero,.guide-wrap,.articles-wrap,footer.app-footer,.promo-overlay,.install-banner,#reset-btn,.export-pdf-btn,.score-compare,.quickfix,.brand-links{
       display:none !important;
     }
     #results{display:block !important;border-top:none;padding:0;margin-top:0;}
@@ -563,6 +621,7 @@
   <span class="topbar-sub">Free SEO check for your website</span>
   <div class="topbar-spacer"></div>
   <div class="topbar-actions">
+    <a class="save-btn hub-btn" href="https://synthlucida.com/hub.html" title="SYNTHLUCIDA HUB — all apps in one place"><span class="hub-dot" aria-hidden="true"></span><span class="hub-btn-long">SYNTHLUCIDA HUB</span><span class="hub-btn-short">HUB</span></a>
     <a class="save-btn" href="#guide" title="Guide">📖 <span>Guide</span></a>
     <a class="save-btn" href="#articles" title="Articles">📚 <span>Articles</span></a>
     <a class="save-btn" href="https://synthlucida.com/webzen-en.html" title="SYNTHLUCIDA WEBZENith">🌐 <span>WEBZENith</span></a>
@@ -608,7 +667,7 @@
         <div class="input-col">
           <label class="field-label" for="file-input">Any HTML file — e.g. an export from WEBZENith / PAGEZEN (.html)</label>
           <button type="button" id="choose-files-btn" class="choose-files-btn">📁 Choose HTML file(s)</button>
-          <input id="file-input" type="file" accept=".html,.htm,.txt" multiple hidden>
+          <input id="file-input" type="file" accept=".html,.htm,text/html,.txt" multiple hidden>
           <div id="selected-files" class="selected-files" hidden></div>
         </div>
         <button id="submit-btn" type="submit" disabled>
@@ -620,6 +679,12 @@
       </form>
       <p class="file-hint">Tip: if you select several files at once (a full export from WEBZENith or PAGEZEN), SEOCHECKER will also check the internal links between pages.</p>
       <div id="status-region" role="status" aria-live="polite"></div>
+
+      <div class="brand-links">
+        <p class="brand-links-label">More from SYNTHLUCIDA</p>
+        <a class="brand-link" href="https://synthlucida.com/hub.html" title="All SYNTHLUCIDA apps in one place"><span class="hub-dot" aria-hidden="true"></span>SYNTHLUCIDA HUB</a>
+        <a class="brand-link" href="https://relaxplayer.eu" target="_blank" rel="noopener" title="Ambient music for focus and relaxation"><span class="brand-link-icon" aria-hidden="true">🎧</span>RELAXPLAYER</a>
+      </div>
 
       <div class="history-wrap" id="history-wrap" hidden>
         <div class="history-head">
@@ -706,7 +771,7 @@
           <span class="guide-step-num">4</span>
           <div class="guide-step-body">
             <h3>Fix common issues on the spot</h3>
-            <p>For problems SEOCHECKER can help with — title, meta description, headings, missing image descriptions — use the Quick fix panel to correct them directly, then download the fixed HTML file.</p>
+            <p>For problems SEOCHECKER can help with — title, meta description, headings, image descriptions, canonical, language, charset, viewport, favicon, Open Graph, Twitter/X card or “noindex” — use the Quick fix panel to correct them directly, then download the fixed HTML file.</p>
           </div>
         </li>
         <li class="guide-step">
@@ -861,6 +926,8 @@
       <p>The check only evaluates the uploaded HTML file as it is — it doesn't replace an audit by an SEO specialist and doesn't measure search rankings.</p>
       <div class="footer-links">
         <a href="https://synthlucida.com">🏠 SYNTHLUCIDA</a>
+        <a href="https://synthlucida.com/hub.html">🌅 SYNTHLUCIDA HUB</a>
+        <a href="https://relaxplayer.eu" target="_blank" rel="noopener">🎧 RELAXPLAYER</a>
         <a href="https://synthlucida.com/landing_webzenith-en.html">🌐 SYNTHLUCIDA WEBZENith</a>
         <a href="https://webzen2026.github.io/seovip/en" target="_blank" rel="noopener">🚀 SEOVIP — version 2.0</a>
         <a href="seochecker-privacy-en.html">🔒 Privacy Policy</a>
@@ -1174,6 +1241,7 @@
       var clean = href.split("#")[0].split("?")[0];
       if(clean && isHtmlFile(clean) && multiFile){
         var base = clean.split("/").pop().toLowerCase();
+        try{ base = decodeURIComponent(base); }catch(e){ /* neplatné %-kódování — nechat jak je */ }
         if(base && !siblingFiles.has(base)){
           brokenInternal++;
           if(brokenExamples.length < 3) brokenExamples.push(clean);
@@ -1475,10 +1543,16 @@
     quickfixMsg.hidden = true;
   }
 
+  var qfIdSeq = 0;
   function addQfField(labelText, inputHtml){
     var field = document.createElement("div");
     field.className = "qf-field";
     field.innerHTML = "<label class=\"qf-label\">" + esc(labelText) + "</label>" + inputHtml;
+    var ctl = field.querySelector("input, textarea");
+    if(ctl){
+      ctl.id = "qf-ctl-" + (++qfIdSeq);
+      field.querySelector("label").setAttribute("for", ctl.id);
+    }
     quickfixFields.appendChild(field);
     return field;
   }
@@ -1638,8 +1712,9 @@
         if(!v) return false;
         var h1 = doc.createElement("h1");
         h1.textContent = v;
-        var body = doc.querySelector("body");
-        if(body) body.insertBefore(h1, body.firstChild);
+        // Přednostně na začátek hlavního obsahu (<main>), ať nový nadpis neskončí nad hlavičkou/menu.
+        var host = doc.querySelector("main, [role='main']") || doc.querySelector("body");
+        if(host) host.insertBefore(h1, host.firstChild);
         return true;
       });
     } else if(h1Check && h1Check.status === "warn"){
@@ -1690,6 +1765,7 @@
             "<input type=\"text\" class=\"qf-input qf-alt-input\" maxlength=\"140\">";
           altWrap.appendChild(row);
           var altInput = row.querySelector("input");
+          altInput.setAttribute("aria-label", T.qfAltLabel + ": " + (src || T.qfAltNoSrc));
           qfFixers.push(function(){
             var v = altInput.value.trim();
             if(!v) return false;
@@ -1726,6 +1802,7 @@
       quickfixFields.appendChild(ogWrap);
       var ogInputs = ogWrap.querySelectorAll("input, textarea");
       var ogTitleInput = ogInputs[0], ogDescInput = ogInputs[1], ogImageInput = ogInputs[2];
+      Array.prototype.forEach.call(ogInputs, function(inp){ inp.setAttribute("aria-label", inp.getAttribute("placeholder") || T.qfOgLabel); });
       ogTitleInput.value = ogTitleEl0 ? (ogTitleEl0.getAttribute("content")||"").trim() : (titleElForOg ? titleElForOg.textContent.replace(/\s+/g," ").trim() : "");
       ogDescInput.value = ogDescEl0 ? (ogDescEl0.getAttribute("content")||"").trim() : (descElForOg ? (descElForOg.getAttribute("content")||"").trim() : "");
       ogImageInput.value = ogImgEl0 ? (ogImgEl0.getAttribute("content")||"").trim() : "";
@@ -1794,7 +1871,7 @@
       });
     }
 
-    quickfixApplyBtn.hidden = !any;
+    quickfixApplyBtn.hidden = !qfFixers.length; // jen poznámka (např. víc H1) = není co použít
     if(!any && qfHasAppliedOnce){
       var doneMsg = document.createElement("p");
       doneMsg.className = "qf-note";
@@ -1893,11 +1970,15 @@
       } else {
         radioHtml = "<span class=\"ftag\">file</span>";
       }
-      row.innerHTML = radioHtml + "<span class=\"fname\">" + esc(file.name) + "</span>" + (htmlPage ? "" : "");
+      row.innerHTML = radioHtml + "<span class=\"fname\">" + esc(file.name) + "</span>";
       if(htmlPage){
-        row.addEventListener("click", function(){
+        // Klik na řádek (label) radio zaškrtne sám; posloucháme "change", takže funguje
+        // i výběr šipkami z klávesnice a fokus se neztrácí překreslováním seznamu.
+        var radio = row.querySelector("input");
+        radio.addEventListener("change", function(){
+          if(!radio.checked) return;
           chosenPageIndex = idx;
-          renderSelectedFiles();
+          submitBtn.disabled = false;
         });
       }
       selectedFilesEl.appendChild(row);
@@ -1993,7 +2074,7 @@
     return result;
   }
 
-  // ---------- promo modal (shown once, after the 2nd completed check) ----------
+  // ---------- promo modal (after every 5th completed check, unless snoozed) ----------
   var PROMO_COUNT_KEY = "seochecker_check_count_v1";
   var PROMO_SNOOZE_KEY = "seochecker_promo_snooze_until_v1";
   var PROMO_SNOOZE_MS = 60 * 60 * 1000; // 60 minutes

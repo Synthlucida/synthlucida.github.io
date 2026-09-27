@@ -114,7 +114,12 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--ui-bg-0);color:var(--ui-text);
-    font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+    font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  /* overflow-x jen na <html> (propaguje se na okno) a "clip" na <body> — dřív bylo
+     hidden na obou, čímž se <body> stalo scroll kontejnerem a lepicí (sticky)
+     horní lišta se přestala držet nahoře. */
+  html{overflow-x:hidden;}
+  body{overflow-x:clip;}
   body{line-height:1.55;}
   a{color:inherit;}
   a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{
@@ -149,10 +154,58 @@
     text-decoration:none;display:inline-flex;align-items:center;gap:5px;flex:none;
   }
   .save-btn:hover{border-color:var(--ui-accent);color:var(--ui-accent);}
-  @media(max-width:560px){
+  @media(max-width:699px){
     .save-btn{padding:7px 9px;}
     .save-btn span{display:none;}
   }
+  /* Na telefonech se lišta zalomí do dvou řádků — tam ji necháme normálně
+     odjet se stránkou, ať nezabírá místo; lepicí je od tabletu výš. */
+  @media(max-width:699px){.topbar{position:relative;}}
+  @media(min-width:700px){#guide,#articles,#results{scroll-margin-top:100px;}}
+
+  /* ---------- SYNTHLUCIDA HUB tlačítko v liště + odkazy HUB / RELAXPLAYER ---------- */
+  .hub-dot{
+    display:inline-block;flex:none;width:12px;height:12px;border-radius:50%;
+    background:linear-gradient(180deg,#fff1d6 0%,#ffc27a 25%,#ff8c4a 55%,#dd6178 100%);
+    box-shadow:0 0 8px rgba(255,150,90,.45);
+  }
+  .save-btn.hub-btn{border-color:rgba(124,92,255,.55);color:#d9d0ff;background:rgba(124,92,255,.08);}
+  .save-btn.hub-btn:hover{border-color:var(--ui-accent);color:#fff;}
+  .save-btn .hub-btn-short{display:none;}
+  @media(max-width:1180px){
+    .save-btn .hub-btn-long{display:none;}
+    .save-btn .hub-btn-short{display:inline;}
+  }
+  @media(max-width:699px){
+    .save-btn .hub-dot{display:inline-block;}
+    .save-btn .hub-btn-short{display:inline;}
+  }
+  @media(max-width:350px){.save-btn .hub-btn-short{display:none;}}
+  .topbar-actions .hub-btn{align-self:stretch;}
+
+  .brand-links{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px;}
+  .brand-links-label{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--ui-text-dim);margin:0 4px 0 0;
+  }
+  .brand-link{
+    display:inline-flex;align-items:center;gap:9px;padding:9px 16px;border-radius:999px;
+    background:var(--ui-bg-2);border:1px solid rgba(124,92,255,.45);color:var(--ui-text);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;letter-spacing:.05em;
+    text-decoration:none;white-space:nowrap;box-shadow:0 0 14px rgba(124,92,255,.12);
+    transition:border-color .15s,box-shadow .15s,transform .15s;
+  }
+  .brand-link:hover{border-color:var(--ui-accent);box-shadow:0 0 20px rgba(124,92,255,.3);transform:translateY(-1px);}
+  .brand-link-icon{font-size:15px;line-height:1;}
+  @media(max-width:560px){
+    .hero .brand-links-label{flex-basis:100%;}
+    .brand-link{padding:8px 13px;gap:7px;font-size:12.5px;letter-spacing:.04em;}
+  }
+  /* ".hero p" (16.5px, velký spodní okraj) přebíjel menší styly těchto drobných
+     textů — tip pod formulářem a poznámka u historie byly omylem velké. */
+  .hero .file-hint{font-size:12px;margin:10px 0 0;}
+  .hero .history-note{font-size:11px;margin:10px 0 0;}
+  .hero .brand-links-label{font-size:11.5px;margin:0 4px 0 0;color:var(--ui-text-dim);max-width:none;}
 
   /* ---------- hero ---------- */
   .hero{
@@ -528,10 +581,15 @@
     *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
   }
 
+  /* iOS Safari přibližuje stránku při kliknutí do pole s písmem menším než 16 px */
+  @media(max-width:600px){
+    .qf-input,.promo-unlock-input{font-size:16px;}
+  }
+
   /* ---------- tisk / export do PDF (přes dialog tisku prohlížeče) ---------- */
   @media print{
     body{background:#fff;color:#111;}
-    .topbar,.hero,.guide-wrap,.articles-wrap,footer.app-footer,.promo-overlay,.install-banner,#reset-btn,.export-pdf-btn,.score-compare,.quickfix{
+    .topbar,.hero,.guide-wrap,.articles-wrap,footer.app-footer,.promo-overlay,.install-banner,#reset-btn,.export-pdf-btn,.score-compare,.quickfix,.brand-links{
       display:none !important;
     }
     #results{display:block !important;border-top:none;padding:0;margin-top:0;}
@@ -563,6 +621,7 @@
   <span class="topbar-sub">Bezplatná SEO kontrola webu</span>
   <div class="topbar-spacer"></div>
   <div class="topbar-actions">
+    <a class="save-btn hub-btn" href="https://synthlucida.com/hub.html" title="SYNTHLUCIDA HUB — všechny aplikace na jednom místě"><span class="hub-dot" aria-hidden="true"></span><span class="hub-btn-long">SYNTHLUCIDA HUB</span><span class="hub-btn-short">HUB</span></a>
     <a class="save-btn" href="#guide" title="Návod">📖 <span>Návod</span></a>
     <a class="save-btn" href="#articles" title="Články">📚 <span>Články</span></a>
     <a class="save-btn" href="https://synthlucida.com/webzen.html" title="SYNTHLUCIDA WEBZENith">🌐 <span>WEBZENith</span></a>
@@ -608,7 +667,7 @@
         <div class="input-col">
           <label class="field-label" for="file-input">Jakýkoli HTML soubor — např. export z WEBZENith / PAGEZEN (.html)</label>
           <button type="button" id="choose-files-btn" class="choose-files-btn">📁 Vybrat HTML soubor(y)</button>
-          <input id="file-input" type="file" accept=".html,.htm,.txt" multiple hidden>
+          <input id="file-input" type="file" accept=".html,.htm,text/html,.txt" multiple hidden>
           <div id="selected-files" class="selected-files" hidden></div>
         </div>
         <button id="submit-btn" type="submit" disabled>
@@ -620,6 +679,12 @@
       </form>
       <p class="file-hint">Tip: pokud vyberete víc souborů najednou (celý export z WEBZENith nebo PAGEZEN), SEOCHECKER navíc ověří i interní odkazy mezi stránkami.</p>
       <div id="status-region" role="status" aria-live="polite"></div>
+
+      <div class="brand-links">
+        <p class="brand-links-label">Další od SYNTHLUCIDA</p>
+        <a class="brand-link" href="https://synthlucida.com/hub.html" title="Všechny aplikace SYNTHLUCIDA na jednom místě"><span class="hub-dot" aria-hidden="true"></span>SYNTHLUCIDA HUB</a>
+        <a class="brand-link" href="https://relaxplayer.eu" target="_blank" rel="noopener" title="Ambientní hudba pro soustředění i odpočinek"><span class="brand-link-icon" aria-hidden="true">🎧</span>RELAXPLAYER</a>
+      </div>
 
       <div class="history-wrap" id="history-wrap" hidden>
         <div class="history-head">
@@ -706,7 +771,7 @@
           <span class="guide-step-num">4</span>
           <div class="guide-step-body">
             <h3>Opravte časté problémy rovnou na místě</h3>
-            <p>U problémů, které umí SEOCHECKER pomoct vyřešit — titulek, meta popis, nadpisy, chybějící popisky obrázků — použijte panel Rychlá oprava a rovnou si stáhněte opravený HTML soubor.</p>
+            <p>U problémů, které umí SEOCHECKER pomoct vyřešit — titulek, meta popis, nadpisy, popisky obrázků, canonical, jazyk, kódování, viewport, favicon, Open Graph, Twitter/X karta nebo „noindex“ — použijte panel Rychlá oprava a rovnou si stáhněte opravený HTML soubor.</p>
           </div>
         </li>
         <li class="guide-step">
@@ -861,6 +926,8 @@
       <p>Kontrola hodnotí jen nahraný HTML soubor tak, jak je — nenahrazuje audit od SEO specialisty ani neměří žebříčky ve vyhledávání.</p>
       <div class="footer-links">
         <a href="https://synthlucida.com">🏠 SYNTHLUCIDA</a>
+        <a href="https://synthlucida.com/hub.html">🌅 SYNTHLUCIDA HUB</a>
+        <a href="https://relaxplayer.eu" target="_blank" rel="noopener">🎧 RELAXPLAYER</a>
         <a href="https://synthlucida.com/landing_webzenith.html">🌐 SYNTHLUCIDA WEBZENith</a>
         <a href="https://webzen2026.github.io/seovip" target="_blank" rel="noopener">🚀 SEOVIP — verze 2.0</a>
         <a href="seochecker-privacy.html">🔒 Zásady ochrany soukromí</a>
@@ -1007,6 +1074,14 @@
     return words.length;
   }
 
+  // České skloňování podle čísla: 1 odkaz / 2–4 odkazy / 0 a 5+ odkazů
+  function czPlural(n, one, few, many){
+    n = Math.abs(n);
+    if(n === 1) return one;
+    if(n >= 2 && n <= 4) return few;
+    return many;
+  }
+
   function addCheck(list, cat, id, status, points, maxPoints, label, detail){
     list.push({cat:cat, id:id, status:status, points:points, maxPoints:maxPoints, label:label, detail:detail});
   }
@@ -1084,7 +1159,7 @@
     if(h1s.length === 0){
       addCheck(list,"content","h1","fail",0,8,"Nadpis H1","Stránka nemá žádný nadpis H1.");
     } else if(h1s.length > 1){
-      addCheck(list,"content","h1","warn",4,8,"Nadpis H1","Stránka má " + h1s.length + " nadpisů H1 — ideálně by měl být jen jeden.");
+      addCheck(list,"content","h1","warn",4,8,"Nadpis H1","Stránka má " + h1s.length + " " + czPlural(h1s.length,"nadpis","nadpisy","nadpisů") + " H1 — ideálně by měl být jen jeden.");
     } else {
       var h1text = h1s[0].textContent.replace(/\s+/g," ").trim();
       addCheck(list,"content","h1","pass",8,8,"Nadpis H1","„" + h1text + "“");
@@ -1099,11 +1174,11 @@
 
     var wc = wordCount(doc);
     if(wc >= 300){
-      addCheck(list,"content","words","pass",7,7,"Množství textu","Stránka obsahuje přibližně " + wc + " slov textu.");
+      addCheck(list,"content","words","pass",7,7,"Množství textu","Stránka obsahuje přibližně " + wc + " " + czPlural(wc,"slovo","slova","slov") + " textu.");
     } else if(wc >= 150){
-      addCheck(list,"content","words","warn",4,7,"Množství textu","Stránka obsahuje jen přibližně " + wc + " slov textu.");
+      addCheck(list,"content","words","warn",4,7,"Množství textu","Stránka obsahuje jen přibližně " + wc + " " + czPlural(wc,"slovo","slova","slov") + " textu.");
     } else {
-      addCheck(list,"content","words","fail",0,7,"Množství textu","Stránka obsahuje jen přibližně " + wc + " slov textu — to je velmi málo.");
+      addCheck(list,"content","words","fail",0,7,"Množství textu","Stránka obsahuje jen přibližně " + wc + " " + czPlural(wc,"slovo","slova","slov") + " textu — to je velmi málo.");
     }
 
     var imgs = doc.querySelectorAll("img");
@@ -1116,11 +1191,11 @@
       var ratio = covered / imgs.length;
       var pts = Math.round(5 * ratio);
       if(missing === 0){
-        addCheck(list,"content","alt","pass",5,5,"Popisky obrázků (alt)","Všech " + imgs.length + " obrázků má atribut alt.");
+        addCheck(list,"content","alt","pass",5,5,"Popisky obrázků (alt)",(imgs.length === 1 ? "Jediný obrázek na stránce má atribut alt." : (imgs.length <= 4 ? "Všechny " + imgs.length + " obrázky mají atribut alt." : "Všech " + imgs.length + " obrázků má atribut alt.")));
       } else if(ratio >= 0.5){
-        addCheck(list,"content","alt","warn",pts,5,"Popisky obrázků (alt)", missing + " z " + imgs.length + " obrázků nemá atribut alt.");
+        addCheck(list,"content","alt","warn",pts,5,"Popisky obrázků (alt)", missing + " z " + imgs.length + " " + czPlural(imgs.length,"obrázku","obrázků","obrázků") + " " + (missing >= 2 && missing <= 4 ? "nemají" : "nemá") + " atribut alt.");
       } else {
-        addCheck(list,"content","alt","fail",pts,5,"Popisky obrázků (alt)", missing + " z " + imgs.length + " obrázků nemá atribut alt.");
+        addCheck(list,"content","alt","fail",pts,5,"Popisky obrázků (alt)", missing + " z " + imgs.length + " " + czPlural(imgs.length,"obrázku","obrázků","obrázků") + " " + (missing >= 2 && missing <= 4 ? "nemají" : "nemá") + " atribut alt.");
       }
     }
 
@@ -1174,6 +1249,7 @@
       var clean = href.split("#")[0].split("?")[0];
       if(clean && isHtmlFile(clean) && multiFile){
         var base = clean.split("/").pop().toLowerCase();
+        try{ base = decodeURIComponent(base); }catch(e){ /* neplatné %-kódování — nechat jak je */ }
         if(base && !siblingFiles.has(base)){
           brokenInternal++;
           if(brokenExamples.length < 3) brokenExamples.push(clean);
@@ -1181,9 +1257,9 @@
       }
     });
     if(internal >= 3){
-      addCheck(list,"index","internal","pass",6,6,"Interní odkazy","Stránka obsahuje " + internal + " odkazů na jiné stránky webu.");
+      addCheck(list,"index","internal","pass",6,6,"Interní odkazy","Stránka obsahuje " + internal + " " + czPlural(internal,"odkaz","odkazy","odkazů") + " na jiné stránky webu.");
     } else if(internal >= 1){
-      addCheck(list,"index","internal","warn",3,6,"Interní odkazy","Stránka obsahuje jen " + internal + " odkaz(y) na jiné stránky webu.");
+      addCheck(list,"index","internal","warn",3,6,"Interní odkazy","Stránka obsahuje jen " + internal + " " + czPlural(internal,"odkaz","odkazy","odkazů") + " na jiné stránky webu.");
     } else {
       addCheck(list,"index","internal","fail",0,6,"Interní odkazy","Stránka neobsahuje žádné odkazy na jiné stránky webu.");
     }
@@ -1192,7 +1268,7 @@
       if(brokenInternal === 0){
         addCheck(list,"index","brokenlinks","pass",4,4,"Odkazy na nahrané soubory","Všechny interní odkazy na HTML stránky směřují na soubory z vašeho výběru.");
       } else {
-        addCheck(list,"index","brokenlinks","warn",0,4,"Odkazy na nahrané soubory", brokenInternal + " odkaz(y) směřuje na soubor(y), které nejsou mezi nahranými (" + brokenExamples.join(", ") + "). To je v pořádku, pokud jste nenahráli celý export webu — jinak zkontrolujte odkazy.");
+        addCheck(list,"index","brokenlinks","warn",0,4,"Odkazy na nahrané soubory", (brokenInternal === 1 ? "1 odkaz směřuje na soubor, který není mezi nahranými (" : brokenInternal + " " + czPlural(brokenInternal,"odkaz","odkazy","odkazů") + " " + (brokenInternal <= 4 ? "směřují" : "směřuje") + " na soubory, které nejsou mezi nahranými (") + brokenExamples.join(", ") + "). To je v pořádku, pokud jste nenahráli celý export webu — jinak zkontrolujte odkazy.");
       }
     }
 
@@ -1475,10 +1551,16 @@
     quickfixMsg.hidden = true;
   }
 
+  var qfIdSeq = 0;
   function addQfField(labelText, inputHtml){
     var field = document.createElement("div");
     field.className = "qf-field";
     field.innerHTML = "<label class=\"qf-label\">" + esc(labelText) + "</label>" + inputHtml;
+    var ctl = field.querySelector("input, textarea");
+    if(ctl){
+      ctl.id = "qf-ctl-" + (++qfIdSeq);
+      field.querySelector("label").setAttribute("for", ctl.id);
+    }
     quickfixFields.appendChild(field);
     return field;
   }
@@ -1638,8 +1720,9 @@
         if(!v) return false;
         var h1 = doc.createElement("h1");
         h1.textContent = v;
-        var body = doc.querySelector("body");
-        if(body) body.insertBefore(h1, body.firstChild);
+        // Přednostně na začátek hlavního obsahu (<main>), ať nový nadpis neskončí nad hlavičkou/menu.
+        var host = doc.querySelector("main, [role='main']") || doc.querySelector("body");
+        if(host) host.insertBefore(h1, host.firstChild);
         return true;
       });
     } else if(h1Check && h1Check.status === "warn"){
@@ -1690,6 +1773,7 @@
             "<input type=\"text\" class=\"qf-input qf-alt-input\" maxlength=\"140\">";
           altWrap.appendChild(row);
           var altInput = row.querySelector("input");
+          altInput.setAttribute("aria-label", T.qfAltLabel + ": " + (src || T.qfAltNoSrc));
           qfFixers.push(function(){
             var v = altInput.value.trim();
             if(!v) return false;
@@ -1726,6 +1810,7 @@
       quickfixFields.appendChild(ogWrap);
       var ogInputs = ogWrap.querySelectorAll("input, textarea");
       var ogTitleInput = ogInputs[0], ogDescInput = ogInputs[1], ogImageInput = ogInputs[2];
+      Array.prototype.forEach.call(ogInputs, function(inp){ inp.setAttribute("aria-label", inp.getAttribute("placeholder") || T.qfOgLabel); });
       ogTitleInput.value = ogTitleEl0 ? (ogTitleEl0.getAttribute("content")||"").trim() : (titleElForOg ? titleElForOg.textContent.replace(/\s+/g," ").trim() : "");
       ogDescInput.value = ogDescEl0 ? (ogDescEl0.getAttribute("content")||"").trim() : (descElForOg ? (descElForOg.getAttribute("content")||"").trim() : "");
       ogImageInput.value = ogImgEl0 ? (ogImgEl0.getAttribute("content")||"").trim() : "";
@@ -1794,7 +1879,7 @@
       });
     }
 
-    quickfixApplyBtn.hidden = !any;
+    quickfixApplyBtn.hidden = !qfFixers.length; // jen poznámka (např. víc H1) = není co použít
     if(!any && qfHasAppliedOnce){
       var doneMsg = document.createElement("p");
       doneMsg.className = "qf-note";
@@ -1893,11 +1978,15 @@
       } else {
         radioHtml = "<span class=\"ftag\">soubor</span>";
       }
-      row.innerHTML = radioHtml + "<span class=\"fname\">" + esc(file.name) + "</span>" + (htmlPage ? "" : "");
+      row.innerHTML = radioHtml + "<span class=\"fname\">" + esc(file.name) + "</span>";
       if(htmlPage){
-        row.addEventListener("click", function(){
+        // Klik na řádek (label) radio zaškrtne sám; posloucháme "change", takže funguje
+        // i výběr šipkami z klávesnice a fokus se neztrácí překreslováním seznamu.
+        var radio = row.querySelector("input");
+        radio.addEventListener("change", function(){
+          if(!radio.checked) return;
           chosenPageIndex = idx;
-          renderSelectedFiles();
+          submitBtn.disabled = false;
         });
       }
       selectedFilesEl.appendChild(row);
@@ -1993,7 +2082,7 @@
     return result;
   }
 
-  // ---------- promo modal (shown once, after the 2nd completed check) ----------
+  // ---------- promo modal (after every 5th completed check, unless snoozed) ----------
   var PROMO_COUNT_KEY = "seochecker_check_count_v1";
   var PROMO_SNOOZE_KEY = "seochecker_promo_snooze_until_v1";
   var PROMO_SNOOZE_MS = 60 * 60 * 1000; // 60 minut
