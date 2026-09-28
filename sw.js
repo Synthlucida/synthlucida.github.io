@@ -47,9 +47,13 @@
 // které z uložené kopie z GitHubu vyrobit nejde); uložená kopie je záloha
 // pro offline. Připravena podpora serverů s CORS (CORS_AUDIO_HOSTS): čitelné
 // kopie se kontrolují a z cache se vrací i části souboru (206).
+// v39 - karta dne se přestěhovala do player-tarot.html (manifest playeru má
+// scope "./player", takže tarot teď patří do nainstalované aplikace).
+// player-tarot.html přidán do offline seznamu; tarot.html v něm zůstává,
+// je to už jen malé přesměrování pro staré odkazy.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1022';
+const APP_CACHE_NAME = 'synthlucida-app-v1023';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -64,6 +68,7 @@ const ASSETS_TO_CACHE = [
   './bio.html',
   './services.html',
   './tarot.html',
+  './player-tarot.html',
   './news.html',
   './manifest.json',
   './privacy_policy.html',
