@@ -526,14 +526,22 @@
   .btn-music:active { transform: scale(0.92); }
   .btn-music.playing { background: var(--accent-color); color: #000; box-shadow: 0 0 10px var(--accent-color); }
   .btn-music.loading { opacity: 0.55; cursor: wait; }
+  /* Řádek "now playing" má vždy vyhrazenou výšku a jen se zprůhlední/zobrazí -
+     dřív se při play/pauze (a při přepnutí skladby) nafukoval z 0 na 20 px
+     a posouval celou stránku. */
   .now-playing {
     position: relative; z-index: 1; font-family: 'Cormorant Garamond', serif; font-style: italic;
-    font-size: 9px; opacity: 0; max-height: 0; overflow: hidden; letter-spacing: 0.5px;
-    transition: opacity 0.3s; margin-top: 8px; text-align: center;
+    font-size: 9px; line-height: 12px; height: 12px; opacity: 0; letter-spacing: 0.5px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    width: 100%; max-width: 300px; margin: 4px auto 0;
+    transition: opacity 0.3s; text-align: center;
   }
-  .now-playing.show { opacity: 0.65; max-height: 20px; }
+  .now-playing.show { opacity: 0.65; }
 
-  .slogan-wrap { position: relative; z-index: 1; max-width: 300px; width: 100%; margin: 18px auto 0; min-height: 34px; }
+  .slogan-wrap { position: relative; z-index: 1; max-width: 300px; width: 100%; margin: 10px auto 0; }
+  /* Pevně vyhrazené místo pro motivační větu. Výšku (min-height) nastavuje JS
+     podle nejdelší věty v seznamu, takže výměna věty nikdy neposune stránku. */
+  .slogan-lines { display: flex; flex-direction: column; justify-content: center; min-height: 34px; }
   .slogan-text {
     font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; letter-spacing: 0.5px;
     color: var(--accent-color); text-shadow: 0 0 8px rgba(212,175,55,0.35); opacity: 0; transition: opacity 1.2s ease;
@@ -542,10 +550,12 @@
   .slogan-text-cz { font-size: 12px; opacity: 0; margin-top: 3px; color: #fff; text-shadow: none; }
   .slogan-text-cz.visible { opacity: 0.6; }
 
+  /* Odpočet se už neschovává přes display:none (to měnilo výšku stránky),
+     ale jen se zprůhlední - místo pro něj zůstává pořád stejné. */
   .slogan-countdown {
-    display: none;
     position: relative; z-index: 1; width: 46px; height: 3px; margin: 10px auto 0;
     border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; opacity: 0.7;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
   }
   .slogan-countdown-bar {
     height: 100%; width: 0%; border-radius: 3px; background: var(--accent-color);
@@ -553,10 +563,13 @@
   }
   .slogan-countdown-bar.animate { transition: width linear; }
   .slogan-countdown-num {
-    display: none; position: relative; z-index: 1; margin: 5px auto 0;
-    font-size: 9px; letter-spacing: 1px; color: var(--accent-color); opacity: 0.6;
+    position: relative; z-index: 1; margin: 5px auto 0;
+    font-size: 9px; line-height: 1.25; height: 1.25em; /* pevná výška i když je prázdný */
+    letter-spacing: 1px; color: var(--accent-color); opacity: 0.6;
     font-variant-numeric: tabular-nums;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
   }
+  .slogan-countdown.is-hidden, .slogan-countdown-num.is-hidden { opacity: 0; visibility: hidden; }
 
   /* NOTE on thresholds: mobile browsers report the CSS "height" media
      feature against the large/layout viewport, not the smaller area that's
@@ -570,7 +583,7 @@
     .card-wrap { width: 170px; height: 275px; margin-bottom: 16px; }
     .page-title { margin-bottom: 16px; }
     .meaning-panel { padding: 12px 14px; margin-bottom: 14px; }
-    .slogan-wrap { margin-top: 12px; }
+    .slogan-wrap { margin-top: 4px; }
   }
 
   /* Smaller/mid phones: shrink everything further so the whole page fits
@@ -599,7 +612,8 @@
     .meaning-text { font-size: 12px; line-height: 1.35; margin-bottom: 8px; }
     .meaning-divider { margin: 6px 0; }
     .btn-draw { padding: 8px 16px; font-size: 9px; }
-    .slogan-wrap { margin-top: 8px; min-height: 24px; }
+    .slogan-wrap { margin-top: 0; }
+    .slogan-lines { min-height: 24px; }
     .slogan-text { font-size: 11px; }
     .slogan-text-cz { font-size: 10px; }
     .slogan-countdown { margin-top: 6px; }
@@ -609,10 +623,73 @@
   /* Very small / compact phones */
   @media (max-height: 680px) {
     .card-wrap { width: 112px; height: 182px; margin-bottom: 8px; }
-    .card-symbol { font-size: 26px; }
+    .card-symbol { font-size: 26px; margin: 2px 0; }
+    /* na malé kartě se u dlouhých názvů + štítku REVERSED text překrýval
+       s čísly odpočtu nahoře a dole na kartě */
+    .card-front { padding: 8px 6px; }
+    .card-number { font-size: 8px; }
+    .card-name-en { font-size: 10px; letter-spacing: 1px; }
+    .card-name-cz { font-size: 8.5px; }
+    .reversed-badge { font-size: 7px; letter-spacing: 1px; padding: 2px 6px; margin-top: 4px; }
     .meaning-panel { max-height: 24dvh; padding: 8px 10px; }
     .meaning-text { font-size: 11px; }
     .page-title { font-size: 12px; margin: 2px 0 8px; }
+  }
+
+  /* Velmi úzké displeje (iPhone SE 1. gen.): užší záložky balíčků, aby
+     nezasahovaly pod kulatá tlačítka v levém/pravém rohu. */
+  @media (max-width: 340px) {
+    .deck-tabs { gap: 5px; }
+    .deck-tab { padding: 5px 7px; letter-spacing: 1px; gap: 4px; }
+  }
+
+  /* Vyšší telefony na výšku (iPhone 12-15 vč. Pro Max, Pixel, Galaxy S/A):
+     menší mezery a o kousek menší karta, aby se na obrazovku vešlo všechno.
+     Podmínka na šířku (max 600 px) zajišťuje, že se to netýká počítačů. */
+  @media (max-width: 600px) and (min-height: 781px) and (max-height: 960px) {
+    body { padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+    .page-title { margin: 4px 0 12px; }
+    .deck-tabs { margin-bottom: 14px; }
+    .card-wrap { width: 146px; height: 236px; margin-bottom: 12px; }
+    .card-symbol { font-size: 38px; }
+    .meaning-panel { padding: 12px 14px; margin-bottom: 12px; }
+    .meaning-text { font-size: 13.5px; line-height: 1.42; margin-bottom: 10px; }
+    .meaning-divider { margin: 8px 0; }
+    .slogan-wrap { margin-top: 4px; }
+  }
+  /* užší z nich (do 400 px): záložky balíčků ve stejné velikosti jako na
+     menších telefonech, jinak při delším textu karty (obsah vyplní celou
+     výšku) zajedou pod kulaté tlačítko ☰ v levém rohu */
+  @media (max-width: 400px) and (min-height: 781px) {
+    .deck-tabs { gap: 6px; }
+    .deck-tab { padding: 5px 9px; font-size: 9px; }
+  }
+  /* nižší z nich (cca 800-830 px, např. Galaxy A, iPhone 13 mini) */
+  @media (max-width: 600px) and (min-height: 781px) and (max-height: 830px) {
+    .card-wrap { width: 140px; height: 226px; }
+    .card-symbol { font-size: 34px; margin: 4px 0 3px; }
+    .card-name-en { font-size: 12px; }
+    .meaning-text { font-size: 13px; line-height: 1.4; margin-bottom: 9px; }
+    .meaning-divider { margin: 7px 0; }
+  }
+
+  /* Celá stránka = přesně jedna obrazovka. Když se obsah nevejde (karta
+     s dlouhým textem), zmenší se jen panel s významem a text v něm jde
+     posunout prstem - karta, tlačítka i slogan si drží velikost.
+     Automatické okraje nahoře a dole obsah svisle centrují, ale na rozdíl
+     od justify-content:center nic neuříznou, kdyby byl obsah vyšší.
+     Jen pro telefony na výšku - na počítači/tabletu (a u telefonu na šířku)
+     zůstává běžné posouvání stránky, tam je karta velká a panel by se
+     zbytečně moc zmenšoval. */
+  @media (max-width: 600px) and (min-height: 500px) {
+    body { height: 100vh; height: 100dvh; justify-content: flex-start; }
+    body > * { flex-shrink: 0; }
+    .clock-display { margin-top: auto; }
+    .slogan-wrap { margin-bottom: auto; }
+    .meaning-panel {
+      flex-shrink: 1; min-height: 120px; max-height: none;
+      overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    }
   }
 </style>
 </head>
@@ -874,8 +951,10 @@
 <iframe id="music-bridge" src="about:blank" style="position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; border:0; opacity:0; pointer-events:none;" aria-hidden="true" tabindex="-1"></iframe>
 
 <div class="slogan-wrap">
-  <div class="slogan-text" id="slogan-text-en"></div>
-  <div class="slogan-text slogan-text-cz" id="slogan-text-cz"></div>
+  <div class="slogan-lines" id="slogan-lines">
+    <div class="slogan-text" id="slogan-text-en"></div>
+    <div class="slogan-text slogan-text-cz" id="slogan-text-cz"></div>
+  </div>
   <div class="slogan-countdown" id="slogan-countdown"><div class="slogan-countdown-bar" id="slogan-countdown-bar"></div></div>
   <div class="slogan-countdown-num" id="slogan-countdown-num"></div>
 </div>
@@ -1064,8 +1143,12 @@
     if (raw) {
       try { list = JSON.parse(raw) || []; } catch (e) { list = []; }
     }
+    // Poškozená / cizí data v localStorage nesmí shodit tažení karty.
+    if (!Array.isArray(list)) list = [];
     var now = Date.now();
-    var pruned = list.filter(function (entry) { return (now - entry.ts) < HISTORY_MS; });
+    var pruned = list.filter(function (entry) {
+      return entry && typeof entry.ts === 'number' && typeof entry.en === 'string' && (now - entry.ts) < HISTORY_MS;
+    });
     if (pruned.length !== list.length) saveHistory(pruned);
     return pruned;
   }
@@ -1093,15 +1176,19 @@
   function timeAgoLabel(ts) {
     var mins = Math.floor((Date.now() - ts) / 60000);
     if (mins < 1) return (i18nText.history_just_now[guideLang] || i18nText.history_just_now.en);
-    return mins + ' ' + (i18nText.history_min_ago[guideLang] || i18nText.history_min_ago.en);
+    return (i18nText.history_min_ago[guideLang] || i18nText.history_min_ago.en).replace('{n}', mins);
   }
 
+  var currentHistoryDetailEntry = null;
+
   function showHistoryTable() {
+    currentHistoryDetailEntry = null;
     document.getElementById('history-detail').style.display = 'none';
     document.getElementById('history-table').style.display = 'flex';
   }
 
   function showHistoryDetail(entry) {
+    currentHistoryDetailEntry = entry;
     document.getElementById('history-table').style.display = 'none';
     var detail = document.getElementById('history-detail');
     detail.style.display = 'block';
@@ -1123,7 +1210,9 @@
     document.getElementById('history-detail-time').textContent = timeAgoLabel(entry.ts);
   }
 
-  function renderHistory() {
+  // keepSummary = true: jen překreslí karty na stole a nechá otevřené shrnutí
+  // (používá se při přepnutí jazyka, aby shrnutí nezmizelo).
+  function renderHistory(keepSummary) {
     showHistoryTable();
     var container = document.getElementById('history-table');
     var list = loadHistory();
@@ -1132,7 +1221,7 @@
     var summaryBtn = document.getElementById('btn-spread-summary');
     var summaryPanel = document.getElementById('spread-summary');
     if (summaryBtn) summaryBtn.disabled = list.length === 0;
-    if (summaryPanel) summaryPanel.classList.remove('open');
+    if (summaryPanel && (!keepSummary || !list.length)) summaryPanel.classList.remove('open');
 
     if (!list.length) {
       var empty = document.createElement('div');
@@ -1144,7 +1233,9 @@
     list.forEach(function (entry) {
       var tile = document.createElement('div');
       tile.className = 'history-card';
-      var rotate = (Math.random() * 10 - 5).toFixed(1);
+      // Náklon karty odvozený z času tažení (-5° až +5°) - zůstává stejný i při
+      // automatickém překreslení každých 30 s, takže karty na stole necukají.
+      var rotate = ((entry.ts % 101) / 10 - 5).toFixed(1);
       tile.style.transform = 'rotate(' + rotate + 'deg)';
       tile.addEventListener('click', function () { showHistoryDetail(entry); });
 
@@ -1262,9 +1353,13 @@
     };
   }
 
-  function cardLabel(entry) {
+  // Jméno karty v jazyce daného odstavce shrnutí (EN odstavec = EN jména,
+  // CZ odstavec = CZ jména) - dřív se řídilo jazykem rozhraní, takže
+  // v anglickém textu byla česká jména karet a naopak.
+  function cardLabel(entry, lang) {
     var sym = entry.sym ? entry.sym + ' ' : '';
-    return sym + (guideLang === 'cz' ? entry.cz : entry.en);
+    var useLang = lang || guideLang;
+    return sym + (useLang === 'cz' ? (entry.cz || entry.en) : entry.en);
   }
 
   var openingLines = {
@@ -1492,15 +1587,15 @@
     }
 
     if (chron.length >= 2) {
-      var first = cardLabel(chron[0]);
-      var last = cardLabel(chron[chron.length - 1]);
+      var first = cardLabel(chron[0], lang);
+      var last = cardLabel(chron[chron.length - 1], lang);
       parts.push(pickRandom(weaveLines[lang])(first, last));
     }
 
     var highlightEntry = chron[Math.floor(Math.random() * chron.length)];
     var highlightExcerpt = firstSentence(lang === 'cz' ? highlightEntry.meaningCz : highlightEntry.meaningEn);
     if (highlightExcerpt) {
-      parts.push(pickRandom(highlightLines[lang])(cardLabel(highlightEntry), highlightExcerpt));
+      parts.push(pickRandom(highlightLines[lang])(cardLabel(highlightEntry, lang), highlightExcerpt));
     }
 
     var qIdx = Math.floor(Math.random() * reflectionQuestions.length);
@@ -1511,9 +1606,9 @@
   }
 
   function generateSingleCardSummary(entry, lang) {
-    var label = cardLabel(entry);
+    var label = cardLabel(entry, lang);
     if (lang === 'cz') {
-      return 'Na stole je zatím jen jedna karta \u2014 ' + label + '. Přitáhněte alespoň ještě jednu, aby karty mezi sebou začaly \u201emluvit\u201c; do té doby se pozastavte nad tím, co ' + (entry.cz || entry.en) + ' znamená samo o sobě.';
+      return 'Na stole je zatím jen jedna karta \u2014 ' + label + '. Přitáhněte alespoň ještě jednu, aby karty mezi sebou začaly \u201emluvit\u201c; do té doby se pozastavte nad tím, co karta ' + (entry.cz || entry.en) + ' znamená sama o sobě.';
     }
     return 'Only one card is on the table so far \u2014 ' + label + '. Draw at least one more for the cards to start talking to each other; until then, sit with what ' + (entry.en) + ' means on its own.';
   }
@@ -1540,6 +1635,7 @@
 
   function toggleHistoryOverlay(show) {
     document.getElementById('history-overlay').classList.toggle('show', show);
+    if (historyRefreshTimer) { clearInterval(historyRefreshTimer); historyRefreshTimer = null; }
     if (show) {
       renderHistory();
       historyRefreshTimer = setInterval(function () {
@@ -1547,9 +1643,6 @@
         var summaryOpen = document.getElementById('spread-summary').classList.contains('open');
         if (!inDetail && !summaryOpen) renderHistory();
       }, 30000);
-    } else if (historyRefreshTimer) {
-      clearInterval(historyRefreshTimer);
-      historyRefreshTimer = null;
     }
   }
 
@@ -1648,6 +1741,9 @@
           musicFrame.removeEventListener('load', onLoad);
           musicFrameLoaded = true;
           musicFramePending = false;
+          // tlačítko nesmí zůstat navždy poloprůhledné "načítá se", i když
+          // se přehrávač nepodaří spustit
+          musicBtn.classList.remove('loading');
           try {
             if (musicFrame.contentWindow && musicFrame.contentWindow.slPlayback) {
               musicFrame.contentWindow.slPlayback.toggle();
@@ -1684,9 +1780,17 @@
     }
   }
 
+  var lastPickedCard = null;
   function pickCard() {
     var pool = decks[currentDeckKey].cards;
     var card = pool[Math.floor(Math.random() * pool.length)];
+    // "Táhnout znovu" nesmí hned vrátit tu samou kartu - vypadalo by to,
+    // že tlačítko nic neudělalo
+    var guard = 0;
+    while (pool.length > 1 && card === lastPickedCard && guard++ < 20) {
+      card = pool[Math.floor(Math.random() * pool.length)];
+    }
+    lastPickedCard = card;
     var reversed = decks[currentDeckKey].hasReversed && Math.random() < 0.3;
     return { card: card, reversed: reversed };
   }
@@ -1793,43 +1897,69 @@
     var mo = String(now.getMonth() + 1).padStart(2, '0');
     var y = now.getFullYear();
     var dateStr = (typeof guideLang !== 'undefined' && guideLang === 'cz') ? (d + '.' + mo + '.' + y) : (mo + '/' + d + '/' + y);
-    clockEl.textContent = dateStr + '  ·  ' + h + ':' + m;
+    var text = dateStr + '  ·  ' + h + ':' + m;
+    if (clockEl.textContent !== text) clockEl.textContent = text;
   }
   updateClock();
-  setInterval(updateClock, 15000);
+  // kontrola každou sekundu (zapisuje se jen při změně), aby se minuta
+  // přepnula hned, a ne se zpožděním až 15 s
+  setInterval(updateClock, 1000);
 
   // ---------- FULLSCREEN SYNC (shared across SYNTHLUCIDA pages, e.g. player.html) ----------
+  // iPhone Safari fullscreen API pro stránky vůbec nemá a starší Safari zná jen
+  // verzi s prefixem webkit - dřív to na iPhonu po klepnutí házelo chybu.
+  function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+  function requestPageFullscreen(errLabel) {
+    var el = document.documentElement;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) return;
+    try {
+      var result = req.call(el);
+      if (result && typeof result.catch === 'function') {
+        result.catch(function (err) { console.log(errLabel + ': ' + err.message); });
+      }
+    } catch (err) { console.log(errLabel + ': ' + err.message); }
+  }
+
   window.toggleFullscreen = function () {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(function (err) {
-        console.log('Chyba fullscreenu: ' + err.message);
-      });
+    if (!getFullscreenElement()) {
+      requestPageFullscreen('Chyba fullscreenu');
     } else {
-      if (document.exitFullscreen) document.exitFullscreen();
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit) {
+        try {
+          var r = exit.call(document);
+          if (r && typeof r.catch === 'function') r.catch(function () {});
+        } catch (e) {}
+      }
     }
   };
 
-  document.addEventListener('fullscreenchange', function () {
+  function onFullscreenChange() {
     var fsBtn = document.getElementById('btn-fullscreen-toggle');
-    if (document.fullscreenElement) {
+    if (getFullscreenElement()) {
       if (fsBtn) fsBtn.classList.add('active');
       try { localStorage.setItem('synthlucida_fullscreen_pref', '1'); } catch (e) {}
     } else {
       if (fsBtn) fsBtn.classList.remove('active');
       try { localStorage.setItem('synthlucida_fullscreen_pref', '0'); } catch (e) {}
     }
-  });
+  }
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
   // If the last page (e.g. the player) was closed in fullscreen, try to restore
   // it here too. Browsers require a user gesture, so this fires on the first
   // tap/click after the page loads.
   try {
     if (localStorage.getItem('synthlucida_fullscreen_pref') === '1') {
-      var restoreFullscreenOnGesture = function () {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(function (err) {
-            console.log('Chyba obnovení fullscreenu: ' + err.message);
-          });
+      var restoreFullscreenOnGesture = function (e) {
+        // klik přímo na tlačítko ⤢ si fullscreen řeší samo (jinak dvojí požadavek)
+        var onFsButton = e && e.target && e.target.closest && e.target.closest('#btn-fullscreen-toggle');
+        if (!onFsButton && !getFullscreenElement()) {
+          requestPageFullscreen('Chyba obnovení fullscreenu');
         }
         document.removeEventListener('click', restoreFullscreenOnGesture);
         document.removeEventListener('touchend', restoreFullscreenOnGesture);
@@ -1872,7 +2002,7 @@
     history_empty: { en: 'No cards on the table yet — draw one to begin.', cz: 'Na stole zatím žádné karty nejsou — začněte tažením karty.' },
     history_reversed: { en: 'REVERSED', cz: 'OBRÁCENĚ' },
     history_just_now: { en: 'just now', cz: 'právě teď' },
-    history_min_ago: { en: 'min ago', cz: 'min zpět' },
+    history_min_ago: { en: '{n} min ago', cz: 'před {n} min' },
     history_back: { en: 'BACK', cz: 'ZPĚT' },
     spread_summary_btn: { en: '🔮 SUMMARIZE THIS READING', cz: '🔮 SHRNOUT TENTO VÝKLAD' },
     spread_summary_again: { en: '🔄 A DIFFERENT ANGLE', cz: '🔄 JINÝ ÚHEL POHLEDU' },
@@ -2120,8 +2250,14 @@
     try { localStorage.setItem(GUIDE_LANG_KEY, guideLang); } catch (e) {}
     applyGuideLanguage();
     updateClock();
-    if (document.getElementById('history-overlay').classList.contains('show') &&
-        document.getElementById('history-detail').style.display === 'none') renderHistory();
+    if (document.getElementById('history-overlay').classList.contains('show')) {
+      if (currentHistoryDetailEntry) {
+        // otevřený detail karty: jen přepsat text "před X min" do nového jazyka
+        document.getElementById('history-detail-time').textContent = timeAgoLabel(currentHistoryDetailEntry.ts);
+      } else {
+        renderHistory(true); // přeložit karty na stole, otevřené shrnutí nechat
+      }
+    }
   };
 
   try {
@@ -2509,13 +2645,60 @@
   var sloganCountdownEl = document.getElementById('slogan-countdown');
   var sloganCountdownBarEl = document.getElementById('slogan-countdown-bar');
   var sloganCountdownNumEl = document.getElementById('slogan-countdown-num');
+  var sloganLinesEl = document.getElementById('slogan-lines');
   var sloganCountdownInterval = null;
   var sloganIndexQueue = [];
+
+  // Rezervuje pro slogan tolik místa, kolik zabere ta nejdelší věta (EN + CZ)
+  // při aktuální šířce a velikosti písma. Díky tomu se výměnou věty (1 vs. 2
+  // řádky) nikdy nezmění výška stránky a nic dole neposkočí. Přepočítává se
+  // po načtení fontů a při změně velikosti okna / otočení telefonu.
+  function reserveSloganSpace() {
+    if (!sloganLinesEl || !sloganLinesEl.parentNode) return;
+    var width = sloganLinesEl.getBoundingClientRect().width;
+    if (!width) return;
+    var probe = document.createElement('div');
+    probe.className = 'slogan-lines';
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:absolute; left:0; top:0; width:' + width + 'px; min-height:0; visibility:hidden; pointer-events:none;';
+    var probeEn = document.createElement('div');
+    probeEn.className = 'slogan-text';
+    var probeCz = document.createElement('div');
+    probeCz.className = 'slogan-text slogan-text-cz';
+    probe.appendChild(probeEn);
+    probe.appendChild(probeCz);
+    sloganLinesEl.parentNode.appendChild(probe);
+    var maxH = 0;
+    for (var i = 0; i < tarotSlogans.length; i++) {
+      probeEn.textContent = tarotSlogans[i];
+      probeCz.textContent = tarotSlogansCz[i] || '';
+      var h = probe.getBoundingClientRect().height;
+      if (h > maxH) maxH = h;
+    }
+    probe.parentNode.removeChild(probe);
+    if (maxH > 0) sloganLinesEl.style.minHeight = Math.ceil(maxH) + 'px';
+  }
+
+  reserveSloganSpace();
+  if (document.fonts) {
+    if (document.fonts.ready) document.fonts.ready.then(reserveSloganSpace);
+    if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', reserveSloganSpace);
+  }
+  var reserveSloganTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(reserveSloganTimer);
+    reserveSloganTimer = setTimeout(reserveSloganSpace, 150);
+  });
+
+  function setSloganCountdownVisible(visible) {
+    if (sloganCountdownEl) sloganCountdownEl.classList.toggle('is-hidden', !visible);
+    if (sloganCountdownNumEl) sloganCountdownNumEl.classList.toggle('is-hidden', !visible);
+  }
 
   function startSloganCountdown(durationMs) {
     if (!sloganCountdownBarEl) return;
 
-    sloganCountdownEl.style.display = 'block';
+    setSloganCountdownVisible(true);
     sloganCountdownBarEl.classList.remove('animate');
     sloganCountdownBarEl.style.transitionDuration = '0ms';
     sloganCountdownBarEl.style.width = '0%';
@@ -2526,19 +2709,20 @@
 
     if (sloganCountdownNumEl) {
       if (sloganCountdownInterval) clearInterval(sloganCountdownInterval);
-      var secondsLeft = Math.ceil(durationMs / 1000);
-      sloganCountdownNumEl.style.display = 'block';
-      sloganCountdownNumEl.textContent = secondsLeft + 's';
-      sloganCountdownInterval = setInterval(function () {
-        secondsLeft -= 1;
+      // Počítá se ze skutečného času konce, ne odečítáním po 1 s - jinak se
+      // číslo rozjede s pruhem, když prohlížeč přibrzdí časovače (tab na pozadí).
+      var endTime = Date.now() + durationMs;
+      var tick = function () {
+        var secondsLeft = Math.ceil((endTime - Date.now()) / 1000);
+        var label = secondsLeft > 0 ? secondsLeft + 's' : '';
+        if (sloganCountdownNumEl.textContent !== label) sloganCountdownNumEl.textContent = label;
         if (secondsLeft <= 0) {
           clearInterval(sloganCountdownInterval);
           sloganCountdownInterval = null;
-          sloganCountdownNumEl.textContent = '';
-          return;
         }
-        sloganCountdownNumEl.textContent = secondsLeft + 's';
-      }, 1000);
+      };
+      tick();
+      sloganCountdownInterval = setInterval(tick, 250);
     }
   }
 
@@ -2547,11 +2731,8 @@
       clearInterval(sloganCountdownInterval);
       sloganCountdownInterval = null;
     }
-    if (sloganCountdownEl) sloganCountdownEl.style.display = 'none';
-    if (sloganCountdownNumEl) {
-      sloganCountdownNumEl.style.display = 'none';
-      sloganCountdownNumEl.textContent = '';
-    }
+    // jen zprůhlednit - prvky dál drží své místo, takže se layout nehne
+    setSloganCountdownVisible(false);
   }
 
   function nextSloganIndex() {
