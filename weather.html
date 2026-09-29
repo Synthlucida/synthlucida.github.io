@@ -879,6 +879,10 @@
   .export-table tr.now-row td{ color:var(--accent-color); opacity:1; font-weight:500; }
   .export-day-group td{ font-weight:500; opacity:1; }
 
+  /* ---- review 09/2026 #1: dlouhé názvy míst se zalomí ---- */
+  .fav-chip{ max-width:100%; min-width:0; }
+  .fav-chip > span:first-child{ min-width:0; overflow-wrap:anywhere; }
+  .place{ overflow-wrap:anywhere; }
 </style>
 <script data-goatcounter="https://pocasi.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -2188,10 +2192,22 @@
   }
 
   // ---------- favorite cities ----------
+  // uložené místo použijeme jen s platnými souřadnicemi (poškozená data by jinak zastavila celou appku)
+  function cleanPlace(p){
+    if(!p || typeof p !== "object") return null;
+    function coord(v, max){ return (typeof v === "number" && isFinite(v) && Math.abs(v) <= max) ? v : null; }
+    function str(v){ return typeof v === "string" ? v.slice(0, 120) : ""; }
+    var lat = coord(p.latitude, 90), lon = coord(p.longitude, 180);
+    if(lat === null || lon === null) return null;
+    var out = { name: str(p.name) || (lat.toFixed(2) + ", " + lon.toFixed(2)), admin1: str(p.admin1), country: str(p.country), latitude: lat, longitude: lon };
+    if(p.isGeo === true) out.isGeo = true;
+    return out;
+  }
+
   function loadFavorites(){
     try {
       var list = JSON.parse(storeGet(FAVORITES_KEY));
-      return Array.isArray(list) ? list : [];
+      return Array.isArray(list) ? list.map(cleanPlace).filter(Boolean) : [];
     } catch(e){ return []; }
   }
 
@@ -2393,25 +2409,44 @@
     return dayStr + " v " + timeStr;
   }
 
+  function issStartIso(p){
+    var cands = [p.visible_start, p.rise && p.rise.time];
+    for(var i = 0; i < cands.length; i++){
+      var v = cands[i];
+      if(typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) && !isNaN(new Date(v).getTime())) return v;
+    }
+    return null;
+  }
+  // světová strana jen jako N/NE/SSW… (nic jiného se do stránky nedostane)
+  function issCompass(v){
+    return (typeof v === "string" && /^[NESW]{1,3}$/.test(v)) ? compassCZ(v) : "";
+  }
+
   function issBlockHtml(iss){
     // null = služba ISS neodpověděla (výpadek, timeout) – v tom případě blok radši vůbec
     // nezobrazíme, než abychom tvrdili, že ISS nepřeletí
     if(!iss || !Array.isArray(iss.passes)) return "";
+    // data přicházejí z cizí služby: bereme jen přelety s platným časem a nic z nich nevkládáme jako HTML
+    var passes = iss.passes.filter(function(p){ return p && typeof p === "object" && issStartIso(p); });
+    if(!passes.length && iss.passes.length) return ""; // poslala jen nesmysly – radši nic netvrdit
     var html = '<div class="iss-block">';
     html += '<div class="iss-icon">'+icon("satellite")+'</div>';
     html += '<div class="iss-info"><div class="iss-label">Přelet ISS</div>';
-    if(!iss.passes.length){
+    if(!passes.length){
       html += '<div class="iss-value">V příštích 10 dnech tu nebude viditelně přelétat</div>';
     } else {
-      var p = iss.passes[0];
-      var startIso = p.visible_start || (p.rise && p.rise.time);
-      var durSec = p.visible_duration_sec != null ? p.visible_duration_sec : p.duration_sec;
-      var durMin = Math.max(1, Math.round((durSec || 60) / 60));
-      html += '<div class="iss-value">'+formatIssDate(startIso)+', vzejde od '+compassCZ(p.rise.compass)+'</div>';
-      html += '<div class="iss-detail">Nejvýš vystoupá do '+Math.round(p.culmination.elevation_deg)+'° nad obzorem, zajde na '+compassCZ(p.set.compass)+' &middot; viditelná ~'+durMin+' min</div>';
-      if(iss.passes.length > 1){
-        var p2 = iss.passes[1];
-        html += '<div class="iss-note">Další přelet '+formatIssDate(p2.visible_start || p2.rise.time)+'</div>';
+      var p = passes[0];
+      var durSec = Number(p.visible_duration_sec != null ? p.visible_duration_sec : p.duration_sec);
+      var durMin = Math.max(1, Math.round((isFinite(durSec) && durSec > 0 ? durSec : 60) / 60));
+      var riseDir = issCompass(p.rise && p.rise.compass), setDir = issCompass(p.set && p.set.compass);
+      var elev = Number(p.culmination && p.culmination.elevation_deg);
+      var detail = isFinite(elev) ? 'Nejvýš vystoupá do '+Math.round(elev)+'° nad obzorem' : '';
+      if(setDir) detail += (detail ? ', zajde na ' : 'Zajde na ') + setDir;
+      detail += (detail ? ' &middot; viditelná' : 'Viditelná') + ' ~'+durMin+' min';
+      html += '<div class="iss-value">'+formatIssDate(issStartIso(p))+(riseDir ? ', vzejde od '+riseDir : '')+'</div>';
+      html += '<div class="iss-detail">'+detail+'</div>';
+      if(passes.length > 1){
+        html += '<div class="iss-note">Další přelet '+formatIssDate(issStartIso(passes[1]))+'</div>';
       }
     }
     html += '</div></div>';
@@ -3635,8 +3670,8 @@
     updateBrandDateTime();
     setInterval(updateBrandDateTime, 1000 * 15);
     var saved = null;
-    try { saved = JSON.parse(storeGet(STORAGE_KEY)); } catch(e){}
-    if(saved && saved.latitude != null && saved.longitude != null){
+    try { saved = cleanPlace(JSON.parse(storeGet(STORAGE_KEY))); } catch(e){}
+    if(saved){
       loadWeather(saved);
     } else {
       loadWeather({ name:"Praha", admin1:"", country:"Česko", latitude:50.0755, longitude:14.4378 });
