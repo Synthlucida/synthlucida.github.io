@@ -1123,7 +1123,7 @@
 
   var T = {
     noSensorYet:"Sensors aren't responding yet – turn on demo mode or wait a moment",
-    zeroDone:"Zero calibrated and saved", zeroReset:"Calibration reset",
+    zeroDemo:"Zero set for demo mode only – your real calibration is kept", zeroDone:"Zero calibrated and saved", zeroReset:"Calibration reset",
     sensorsActive:"Sensors active", waiting:"waiting for sensors",
     confirmDel:"Delete this saved reading?", saved:"Reading saved", saveFail:"Saving failed – the browser refused to write",
     unnamed:"Untitled", modeFlat:"Surface", modeAngle:"Angle",
@@ -1191,6 +1191,7 @@
 
   function fmt(n, d){
     if(d === undefined) d = 1;
+    var p = Math.pow(10, d); n = Math.round(n * p) / p; if(n === 0) n = 0; // review 09/2026: bez "-0,0"
     return n.toLocaleString("en-US", { minimumFractionDigits:d, maximumFractionDigits:d });
   }
 
@@ -1226,14 +1227,14 @@
     if(!hasData()){ showToast(T.noSensorYet); return; }
     if(mode === "uhel"){ offsetAngle = rawAngle(); }
     else { offsetBeta = rawBeta; offsetGamma = rawGamma; }
-    saveZero();
+    if(!demoActive) saveZero(); // review 09/2026: kalibrace v demo režimu se neukládá (dřív pak vodováha se senzory měřila špatně)
     levelLatched = false;
-    showToast(T.zeroDone);
+    showToast(demoActive ? T.zeroDemo : T.zeroDone);
     render();
   });
   els.resetCalBtn.addEventListener("click", function(){
     offsetBeta = 0; offsetGamma = 0; offsetAngle = 0;
-    saveZero();
+    if(!demoActive) saveZero(); // v demo režimu nesmaže skutečnou uloženou kalibraci
     levelLatched = false;
     showToast(T.zeroReset);
     render();
@@ -1242,6 +1243,8 @@
   /* ---- demo mode ---- */
   els.demoToggle.addEventListener("change", function(){
     demoActive = els.demoToggle.checked;
+    // review 09/2026: po vypnutí dema se vrátí skutečná uložená kalibrace
+    if(!demoActive){ offsetBeta = 0; offsetGamma = 0; offsetAngle = 0; loadZero(); levelLatched = false; }
     els.demoSlider.classList.toggle("hidden", !demoActive);
     if(demoActive){
       setSensorStatus(true, "Demo mode active");
@@ -1416,7 +1419,11 @@
 
   /* ---- saved readings ---- */
   function loadReadings(){
-    try{ return JSON.parse(localStorage.getItem(STORAGE_READINGS)) || []; }catch(e){ return []; }
+    try{
+      // review 09/2026: poškozená uložená data (ne-seznam, prázdné položky) dřív shodila přepínání režimů
+      var l = JSON.parse(localStorage.getItem(STORAGE_READINGS));
+      return Array.isArray(l) ? l.filter(function(r){ return r && typeof r === "object"; }) : [];
+    }catch(e){ return []; }
   }
   function saveReadings(list){
     try{ localStorage.setItem(STORAGE_READINGS, JSON.stringify(list)); return true; }
@@ -1434,7 +1441,7 @@
         '<div><div class="rc-name">' + escapeHtml(r.name) + '</div>' +
         '<div class="rc-meta">' + escapeHtml(r.modeLabel) + " · " + escapeHtml(r.value) +
         " · " + d.toLocaleDateString("en-US") + " " + d.toLocaleTimeString("en-US", {hour:"2-digit", minute:"2-digit"}) + '</div></div>' +
-        '<button class="rc-del" aria-label="Delete" data-id="' + r.id + '">' +
+        '<button class="rc-del" aria-label="Delete" data-id="' + escapeHtml(r.id) + '">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>';
       els.readingsList.appendChild(chip);
     });
@@ -1528,6 +1535,7 @@
     }
     if(mode !== "svitilna" && sosActive){ stopSOS(); }
     if(mode !== "svitilna" && flashOn){ turnOffFlash(); }
+    if(mode !== "svitilna"){ releaseCamera(); }
     if(mode === "svitilna"){ prewarmCamera(); }
     if(mode !== "pravitko") closeRulerFull();
   }
@@ -1544,8 +1552,11 @@
       updateFlashColorFieldVisibility();
       return;
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
+    if(prewarmPromise) return;
+    var gen = camGen;
+    prewarmPromise = navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
       .then(function(stream){
+        if(gen !== camGen || flashTrack){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
         var track = stream.getVideoTracks()[0];
         var caps = track.getCapabilities ? track.getCapabilities() : {};
         if(!caps || !caps.torch){
@@ -1558,7 +1569,8 @@
         flashTrack = track;
         updateFlashColorFieldVisibility();
       })
-      .catch(function(){ /* permission not granted yet / denied — first tap will ask normally */ });
+      .catch(function(){ /* permission not granted yet / denied — first tap will ask normally */ })
+      .then(function(){ prewarmPromise = null; });
   }
 
   /* ============ RULER ============ */
@@ -1566,8 +1578,12 @@
   var rulerPpMm = DEFAULT_PPMM;
 
   function loadRulerCal(){
-    var v = parseFloat(localStorage.getItem(RULER_CAL_KEY));
+    var v = NaN;
+    try{ v = parseFloat(localStorage.getItem(RULER_CAL_KEY)); }catch(e){} // review 09/2026: zablokované úložiště dřív zastavilo start appky
     return (v && v > 0.5 && v < 40) ? v : DEFAULT_PPMM;
+  }
+  function rulerCalSaved(){
+    try{ return !!localStorage.getItem(RULER_CAL_KEY); }catch(e){ return false; }
   }
   function saveRulerCal(v){
     try{ localStorage.setItem(RULER_CAL_KEY, String(v)); }catch(e){}
@@ -1726,6 +1742,7 @@
   }
 
   function tryTorchOn(){
+    if(prewarmPromise) return prewarmPromise.then(function(){ return tryTorchOn(); });
     // Reuse an already-open track/stream from a previous toggle — this is what makes
     // the 2nd+ activation instant instead of re-negotiating the camera every time.
     if(flashTrack){
@@ -1743,8 +1760,10 @@
       torchUnsupported = true;
       return Promise.resolve(false);
     }
+    var gen = camGen;
     return navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
       .then(function(stream){
+        if(gen !== camGen){ stream.getTracks().forEach(function(t){ t.stop(); }); return false; }
         var track = stream.getVideoTracks()[0];
         var caps = track.getCapabilities ? track.getCapabilities() : {};
         if(!caps || !caps.torch){
@@ -1784,6 +1803,12 @@
   }
 
   var torchUnsupported = false; // once true, skip camera entirely and go straight to screen-flash
+  // review 09/2026: kamera se po odchodu ze Svítilny zavře (dřív zůstala zapnutá i při měření)
+  // a otevírá se vždy jen jednou (dvojí ťuknutí / předběžné otevření dřív otevřely kamer víc).
+  var camGen = 0;            // zvýší se při zavření kamery - pozdě dorazivší kamera se hned zavře
+  var prewarmPromise = null; // rozpracované předběžné otevření kamery
+  var flashStarting = false; // zapínání světla právě probíhá
+  function releaseCamera(){ camGen++; stopTorchStream(); }
 
   // Only show the screen color picker once we know the device has no real
   // hardware flash (torchUnsupported === true) — and show it even BEFORE
@@ -1820,8 +1845,12 @@
   }
 
   function turnOnFlash(){
+    if(flashStarting) return;
+    flashStarting = true;
     els.flashBtnLabel.textContent = "Starting…";
     tryTorchOn().then(function(ok){
+      flashStarting = false;
+      if(mode !== "svitilna"){ if(ok) turnOffTorch(); updateFlashUI(); return; } // mezitím odešel ze Svítilny
       updateFlashColorFieldVisibility();
       if(ok){
         flashMode = "torch";
@@ -1886,10 +1915,13 @@
   }
 
   function startSOS(){
-    if(sosActive) return;
+    if(sosActive || flashStarting) return;
     if(flashOn) turnOffFlash();
+    flashStarting = true;
     els.sosBtnLabel.textContent = "Starting…";
     tryTorchOn().then(function(ok){
+      flashStarting = false;
+      if(mode !== "svitilna"){ if(ok) turnOffTorch(); updateSOSUI(); return; } // mezitím odešel ze Svítilny
       updateFlashColorFieldVisibility();
       flashMode = ok ? "torch" : "screen";
       flashOn = true;
@@ -1943,13 +1975,13 @@
   window.addEventListener("pagehide", function(){
     if(sosActive) stopSOS();
     if(flashOn) turnOffFlash();
-    stopTorchStream();
+    releaseCamera();
   });
   document.addEventListener("visibilitychange", function(){
     if(document.hidden){
       if(sosActive) stopSOS();
       if(flashOn) turnOffFlash();
-      stopTorchStream();
+      releaseCamera();
     }
   });
 
@@ -2189,7 +2221,7 @@
   function init(){
     loadZero();
     rulerPpMm = loadRulerCal();
-    els.rulerCalNote.textContent = localStorage.getItem(RULER_CAL_KEY) ? "Calibrated ✓" : "Using default screen scale";
+    els.rulerCalNote.textContent = rulerCalSaved() ? "Calibrated ✓" : "Using default screen scale";
     buildRuler();
     renderReadings();
     applyModeVisibility();
