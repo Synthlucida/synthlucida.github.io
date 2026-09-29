@@ -1434,7 +1434,7 @@ setInterval(updateMoonPhase, 3600000);
     } else {
       isRecording = false;
       clearInterval(recInterval);
-      if(recNode) { recNode.disconnect(); recNode = null; }
+      if(recNode) { try { globalMixer.disconnect(recNode); } catch (e) {} recNode.disconnect(); recNode.onaudioprocess = null; recNode = null; }
       recBtn.innerText = "REC 🔴";
       recBtn.style.background = 'rgba(0,0,0,0.1)';
       exportWAV();
@@ -1992,7 +1992,8 @@ setInterval(updateMoonPhase, 3600000);
     const btnBox = document.createElement('div'); btnBox.style.cssText = 'display:flex; gap:4px;';
     const muteBtn = document.createElement('button'); muteBtn.className = 'trk-mute';
     muteBtn.style.cssText = 'background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.25); padding:2px 8px; border-radius:4px; font-size:0.4rem; cursor:pointer; font-family:"Orbitron", sans-serif;';
-    muteBtn.innerText = 'MUTE';
+    muteBtn.innerText = track.muted ? 'MUTED' : 'MUTE';
+    if (track.muted) { muteBtn.style.color = '#ff6b6b'; muteBtn.style.borderColor = 'rgba(255,107,107,0.5)'; }
     const delBtn = document.createElement('button'); delBtn.className = 'trk-del';
     delBtn.style.cssText = 'background:rgba(255,107,107,0.25); color:#fff; border:1px solid rgba(255,107,107,0.4); padding:2px 8px; border-radius:4px; font-size:0.4rem; cursor:pointer; font-family:"Orbitron", sans-serif;';
     delBtn.innerText = '✕';
@@ -2213,43 +2214,81 @@ setInterval(updateMoonPhase, 3600000);
     };
   }
 
-  function loadPresetObj(obj) {
-    if(!obj) return;
-    const trigger = (id, val) => { const el = document.getElementById(id); if(el) { el.value = val; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); } };
-    trigger('tsp-scale', obj.scale || 'pentatonic'); trigger('tsp-range', obj.range || 1); trigger('tsp-looper', obj.looper || 0); trigger('tsp-volume', obj.vol || 46);
-    trigger('tsp-chord', obj.chord || 'off');
-    trigger('tsp-brightness', obj.bright || 50); trigger('tsp-attack', obj.att || 10); trigger('tsp-decay', obj.dec || 43); trigger('tsp-timbre', obj.timb || 0);
-    trigger('tsp-detune', obj.det || 15); trigger('tsp-echo', obj.echo || 51); trigger('tsp-delay-time', obj.delT || 42); trigger('tsp-filter-q', obj.filQ || 0);
-    trigger('tsp-lfo', obj.lfo || 0); trigger('tsp-arp', obj.arp || 0); trigger('tsp-arp-mode', obj.arpMode || 'up'); trigger('tsp-wave', obj.wave || 'sine');
-    trigger('tsp-osc2-wave', obj.osc2Wave || obj.osc3Wave || 'sawtooth'); trigger('tsp-osc2-oct', obj.osc2Oct || obj.osc3Oct || '-1'); trigger('tsp-osc2-vol', obj.osc2Vol || obj.osc3Vol || '0');
-    trigger('tsp-unison', obj.uni || 0); trigger('tsp-reverb', obj.rev || 30); trigger('tsp-noise', obj.noi || 0); trigger('tsp-drive', obj.drive || 0);
+  // review 09/2026: hodnoty z presetu (i z cizího / poškozeného souboru) se kontrolují.
+  // Dřív: nulová hodnota se změnila na výchozí (hlasitost 0 -> 46), neplatná volba v
+  // rozbalovacím menu rozbila přehrávání a nesmyslné číslo u zvuku stopy (např. ARP 5)
+  // dokázalo zamrznout celou stránku.
+  const presetVal = (v, d) => (v === undefined || v === null || v === '') ? d : v;
+  const selectValues = (id) => { const el = document.getElementById(id); return el ? Array.from(el.options).map(o => o.value) : []; };
+  const TRACK_LIMITS = { timbre: [0, 1], filterQ: [1, 16], arp: [0, 1], detune: [1, 1.04], osc2Oct: [-2, 2], osc2Vol: [0, 1], drive: [0, 1],
+    unison: [0, 1], lfo: [0, 1], brightness: [0.4, 1.8], noise: [0, 0.15], decay: [0.8, 5], attack: [0.01, 1.51], range: [0.25, 2] };
+  const TRACK_CHOICES = { scale: () => Object.keys(scales), wave: () => selectValues('tsp-wave'), osc2Wave: () => selectValues('tsp-osc2-wave'),
+    arpMode: () => selectValues('tsp-arp-mode'), chord: () => selectValues('tsp-chord') };
+  function cleanTrackSettings(raw) {
+    const base = getLiveSettings(), src = raw && typeof raw === 'object' ? raw : {}, out = {};
+    Object.keys(base).forEach((k) => {
+      const v = src[k];
+      if (TRACK_LIMITS[k]) {
+        const n = Number(v);
+        out[k] = (v !== null && v !== '' && typeof v !== 'boolean' && isFinite(n)) ? Math.min(TRACK_LIMITS[k][1], Math.max(TRACK_LIMITS[k][0], n)) : base[k];
+      } else if (TRACK_CHOICES[k]) {
+        out[k] = TRACK_CHOICES[k]().indexOf(v) !== -1 ? v : base[k];
+      } else out[k] = base[k];
+    });
+    return out;
+  }
+  function looksLikePreset(obj) {
+    return !!obj && typeof obj === 'object' && !Array.isArray(obj) &&
+      ['scale', 'tracks', 'seqBpm', 'kickSteps', 'vol', 'seqSteps', 'seq2Steps', 'wave'].some((k) => obj[k] !== undefined);
+  }
 
-    tapDelayOn = obj.delayOn !== undefined ? obj.delayOn : true;
-    tapEchoOn = obj.echoOn !== undefined ? obj.echoOn : true;
-    tapReverbOn = obj.reverbOn !== undefined ? obj.reverbOn : true;
+  function loadPresetObj(obj) {
+    if(!obj || typeof obj !== 'object') return;
+    const trigger = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      val = String(val);
+      // neplatná volba v menu by nechala prázdnou hodnotu -> radši ponechat výchozí
+      if (el.tagName === 'SELECT' && !Array.from(el.options).some(o => o.value === val)) val = el.options.length ? el.options[0].value : '';
+      el.value = val; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change'));
+    };
+    const sel = (id, v, d) => { const opts = selectValues(id); const x = String(presetVal(v, d)); trigger(id, opts.indexOf(x) !== -1 ? x : d); };
+    sel('tsp-scale', obj.scale, 'pentatonic'); sel('tsp-range', obj.range, '1'); trigger('tsp-looper', presetVal(obj.looper, 0)); trigger('tsp-volume', presetVal(obj.vol, 46));
+    sel('tsp-chord', obj.chord, 'off');
+    trigger('tsp-brightness', presetVal(obj.bright, 50)); trigger('tsp-attack', presetVal(obj.att, 10)); trigger('tsp-decay', presetVal(obj.dec, 43)); trigger('tsp-timbre', presetVal(obj.timb, 0));
+    trigger('tsp-detune', presetVal(obj.det, 15)); trigger('tsp-echo', presetVal(obj.echo, 51)); trigger('tsp-delay-time', presetVal(obj.delT, 42)); trigger('tsp-filter-q', presetVal(obj.filQ, 0));
+    trigger('tsp-lfo', presetVal(obj.lfo, 0)); trigger('tsp-arp', presetVal(obj.arp, 0)); sel('tsp-arp-mode', obj.arpMode, 'up'); sel('tsp-wave', obj.wave, 'sine');
+    sel('tsp-osc2-wave', presetVal(obj.osc2Wave, obj.osc3Wave), 'sawtooth'); sel('tsp-osc2-oct', presetVal(obj.osc2Oct, obj.osc3Oct), '-1'); trigger('tsp-osc2-vol', presetVal(presetVal(obj.osc2Vol, obj.osc3Vol), 0));
+    trigger('tsp-unison', presetVal(obj.uni, 0)); trigger('tsp-reverb', presetVal(obj.rev, 30)); trigger('tsp-noise', presetVal(obj.noi, 0)); trigger('tsp-drive', presetVal(obj.drive, 0));
+
+    tapDelayOn = typeof obj.delayOn === 'boolean' ? obj.delayOn : true;
+    tapEchoOn = typeof obj.echoOn === 'boolean' ? obj.echoOn : true;
+    tapReverbOn = typeof obj.reverbOn === 'boolean' ? obj.reverbOn : true;
     delayToggleBtn.classList.toggle('active-btn', tapDelayOn); delayToggleBtn.innerText = tapDelayOn ? 'ON' : 'OFF';
     echoToggleBtn.classList.toggle('active-btn', tapEchoOn); echoToggleBtn.innerText = tapEchoOn ? 'ON' : 'OFF';
     reverbToggleBtn.classList.toggle('active-btn', tapReverbOn); reverbToggleBtn.innerText = tapReverbOn ? 'ON' : 'OFF';
     if (tapDelayOutGain && audioCtx) tapDelayOutGain.gain.setTargetAtTime(tapDelayOn ? 1 : 0, audioCtx.currentTime, 0.05);
     if (tapFeedback && audioCtx) tapFeedback.gain.setTargetAtTime(tapEchoOn ? tapEcho : 0, audioCtx.currentTime, 0.1);
     if (tapReverbGain && audioCtx) tapReverbGain.gain.setTargetAtTime(tapReverbOn ? tapReverb : 0, audioCtx.currentTime, 0.1);
-    trigger('tsp-kick-vol', obj.kickVol || 80); trigger('tsp-kick-pitch', obj.kickPitch || 120); trigger('tsp-kick-decay', obj.kickDecay || 40);
+    trigger('tsp-kick-vol', presetVal(obj.kickVol, 80)); trigger('tsp-kick-pitch', presetVal(obj.kickPitch, 120)); trigger('tsp-kick-decay', presetVal(obj.kickDecay, 40));
     
     // Wipe current tracks and rebuild from the preset
     tracksContainer.innerHTML = '';
     tracks = [];
 
+    const ratio = (v) => { const n = Number(v); return (typeof v === 'number' || typeof v === 'string') && v !== '' && isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.5; };
     const normalizeSteps = (raw) => {
-      let steps = (raw || []).map(step => (typeof step === 'boolean' ? { active: step, x: 0.5, y: 0.5 } : step));
+      let steps = (Array.isArray(raw) ? raw.slice(0, 32) : []).map(step => (typeof step === 'boolean' ? { active: step, x: 0.5, y: 0.5 }
+        : (step && typeof step === 'object' ? { active: !!step.active, x: ratio(step.x), y: ratio(step.y) } : { active: false, x: 0.5, y: 0.5 })));
       while (steps.length < 32) steps.push({ active: false, x: 0.5, y: 0.5 });
       return steps;
     };
 
-    if (obj.tracks !== undefined) {
-      obj.tracks.forEach(to => {
+    if (Array.isArray(obj.tracks)) {
+      obj.tracks.filter(to => to && typeof to === 'object').slice(0, 32).forEach(to => {
         const track = {
-          id: trackIdSeq++, name: to.name || ('SOUND ' + (tracks.length + 1)),
-          muted: !!to.muted, settings: to.settings || getLiveSettings(),
+          id: trackIdSeq++, name: (typeof to.name === 'string' && to.name.trim()) ? to.name.slice(0, 40) : ('SOUND ' + (tracks.length + 1)),
+          muted: !!to.muted, settings: cleanTrackSettings(to.settings),
           steps: normalizeSteps(to.steps)
         };
         tracks.push(track);
@@ -2269,8 +2308,8 @@ setInterval(updateMoonPhase, 3600000);
     }
     updateTracksEmptyHint();
 
-    if(obj.kickSteps !== undefined) {
-      kickSteps = obj.kickSteps;
+    if(Array.isArray(obj.kickSteps)) {
+      kickSteps = obj.kickSteps.slice(0, 32).map(v => !!v);
       while(kickSteps.length < 32) kickSteps.push(false);
       document.querySelectorAll('.kick-dot').forEach((dot, i) => dot.classList.toggle('active', kickSteps[i]));
     }
@@ -2303,7 +2342,7 @@ setInterval(updateMoonPhase, 3600000);
   document.getElementById('tsp-reset').addEventListener('click', () => {
     if (audioCtx && looperGain && looperFeedback) { const now = audioCtx.currentTime; looperGain.gain.cancelScheduledValues(now); looperGain.gain.setValueAtTime(0, now); clearLooper(0.25); }
     loadPresetObj({
-      scale: 'pentatonic', range: 1, looper: 0, chord: 'off', vol: 0, bright: 50, att: 10, dec: 43, timb: 0, det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
+      scale: 'pentatonic', range: 1, looper: 0, chord: 'off', vol: 46, bright: 50, att: 10, dec: 43, timb: 0, det: 15, echo: 51, delT: 42, filQ: 0, lfo: 0, arp: 0, arpMode: 'up', wave: 'sine',
       osc2Wave: 'sawtooth', osc2Oct: -1, osc2Vol: 0, uni: 0, rev: 30, noi: 0, drive: 0, kickVol: 80, kickPitch: 120, kickDecay: 40,
       tracks: [],
       kickSteps: Array.from({length: 32}, () => false), seqBpm: 110
@@ -2331,14 +2370,20 @@ setInterval(updateMoonPhase, 3600000);
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
+      let obj = null;
+      try { obj = JSON.parse(evt.target.result); } catch (err) { obj = null; }
+      // review 09/2026: jiný nebo poškozený soubor dřív smazal všechny stopy a nastavení
+      if (!looksLikePreset(obj)) { alert("Invalid preset file"); return; }
+      const before = getPresetObj();
       try {
-        const obj = JSON.parse(evt.target.result);
         loadPresetObj(obj);
-        presetSel.value = 'user';
-        try { localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj())); } catch (storageErr) {}
-      } catch(err) {
+      } catch (err) {
+        try { loadPresetObj(before); } catch (e2) {}
         alert("Invalid preset file");
+        return;
       }
+      presetSel.value = 'user';
+      try { localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj())); } catch (storageErr) {}
     };
     reader.readAsText(file);
     e.target.value = ''; // Reset inputu
