@@ -467,6 +467,11 @@
     .history-head .hactions-top{width:100%;}
     .history-head .hactions-top .cta{flex:1;}
   }
+
+  /* ---- review 09/2026 ---- */
+  /* the saved-recipe list had no limit (40 recipes = ~4000 px); now it scrolls inside */
+  #historyList{max-height:460px; overflow-y:auto; overscroll-behavior:contain; padding-right:2px;
+    scrollbar-width:thin; scrollbar-color:var(--line) transparent;}
 </style>
 </head>
 <body>
@@ -648,7 +653,7 @@
         <button class="cta" id="exportBackupBtn">Download backup</button>
         <label class="cta" id="importBackupLabel" for="importBackupInput">
           Upload backup
-          <input type="file" id="importBackupInput" accept="application/json" class="visually-hidden">
+          <input type="file" id="importBackupInput" accept=".json,application/json" class="visually-hidden">
         </label>
       </div>
     </div>
@@ -1210,6 +1215,17 @@ function hasOption(selId, v){
   return Array.from(document.getElementById(selId).options).some(o => o.value === v);
 }
 
+// review 09/2026: položka, kterou jde bezpečně zobrazit (poškozená data v úložišti dřív shodila celý seznam)
+function isShowableRecord(r){
+  if(!r || typeof r !== 'object' || typeof r.id !== 'string' || !r.id) return false;
+  return ['V','targetNic','baseNic','flavorPct','nicVol','flavorVol','neededPG','neededVG','totalCheck','finalPGpct','finalVGpct']
+    .every(k => typeof r[k] === 'number' && isFinite(r[k]));
+}
+
+function sameInputs(a, b){
+  return ['V','targetNic','baseNic','targetRatioStr','baseRatioStr','flavorPct','noFlavor','flavorIsPG'].every(k => a[k] === b[k]);
+}
+
 function isValidRecord(r){
   if(!r || typeof r !== 'object' || typeof r.id !== 'string' || !r.id || r.id.length > 64) return false;
   const nums = ['V','targetNic','baseNic','flavorPct','nicVol','flavorVol','neededPG','neededVG','totalCheck','finalPGpct','finalVGpct'];
@@ -1240,10 +1256,11 @@ function calculate(opts = {}){
   const baseRatio = parseRatio($('baseRatio').value);
   const resultPanel = $('resultPanel');
 
-  if(!(V > 0) || !(targetNic >= 0) || !(baseNic > 0) || flavorPct < 0) return fail(STR.errRange);
+  // review 09/2026: u liquidu bez nikotinu (0 mg/ml) se báze nepoužije - její síla smí být prázdná nebo 0
+  if(!(V > 0) || !(targetNic >= 0) || !(targetNic === 0 || baseNic > 0) || flavorPct < 0) return fail(STR.errRange);
   if(targetNic > baseNic) return fail(STR.errStrong(fmt(targetNic), fmt(baseNic)));
 
-  const nicVol = V * targetNic / baseNic;
+  const nicVol = targetNic === 0 ? 0 : V * targetNic / baseNic;
   const flavorVol = V * flavorPct / 100;
 
   if(nicVol + flavorVol > V + 1e-9) return fail(STR.errRoom);
@@ -1310,7 +1327,7 @@ function calculate(opts = {}){
   }
 
   currentRecipe = {
-    V, targetNic, baseNic,
+    V, targetNic, baseNic: baseNic > 0 ? baseNic : 0,
     targetRatioStr: $('targetRatio').value,
     baseRatioStr: $('baseRatio').value,
     flavorPct, noFlavor, flavorIsPG,
@@ -1323,7 +1340,7 @@ function loadHistory(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
+    return Array.isArray(arr) ? arr.filter(isShowableRecord) : [];
   }catch(e){ return []; }
 }
 
@@ -1366,9 +1383,9 @@ function renderHistory(){
 function loadRecordIntoForm(r){
   document.getElementById('volume').value = r.V;
   document.getElementById('targetNic').value = r.targetNic;
-  document.getElementById('targetRatio').value = r.targetRatioStr;
+  if(hasOption('targetRatio', r.targetRatioStr)) document.getElementById('targetRatio').value = r.targetRatioStr;
   document.getElementById('baseNic').value = r.baseNic;
-  document.getElementById('baseRatio').value = r.baseRatioStr;
+  if(hasOption('baseRatio', r.baseRatioStr)) document.getElementById('baseRatio').value = r.baseRatioStr;
   document.getElementById('noFlavor').checked = r.noFlavor;
   document.getElementById('flavorPct').value = r.flavorPct;
   document.getElementById('flavorIsPG').checked = r.flavorIsPG;
@@ -1447,6 +1464,8 @@ document.getElementById('saveRecipeBtn').addEventListener('click', ()=>{
     return;
   }
   const history = loadHistory();
+  // review 09/2026: dvojí ťuknutí na Uložit dřív uložilo stejný recept dvakrát
+  if(history[0] && sameInputs(history[0], currentRecipe)){ flashSaved(); return; }
   const record = Object.assign({}, currentRecipe, {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     savedAt: new Date().toISOString()
