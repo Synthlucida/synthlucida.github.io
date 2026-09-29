@@ -206,7 +206,21 @@
   .sum-table{ width:100%; border-collapse:collapse; font-size:12px; }
   .sum-table th{ text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:0.4px; opacity:0.5; padding:0 6px 8px; font-weight:600; }
   .sum-table td{ padding:8px 6px; border-top:1px solid rgba(255,255,255,0.06); }
-  .sum-table td.num{ text-align:right; font-family:var(--font-mono); }
+  .sum-table td.num{ text-align:right; font-family:var(--font-mono); white-space:nowrap; }
+  .sum-table td.pay{ white-space:normal; }
+  .sum-table .nw{ white-space:nowrap; }
+  /* phones: 5 columns don't fit – each task becomes a small block (name, then values with their own labels) */
+  @media (max-width:420px){
+    .sum-table, .sum-table tbody{ display:block; }
+    .sum-table thead{ display:none; }
+    .sum-table tbody tr{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px 10px; padding:10px 0; border-top:1px solid rgba(255,255,255,0.06); }
+    .sum-table tbody tr:first-child{ border-top:none; padding-top:0; }
+    .sum-table td{ display:block; padding:0; border-top:none; min-width:0; }
+    .sum-table td:first-child{ grid-column:1 / -1; font-weight:600; }
+    .sum-table td.num{ text-align:left; white-space:normal; }
+    .sum-table td.num::before{ content:attr(data-label); display:block; font-family:var(--font-body); font-size:9px; text-transform:uppercase; letter-spacing:0.4px; opacity:0.5; margin-bottom:2px; }
+    .sum-table td.pay{ grid-column:1 / -1; color:var(--accent-color); }
+  }
   .pct-pill{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; font-family:var(--font-mono); white-space:nowrap; }
   .pct-great{ background:rgba(52,211,153,0.22); color:#6ee7b7; }
   .pct-good{ background:rgba(52,211,153,0.14); color:#a7f3d0; }
@@ -266,8 +280,8 @@
   .task-block-head{ display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
   .task-block-head input[type=text]{ flex:1; min-width:100px; background:rgba(255,255,255,0.06); border:1px solid var(--card-border);
     border-radius:8px; color:#fff; font-family:var(--font-body); font-size:12.5px; padding:7px 8px; font-weight:600; }
-  .task-basis-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:11px; opacity:0.7; }
-  .task-basis-row select{ flex-shrink:0; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); border-radius:8px; color:#fff; font-size:11.5px; padding:5px 8px; }
+  .task-basis-row{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 8px; margin-bottom:10px; font-size:11px; opacity:0.7; }
+  .task-basis-row select{ flex:1 1 170px; min-width:0; max-width:100%; text-overflow:ellipsis; background:rgba(255,255,255,0.06); border:1px solid var(--card-border); border-radius:8px; color:#fff; font-size:11.5px; padding:5px 8px; }
   .task-basis-row select option{ color:#0f1b13; background:#ffffff; }
   .size-block{ background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:12px; padding:10px; margin-bottom:8px; }
   .size-block-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
@@ -418,6 +432,11 @@
 
   @media (prefers-reduced-motion: reduce){ .blob, .brand-icon{ animation:none !important; } }
   @media (max-width:360px){ :root{ --heat-cell:9px; } .chip-value{ font-size:15px; } }
+  @media (max-width:400px){
+    .bar-vals-row, .bar-track-row, .bar-labels-row{ gap:2px; }
+    .bar-col-val{ font-size:7.5px; letter-spacing:-0.2px; }
+    .bar-col-label{ font-size:7px; letter-spacing:-0.2px; }
+  }
 </style>
 <link rel="canonical" href="https://synthlucida.com/delnas.html">
 <link rel="alternate" hreflang="cs" href="https://synthlucida.com/delnas.html">
@@ -996,7 +1015,7 @@
     ],
     ok: [
       "Dnes to bylo tak akorát tempo – jsi někde uprostřed žebříčku. Klidně přidej a zítra poskočíš výš! 💪",
-      "Tvoje tempo bylo rychlejší než včera, ale ke svému nejlepšímu tempu máš ještě kousek. Zítra to doženeš!",
+      "Slušné tempo – ke svému nejlepšímu výkonu máš ale ještě kousek. Zítra to doženeš!",
       "Střední stupeň dneška. I na nejlepší směně bývají pomalejší dny. Zítra nová šance vylézt výš!",
       "Kousek to chybělo na vyšší stupeň! Dej si dobrou večeři a zítra do toho zase naplno."
     ],
@@ -1048,6 +1067,8 @@
   var pendingConfirmAction = null;
 
   function isObj(v){ return !!v && typeof v==="object" && !Array.isArray(v); }
+  // ids end up in HTML attributes – keep them to safe characters (normal ids are untouched)
+  function safeId(v){ return String(v).replace(/[^A-Za-z0-9_-]/g, "_"); }
   function finiteOr(v, d){ v = Number(v); return isFinite(v) ? v : d; }
 
   // Also sanitizes: data can come from a hand-edited / foreign / damaged JSON
@@ -1058,7 +1079,7 @@
   function migrateTasks(tasks){
     tasks = (Array.isArray(tasks) ? tasks : []).filter(isObj);
     tasks.forEach(function(task){
-      task.id = task.id ? String(task.id) : "task_"+genId();
+      task.id = task.id ? safeId(task.id) : "task_"+genId();
       if(typeof task.name!=="string" || !task.name.trim()) task.name = "Úkon";
       if(task.unit!=="kg" && task.unit!=="ks") task.unit = "ks";
       // best-effort migration from an older "single norm number" shape, if ever imported
@@ -1066,7 +1087,7 @@
       task.sizes = (Array.isArray(task.sizes) ? task.sizes : []).filter(isObj);
       if(!task.sizes.length) task.sizes = [{ name:"Standard" }];
       task.sizes.forEach(function(sz){
-        sz.id = sz.id ? String(sz.id) : "sz_"+genId();
+        sz.id = sz.id ? safeId(sz.id) : "sz_"+genId();
         if(typeof sz.name!=="string" || !sz.name.trim()) sz.name = "Standard";
         if(Array.isArray(sz.tiers)) sz.tiers = sz.tiers.filter(isObj);
         if(!Array.isArray(sz.tiers) || !sz.tiers.length){
@@ -1083,7 +1104,7 @@
         // to their underlying tier object regardless of on-screen order).
         // Backfills ids for tiers saved before this existed (defaults and
         // any older/imported data).
-        sz.tiers.forEach(function(tr){ if(!tr.id) tr.id = "tier_"+genId(); });
+        sz.tiers.forEach(function(tr){ tr.id = tr.id ? safeId(tr.id) : "tier_"+genId(); });
       });
     });
     return tasks;
@@ -1094,13 +1115,13 @@
     return (Array.isArray(shifts) ? shifts : []).filter(function(s){
       return isObj(s) && typeof s.date==="string" && /^\d{4}-\d{2}-\d{2}$/.test(s.date);
     }).map(function(s){
-      s.id = s.id ? String(s.id) : genId();
+      s.id = s.id ? safeId(s.id) : genId();
       s.dayOff = !!s.dayOff;
       if(typeof s.note!=="string") s.note = "";
       s.entries = (Array.isArray(s.entries) ? s.entries : []).filter(isObj);
       s.entries.forEach(function(e){
-        e.taskId = e.taskId!=null ? String(e.taskId) : "";
-        e.sizeId = e.sizeId!=null ? String(e.sizeId) : "";
+        e.taskId = e.taskId!=null ? safeId(e.taskId) : "";
+        e.sizeId = e.sizeId!=null ? safeId(e.sizeId) : "";
         e.qty = finiteOr(e.qty, 0); e.hours = finiteOr(e.hours, 0);
       });
       if(s.xp!=null && typeof s.xp!=="number"){ delete s.xp; delete s.xpPos; delete s.xpV; }
@@ -1126,6 +1147,7 @@
   function parseISO(s){ var p=s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
   function todayISO(){ return fmtISO(new Date()); }
   function fmtShort(d){ return pad2(d.getDate())+"."+pad2(d.getMonth()+1)+"."; }
+  function fmtTiny(d){ return d.getDate()+"."+(d.getMonth()+1)+"."; }
   function fmtHuman(d){ return pad2(d.getDate())+". "+pad2(d.getMonth()+1)+". "+d.getFullYear(); }
   function mondayOf(d){ var day=(d.getDay()+6)%7; var m=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day); return m; }
   function addDays(d,n){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n); }
@@ -1252,7 +1274,8 @@
   function initTheme(){
     var grid = document.getElementById("themeGrid");
     grid.innerHTML = "";
-    var current = localStorage.getItem(THEME_KEY) || "emerald";
+    var current = "emerald";
+    try { current = localStorage.getItem(THEME_KEY) || "emerald"; } catch(e){}
     THEMES.forEach(function(t){
       var btn = document.createElement("button");
       btn.className = "theme-swatch"+(t.id===current?" active":"");
@@ -1260,7 +1283,7 @@
       btn.title = t.name;
       btn.type = "button";
       btn.addEventListener("click", function(){
-        localStorage.setItem(THEME_KEY, t.id);
+        try { localStorage.setItem(THEME_KEY, t.id); } catch(e){}
         document.documentElement.style.setProperty("--accent-color", t.accent);
         document.documentElement.style.setProperty("--accent-glow", t.glow);
         Array.prototype.forEach.call(grid.children, function(c){ c.classList.remove("active"); });
@@ -1342,7 +1365,7 @@
         '<select data-act="size">'+sizeOptionsHtml(task, sizeId)+'</select></div>' +
       '</div>' +
       '<div class="entry-row-grid2">' +
-        '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Množství (<span data-act="unitLabel">'+(task?task.unit:"")+'</span>)</label>' +
+        '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Množství<span data-act="unitLabel">'+(task?" ("+task.unit+")":"")+'</span></label>' +
         '<input type="number" min="0" step="any" inputmode="decimal" data-act="qty" value="'+(qty!=null?qty:"")+'"></div>' +
         '<div><label style="font-size:10px;opacity:.55;display:block;margin-bottom:3px;">Hodiny</label>' +
         '<input type="number" min="0" max="16" step="0.25" inputmode="decimal" data-act="hours" value="'+(hours!=null?hours:"")+'"></div>' +
@@ -1373,7 +1396,7 @@
       var size = (task && sizeById(task, sizeSel.value)) || (task && task.sizes[0]) || null;
       sizeSel.innerHTML = sizeOptionsHtml(task, size ? size.id : "");
       var unitLabel = row.querySelector('[data-act="unitLabel"]');
-      if(unitLabel) unitLabel.textContent = task ? task.unit : "";
+      if(unitLabel) unitLabel.textContent = task ? " ("+task.unit+")" : "";
     });
   }
 
@@ -1393,7 +1416,7 @@
       var task = taskById(e.target.value);
       var sizeSel = row.querySelector('[data-act="size"]');
       sizeSel.innerHTML = sizeOptionsHtml(task, task && task.sizes[0] && task.sizes[0].id);
-      row.querySelector('[data-act="unitLabel"]').textContent = task ? task.unit : "";
+      row.querySelector('[data-act="unitLabel"]').textContent = task ? " ("+task.unit+")" : "";
     }
   });
 
@@ -1454,18 +1477,30 @@
       }
       if(date > todayISO()){ showToast("Odpracovanou směnu nejde zapsat do budoucnosti – zkontroluj datum 📅"); return; }
       var rows = document.querySelectorAll("#entryRowsContainer .entry-row");
-      var tooManyHoursInput = null;
+      var tooManyHoursInput = null, incompleteInput = null;
       rows.forEach(function(row){
         var taskId = row.querySelector('[data-act="task"]').value;
         var sizeId = row.querySelector('[data-act="size"]').value;
         var qty = parseFloat(row.querySelector('[data-act="qty"]').value);
         var hours = parseFloat(row.querySelector('[data-act="hours"]').value);
         if(!sizeById(taskById(taskId), sizeId)) return;
+        var qtyEl = row.querySelector('[data-act="qty"]'), hoursEl = row.querySelector('[data-act="hours"]');
+        var touched = qtyEl.value.trim()!=="" || hoursEl.value.trim()!=="" || (qtyEl.validity && qtyEl.validity.badInput) || (hoursEl.validity && hoursEl.validity.badInput);
+        if(touched && !incompleteInput){
+          if(!(qty>0)) incompleteInput = qtyEl;
+          else if(!(hours>0)) incompleteInput = hoursEl;
+        }
         if(!isNaN(hours) && hours>XP_MAX_HOURS && !tooManyHoursInput) tooManyHoursInput = row.querySelector('[data-act="hours"]');
         if(!isNaN(qty) && !isNaN(hours) && qty>0 && hours>0){
           entries.push({ taskId:taskId, sizeId:sizeId, qty:qty, hours:hours });
         }
       });
+      if(incompleteInput){
+        showToast("Řádek úkonu není úplný – vyplň množství i hodiny (větší než 0), nebo řádek smaž křížkem ✏️");
+        incompleteInput.classList.add("input-error");
+        incompleteInput.focus();
+        return;
+      }
       if(tooManyHoursInput){
         showToast("Hodiny u jednoho úkonu můžou být max. "+XP_MAX_HOURS+" – oprav zvýrazněný řádek ⏱️");
         tooManyHoursInput.classList.add("input-error");
@@ -1792,10 +1827,10 @@
       var g = groups[k];
       var avgWage = g.validHours>0 ? g.wWage/g.validHours : null;
       return '<tr><td>'+escapeHtml(g.taskName)+'<br><span style="opacity:.55;font-size:10.5px;">'+escapeHtml(g.sizeName)+'</span></td>' +
-        '<td class="num">'+round1(g.qty)+' '+g.unit+'</td>' +
-        '<td class="num">'+round1(g.hours)+' h</td>' +
-        '<td class="num">'+(avgWage!=null?Math.round(avgWage)+' Kč':'–')+'</td>' +
-        '<td class="num">'+(g.payHigh>0?fmtKc(g.payLow)+'–'+fmtKc(g.payHigh):'–')+'</td></tr>';
+        '<td class="num" data-label="Množství">'+round1(g.qty)+' '+g.unit+'</td>' +
+        '<td class="num" data-label="Hodiny">'+round1(g.hours)+' h</td>' +
+        '<td class="num" data-label="Ø Kč/hod">'+(avgWage!=null?Math.round(avgWage)+' Kč':'–')+'</td>' +
+        '<td class="num pay" data-label="Odhad Kč">'+(g.payHigh>0?'<span class="nw">'+fmtKc(g.payLow)+'–</span><wbr><span class="nw">'+fmtKc(g.payHigh)+'</span>':'–')+'</td></tr>';
     }).join("");
     wrap.innerHTML = '<div style="overflow-x:auto;"><table class="sum-table"><thead><tr><th>Úkon</th><th style="text-align:right;">Množství</th><th style="text-align:right;">Hodiny</th><th style="text-align:right;">Ø Kč/hod</th><th style="text-align:right;">Odhad Kč</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
@@ -1827,7 +1862,7 @@
 
   function renderDailyChart(){
     var items = validShiftsAsc().slice(-14).map(function(x){
-      return { label: fmtShort(parseISO(x.shift.date)), value: x.stats.avgWage, progress: x.stats.avgProgress };
+      return { label: fmtTiny(parseISO(x.shift.date)), value: x.stats.avgWage, progress: x.stats.avgProgress };
     });
     renderBarChart("dailyChart", items);
   }
@@ -1845,7 +1880,7 @@
     var last = keys.slice(-12);
     var items = last.map(function(k){
       var g = groups[k];
-      return { label: fmtShort(parseISO(k)), value: g.hsum>0 ? g.wWage/g.hsum : null, progress: g.hsum>0 ? g.wProg/g.hsum : null };
+      return { label: fmtTiny(parseISO(k)), value: g.hsum>0 ? g.wWage/g.hsum : null, progress: g.hsum>0 ? g.wProg/g.hsum : null };
     });
     renderBarChart("weeklyChart", items);
   }
@@ -1887,13 +1922,19 @@
       if(weeks.length>60) break;
     }
     var monthsHtml = "";
-    var lastMonth = -1;
+    var lastMonth = -1, labels = [];
     weeks.forEach(function(col){
       var d = col[0];
       var m = d.getMonth();
-      if(m!==lastMonth && d<=today){ monthsHtml += '<span style="grid-column:span 1;">'+MONTH_ABBR[m]+'</span>'; lastMonth=m; }
-      else { monthsHtml += '<span></span>'; }
+      if(m!==lastMonth && d<=today){ labels.push(MONTH_ABBR[m]); lastMonth=m; }
+      else { labels.push(""); }
     });
+    // a label needs ~3 columns of room – drop one the next month's label would overlap (the partial first month)
+    for(var li=0; li<labels.length; li++){
+      if(!labels[li]) continue;
+      for(var lj=li+1; lj<Math.min(labels.length, li+3); lj++){ if(labels[lj]){ labels[li] = ""; break; } }
+    }
+    labels.forEach(function(t){ monthsHtml += t ? '<span style="grid-column:span 1;">'+t+'</span>' : '<span></span>'; });
     document.getElementById("heatmapMonths").style.gridTemplateColumns = "repeat("+weeks.length+", var(--heat-cell))";
     document.getElementById("heatmapMonths").innerHTML = monthsHtml;
 
@@ -1914,6 +1955,9 @@
       });
     });
     document.getElementById("heatmapGrid").innerHTML = cellsHtml;
+    // on a phone the year is wider than the screen – show the latest weeks first, older ones by swiping right
+    var hs = document.getElementById("heatmapScroll");
+    if(hs) hs.scrollLeft = hs.scrollWidth;
   }
 
   // ---------- history ----------
@@ -2031,7 +2075,11 @@
   });
   document.getElementById("shiftHoursInput").addEventListener("change", function(){
     var v = parseFloat(this.value);
-    if(!isNaN(v) && v>0){ data.settings.shiftHours = v; saveData(); setTimeout(renderAllExceptSettings, 0); }
+    if(!isNaN(v) && v>0){
+      v = Math.min(XP_MAX_HOURS, v);
+      if(String(v)!==this.value) this.value = v;
+      data.settings.shiftHours = v; saveData(); setTimeout(renderAllExceptSettings, 0);
+    } else { this.value = data.settings.shiftHours; }
   });
   document.getElementById("addTaskBtn").addEventListener("click", function(){
     data.settings.tasks.push({

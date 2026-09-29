@@ -245,6 +245,7 @@
   .field input[type="number"]::-webkit-outer-spin-button,
   .field input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
   .field input::placeholder{ color:rgba(255,255,255,0.28); }
+  #extra::placeholder, #mapLink::placeholder{ font-family:'Poppins', sans-serif; font-size:13px; font-weight:300; }
   .field input:focus{ border-color:var(--accent-color); box-shadow:0 0 14px rgba(251,191,36,0.22); }
   .field input:focus-visible{ outline:none; }
 
@@ -287,6 +288,7 @@
     color:#fff; text-shadow:0 0 22px rgba(251,191,36,0.35); margin:4px 0 4px; letter-spacing:0.5px;
   }
   .result-total .cur{ font-size:0.5em; color:var(--accent-color); margin-left:4px; }
+  .result-total .cur.pre{ margin-left:0; margin-right:3px; }
   .result-sub{ font-family:'JetBrains Mono', monospace; font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:16px; }
 
   .result-grid{
@@ -325,6 +327,7 @@
     background:rgba(255,255,255,0.03); cursor:pointer; transition:0.25s;
   }
   .route-chip:hover{ border-color:var(--accent-color); background:rgba(251,191,36,0.06); }
+  .route-chip .rc-text{ min-width:0; overflow-wrap:anywhere; }
   .route-chip .rc-name{ font-family:'Poppins', sans-serif; font-size:13px; color:#fff; }
   .route-chip .rc-meta{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:rgba(255,255,255,0.45); margin-top:2px; }
   .route-chip .rc-del{
@@ -418,6 +421,7 @@
     background:rgba(20,16,10,0.92); border:1px solid rgba(251,191,36,0.4); color:#fff;
     font-family:'Poppins', sans-serif; font-size:12.5px; padding:10px 18px; border-radius:30px;
     opacity:0; pointer-events:none; transition:0.3s; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    max-width:calc(100vw - 32px); width:max-content; text-align:center;
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -672,11 +676,11 @@
           <div class="k">Fuel used</div>
         </div>
         <div class="result-stat">
-          <div class="v" id="rPerKm">0 $</div>
+          <div class="v" id="rPerKm">$0</div>
           <div class="k">Price per km</div>
         </div>
         <div class="result-stat highlight" id="rPerPersonWrap">
-          <div class="v" id="rPerPerson">0 $</div>
+          <div class="v" id="rPerPerson">$0</div>
           <div class="k">Per person</div>
         </div>
       </div>
@@ -896,7 +900,7 @@
   var FUEL_LABELS = { benzin:"Petrol", nafta:"Diesel", lpg:"LPG", elektro:"Electric" };
 
   function normalizeUrl(u){
-    u = (u || "").trim();
+    u = (typeof u === "string" ? u : "").trim();
     if(!u) return "";
     if(!/^https?:\/\//i.test(u)) u = "https://" + u;
     return u;
@@ -910,6 +914,9 @@
   var DEFAULT_CUR = "USD";
   var currency = DEFAULT_CUR;
   function sym(code){ return CURRENCIES[code || currency] || CURRENCIES[DEFAULT_CUR]; }
+  var PREFIX_CUR = { USD:true, EUR:true, GBP:true };
+  function isPrefix(code){ return !!PREFIX_CUR[CURRENCIES[code || currency] ? (code || currency) : DEFAULT_CUR]; }
+  function money(numTxt, code){ return isPrefix(code) ? sym(code) + numTxt : numTxt + " " + sym(code); }
   function guessCurrency(o){
     if(o && CURRENCIES[o.currency]) return o.currency;
     // routes/state saved before currencies existed: Czech version = Kč, English = $ — tell them apart by price level
@@ -945,7 +952,7 @@
     els.toast.textContent = msg;
     els.toast.classList.add("show");
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(function(){ els.toast.classList.remove("show"); }, 2200);
+    showToast._t = setTimeout(function(){ els.toast.classList.remove("show"); }, msg.length > 60 ? 3600 : 2200);
   }
 
   function setFuel(type){
@@ -969,6 +976,9 @@
     els.priceUnit.textContent = sym() + "/" + FUEL_UNITS[fuelType].per;
     els.extraUnit.textContent = sym();
     els.rCur.textContent = sym();
+    var pre = isPrefix();
+    els.rCur.classList.toggle("pre", pre);
+    els.rTotal.parentNode.insertBefore(els.rCur, pre ? els.rTotal : null);
     if(!silent){ calc(); persistState(); }
   }
   els.currency.addEventListener("change", function(){ setCurrency(this.value); });
@@ -1009,6 +1019,10 @@
     });
   });
   els.passengers.addEventListener("input", function(){ calc(); persistState(); });
+  els.passengers.addEventListener("change", function(){
+    var v = Math.min(30, Math.max(1, parseInt(this.value,10) || 1));
+    if(String(v) !== this.value){ this.value = v; calc(); persistState(); }
+  });
   els.roundTrip.addEventListener("change", function(){ calc(); persistState(); });
   els.mapLink.addEventListener("input", function(){ calc(); persistState(); });
 
@@ -1045,19 +1059,19 @@
     animateTotal(totalCost);
     var subParts = [];
     subParts.push((roundTrip ? "round trip · " : "") + fmt(totalKm, totalKm % 1 === 0 ? 0 : 1) + " km");
-    if(extra > 0) subParts.push("incl. " + fmt(extra,0) + " " + sym() + " additional costs");
+    if(extra > 0) subParts.push("incl. " + money(fmt(extra, extra % 1 === 0 ? 0 : 2)) + " additional costs");
     els.rSub.textContent = subParts.join(" · ");
 
     els.rDistance.textContent = fmt(totalKm, totalKm % 1 === 0 ? 0 : 1) + " km";
     els.rFuel.textContent = fmt(fuelUsed, 1) + " " + FUEL_UNITS[fuelType].fuelWord;
-    els.rPerKm.textContent = fmt(perKm, 2) + " " + sym();
+    els.rPerKm.textContent = money(fmt(perKm, 2));
 
     if(passengers > 1){
       els.rPerPersonWrap.style.display = "";
-      els.rPerPerson.textContent = fmt(perPerson, 2) + " " + sym();
+      els.rPerPerson.textContent = money(fmt(perPerson, 2));
     } else {
       els.rPerPersonWrap.style.display = "";
-      els.rPerPerson.textContent = fmt(totalCost, 2) + " " + sym();
+      els.rPerPerson.textContent = money(fmt(totalCost, 2));
     }
 
     var mapLink = (els.mapLink.value || "").trim();
@@ -1108,10 +1122,10 @@
       "SYNTHLUCIDA TRIP COST",
       "Distance: " + fmt(lastCalc.totalKm, lastCalc.totalKm % 1 === 0 ? 0 : 1) + " km" + (lastCalc.roundTrip ? " (round trip)" : ""),
       "Consumption: " + fmt(lastCalc.fuelUsed,1) + " " + u.fuelWord,
-      "Total cost: " + fmt(lastCalc.totalCost,2) + " " + sym(lastCalc.currency),
-      "Price per km: " + fmt(lastCalc.perKm,2) + " " + sym(lastCalc.currency)
+      "Total cost: " + money(fmt(lastCalc.totalCost,2), lastCalc.currency),
+      "Price per km: " + money(fmt(lastCalc.perKm,2), lastCalc.currency)
     ];
-    if(lastCalc.passengers > 1) lines.push("Per person (" + lastCalc.passengers + "x): " + fmt(lastCalc.perPerson,2) + " " + sym(lastCalc.currency));
+    if(lastCalc.passengers > 1) lines.push("Per person (" + lastCalc.passengers + "x): " + money(fmt(lastCalc.perPerson,2), lastCalc.currency));
     if(lastCalc.mapLink) lines.push("Map: " + normalizeUrl(lastCalc.mapLink));
     return lines.join("\n");
   }
@@ -1177,7 +1191,7 @@
   function loadRoutes(){
     try {
       var r = JSON.parse(localStorage.getItem(STORAGE_ROUTES));
-      return Array.isArray(r) ? r : [];
+      return Array.isArray(r) ? r.filter(function(x){ return x && typeof x === "object"; }) : [];
     } catch(e){ return []; }
   }
 
@@ -1199,8 +1213,8 @@
         ? '<a class="rc-map" href="'+escapeHtml(normalizeUrl(r.mapLink))+'" target="_blank" rel="noopener" aria-label="Open route on map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></a>'
         : '';
       html += '<div class="route-chip" role="button" tabindex="0" data-id="'+escapeHtml(r.id)+'">'
-        + '<div><div class="rc-name">'+escapeHtml(r.name)+'</div>'
-        + '<div class="rc-meta">'+fmt(r.distance,0)+' km'+(r.roundTrip?' · round trip':'')+' · '+fuelLabel+' · '+fmt(r.totalCost,0)+' '+sym(guessCurrency(r))+'</div></div>'
+        + '<div class="rc-text"><div class="rc-name">'+escapeHtml(r.name)+'</div>'
+        + '<div class="rc-meta">'+fmtN(r.distance)+' km'+(r.roundTrip?' · round trip':'')+' · '+fuelLabel+' · '+money(fmt(r.totalCost,0), guessCurrency(r))+'</div></div>'
         + '<div class="rc-actions">'
         + mapBtn
         + '<button class="rc-del" data-id="'+escapeHtml(r.id)+'" aria-label="Delete route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
@@ -1320,7 +1334,7 @@
       ["Distance (km)", fmt(lastCalc.totalKm, 1)],
       ["Round trip", lastCalc.roundTrip ? "Yes" : "No"],
       ["Average consumption", fmt(lastCalc.consumption, 1) + " " + u.cons],
-      ["Fuel price", fmt(lastCalc.price, 2) + " " + sym(lastCalc.currency) + "/" + u.per],
+      ["Fuel price", money(fmt(lastCalc.price, 2), lastCalc.currency) + "/" + u.per],
       ["Total fuel used", fmt(lastCalc.fuelUsed, 1) + " " + u.fuelWord],
       ["Number of passengers", String(lastCalc.passengers)],
       ["Additional costs (" + S + ")", fmt(lastCalc.extra, 2)],
@@ -1381,12 +1395,13 @@
       var existingIds = {};
       existing.forEach(function(r){ existingIds[String(r.id)] = true; });
 
-      var added = 0;
+      var added = 0, skipped = 0, fresh = [];
       incoming.forEach(function(r){
         var id = Number(r.id);
-        if(!isFinite(id) || existingIds[String(id)]) id = Date.now() + Math.floor(Math.random()*1000) + added;
+        if(isFinite(id) && existingIds[String(id)]){ skipped++; return; } // same route already saved (e.g. file imported twice)
+        if(!isFinite(id) || id <= 0) id = Date.now() + Math.floor(Math.random()*1000) + added;
         existingIds[String(id)] = true;
-        existing.unshift({
+        fresh.push({
           id: id,
           name: String(r.name).slice(0,40),
           fuelType: FUEL_UNITS[r.fuelType] ? r.fuelType : "benzin",
@@ -1396,17 +1411,23 @@
           price: parseFloat(r.price) || 0,
           passengers: Math.max(1, parseInt(r.passengers,10) || 1),
           extra: parseFloat(r.extra) || 0,
-          mapLink: r.mapLink || "",
+          mapLink: typeof r.mapLink === "string" ? r.mapLink.slice(0, 2000) : "",
           currency: guessCurrency(r),
           totalCost: parseFloat(r.totalCost) || 0
         });
         added++;
       });
 
-      if(existing.length > 12) existing = existing.slice(0,12);
+      if(!added){ showToast("All routes in this file are already saved"); return; }
+      existing = fresh.concat(existing);
+      var dropped = Math.max(0, existing.length - 12);
+      if(dropped) existing = existing.slice(0,12);
       if(!saveToStorage(STORAGE_ROUTES, existing)) return;
       renderRoutes();
-      showToast(added === 1 ? "1 route imported" : added + " routes imported");
+      var msg = added === 1 ? "1 route imported" : added + " routes imported";
+      if(skipped) msg += " (" + skipped + " already saved)";
+      if(dropped) msg += " – the limit is 12 routes, the oldest were removed";
+      showToast(msg);
     };
     reader.onerror = function(){ showToast("Could not read the file"); };
     reader.readAsText(file);
@@ -1419,13 +1440,13 @@
       ["Fuel type", FUEL_LABELS[lastCalc.fuelType] || lastCalc.fuelType],
       ["Distance", fmt(lastCalc.totalKm, lastCalc.totalKm % 1 === 0 ? 0 : 1) + " km" + (lastCalc.roundTrip ? " (round trip)" : "")],
       ["Average consumption", fmt(lastCalc.consumption, 1) + " " + u.cons],
-      ["Fuel price", fmt(lastCalc.price, 2) + " " + sym(lastCalc.currency) + "/" + u.per],
+      ["Fuel price", money(fmt(lastCalc.price, 2), lastCalc.currency) + "/" + u.per],
       ["Total fuel used", fmt(lastCalc.fuelUsed, 1) + " " + u.fuelWord],
       ["Number of passengers", String(lastCalc.passengers)],
-      ["Additional costs", fmt(lastCalc.extra, 2) + " " + sym(lastCalc.currency)],
-      ["Price per km", fmt(lastCalc.perKm, 2) + " " + sym(lastCalc.currency)]
+      ["Additional costs", money(fmt(lastCalc.extra, 2), lastCalc.currency)],
+      ["Price per km", money(fmt(lastCalc.perKm, 2), lastCalc.currency)]
     ];
-    if(lastCalc.passengers > 1) rowsData.push(["Per person (" + lastCalc.passengers + "x)", fmt(lastCalc.perPerson, 2) + " " + sym(lastCalc.currency)]);
+    if(lastCalc.passengers > 1) rowsData.push(["Per person (" + lastCalc.passengers + "x)", money(fmt(lastCalc.perPerson, 2), lastCalc.currency)]);
     if(lastCalc.mapLink) rowsData.push(["Map link", normalizeUrl(lastCalc.mapLink)]);
 
     var rowsHtml = rowsData.map(function(r){
@@ -1449,7 +1470,7 @@
       + "<h1>SYNTHLUCIDA TRIP COST</h1>"
       + "<div class=\"sub\">Car trip cost calculation &middot; " + dateStr + "</div>"
       + "<div class=\"total-label\">Total trip cost</div>"
-      + "<div class=\"total\">" + fmt(lastCalc.totalCost, lastCalc.totalCost < 100 ? 2 : 0) + " " + sym(lastCalc.currency) + "</div>"
+      + "<div class=\"total\">" + money(fmt(lastCalc.totalCost, lastCalc.totalCost < 100 ? 2 : 0), lastCalc.currency) + "</div>"
       + "<table>" + rowsHtml + "</table>"
       + "<footer>Generated with SYNTHLUCIDA TRIP COST &middot; synthlucida.com/tripcost-en.html</footer>"
       + "</body></html>";
@@ -1465,6 +1486,7 @@
   });
 
   function init(){
+    setCurrency(currency, true);
     restoreState();
     renderRoutes();
     calc();
