@@ -770,13 +770,16 @@
       const raw = localStorage.getItem('synthlucida_canvas_prefs');
       if (!raw) return;
       const p = JSON.parse(raw);
-      if (p.color) brushColor = p.color;
-      if (p.size) brushSize = p.size;
+      if (!p || typeof p !== 'object') return;
+      // saved values are checked, so a damaged save can't break the brush
+      if (typeof p.color === 'string' && /^#[0-9a-f]{6}$/i.test(p.color)) brushColor = p.color;
+      const savedSize = Number(p.size);
+      if (isFinite(savedSize) && savedSize > 0) brushSize = Math.max(2, Math.min(44, Math.round(savedSize)));
       if (typeof p.sparkle === 'boolean') sparkleOn = p.sparkle;
       if (typeof p.sound === 'boolean') soundOn = p.sound;
       if (typeof p.volume === 'number' && isFinite(p.volume)) soundVolume = Math.max(0, Math.min(1, p.volume));
-      if (p.brushStyle) brushStyle = p.brushStyle;
-      if (p.template) activeTemplate = p.template;
+      if (['soft', 'neon', 'chalk', 'ink'].indexOf(p.brushStyle) !== -1) brushStyle = p.brushStyle;
+      if (typeof p.template === 'string') activeTemplate = p.template;
     } catch (e) {}
   }
   function savePrefs() {
@@ -2543,7 +2546,7 @@
   }
 
   function drawTemplateOutline(key, skipSave) {
-    if (key !== 'none' && !TEMPLATE_ART[key]) key = 'none';
+    if (key !== 'none' && !Object.prototype.hasOwnProperty.call(TEMPLATE_ART, key)) key = 'none';
     activeTemplate = key;
     templateLineCanvas = null;
     templateBarrier = null;
@@ -4803,7 +4806,7 @@
   });
 
   // --- INICIALIZACE ---
-  if (!TEMPLATE_ART[activeTemplate]) activeTemplate = 'none';
+  if (!Object.prototype.hasOwnProperty.call(TEMPLATE_ART, activeTemplate)) activeTemplate = 'none';
   if (activeTemplate !== 'none') drawTemplateOutline(activeTemplate, true);
   refreshTemplateButtons();
   updateUndoBtn();
