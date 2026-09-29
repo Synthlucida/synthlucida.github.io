@@ -970,8 +970,9 @@
     errorDetailsLabel: "Technický detail",
     analyzedFor: "Výsledek pro soubor ",
     historyNoDetail: "Podrobné výsledky pro tuto položku nejsou k dispozici (byla uložena před přidáním této funkce) — spusťte kontrolu znovu.",
-    compareUp: " bodů lepší než minulá kontrola tohoto souboru",
-    compareDown: " bodů horší než minulá kontrola tohoto souboru",
+    compareUp: " lepší než minulá kontrola tohoto souboru",
+    pointsWord: function(n){ return czPlural(n, "bod", "body", "bodů"); },
+    compareDown: " horší než minulá kontrola tohoto souboru",
     compareSame: "Stejné skóre jako minule pro tento soubor",
     comparePrevLabel: "minule: ",
     qfTitleLabel: "Titulek stránky (<title>)",
@@ -1022,7 +1023,56 @@
   function esc(str){
     var d = document.createElement("div");
     d.textContent = (str === undefined || str === null) ? "" : String(str);
-    return d.innerHTML;
+    // review 09/2026: i uvozovky — jinak mohla adresa obrázku z kontrolovaného souboru
+    // (title="...") přidat vlastní atribut typu onmouseover a spustit kód v appce
+    return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // review 09/2026: titulek stránky = první HTML <title>, ne <title> uvnitř SVG ikonky
+  function pageTitleEl(doc){
+    var all = doc.getElementsByTagName("title");
+    for(var i=0;i<all.length;i++){
+      if(all[i].namespaceURI === "http://www.w3.org/1999/xhtml") return all[i];
+    }
+    return null;
+  }
+
+  // review 09/2026: meta robots / googlebot s "noindex" nebo "none" (= noindex + nofollow)
+  var ROBOTS_SEL = 'meta[name="robots" i], meta[name="googlebot" i]';
+  function robotsBlocks(content){
+    var c = String(content || "").toLowerCase();
+    return c.indexOf("noindex") !== -1 || /(^|[\s,;])none($|[\s,;])/.test(c);
+  }
+
+  // review 09/2026: <noscript> v hlavičce (typicky Facebook Pixel s obrázkem) rozbil při čtení
+  // hlavičku — všechno za ním (styly, Open Graph, meta…) se v opraveném souboru ocitlo v <body>.
+  // Proto se <noscript> v hlavičce při čtení dočasně „schová“ do <template> a hned vrátí zpět.
+  var NS_ATTR = "data-seochecker-noscript";
+  function protectHeadNoscript(html){
+    var end = html.search(/<\/head\s*>/i);
+    if(end < 0) return html;
+    var head = html.slice(0, end), depth = 0, ok = true, found = false;
+    var re = /<!--[\s\S]*?-->|<(script|style|title|template|textarea)\b[\s\S]*?<\/\1\s*>|<noscript\b|<\/noscript\s*>/gi;
+    var out = head.replace(re, function(m, raw){
+      if(raw || m.charAt(1) === "!") return m;
+      found = true;
+      if(m.charAt(1) === "/"){ if(depth !== 1) ok = false; depth = 0; return "</template>"; }
+      if(depth !== 0) ok = false;
+      depth = 1;
+      return "<template " + NS_ATTR;
+    });
+    if(!found || !ok || depth !== 0) return html;
+    return out + html.slice(end);
+  }
+  function parseHtmlDoc(html){
+    var doc = new DOMParser().parseFromString(protectHeadNoscript(html), "text/html");
+    Array.prototype.forEach.call(doc.querySelectorAll("template[" + NS_ATTR + "]"), function(t){
+      var ns = doc.createElement("noscript");
+      Array.prototype.forEach.call(t.attributes, function(a){ if(a.name !== NS_ATTR) ns.setAttribute(a.name, a.value); });
+      ns.appendChild(t.content);
+      t.parentNode.replaceChild(ns, t);
+    });
+    return doc;
   }
 
   function isHtmlFile(name){
@@ -1092,7 +1142,7 @@
     var siblingFiles = context.siblingFiles || new Set();
     var multiFile = siblingFiles.size > 1;
 
-    var titleEl = doc.querySelector("title");
+    var titleEl = pageTitleEl(doc);
     var titleText = titleEl ? titleEl.textContent.replace(/\s+/g," ").trim() : "";
     if(!titleText){
       addCheck(list,"meta","title","fail",0,6,"Title tag","Stránka nemá title tag.");
@@ -1102,7 +1152,7 @@
       addCheck(list,"meta","title","pass",6,6,"Title tag","„" + titleText + "“ (" + titleText.length + " znaků).");
     }
 
-    var descEl = doc.querySelector('meta[name="description"]');
+    var descEl = doc.querySelector('meta[name="description" i]');
     var descText = descEl ? (descEl.getAttribute("content") || "").trim() : "";
     if(!descText){
       addCheck(list,"meta","desc","fail",0,6,"Meta popis","Stránka nemá meta description.");
@@ -1141,7 +1191,7 @@
       addCheck(list,"meta","charset","fail",0,2,"Kódování stránky","Chybí deklarace kódování (meta charset).");
     }
 
-    var viewportEl = doc.querySelector('meta[name="viewport"]');
+    var viewportEl = doc.querySelector('meta[name="viewport" i]');
     if(viewportEl){
       addCheck(list,"mobile","viewport","pass",8,8,"Mobilní zobrazení (viewport)","Meta viewport je nastaven.");
     } else {
@@ -1215,7 +1265,7 @@
       addCheck(list,"social","og","fail",0,7,"Open Graph údaje","Stránka nemá žádné Open Graph údaje.");
     }
 
-    var twitterCard = doc.querySelector('meta[name="twitter:card"]');
+    var twitterCard = doc.querySelector('meta[name="twitter:card" i]');
     if(twitterCard){
       addCheck(list,"social","twitter","pass",3,3,"Twitter/X karta","Nastavena.");
     } else {
@@ -1229,9 +1279,8 @@
       addCheck(list,"social","structured","warn",0,5,"Strukturovaná data","Nenašli jsme žádná strukturovaná data (JSON-LD).");
     }
 
-    var robotsMeta = doc.querySelector('meta[name="robots"]');
-    var robotsContent = robotsMeta ? (robotsMeta.getAttribute("content") || "").toLowerCase() : "";
-    if(robotsContent.indexOf("noindex") !== -1){
+    var robotsBlocked = Array.prototype.some.call(doc.querySelectorAll(ROBOTS_SEL), function(m){ return robotsBlocks(m.getAttribute("content")); });
+    if(robotsBlocked){
       addCheck(list,"index","robotsmeta","fail",0,8,"Meta robots","Obsahuje „noindex“ — vyhledávače stránku pravděpodobně nezobrazí.");
     } else {
       addCheck(list,"index","robotsmeta","pass",8,8,"Meta robots","Stránku nijak neomezuje.");
@@ -1243,7 +1292,7 @@
       var href = (a.getAttribute("href") || "").trim();
       if(!href) return;
       if(href.charAt(0) === "#") return;
-      if(/^(mailto:|tel:|javascript:)/i.test(href)) return;
+      if(/^[a-z][a-z0-9+.\-]*:/i.test(href)) return; // mailto:, tel:, sms:, data:, https:… (review 09/2026)
       if(/^https?:\/\//i.test(href) || href.indexOf("//") === 0) return; // externí odkaz
       internal++;
       var clean = href.split("#")[0].split("?")[0];
@@ -1421,7 +1470,19 @@
     try{
       var raw = window.localStorage.getItem(HISTORY_KEY);
       var arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
+      if(!Array.isArray(arr)) return [];
+      // review 09/2026: poškozené položky vynechat, ať historie (a další kontrola) nespadne
+      return arr.filter(function(h){
+        return h && typeof h === "object" && typeof h.name === "string" && isFinite(parseFloat(h.score));
+      }).map(function(h){
+        var checks = Array.isArray(h.checks) ? h.checks.filter(function(c){
+          return c && typeof c === "object" && (c.status === "pass" || c.status === "warn" || c.status === "fail");
+        }).map(function(c){
+          return {cat:String(c.cat), id:String(c.id), status:c.status, points:parseFloat(c.points)||0, maxPoints:parseFloat(c.maxPoints)||0,
+                  label:String(c.label == null ? "" : c.label), detail:String(c.detail == null ? "" : c.detail)};
+        }) : null;
+        return {name:h.name, score:Math.max(0, Math.min(100, Math.round(parseFloat(h.score)))), ts:parseFloat(h.ts)||0, checks:checks};
+      });
     }catch(e){ return []; }
   }
 
@@ -1516,10 +1577,10 @@
     scoreCompareEl.classList.remove("up","down");
     if(diff > 0){
       scoreCompareEl.classList.add("up");
-      scoreCompareEl.textContent = "▲ +" + diff + T.compareUp + " (" + T.comparePrevLabel + prevScore + "/100)";
+      scoreCompareEl.textContent = "▲ +" + diff + " " + T.pointsWord(diff) + T.compareUp + " (" + T.comparePrevLabel + prevScore + "/100)";
     } else if(diff < 0){
       scoreCompareEl.classList.add("down");
-      scoreCompareEl.textContent = "▼ -" + Math.abs(diff) + T.compareDown + " (" + T.comparePrevLabel + prevScore + "/100)";
+      scoreCompareEl.textContent = "▼ -" + Math.abs(diff) + " " + T.pointsWord(diff) + T.compareDown + " (" + T.comparePrevLabel + prevScore + "/100)";
     } else {
       scoreCompareEl.textContent = "= " + T.compareSame + " (" + prevScore + "/100)";
     }
@@ -1590,14 +1651,14 @@
     var titleCheck = findCheck(list, "title");
     if(titleCheck && titleCheck.status !== "pass"){
       any = true;
-      var titleEl0 = doc.querySelector("title");
+      var titleEl0 = pageTitleEl(doc);
       var field1 = addQfField(T.qfTitleLabel, "<input type=\"text\" class=\"qf-input\" maxlength=\"120\">");
       var titleInput = field1.querySelector("input");
       titleInput.value = titleEl0 ? titleEl0.textContent.replace(/\s+/g," ").trim() : "";
       qfFixers.push(function(){
         var v = titleInput.value.replace(/\s+/g," ").trim();
         if(!v) return false;
-        var el = doc.querySelector("title");
+        var el = pageTitleEl(doc);
         if(!el){
           el = doc.createElement("title");
           var head = doc.querySelector("head");
@@ -1611,14 +1672,14 @@
     var descCheck = findCheck(list, "desc");
     if(descCheck && descCheck.status !== "pass"){
       any = true;
-      var descEl0 = doc.querySelector('meta[name="description"]');
+      var descEl0 = doc.querySelector('meta[name="description" i]');
       var field2 = addQfField(T.qfDescLabel, "<textarea class=\"qf-input qf-textarea\" maxlength=\"300\" rows=\"2\"></textarea>");
       var descInput = field2.querySelector("textarea");
       descInput.value = descEl0 ? (descEl0.getAttribute("content")||"").trim() : "";
       qfFixers.push(function(){
         var v = descInput.value.replace(/\s+/g," ").trim();
         if(!v) return false;
-        var el = doc.querySelector('meta[name="description"]');
+        var el = doc.querySelector('meta[name="description" i]');
         if(!el){
           el = doc.createElement("meta");
           el.setAttribute("name","description");
@@ -1685,7 +1746,7 @@
       any = true;
       addQfNoteField(T.qfViewportLabel, T.qfViewportNote);
       qfFixers.push(function(){
-        if(doc.querySelector('meta[name="viewport"]')) return false;
+        if(doc.querySelector('meta[name="viewport" i]')) return false;
         var el = doc.createElement("meta");
         el.setAttribute("name","viewport");
         el.setAttribute("content","width=device-width, initial-scale=1");
@@ -1794,8 +1855,8 @@
     var ogCheck = findCheck(list, "og");
     if(ogCheck && ogCheck.status !== "pass"){
       any = true;
-      var titleElForOg = doc.querySelector("title");
-      var descElForOg = doc.querySelector('meta[name="description"]');
+      var titleElForOg = pageTitleEl(doc);
+      var descElForOg = doc.querySelector('meta[name="description" i]');
       var ogTitleEl0 = doc.querySelector('meta[property="og:title"]');
       var ogDescEl0 = doc.querySelector('meta[property="og:description"]');
       var ogImgEl0 = doc.querySelector('meta[property="og:image"]');
@@ -1850,7 +1911,7 @@
       any = true;
       addQfNoteField(T.qfTwitterLabel, T.qfTwitterNote);
       qfFixers.push(function(){
-        if(doc.querySelector('meta[name="twitter:card"]')) return false;
+        if(doc.querySelector('meta[name="twitter:card" i]')) return false;
         var el = doc.createElement("meta");
         el.setAttribute("name","twitter:card");
         el.setAttribute("content","summary_large_image");
@@ -1865,17 +1926,22 @@
       any = true;
       addQfNoteField(T.qfRobotsLabel, T.qfRobotsNote);
       qfFixers.push(function(){
-        var el = doc.querySelector('meta[name="robots"]');
-        if(!el) return false;
-        var content = (el.getAttribute("content")||"").toLowerCase();
-        if(content.indexOf("noindex") === -1) return false;
-        var parts = content.split(",").map(function(s){ return s.trim(); }).filter(function(s){ return s && s.indexOf("noindex") === -1; });
-        if(parts.length){
-          el.setAttribute("content", parts.join(", "));
-        } else if(el.parentNode){
-          el.parentNode.removeChild(el);
-        }
-        return true;
+        var changed = false;
+        Array.prototype.forEach.call(doc.querySelectorAll(ROBOTS_SEL), function(el){
+          var content = (el.getAttribute("content")||"").toLowerCase();
+          if(!robotsBlocks(content)) return;
+          // "none" = noindex + nofollow -> ponecháme jen nofollow
+          var parts = content.split(",").map(function(s){ return s.trim(); })
+            .filter(function(s){ return s && s.indexOf("noindex") === -1; })
+            .map(function(s){ return s === "none" ? "nofollow" : s; });
+          if(parts.length){
+            el.setAttribute("content", parts.join(", "));
+          } else if(el.parentNode){
+            el.parentNode.removeChild(el);
+          }
+          changed = true;
+        });
+        return changed;
       });
     }
 
@@ -1898,7 +1964,14 @@
         (dt.publicId ? " PUBLIC \"" + dt.publicId + "\"" : "") +
         (dt.systemId ? (dt.publicId ? " \"" : " SYSTEM \"") + dt.systemId + "\"" : "") + ">";
     }
-    return doctypeStr + "\n" + doc.documentElement.outerHTML;
+    // review 09/2026: zachovat i komentáře před/za <html> (licence apod.)
+    var out = dt ? "" : doctypeStr + "\n";
+    Array.prototype.forEach.call(doc.childNodes, function(n){
+      if(n.nodeType === 10) out += doctypeStr + "\n";
+      else if(n.nodeType === 8) out += "<!--" + n.data + "-->\n";
+      else if(n.nodeType === 1) out += n.outerHTML + "\n";
+    });
+    return out;
   }
 
   function fixedFileName(name){
@@ -2180,7 +2253,7 @@
       if(!html || html.trim().length < 20){
         throw new Error("prázdný soubor");
       }
-      var doc = new DOMParser().parseFromString(html, "text/html");
+      var doc = parseHtmlDoc(html);
       var context = { siblingFiles: siblingFiles };
       var finalChecks = runChecks(doc, context);
       stopLoadingMessages();
