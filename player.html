@@ -2119,6 +2119,12 @@
     return (tracks[playlistKey] && tracks[playlistKey][index]) || null;
   }
 
+  // review 09/2026: je v přehrávači pořád načtená právě tahle skladba? (jednorázové posluchače
+  // "přetoč na uloženou pozici" se tím nespustí u jiné skladby, když se ta původní nenačetla)
+  function isCurrentAudioSrc(src) {
+    try { return audio.src === new URL(src, document.baseURI).href; } catch (e) { return audio.src === src; }
+  }
+
   // review 09/2026: dohledání skladby podle uloženého odkazu. Když přidáš novou skladbu
   // doprostřed seznamu, pořadová čísla dalších skladeb se posunou - uložené odkazy
   // (F playlisty, historie, ♥, poslední skladba) proto hledají skladbu hlavně podle
@@ -2159,6 +2165,7 @@
   let playlist = tracks['asmr'];
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
+  let currentTrackTitle = null; // review 09/2026: název skladby, která opravdu hraje (pro uložení poslední skladby)
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
   let isPlaying = false;
   let shuffleEnabled = false;
@@ -2166,6 +2173,7 @@
   
   let timeRemaining = 0;
   let timerInterval;
+  let timerEndsAt = 0; // review 09/2026: konec časovače spánku podle skutečných hodin
 
   const audio = document.getElementById('audio-player');
   const crossfadeAudio = document.getElementById('audio-player-crossfade');
@@ -3806,7 +3814,7 @@
   }
 
   function runBreathPhase() {
-    if (!breathingActive) return;
+    if (!breathingActive || breathingPaused) return;
     const phases = BREATH_TECHNIQUES[currentBreathTechnique].phases;
     const phase = phases[breathPhaseIndex];
     breathPhaseEl.innerText = phase.label || DEFAULT_PHASE_LABELS[phase.type];
@@ -5476,6 +5484,7 @@
   }
 
   function updateTrackTime() {
+    if (timerEndsAt) checkSleepTimer(); // review 09/2026: pojistka časovače spánku
     // Sčítání odposlechnutého času pro statistiky - jen malé přírůstky, aby seek/skip nevytvořil skok
     if (!audio.paused) {
       const now = Date.now();
@@ -5620,6 +5629,7 @@
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     currentTrackIndex = index;
     const track = playlist[index];
+    currentTrackTitle = track.title;
     showLoading();
     audio.src = track.src;
     setTrackTitle(track.title, isTrackNew(track));
@@ -5653,7 +5663,7 @@
 
     // Once the track can play through (and has landed in the SW cache), refresh its badge
     audio.addEventListener('canplaythrough', function refreshBadgeOnce() {
-      const badge = document.getElementById(`offline-badge-${index}`);
+      const badge = isCurrentAudioSrc(track.src) ? document.getElementById(`offline-badge-${index}`) : null;
       if (badge) {
         isTrackCached(track.src).then((cached) => {
           if (cached) {
@@ -5788,6 +5798,7 @@
       customQueueIndex = target.pos;
     } else {
       currentTrackIndex = target.pos;
+      currentTrackTitle = target.title;
     }
 
     const targetTrackRef = target.kind === 'queue'
@@ -5800,7 +5811,7 @@
 
     audio.src = target.src;
     audio.addEventListener('loadedmetadata', function seekAfterCrossfade() {
-      if (elapsed && elapsed < audio.duration) audio.currentTime = elapsed;
+      if (isCurrentAudioSrc(target.src) && elapsed && elapsed < audio.duration) audio.currentTime = elapsed;
       audio.removeEventListener('loadedmetadata', seekAfterCrossfade);
     });
     audio.volume = targetVolume;
@@ -6053,7 +6064,7 @@
       [stL('daysVisited'), String(stats.daysVisited || 0)]
     ];
     grid.innerHTML = rows.map(([label, value]) =>
-      `<div class="stats-card"><span class="stats-card-label">${label}</span><span class="stats-card-value">${value}</span></div>`
+      `<div class="stats-card"><span class="stats-card-label">${label}</span><span class="stats-card-value">${escapeHtml(value)}</span></div>`
     ).join('');
     renderXPBar(xp);
     updateMiniStats(xp);
@@ -6102,6 +6113,10 @@
   };
 
   window.resetStats = function() {
+    // review 09/2026: potvrzení - jedno omylem ťuknutí (tlačítko je hned vedle REMINDERS) smazalo XP, úroveň i odemčená stažení
+    if (!confirm(guideLang === 'cz'
+      ? 'Opravdu vynulovat statistiky? Přijdeš o XP, úroveň i odemčená stažení.'
+      : 'Reset all statistics? You will lose your XP, level and unlocked downloads.')) return;
     stats = { totalListenSeconds: 0, totalTracksPlayed: 0, xpEligibleTracksPlayed: 0, playsByPlaylist: {}, breathingSessions: 0, currentStreak: 0, longestStreak: 0, daysVisited: 0, lastActiveDate: todayStr(), xpSpent: 0, unlockedDownloads: {} };
     saveStats();
     renderStats();
@@ -6232,6 +6247,8 @@
   };
 
   window.clearHistory = function() {
+    // review 09/2026: potvrzení před smazáním historie
+    if (!confirm(guideLang === 'cz' ? 'Opravdu smazat historii přehrávání?' : 'Clear your playback history?')) return;
     try { localStorage.removeItem(HISTORY_KEY); } catch (e) { /* ignore */ }
     renderHistory();
   };
@@ -6353,7 +6370,7 @@
       customQueue.splice(pos, 1);
       if (customQueueActive) {
         if (pos < customQueueIndex) customQueueIndex--;
-        else if (pos === customQueueIndex) customQueueIndex = -1;
+        else if (pos === customQueueIndex) customQueueIndex--; // review 09/2026: stejně jako ✕ - další bude skladba, co následovala
       }
       liked = false;
     } else {
@@ -6395,6 +6412,10 @@
   };
 
   window.clearCustomQueue = function() {
+    // review 09/2026: potvrzení - dřív jedno ťuknutí smazalo celý My Playlist
+    if (customQueue.length && !confirm(guideLang === 'cz'
+      ? 'Opravdu smazat celý My Playlist?'
+      : 'Clear your whole My Playlist?')) return;
     customQueue = [];
     customQueueActive = false;
     customQueueIndex = -1;
@@ -6639,12 +6660,14 @@
 
   // Zapamatování poslední přehrávané skladby a pozice v ní (bez autoplaye při dalším otevření)
   function saveLastTrackPosition() {
-    if (currentTrackIndex === -1) return;
+    // review 09/2026: při přehrávání My Playlist se poslední skladba nepřepisuje - ukládala se
+    // jiná skladba s pozicí té z My Playlist, takže po restartu naskočil "mix" dvou skladeb
+    if (currentTrackIndex === -1 || customQueueActive) return;
     try {
       localStorage.setItem('synthlucida_last_track', JSON.stringify({
         playlist: currentPlaylistKey,
         index: currentTrackIndex,
-        title: (playlist[currentTrackIndex] && playlist[currentTrackIndex].title) || null,
+        title: currentTrackTitle || null, // skladba, která opravdu hraje (i když se mezitím prohlíží jiný playlist)
         time: audio.currentTime || 0
       }));
     } catch (e) { /* ignore */ }
@@ -6702,6 +6725,7 @@
     toggle: function () { playBtn.click(); },
     isPlaying: function () { return isPlaying; },
     nowPlaying: function () {
+      if (customQueueActive && customQueue[customQueueIndex]) return customQueue[customQueueIndex].title;
       const t = playlist[currentTrackIndex];
       return t ? t.title : null;
     }
@@ -6724,6 +6748,17 @@
     } catch (e) { /* seekto není všude podporované, není to kritické */ }
   }
 
+  // review 09/2026: hudbu může pozastavit i systém (odpojená sluchátka, telefonát, jiná appka).
+  // Tlačítko pak ukazovalo ⏸, i když nic nehrálo, a na obnovení bylo potřeba ťuknout dvakrát
+  // (a tlačítko ▶ na zamčené obrazovce nereagovalo). Přepnutí skladby tohle nespouští -
+  // v tu chvíli už přehrávač zase hraje (audio.paused je false).
+  audio.addEventListener('pause', () => {
+    if (isPlaying && audio.paused && !audio.ended && !crossfadeActive && !audio.error) {
+      isPlaying = false;
+      playBtn.innerText = "▶";
+    }
+  });
+
   audio.addEventListener('ended', () => {
       if (crossfadeActive) return; // přechod už řeší prolnutí
       if (repeatEnabled) {
@@ -6736,25 +6771,33 @@
 
   window.setTimer = function(minutes) {
     cancelTimer();
+    timerEndsAt = Date.now() + minutes * 60 * 1000;
     timeRemaining = minutes * 60;
     updateTimerDisplay();
-    timerInterval = setInterval(() => {
-      timeRemaining--;
-      updateTimerDisplay();
-      if (timeRemaining <= 0) {
-        cancelTimer();
-        if (isPlaying) {
-          cancelCrossfade(); // review 09/2026: časovač musí zastavit i právě prolínanou další skladbu
-          audio.pause();
-          isPlaying = false;
-          playBtn.innerText = "▶";
-        }
-      }
-    }, 1000);
+    timerInterval = setInterval(checkSleepTimer, 1000);
   };
+
+  // review 09/2026: časovač počítá podle skutečných hodin, ne podle počtu "tiknutí" - telefon
+  // může appce na pozadí / se zhasnutou obrazovkou časovače zpomalit a hudba by pak hrála
+  // déle. Kontroluje se každou sekundu i při každém posunu přehrávání (timeupdate).
+  function checkSleepTimer() {
+    if (!timerEndsAt) return;
+    timeRemaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+    updateTimerDisplay();
+    if (timeRemaining <= 0) {
+      cancelTimer();
+      if (isPlaying) {
+        cancelCrossfade(); // review 09/2026: časovač musí zastavit i právě prolínanou další skladbu
+        audio.pause();
+        isPlaying = false;
+        playBtn.innerText = "▶";
+      }
+    }
+  }
 
   window.cancelTimer = function() {
     clearInterval(timerInterval);
+    timerEndsAt = 0;
     timeRemaining = 0;
     document.getElementById('timer-display').innerText = "⏱ Off";
   };
@@ -6947,10 +6990,11 @@
             if (info && info.playlist === playlistKey && restoredIndex >= 0) {
                 currentTrackIndex = restoredIndex;
                 const track = tracks[info.playlist][restoredIndex];
+                currentTrackTitle = track.title;
                 setTrackTitle(track.title, isTrackNew(track));
                 audio.src = track.src;
                 audio.addEventListener('loadedmetadata', function restoreLastTime() {
-                    if (info.time && info.time < audio.duration) {
+                    if (isCurrentAudioSrc(track.src) && info.time && info.time < audio.duration) {
                         audio.currentTime = info.time;
                     }
                     audio.removeEventListener('loadedmetadata', restoreLastTime);
