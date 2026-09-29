@@ -1694,12 +1694,12 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_themes">Visual themes</h4>
-      <p data-i18n="p_themes">Choose from NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST and ROSEGOLD to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.</p>
+      <p data-i18n="p_themes">Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.</p>
     </div>
 
     <div class="main-guide-section">
       <h4 data-i18n="h_ambient">Ambient effects</h4>
-      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.</p>
+      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1714,7 +1714,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_crossfade">Crossfade</h4>
-      <p data-i18n="p_crossfade">Choose 3, 6, 8 or 10 seconds under CROSSFADE to smoothly blend the end of one track into the start of the next, or leave it OFF for a hard cut.</p>
+      <p data-i18n="p_crossfade">Choose 3, 6, 8, 10 or 15 seconds under CROSSFADE to smoothly blend the end of one track into the start of the next, or leave it OFF for a hard cut.</p>
     </div>
 
     <div class="main-guide-section">
@@ -2117,6 +2117,32 @@
 
   function getTrackByRef(playlistKey, index) {
     return (tracks[playlistKey] && tracks[playlistKey][index]) || null;
+  }
+
+  // review 09/2026: dohledání skladby podle uloženého odkazu. Když přidáš novou skladbu
+  // doprostřed seznamu, pořadová čísla dalších skladeb se posunou - uložené odkazy
+  // (F playlisty, historie, ♥, poslední skladba) proto hledají skladbu hlavně podle
+  // adresy/názvu a pořadové číslo berou jen jako záložní možnost.
+  // strict = true: když uložený název v seznamu už není, nevrátí nic (-1).
+  function findTrackIndexByRef(playlistKey, index, title, src, strict) {
+    const list = tracks[playlistKey];
+    if (!Array.isArray(list)) return -1;
+    const at = (typeof index === 'number' && index >= 0) ? list[index] : null;
+    if (at && ((src && at.src === src) || (!src && (!title || at.title === title)))) return index;
+    if (src) { const i = list.findIndex(t => t && t.src === src); if (i >= 0) return i; }
+    if (title) { const i = list.findIndex(t => t && t.title === title); if (i >= 0) return i; }
+    if (strict && (title || src)) return -1;
+    return at ? index : -1;
+  }
+
+  // review 09/2026: náhodný výběr pro Shuffle - nikdy nevybere hned znovu skladbu,
+  // která právě hrála (pokud je v seznamu víc než jedna).
+  function randomIndexExcept(length, current) {
+    if (length <= 1) return 0;
+    if (typeof current !== 'number' || current < 0 || current >= length) return Math.floor(Math.random() * length);
+    let i = Math.floor(Math.random() * (length - 1));
+    if (i >= current) i++;
+    return i;
   }
 
   // Tečka na ASMR/PIANO/CHILL, pokud daná kategorie obsahuje aspoň jednu novou skladbu
@@ -2992,8 +3018,12 @@
   updateMoonPhase();
   setInterval(updateMoonPhase, 3600000);
 
-  const savedVolume = localStorage.getItem('sl-volume');
-  const initialVolume = savedVolume !== null ? Math.min(1, Math.max(0, parseFloat(savedVolume))) : 0.3;
+  // review 09/2026: čtení v try/catch (zablokované úložiště dřív shodilo celou appku)
+  // a kontrola čísla (poškozená hodnota "NaN" dřív shodila appku při startu)
+  let savedVolume = null;
+  try { savedVolume = localStorage.getItem('sl-volume'); } catch (e) { /* úložiště zablokované - výchozí hlasitost */ }
+  const parsedSavedVolume = savedVolume !== null ? parseFloat(savedVolume) : NaN;
+  const initialVolume = isFinite(parsedSavedVolume) ? Math.min(1, Math.max(0, parsedSavedVolume)) : 0.3;
   audio.volume = initialVolume;
   volumeSlider.value = initialVolume;
 
@@ -3877,7 +3907,8 @@
 
   // Wake Lock - zabraňuje zhasnutí/uspání obrazovky, dokud je zapnuto
   let wakeLockSentinel = null;
-  let wakeLockEnabled = localStorage.getItem('sl-wakelock') === '1';
+  let wakeLockEnabled = false;
+  try { wakeLockEnabled = localStorage.getItem('sl-wakelock') === '1'; } catch (e) { /* ignore */ }
   const wakeLockSupported = 'wakeLock' in navigator;
 
   async function requestWakeLock() {
@@ -4144,9 +4175,10 @@
       const existing = localStorage.getItem('synthlucida_settings');
       if (existing) settings = JSON.parse(existing);
     } catch (e) { settings = {}; }
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) settings = {};
     settings.vibrationEnabled = vibrationEnabled;
     settings.breathTechnique = currentBreathTechnique;
-    localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
+    try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
 
     const btn = document.getElementById('breath-save-btn');
     if (btn) {
@@ -4267,7 +4299,7 @@
     }
   });
 
-  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; localStorage.setItem('sl-volume', e.target.value); });
+  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ } });
 
   // Tlačítka +/- nad sliderem hlasitosti - klik po kroku 0.05, slider zůstává
   // funkční i nadále a hlasitost se ukládá stejně jako při tažení slideru.
@@ -4653,15 +4685,15 @@
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
     p_atmos: { en: "Switch between the ASMR, PIANO and CHILL playlists at the top of the screen. GAME and RELAX open separate pages with their own soundscapes. The playlist you last listened to is remembered automatically the next time you open the player.", cz: "V horní části obrazovky můžete přepínat mezi playlisty ASMR, PIANO a CHILL. GAME a RELAX otevřou samostatné stránky s vlastní zvukovou atmosférou. Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
-    p_themes: { en: "Choose from NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST and ROSEGOLD to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Vyberte si z motivů NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST a ROSEGOLD a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
+    p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
-    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through two states: a warm sunset gradient, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází dvěma stavy: teplý gradient západu slunce a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
+    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.", cz: "Klepnutím na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
     p_timer: { en: "Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.", cz: "Pomocí tlačítek časovače nastavte automatické zastavení přehrávání po 15, 30 nebo 60 minutách, nebo aktivní časovač kdykoli zrušte tlačítkem ✖." },
     h_crossfade: { en: "Crossfade", cz: "Prolínání (Crossfade)" },
-    p_crossfade: { en: "Choose 3, 6, 8 or 10 seconds under CROSSFADE to smoothly blend the end of one track into the start of the next, or leave it OFF for a hard cut.", cz: "V nabídce CROSSFADE zvolte 3, 6, 8 nebo 10 sekund pro plynulé prolnutí konce jedné skladby se začátkem další, nebo nechte OFF pro tvrdý přechod." },
+    p_crossfade: { en: "Choose 3, 6, 8, 10 or 15 seconds under CROSSFADE to smoothly blend the end of one track into the start of the next, or leave it OFF for a hard cut.", cz: "V nabídce CROSSFADE zvolte 3, 6, 8, 10 nebo 15 sekund pro plynulé prolnutí konce jedné skladby se začátkem další, nebo nechte OFF pro tvrdý přechod." },
     h_history: { en: "History", cz: "Historie" },
     p_history: { en: "🕘 HISTORY shows the tracks you've recently played, with the playlist and time. Tap a track name to play it again, use 📄 EXPORT TXT to save the list as a text file to your device, or CLEAR HISTORY to reset it.", cz: "🕘 HISTORY zobrazuje naposledy přehrané skladby spolu s playlistem a časem. Klepnutím na název skladby ji spustíte znovu, tlačítkem 📄 EXPORT TXT uložíte seznam jako textový soubor do zařízení a tlačítkem CLEAR HISTORY historii vymažete." },
     h_myplaylist: { en: "My Playlist", cz: "Můj playlist" },
@@ -4916,7 +4948,7 @@
   // velká písmena, vlastní playlisty a soubory z F sekce dostanou svůj skutečný název
   // místo nesrozumitelného interního klíče typu "custom:3f9a2b1c-58cc-...".
   function friendlyPlaylistLabel(key) {
-    if (!key) return '';
+    if (!key || typeof key !== 'string') return '';
     if (key.indexOf('custom:file:') === 0) return 'MY FILE';
     if (key.indexOf('custom:') === 0) {
       const cpId = key.slice('custom:'.length);
@@ -4950,7 +4982,14 @@
   function loadMyPlaylistsFromStorage() {
     try {
       const raw = localStorage.getItem(MYFILES_PLAYLISTS_KEY);
-      myPlaylists = raw ? (JSON.parse(raw) || []) : [];
+      const parsedPlaylists = raw ? JSON.parse(raw) : [];
+      myPlaylists = Array.isArray(parsedPlaylists)
+        ? parsedPlaylists.filter(p => p && typeof p === 'object' && typeof p.id === 'string')
+        : [];
+      myPlaylists.forEach(p => {
+        if (typeof p.name !== 'string' || !p.name.trim()) p.name = 'Playlist';
+        p.items = Array.isArray(p.items) ? p.items.filter(it => it && typeof it === 'object') : [];
+      });
     } catch (e) { myPlaylists = []; }
   }
 
@@ -5085,7 +5124,7 @@
       const idx = parseInt(b, 10);
       const track = getTrackByRef(a, idx);
       if (!track) return;
-      pl.items.push({ type: 'track', playlist: a, index: idx, title: track.title });
+      pl.items.push({ type: 'track', playlist: a, index: idx, title: track.title, src: track.src });
     }
     saveMyPlaylistsToStorage();
     renderMyFiles();
@@ -5119,7 +5158,8 @@
         const url = await getMyFileBlobUrl(item.fileId);
         if (url) resolved.push({ title: item.title, src: url, fileId: item.fileId });
       } else if (item.type === 'track') {
-        const track = getTrackByRef(item.playlist, item.index);
+        const refIdx = findTrackIndexByRef(item.playlist, item.index, item.title, item.src);
+        const track = getTrackByRef(item.playlist, refIdx);
         if (track) resolved.push({ title: track.title, src: track.src, added: track.added });
       }
     }
@@ -5547,16 +5587,21 @@
   // zkusit další v pořadí, místo aby přehrávač tiše "zamrzl" beze zvuku.
   audio.addEventListener('error', () => {
     hideLoading();
-    if (currentTrackIndex === -1) return; // ještě se nic nepřehrávalo
+    if (currentTrackIndex === -1 && !customQueueActive) return; // ještě se nic nepřehrávalo
+    // review 09/2026: skladba byla jen připravená (obnova poslední skladby při startu), nehraje -
+    // nepřeskakovat samo. Dřív appka bez internetu sama projela celý playlist a zapsala
+    // falešná přehrání do historie i statistik. Po stisku ▶ se skladba načte znovu.
+    if (!isPlaying) return;
     consecutiveTrackErrors++;
-    if (consecutiveTrackErrors > playlist.length) {
+    const activeListLength = customQueueActive ? customQueue.length : playlist.length;
+    if (consecutiveTrackErrors > activeListLength) {
       setTrackTitle("Can't play – check your connection");
       isPlaying = false;
       playBtn.innerText = "▶";
       return;
     }
     setTrackTitle("Track unavailable, skipping…");
-    setTimeout(() => { playNextTrack(); }, 800);
+    setTimeout(() => { if (isPlaying) playNextTrack(); }, 800);
   });
 
   progressContainer.addEventListener('click', (e) => {
@@ -5626,7 +5671,7 @@
       if (!customQueue.length) { customQueueActive = false; return; }
       let nextPos;
       if (shuffleEnabled) {
-        nextPos = Math.floor(Math.random() * customQueue.length);
+        nextPos = randomIndexExcept(customQueue.length, customQueueIndex);
       } else {
         nextPos = customQueueIndex + 1;
         if (nextPos >= customQueue.length) nextPos = 0;
@@ -5635,7 +5680,7 @@
       return;
     }
     if (shuffleEnabled) {
-      playTrack(Math.floor(Math.random() * playlist.length));
+      playTrack(randomIndexExcept(playlist.length, currentTrackIndex));
     } else {
       let nextIndex = currentTrackIndex + 1;
       if (nextIndex >= playlist.length || nextIndex < 0) nextIndex = 0;
@@ -5650,7 +5695,7 @@
       if (!customQueue.length) { customQueueActive = false; return; }
       let prevPos;
       if (shuffleEnabled) {
-        prevPos = Math.floor(Math.random() * customQueue.length);
+        prevPos = randomIndexExcept(customQueue.length, customQueueIndex);
       } else {
         prevPos = customQueueIndex - 1;
         if (prevPos < 0) prevPos = customQueue.length - 1;
@@ -5659,7 +5704,7 @@
       return;
     }
     if (shuffleEnabled) {
-      playTrack(Math.floor(Math.random() * playlist.length));
+      playTrack(randomIndexExcept(playlist.length, currentTrackIndex));
     } else {
       let prevIndex = currentTrackIndex - 1;
       if (prevIndex < 0) prevIndex = playlist.length - 1;
@@ -5685,7 +5730,7 @@
       if (!customQueue.length) return null;
       let pos;
       if (repeatEnabled) pos = customQueueIndex;
-      else if (shuffleEnabled) pos = Math.floor(Math.random() * customQueue.length);
+      else if (shuffleEnabled) pos = randomIndexExcept(customQueue.length, customQueueIndex);
       else { pos = customQueueIndex + 1; if (pos >= customQueue.length) pos = 0; }
       const entry = customQueue[pos];
       if (!entry) return null;
@@ -5694,7 +5739,7 @@
     if (!playlist.length) return null;
     let pos;
     if (repeatEnabled) pos = currentTrackIndex;
-    else if (shuffleEnabled) pos = Math.floor(Math.random() * playlist.length);
+    else if (shuffleEnabled) pos = randomIndexExcept(playlist.length, currentTrackIndex);
     else { pos = currentTrackIndex + 1; if (pos >= playlist.length || pos < 0) pos = 0; }
     const track = playlist[pos];
     if (!track) return null;
@@ -5746,7 +5791,7 @@
     }
 
     const targetTrackRef = target.kind === 'queue'
-      ? getTrackByRef(target.playlist, target.index)
+      ? getTrackByRef(target.playlist, findTrackIndexByRef(target.playlist, target.index, target.title, target.src))
       : getTrackByRef(currentPlaylistKey, target.pos);
     setTrackTitle(target.title, isTrackNew(targetTrackRef));
     document.getElementById('track-time').innerText = "00:00 / 00:00";
@@ -5814,7 +5859,7 @@
   function loadStats() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(STATS_KEY) || 'null'); } catch (e) { /* ignore */ }
-    if (!s || typeof s !== 'object') {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) {
       s = {
         totalListenSeconds: 0,
         totalTracksPlayed: 0,
@@ -6068,6 +6113,7 @@
   function addToHistory(track, playlistKey, explicitIndex) {
     try {
       let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      if (!Array.isArray(history)) history = [];
       const trackIndex = typeof explicitIndex === 'number'
         ? explicitIndex
         : (tracks[playlistKey] ? tracks[playlistKey].indexOf(track) : -1);
@@ -6106,6 +6152,7 @@
     const emptyNote = document.getElementById('history-empty-note');
     let history = [];
     try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (e) { /* ignore */ }
+    history = Array.isArray(history) ? history.filter(h => h && typeof h === 'object') : [];
 
     listEl.innerHTML = '';
     if (!history.length) {
@@ -6121,22 +6168,23 @@
       nameSpan.className = 'history-name';
       nameSpan.innerText = displayTrackTitle(entry.title);
       nameSpan.title = 'Tap to play now';
-      nameSpan.onclick = () => playFromHistory(entry.playlist, entry.index);
+      nameSpan.onclick = () => playFromHistory(entry.playlist, entry.index, entry.title);
       setupHoverMarquee(nameSpan);
 
       const metaSpan = document.createElement('span');
       metaSpan.className = 'history-meta';
       metaSpan.innerText = `${friendlyPlaylistLabel(entry.playlist)} · ${formatHistoryTime(entry.time)}`;
-      metaSpan.onclick = () => playFromHistory(entry.playlist, entry.index);
+      metaSpan.onclick = () => playFromHistory(entry.playlist, entry.index, entry.title);
 
       const addBtn = document.createElement('button');
       addBtn.className = 'icon-btn';
       addBtn.title = 'Add to My Playlist';
       addBtn.innerText = '+';
-      addBtn.disabled = entry.index < 0;
+      const histTrackIdx = findTrackIndexByRef(entry.playlist, entry.index, entry.title);
+      addBtn.disabled = histTrackIdx < 0;
       addBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        addToCustomQueue(entry.playlist, entry.index);
+        addToCustomQueue(entry.playlist, histTrackIdx);
       });
 
       li.appendChild(nameSpan);
@@ -6146,7 +6194,8 @@
     });
   }
 
-  function playFromHistory(playlistKey, index) {
+  function playFromHistory(playlistKey, index, title) {
+    index = findTrackIndexByRef(playlistKey, index, title);
     if (!tracks[playlistKey] || index < 0 || !tracks[playlistKey][index]) return;
     if (playlistKey !== currentPlaylistKey) {
       const btn = Array.from(document.querySelectorAll('.btn-atmos'))
@@ -6190,6 +6239,7 @@
   window.exportHistory = function() {
     let history = [];
     try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (e) { /* ignore */ }
+    history = Array.isArray(history) ? history.filter(h => h && typeof h === 'object') : [];
     if (!history.length) { alert('No history to export yet.'); return; }
     const now = new Date();
     const lines = [
@@ -6216,7 +6266,12 @@
   function loadCustomQueue() {
     try {
       const saved = localStorage.getItem(QUEUE_KEY);
-      if (saved) customQueue = JSON.parse(saved) || [];
+      if (saved) {
+        const parsedQueue = JSON.parse(saved);
+        customQueue = Array.isArray(parsedQueue)
+          ? parsedQueue.filter(e => e && typeof e === 'object' && typeof e.title === 'string' && typeof e.src === 'string')
+          : [];
+      }
     } catch (e) { customQueue = []; }
   }
 
@@ -6263,7 +6318,16 @@
 
   // Whether a given track (by playlist + index) is currently part of MY PLAYLIST
   function isTrackInCustomQueue(playlistKey, index) {
-    return customQueue.some(e => e.playlist === playlistKey && e.index === index);
+    return customQueue.some(e => queueEntryMatchesTrack(e, playlistKey, index));
+  }
+
+  // review 09/2026: SYNTHLUCIDA skladby se porovnávají podle adresy souboru, aby ♥ zůstalo
+  // u správné skladby, i když se pořadí v seznamu posune (nová skladba doprostřed).
+  function queueEntryMatchesTrack(e, playlistKey, index) {
+    if (!e || e.playlist !== playlistKey) return false;
+    const t = tracks[playlistKey] && tracks[playlistKey][index];
+    if (t && e.src && typeof t.src === 'string' && t.src.indexOf('https://') === 0) return e.src === t.src;
+    return e.index === index;
   }
 
   // Re-paints the ♥/♡ icons in the currently visible main playlist without a full re-render,
@@ -6283,7 +6347,7 @@
   // The liked state persists across sessions because MY PLAYLIST itself is saved to localStorage.
   window.toggleTrackLike = function(playlistKey, index) {
     if (!tracks[playlistKey] || !tracks[playlistKey][index]) return;
-    const pos = customQueue.findIndex(e => e.playlist === playlistKey && e.index === index);
+    const pos = customQueue.findIndex(e => queueEntryMatchesTrack(e, playlistKey, index));
     let liked;
     if (pos >= 0) {
       customQueue.splice(pos, 1);
@@ -6421,7 +6485,7 @@
 
     showLoading();
     audio.src = entry.src;
-    setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, entry.index)));
+    setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, findTrackIndexByRef(entry.playlist, entry.index, entry.title, entry.src))));
     document.getElementById('track-time').innerText = "00:00 / 00:00";
     progressBar.style.width = "0%";
     audio.volume = parseFloat(volumeSlider.value);
@@ -6580,6 +6644,7 @@
       localStorage.setItem('synthlucida_last_track', JSON.stringify({
         playlist: currentPlaylistKey,
         index: currentTrackIndex,
+        title: (playlist[currentTrackIndex] && playlist[currentTrackIndex].title) || null,
         time: audio.currentTime || 0
       }));
     } catch (e) { /* ignore */ }
@@ -6604,15 +6669,24 @@
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
+      // review 09/2026: zastavit i rozjíždějící se další skladbu (prolnutí) - jinak po
+      // pauze v posledních sekundách skladby hudba sama pokračovala další skladbou
+      cancelCrossfade();
       audio.pause();
       isPlaying = false;
       playBtn.innerText = "▶";
     } else {
-      if (currentTrackIndex === -1) {
+      if (currentTrackIndex === -1 && !(customQueueActive && customQueue[customQueueIndex])) {
           playNextTrack();
+      } else if (audio.error) {
+        // skladba se předtím nenačetla (např. start appky bez internetu) - načíst znovu
+        if (customQueueActive && customQueue[customQueueIndex]) playCustomQueueAt(customQueueIndex);
+        else if (playlist[currentTrackIndex]) playTrack(currentTrackIndex);
+        else playNextTrack();
       } else {
         audio.volume = parseFloat(volumeSlider.value);
-        audio.play();
+        const resumePromise = audio.play();
+        if (resumePromise !== undefined) resumePromise.catch(() => {});
         isPlaying = true;
         playBtn.innerText = "⏸";
       }
@@ -6670,6 +6744,7 @@
       if (timeRemaining <= 0) {
         cancelTimer();
         if (isPlaying) {
+          cancelCrossfade(); // review 09/2026: časovač musí zastavit i právě prolínanou další skladbu
           audio.pause();
           isPlaying = false;
           playBtn.innerText = "▶";
@@ -6702,13 +6777,14 @@
         const existing = localStorage.getItem('synthlucida_settings');
         if (existing) settings = JSON.parse(existing);
     } catch (e) { settings = {}; }
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) settings = {};
     settings.theme = currentVisualTheme;
     settings.weather = weatherMode;
     settings.sunset = sunsetMode;
     settings.crossfade = crossfadeDuration;
     settings.logoGlowEnabled = logoGlowEnabled;
     settings.sparkleState = sparkleState;
-    localStorage.setItem('synthlucida_settings', JSON.stringify(settings));
+    try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
     
     // Malý vizuální feedback
     let btn = document.querySelector('button[onclick="saveSettings()"]');
@@ -6867,9 +6943,10 @@
             const savedTrack = localStorage.getItem('synthlucida_last_track');
             if (!savedTrack) return;
             const info = JSON.parse(savedTrack);
-            if (info && info.playlist === playlistKey && tracks[info.playlist] && tracks[info.playlist][info.index]) {
-                currentTrackIndex = info.index;
-                const track = tracks[info.playlist][info.index];
+            const restoredIndex = info ? findTrackIndexByRef(info.playlist, info.index, info.title, null, true) : -1;
+            if (info && info.playlist === playlistKey && restoredIndex >= 0) {
+                currentTrackIndex = restoredIndex;
+                const track = tracks[info.playlist][restoredIndex];
                 setTrackTitle(track.title, isTrackNew(track));
                 audio.src = track.src;
                 audio.addEventListener('loadedmetadata', function restoreLastTime() {
@@ -7135,6 +7212,8 @@
   let currentCommunityMsgId = null;
   let communityDisplayTimeout = null;
   const reactionEmojis = ['🔥', '❤️', '🙏', '✨', '👍', '👎'];
+  // Bezpečné čtení "už jsem reagoval" - při zablokovaném úložišti dřív reakce házely chybu
+  function lsHas(key) { try { return !!localStorage.getItem(key); } catch (e) { return false; } }
 
   // Sdílená mezipaměť naposledy viděných počtů reakcí u každé zprávy - napříč
   // CELOU appkou, ne jen u zprávy zrovna zobrazené na hlavní obrazovce nebo
@@ -7282,7 +7361,7 @@
       btn.innerHTML = emoji + ' <span class="reaction-count">0</span>';
       let votedKey = null;
       try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
-      if (votedKey && localStorage.getItem(votedKey)) btn.classList.add('reacted');
+      if (votedKey && lsHas(votedKey)) btn.classList.add('reacted');
       btn.onclick = () => reactToMessage(msgId, emoji, btn, msgText);
       bar.appendChild(btn);
     });
@@ -7318,7 +7397,7 @@
     if (!communityReactionsRef) return;
     let votedKey = null;
     try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
-    if (votedKey && localStorage.getItem(votedKey)) return; // jedna reakce na emoji na zprávu na zařízení
+    if (votedKey && lsHas(votedKey)) return; // jedna reakce na emoji na zprávu na zařízení
     // Poznamená si vlastní reakci, aby si o ní za chvíli, až přijde potvrzení
     // z Firebase, appka neposlala systémovou notifikaci sama sobě.
     const suppressKey = msgId + '|' + emoji;
@@ -7341,7 +7420,9 @@
   // ==========================================
   let communityHistoryRefsToDetach = [];
 
-  function formatHistoryTime(ts) {
+  // review 09/2026: přejmenováno - stejné jméno dřív přepsalo formatHistoryTime() historie
+  // přehrávání, takže HISTORY i export ukazovaly "65h ago" místo data a času.
+  function formatCommunityTime(ts) {
     if (!ts) return '';
     const diffMin = Math.max(0, Math.round((Date.now() - ts) / 60000));
     if (diffMin < 1) return guideLang === 'cz' ? 'právě teď' : 'just now';
@@ -7463,7 +7544,7 @@
       btn.innerHTML = emoji + ' <span class="reaction-count">0</span>';
       let votedKey = null;
       try { votedKey = 'sl-reacted-' + msgId + '-' + emoji; } catch (e) {}
-      if (votedKey && localStorage.getItem(votedKey)) btn.classList.add('reacted');
+      if (votedKey && lsHas(votedKey)) btn.classList.add('reacted');
       btn.onclick = () => reactToMessage(msgId, emoji, btn, msgText);
       container.appendChild(btn);
       return btn;
@@ -7534,7 +7615,7 @@
 
         const timeEl = document.createElement('span');
         timeEl.className = 'community-history-time';
-        timeEl.textContent = formatHistoryTime(msg.ts);
+        timeEl.textContent = formatCommunityTime(msg.ts);
         meta.appendChild(timeEl);
 
         const reactionsEl = document.createElement('div');
