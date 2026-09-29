@@ -549,6 +549,19 @@
   .install-actions{ grid-column:1 / -1; display:flex; gap:8px; justify-content:flex-end; }
   .install-actions .btn{ justify-content:center; }
   @media (max-width:480px){ .install-actions .btn{ flex:1; font-size:13px; padding:11px 12px; } }
+
+  /* ---- review 09/2026 #2 ---- */
+  /* labels in the two-column rows were cut off on phones ("Tachometr …" – start and end looked the same at 320 px);
+     now they wrap and both inputs stay aligned at the bottom */
+  .field-label > span:first-child{ white-space:normal; overflow:visible; text-overflow:clip; }
+  .field-row2 > div{ display:flex; flex-direction:column; justify-content:flex-end; }
+  /* a long vehicle name without spaces ran out of the cards and under the delete buttons */
+  .card{ overflow-wrap:break-word; }
+  /* long lists (hundreds of trips after a year) scroll inside the card instead of pushing everything below far down */
+  #routesList, #serviceList{ max-height:460px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    padding-right:4px; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.25) transparent; }
+  #routesList::-webkit-scrollbar, #serviceList::-webkit-scrollbar{ width:6px; }
+  #routesList::-webkit-scrollbar-thumb, #serviceList::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.22); border-radius:6px; }
 </style>
 </head>
 <body>
@@ -1329,7 +1342,7 @@
       id: id,
       purpose: PURPOSE_LABELS[e.purpose] ? e.purpose : "sluzebni",
       date: String(e.date),
-      vehicle: (e.vehicle ? String(e.vehicle) : T.unnamed).slice(0,30),
+      vehicle: (typeof e.vehicle === "string" && e.vehicle.trim() ? e.vehicle.trim() : T.unnamed).slice(0,30),
       fromPlace: e.fromPlace ? String(e.fromPlace).slice(0,60) : "",
       toPlace: e.toPlace ? String(e.toPlace).slice(0,60) : "",
       odoStart: s,
@@ -1347,7 +1360,7 @@
       id: id,
       type: SERVICE_TYPE_LABELS[e.type] ? e.type : "jine",
       date: String(e.date),
-      vehicle: (e.vehicle ? String(e.vehicle) : T.unnamed).slice(0,30),
+      vehicle: (typeof e.vehicle === "string" && e.vehicle.trim() ? e.vehicle.trim() : T.unnamed).slice(0,30),
       odo: isFinite(odo) ? odo : null,
       price: isFinite(price) ? price : null,
       currency: CURRENCIES[e.currency] ? e.currency : "CZK",
@@ -1735,17 +1748,18 @@
     showToast(idx !== -1 ? T.changesSaved : T.saved);
   }
 
+  function isRec(x){ return !!x && typeof x === "object" && !Array.isArray(x); }
   function loadEntries(){
     try {
       var r = JSON.parse(localStorage.getItem(STORAGE_ENTRIES));
-      return Array.isArray(r) ? r : [];
+      return Array.isArray(r) ? r.filter(isRec) : [];
     } catch(e){ return []; }
   }
 
   function loadServiceEntries(){
     try {
       var r = JSON.parse(localStorage.getItem(STORAGE_SERVICE));
-      return Array.isArray(r) ? r : [];
+      return Array.isArray(r) ? r.filter(isRec) : [];
     } catch(e){ return []; }
   }
 
@@ -2024,7 +2038,7 @@
   function loadVehicleRegistry(){
     try {
       var r = JSON.parse(localStorage.getItem(STORAGE_VEHICLES));
-      return Array.isArray(r) ? r : [];
+      return Array.isArray(r) ? r.filter(function(v){ return typeof v === "string" && v.trim(); }) : [];
     } catch(e){ return []; }
   }
 
