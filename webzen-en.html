@@ -1934,7 +1934,7 @@ function renderForm(){
         <label>Image alt text (SEO + accessibility)</label>
         <input type="text" data-bind="heroImageAlt" value="${escapeAttr(state.heroImageAlt)}" placeholder="e.g. App shown on a laptop">
         <div class="note-box" style="margin-top:8px;">An uploaded file is embedded directly in the exported HTML (base64), so it works even without hosting it elsewhere. If you fill in a URL, that's used instead. Alt text helps search engines understand the image content and is shown if the image fails to load.</div>
-        ${state.heroImage ? `<img src="${state.heroImage}" style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--ui-line);">` : ''}
+        ${state.heroImage ? `<img src="${escapeAttr(state.heroImage)}" style="max-width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--ui-line);">` : ''}
       </div>
     </div>
 
@@ -3049,7 +3049,7 @@ function iconsSectionHtml(s){
   let html = `
     <div class="icon-crop-row">
       <div class="icon-crop-viewport" id="iconCropViewport">
-        <div class="icon-crop-preview" id="iconCropPreview" style="background-image:url('${s.icons.source}');transform:scale(${zoom});background-position:${s.iconsCrop.x}% ${s.iconsCrop.y}%;"></div>
+        <div class="icon-crop-preview" id="iconCropPreview" style="background-image:url('${escapeAttr(s.icons.source)}');transform:scale(${zoom});background-position:${s.iconsCrop.x}% ${s.iconsCrop.y}%;"></div>
       </div>
       <div class="icon-crop-controls">
         <label style="margin-top:0;">Zoom</label>
@@ -3064,13 +3064,13 @@ function iconsSectionHtml(s){
   if (s.icons.icon512){
     html += `
     <div class="icon-preview-row">
-      <div class="icon-preview-item"><img src="${s.favicon || s.icons.icon192}" alt=""><span>favicon</span></div>
-      <div class="icon-preview-item"><img src="${s.icons.appleTouchIcon}" alt=""><span>apple-touch</span></div>
-      <div class="icon-preview-item"><img src="${s.icons.icon192}" alt=""><span>192×192</span></div>
-      <div class="icon-preview-item"><img src="${s.icons.icon512}" alt=""><span>512×512</span></div>
+      <div class="icon-preview-item"><img src="${escapeAttr(s.favicon || s.icons.icon192)}" alt=""><span>favicon</span></div>
+      <div class="icon-preview-item"><img src="${escapeAttr(s.icons.appleTouchIcon)}" alt=""><span>apple-touch</span></div>
+      <div class="icon-preview-item"><img src="${escapeAttr(s.icons.icon192)}" alt=""><span>192×192</span></div>
+      <div class="icon-preview-item"><img src="${escapeAttr(s.icons.icon512)}" alt=""><span>512×512</span></div>
     </div>
     <label style="margin-top:14px;">Social-share image (OG, 1200×630) — generated automatically</label>
-    <img src="${s.icons.ogImage}" style="width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--ui-line);">
+    <img src="${escapeAttr(s.icons.ogImage)}" style="width:100%;border-radius:8px;margin-top:6px;border:1px solid var(--ui-line);">
     <div class="note-box" style="margin-top:8px;">Favicon, apple-touch-icon.png, ${escapeHtml(s.pwa.icon192)}, ${escapeHtml(s.pwa.icon512)} and og-image.png now download automatically together with the rest of the site through "Download entire site" — nothing to upload manually.</div>`;
   } else {
     html += `
@@ -3367,7 +3367,7 @@ function renderEshopProducts(){
       <button class="item-remove" data-remove-eshop-product="${i}">✕</button>
       <div class="row2">
         <input type="text" data-eshop-product="${i}" data-key="name" value="${escapeAttr(p.name)}" placeholder="product name">
-        <input type="text" inputmode="decimal" data-eshop-product="${i}" data-key="price" value="${p.price}" placeholder="price">
+        <input type="text" inputmode="decimal" data-eshop-product="${i}" data-key="price" value="${escapeAttr(p.price)}" placeholder="price">
       </div>
       <select data-eshop-product-type="${i}" style="margin-top:6px;">
         <option value="physical" ${p.type!=='digital'?'selected':''}>📦 Physical product (shipped)</option>
@@ -3490,6 +3490,8 @@ function eshopUnlockReady(p){
 function eshopUnlockStatusText(p){
   if (!(p.unlockCode || '').trim()) return '⚠️ Enter an unlock code — without it the download can\'t be unlocked on the site.';
   if (!eshopUnlockSource(p)) return '⚠️ Upload a file or paste a download link.';
+  // review 09/2026: krátký kód jde ze zašifrovaného obsahu ve stránce uhodnout zkoušením
+  if (eshopUnlockReady(p) && (p.unlockCode || '').trim().length < 10) return '⚠️ Encrypted, but the code is short — use at least 10 characters (letters and numbers). A short code can be guessed from the page source by trial and error.';
   if (eshopUnlockReady(p)) return '🔒 Done — the download is stored in the site encrypted with this code.';
   return '⏳ Encrypting…';
 }
@@ -3570,7 +3572,7 @@ function renderEshopShipping(){
       <button class="item-remove" data-remove-eshop-shipping="${i}">✕</button>
       <div class="row2">
         <input type="text" data-eshop-shipping="${i}" data-key="label" value="${escapeAttr(sh.label)}" placeholder="shipping method name">
-        <input type="text" inputmode="decimal" data-eshop-shipping="${i}" data-key="price" value="${sh.price}" placeholder="price">
+        <input type="text" inputmode="decimal" data-eshop-shipping="${i}" data-key="price" value="${escapeAttr(sh.price)}" placeholder="price">
       </div>
     </div>
   `).join('');
@@ -3727,7 +3729,7 @@ function buildServiceWorkerJS(s){
   const filesJs = files.map(f => '  ' + JSON.stringify(f)).join(',\n');
 
   return `// ==========================================
-// Service worker — ${s.brand}
+// Service worker — ${String(s.brand || '').replace(/[\r\n]+/g, ' ')}
 // Generated by the Layout generator.
 // IMPORTANT: increase the "Cache version" field in the generator (and
 // re-download sw.js) with EVERY new version of the site — otherwise the
@@ -4550,9 +4552,37 @@ function eshopCartScript(){
 // order summary (window.__wzOrderSummary) is read by eshopOrderFormScript()
 // on submit.
 function eshopCartPageScript(s){
+  // review 09/2026: aktuální ceník webu (jen id, název, cena, typ, varianty — žádné soubory ani kódy).
+  // Košík se podle něj při každém zobrazení srovná: dřív se bral z paměti prohlížeče, takže po
+  // změně ceny zůstávala v košíku stará cena (i smazaný produkt) a cena šla snadno přepsat.
+  const cartCatalog = {};
+  ((s.eshop && s.eshop.products) || []).forEach(p => {
+    cartCatalog[String(p.id)] = {
+      name: String(p.name || ''),
+      price: Number(p.price) || 0,
+      type: p.type === 'digital' ? 'digital' : 'physical',
+      variants: String(p.variantOptions || '').split(',').map(x => x.trim()).filter(Boolean)
+    };
+  });
   const currency = (s.eshop && s.eshop.currency) || '$';
   return `<script>(function(){
   var CURRENCY = ${jsonForScript(currency)};
+  var CATALOG = ${jsonForScript(cartCatalog)};
+  function syncCart(cart){
+    var out = [];
+    (Array.isArray(cart) ? cart : []).forEach(function(it){
+      var p = it && Object.prototype.hasOwnProperty.call(CATALOG, String(it.id)) ? CATALOG[String(it.id)] : null;
+      if (!p) return;                                   // produkt už na webu není
+      var variant = typeof it.variant === 'string' ? it.variant : '';
+      if (p.variants.length ? p.variants.indexOf(variant) === -1 : variant) return; // varianta už neexistuje
+      var qty = Math.floor(Number(it.qty));
+      if (!(qty >= 1)) qty = 1;
+      if (qty > 999) qty = 999;
+      out.push({ key: String(it.id) + '|' + variant, id: String(it.id), name: p.name, price: p.price, type: p.type, variant: variant, qty: qty });
+    });
+    if (window.wzCart && JSON.stringify(out) !== JSON.stringify(cart)) window.wzCart.write(out);
+    return out;
+  }
   function fmt(n){ var num = (Math.round(n*100)/100).toLocaleString('en-US'); return /^[^\\p{L}\\p{N}\\s]{1,3}$/u.test(CURRENCY) ? CURRENCY + num : num + '\\u00a0' + CURRENCY; }
   function esc(str){ var d = document.createElement('div'); d.textContent = str == null ? '' : String(str); return d.innerHTML; }
   function buildSummary(cart, hasPhysical, shipSel, subtotal, shipPrice, total){
@@ -4566,7 +4596,7 @@ function eshopCartPageScript(s){
     return lines.join('\\n');
   }
   function render(){
-    var cart = (window.wzCart ? window.wzCart.read() : []) || [];
+    var cart = syncCart((window.wzCart ? window.wzCart.read() : []) || []);
     var tableEl = document.getElementById('wzCartTable');
     var emptyEl = document.getElementById('wzCartEmpty');
     var totalsEl = document.getElementById('wzCartTotals');
@@ -6556,7 +6586,36 @@ function restoreAutosaveFromIdb(){
 // default object, including fields that didn't exist yet when it was saved
 // (like categories). This backfills those missing new fields after every
 // such merge, so older projects never crash on "undefined" instead of an array.
+// review 09/2026: projekt načtený ze souboru nebo ze zálohy se před použitím vyčistí.
+// Podvržený soubor projektu (např. "šablona" z internetu) dřív mohl přes barvu, písmo,
+// obrázek nebo odkaz spustit cizí kód přímo v editoru na doméně appky - a ten by pak
+// mohl číst data ostatních appek na stejné doméně.
+function sanitizeLoadedState(s){
+  const def = getDefaultState();
+  const HEX = /^#[0-9a-f]{3,8}$/i;
+  ['accent','glow','bg1','bg2'].forEach(k => { if (!HEX.test(String(s[k] ?? '').trim())) s[k] = def[k]; });
+  ['fontBody','fontDisplay'].forEach(k => {
+    s[k] = (typeof s[k] === 'string') ? s[k].replace(/[<>{};\\\r\n]/g, '') : def[k];
+    if (!s[k].trim()) s[k] = def[k];
+  });
+  const num = (v, d) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
+  if (!s.iconsCrop || typeof s.iconsCrop !== 'object') s.iconsCrop = def.iconsCrop;
+  else ['x','y','zoom'].forEach(k => { s.iconsCrop[k] = num(s.iconsCrop[k], def.iconsCrop[k]); });
+  // odkazy typu javascript:/vbscript: by se po kliknutí spustily jako kód
+  (function walk(o, depth){
+    if (!o || typeof o !== 'object' || depth > 12) return;
+    Object.keys(o).forEach(k => {
+      const v = o[k];
+      if (typeof v === 'string'){
+        if (/url|href|link/i.test(k) && /^[\s\u0000-\u001f]*(javascript|vbscript)\s*:/i.test(v)) o[k] = '#';
+      } else if (v && typeof v === 'object') walk(v, depth + 1);
+    });
+  })(s, 0);
+  return s;
+}
+
 function normalizeLoadedState(s){
+  sanitizeLoadedState(s);
   if (s.eshop) {
     if (!s.eshop.categories) s.eshop.categories = [];
     (s.eshop.products || []).forEach(p => { if (p.categoryIndex == null) p.categoryIndex = -1; });
@@ -6621,10 +6680,17 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
+    const stateBeforeLoad = state;
     try{
       const parsed = JSON.parse(reader.result);
       const loadedState = parsed && parsed.state ? parsed.state : parsed;
       if (!loadedState || typeof loadedState !== 'object') throw new Error('Invalid file format');
+      // review 09/2026: vlastní kód z cizího projektu se spustí v náhledu přímo na doméně appky - nejdřív se zeptáme
+      const cc = loadedState.customCode;
+      if (cc && typeof cc === 'object' && ['headHtml','bodyEndHtml','css'].some(k => typeof cc[k] === 'string' && cc[k].trim())
+          && !confirm('This project contains custom code (HTML/JavaScript/CSS). It runs in the preview and on the finished website — only load it from a source you trust.\n\nOK = load it including the custom code\nCancel = load the project without the custom code')) {
+        loadedState.customCode = { headHtml: '', css: '', bodyEndHtml: '' };
+      }
       state = normalizeLoadedState(Object.assign({}, state, loadedState));
       previewSectionIndex = null;
       updatePreviewIndicator();
@@ -6635,6 +6701,9 @@ document.getElementById('loadProjectFile').addEventListener('change', (e) => {
     }catch(err){
       alert('Failed to load the file — check that it\'s a .json export from this generator.');
       console.warn('Failed to load project:', err);
+      // review 09/2026: poškozený soubor nenechá editor napůl načtený - vrátí se předchozí stav
+      state = stateBeforeLoad;
+      try { renderForm(); updatePreview(); } catch (e2) { /* ignore */ }
     }
   };
   reader.readAsText(file);
