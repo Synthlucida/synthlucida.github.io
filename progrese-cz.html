@@ -2076,12 +2076,16 @@ function updateShareUrl(){
   history.replaceState(null, '', url);
 }
 
+function hasOption(sel, value){
+  return Array.prototype.some.call(sel.options, o => o.value === value);
+}
+
 function tryLoadFromShareUrl(){
   const params = new URLSearchParams(window.location.search);
   if(!params.has('r') || !params.has('v')) return false;
   const rootIdx = parseInt(params.get('r'),10);
   const vibeKey = params.get('v');
-  if(!(vibeKey in VIBES) || isNaN(rootIdx) || rootIdx<0 || rootIdx>11) return false;
+  if(!Object.prototype.hasOwnProperty.call(VIBES, vibeKey) || isNaN(rootIdx) || rootIdx<0 || rootIdx>11) return false;
   const seeds = {
     prog: parseInt(params.get('sp'),36),
     melody: parseInt(params.get('sm'),36),
@@ -2102,14 +2106,15 @@ function tryLoadFromShareUrl(){
     const active = b.dataset.key === vibeKey;
     b.classList.toggle('active', active);
   });
-  if(melodyStyleSelect.querySelector(`option[value="${ms}"]`)) melodyStyleSelect.value = ms;
-  if(bassStyleSelect.querySelector(`option[value="${bs}"]`)) bassStyleSelect.value = bs;
-  if(arpStyleSelect.querySelector(`option[value="${as}"]`)) arpStyleSelect.value = as;
-  if(drumStyleSelect.querySelector(`option[value="${ds}"]`)) drumStyleSelect.value = ds;
-  if(!isNaN(t) && t>=55 && t<=150){ tempoSlider.value = t; tempoVal.textContent = t + ' BPM'; }
+  if(hasOption(melodyStyleSelect, ms)) melodyStyleSelect.value = ms;
+  if(hasOption(bassStyleSelect, bs)) bassStyleSelect.value = bs;
+  if(hasOption(arpStyleSelect, as)) arpStyleSelect.value = as;
+  if(hasOption(drumStyleSelect, ds)) drumStyleSelect.value = ds;
+  const tempoOk = !isNaN(t) && t>=55 && t<=150;
+  if(tempoOk){ tempoSlider.value = t; tempoVal.textContent = t + ' BPM'; }
 
   current = generateProgression(rootIdx, vibeKey, melodyStyleSelect.value, bassStyleSelect.value, arpStyleSelect.value, drumStyleSelect.value, seeds);
-  if(!isNaN(t)) current.tempo = t;
+  current.tempo = tempoOk ? t : (parseInt(tempoSlider.value,10) || current.tempo);
   const pv = parseInt(params.get('p'),10);
   if(!isNaN(pv) && pv >= -12 && pv <= 12){
     pitchSlider.value = pv;
