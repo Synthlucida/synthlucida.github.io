@@ -416,6 +416,13 @@
   .result-notes li b{ font-family:'JetBrains Mono', monospace; font-weight:500; }
   .route-chip > div{ min-width:0; }
   .route-chip .rc-name{ overflow-wrap:anywhere; }
+  /* ---- banner: kalkulačka není aktualizovaná na aktuální rok ---- */
+  .year-banner{ display:flex; gap:10px; align-items:flex-start; margin:0 0 16px; padding:13px 14px; border-radius:16px;
+    border:1px solid rgba(251,191,36,0.45); background:rgba(251,191,36,0.09); color:#fde7c7; font-size:12.5px; line-height:1.55; }
+  .year-banner[hidden]{ display:none; }
+  .year-banner svg{ width:18px; height:18px; flex-shrink:0; margin-top:1px; color:#fbbf24; }
+  .year-banner p{ margin:0; }
+  .year-banner b{ font-weight:600; color:#fff; }
   /* ---- relaxplayer promo ---- */
   .promo-card{ text-align:center; background:linear-gradient(135deg, rgba(124,58,237,0.16), rgba(255,255,255,0.03)); border-color:rgba(124,58,237,0.35); }
   .promo-icon{ font-size:30px; line-height:1; margin-bottom:8px; }
@@ -487,6 +494,11 @@
     </div>
     <h1 class="sr-only">SYNTHLUCIDA VÝPLATA – kalkulačka čisté mzdy a kontrola výplatní pásky zdarma</h1>
   </header>
+
+  <div class="year-banner" id="yearBanner" role="alert" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <p id="yearBannerText"></p>
+  </div>
 
   <section class="card" aria-label="Vstupní údaje o mzdě">
     <h2>Zadej mzdu</h2>
@@ -740,6 +752,10 @@
 
   var STORAGE_SAVED = "vyplata_saved_v1";
   var STORAGE_STATE = "vyplata_state_v1";
+
+  /* ---- rok, pro který jsou níže uvedené parametry platné ----
+     Po aktualizaci sazeb a slev na nový rok přepiš CALC_YEAR – banner „není aktualizováno“ pak zmizí. */
+  var CALC_YEAR = 2026;
 
   /* ---- parametry 2026 ---- */
   var PRUMERNA_MZDA_2026 = 48967;
@@ -1173,7 +1189,23 @@
     els.ztp.checked = !!s.ztp;
   }
 
+  // Od 1. 1. roku následujícího po CALC_YEAR upozorní, že kalkulačka ještě nebyla aktualizována.
+  function checkYearBanner(){
+    var box = document.getElementById("yearBanner");
+    var txt = document.getElementById("yearBannerText");
+    if(!box || !txt) return;
+    var now = new Date().getFullYear();
+    if(now > CALC_YEAR){
+      txt.innerHTML = "<b>Kalkulačka zatím není aktualizovaná na rok " + now + ".</b> Počítá podle pravidel roku " + CALC_YEAR
+        + " – sazby pojistného, slevy na dani i limity se mohly změnit, takže výsledek nemusí odpovídat skutečnosti. Aktualizaci připravujeme.";
+      box.hidden = false;
+    } else {
+      box.hidden = true;
+    }
+  }
+
   function init(){
+    checkYearBanner();
     restoreState();
     renderSaved();
     calc();
