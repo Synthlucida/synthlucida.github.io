@@ -844,6 +844,12 @@
     var v = old.replace(/[\s ]/g,"").replace(",", ".");
     v = v.replace(/[^0-9.]/g, "");
     var firstDot = v.indexOf(".");
+    /* review 09/2026: horní mez – nejvýš 8 číslic před tečkou (jinak vyšel výsledek typu „65 400 000 000 000 000 000 000 Kč“) */
+    var intPart = firstDot === -1 ? v : v.slice(0, firstDot);
+    if(intPart.length > 8){
+      v = intPart.slice(0, 8) + (firstDot === -1 ? "" : v.slice(firstDot));
+      firstDot = v.indexOf(".");
+    }
     if(firstDot !== -1){
       v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "").slice(0, 2);
     }
@@ -934,7 +940,7 @@
     // celkové slevy = o kolik se snížila daň oproti záloze před slevami (vč. vyplaceného bonusu)
     var totalSlevy = danPred - danPo + bonus;
 
-    var net = gross - sp - zp - danPo + bonus;
+    var net = Math.max(0, gross - sp - zp - danPo + bonus); /* review 09/2026: u mzdy 1–2 Kč nesmí vyjít mínus */
     var spEmployer = ceilKc(gross * 0.248);
     var zpEmployer = zpTotal - zp;
     var cenaPrace = gross + spEmployer + zpEmployer;
@@ -1085,18 +1091,19 @@
       invalidita: lastCalc.invalidita,
       ztp: lastCalc.ztp
     });
-    if(saved.length > MAX_SAVED) saved = saved.slice(0, MAX_SAVED);
+    var dropped = saved.length > MAX_SAVED;
+    if(dropped) saved = saved.slice(0, MAX_SAVED);
     if(!saveToStorage(STORAGE_SAVED, saved)) return;
     els.calcName.value = "";
     els.saveRow.style.display = "none";
     renderSaved();
-    showToast("Výpočet uložen");
+    showToast(dropped ? "Výpočet uložen – limit je " + MAX_SAVED + ", nejstarší se odstranil" : "Výpočet uložen");
   }
 
   function loadSaved(){
     try {
       var r = JSON.parse(localStorage.getItem(STORAGE_SAVED));
-      return Array.isArray(r) ? r.filter(function(x){ return x && typeof x === "object" && +x.gross > 0; }) : [];
+      return Array.isArray(r) ? r.filter(function(x){ return x && typeof x === "object" && +x.gross > 0 && +x.gross < 1e9; }) : [];
     } catch(e){ return []; }
   }
 
@@ -1126,7 +1133,7 @@
     var rid = chip.getAttribute("data-id");
     var r = loadSaved().filter(function(x){ return String(x.id) === String(rid); })[0];
     if(!r) return;
-    els.gross.value = r.gross;
+    els.gross.value = String(Math.round(+r.gross * 100) / 100); /* review 09/2026: bez „1e3“ / „1e+21“ v poli */
     els.poplatnik.checked = r.poplatnik !== false;
     els.children.value = Math.max(0, Math.min(MAX_CHILDREN, parseInt(r.children, 10) || 0));
     setInvalidita(r.invalidita);
