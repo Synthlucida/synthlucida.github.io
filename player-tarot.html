@@ -785,6 +785,11 @@
     }
     .reflect-block::before, .reflect-block.reveal::before { animation: none !important; transform: none !important; }
   }
+
+/* ---- review 09/2026 #3: dlouhá slova v názvech karet na stole (SPRAVEDLNOST, CONSTELLATION, HIEROPHANT…)
+        se lámala uprostřed slova; karta je o něco širší a název o půl bodu menší ---- */
+.history-card { width: 96px; }
+.history-name { font-size: 8.5px; letter-spacing: 0; }
 </style>
 <script>
 /* ===== Orbitron CZ — česká písmena pro Orbitron =====
@@ -1317,7 +1322,11 @@
     if (!Array.isArray(list)) list = [];
     var now = Date.now();
     var pruned = list.filter(function (entry) {
-      return entry && typeof entry.ts === 'number' && typeof entry.en === 'string' && (now - entry.ts) < HISTORY_MS;
+      return entry && typeof entry === 'object' && typeof entry.ts === 'number' &&
+             typeof entry.en === 'string' && typeof entry.cz === 'string' &&
+             (entry.meaningEn == null || typeof entry.meaningEn === 'string') &&
+             (entry.meaningCz == null || typeof entry.meaningCz === 'string') &&
+             (now - entry.ts) < HISTORY_MS;
     });
     if (pruned.length !== list.length) saveHistory(pruned);
     return pruned;
