@@ -5423,6 +5423,18 @@
   // EXPORT DO TXT (My Playlist i historie)
   // Sdílené pomocné funkce pro uložení seznamu skladeb jako .txt souboru do zařízení.
   // ==========================================
+  // review 10/2026: kontrola adresy skladby (ochrana před podvrženým JSON importem - např. javascript: URL).
+  // Vestavěné skladby leží v GitHub releasu; blob: je povolen jen pro stažení vlastních nahraných souborů.
+  const TRACK_SRC_PREFIX = 'https://github.com/Synthlucida/synthlucida.github.io/releases/download/';
+  const QUEUE_IMPORT_MAX = 500;
+  const QUEUE_IMPORT_MAX_BYTES = 1024 * 1024;
+  function isSafeTrackSrc(src) {
+    return typeof src === 'string' && src.length <= 500 && src.startsWith(TRACK_SRC_PREFIX);
+  }
+  function isSafeDownloadSrc(src) {
+    return isSafeTrackSrc(src) || (typeof src === 'string' && src.startsWith('blob:'));
+  }
+
   function downloadTextFile(filename, text, mime) {
     try {
       const blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
@@ -5445,6 +5457,10 @@
   // Pokud fetch selže (např. offline nebo CORS), otevře se alespoň přímý odkaz.
   // ==========================================
   window.downloadTrackFile = async function(src, title) {
+    if (!isSafeDownloadSrc(src)) {
+      showToast(guideLang === 'cz' ? 'Neplatná adresa skladby' : 'Invalid track address', '⚠');
+      return;
+    }
     const safeName = (title || 'synthlucida-track').replace(/[\\/:*?"<>|]+/g, '').trim() || 'synthlucida-track';
     try {
       showToast(guideLang === 'cz' ? 'Stahuji…' : 'Downloading…', '⬇');
@@ -5461,7 +5477,7 @@
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       showToast(guideLang === 'cz' ? 'Staženo' : 'Downloaded', '✓');
     } catch (e) {
-      window.open(src, '_blank');
+      window.open(src, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -6001,7 +6017,7 @@
   // Jednou zaplacená (stažená) skladba zůstává natrvalo odemčená a nezabírá už
   // žádný další "slot" v utratitelném zůstatku.
   function isDownloadUnlockedKey(s, key) {
-    return !!(s.unlockedDownloads && s.unlockedDownloads[key]);
+    return !!(s.unlockedDownloads && Object.prototype.hasOwnProperty.call(s.unlockedDownloads, key) && s.unlockedDownloads[key]);
   }
 
   // Odečte XP za odemčení stažení konkrétní skladby (jen pokud ještě nebyla zaplacená)
@@ -6488,6 +6504,10 @@
   window.importCustomQueueFile = function(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
+    if (file.size > QUEUE_IMPORT_MAX_BYTES) {
+      alert('This playlist file is too large.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -6497,7 +6517,7 @@
           alert('This file does not contain a valid playlist.');
           return;
         }
-        const valid = importedTracks.filter(t => t && typeof t.title === 'string' && typeof t.src === 'string' && typeof t.playlist === 'string' && typeof t.index === 'number');
+        const valid = importedTracks.filter(t => t && typeof t.title === 'string' && t.title.length <= 200 && typeof t.src === 'string' && isSafeTrackSrc(t.src) && typeof t.playlist === 'string' && t.playlist.length <= 100 && typeof t.index === 'number').slice(0, QUEUE_IMPORT_MAX);
         if (!valid.length) {
           alert('This file does not contain a valid playlist.');
           return;
