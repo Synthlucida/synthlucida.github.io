@@ -4457,6 +4457,56 @@
     updateOfflineStatus();
   }
 
+  // MP3 z GitHubu se kvůli chybějící CORS hlavičce ukládají jako "opaque" odpovědi,
+  // u kterých nejde zjistit status. Když GitHub při stahování vrátí chybu (404/429/5xx),
+  // může se do cache uložit chybová stránka místo skladby. Proto po stažení ověříme,
+  // že uložený soubor je opravdu přehratelné audio (stejnou cestou jako běžné přehrávání).
+  // Vrací 'ok' | 'bad' | 'unknown'. 'bad' jen u jasně nepřehratelného souboru - při
+  // timeoutu nebo síťové chybě vrací 'unknown', aby se nikdy nesmazala dobrá skladba.
+  // Safari / iPhone: SW tam posílá hudbu online rovnou ze sítě, takže by kontrola
+  // netestovala uloženou kopii (a mohla by smazat dobrou skladbu při výpadku GitHubu).
+  // Na Applu se proto kontrola přeskakuje - stahování se tam chová jako dřív.
+  const IS_APPLE_WEBKIT = (() => {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/.test(ua) ||
+      (/AppleWebKit/.test(ua) && /Safari/.test(ua) && !/(Chrome|Chromium|CriOS|Edg|OPR|Android)/.test(ua));
+  })();
+
+  function probeTrackPlayable(url, timeoutMs) {
+    timeoutMs = timeoutMs || 15000;
+    if (IS_APPLE_WEBKIT) return Promise.resolve('unknown');
+    return new Promise((resolve) => {
+      const probe = new Audio();
+      probe.preload = 'metadata';
+      let finished = false;
+      const finish = (verdict) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        try { probe.removeAttribute('src'); probe.load(); } catch (e) { /* ignore */ }
+        resolve(verdict);
+      };
+      const timer = setTimeout(() => finish('unknown'), timeoutMs);
+      probe.addEventListener('loadedmetadata', () => {
+        const d = probe.duration;
+        finish(isFinite(d) && d < 1 ? 'bad' : 'ok');
+      });
+      probe.addEventListener('error', () => {
+        const code = probe.error ? probe.error.code : 0;
+        // 3 = DECODE, 4 = SRC_NOT_SUPPORTED (např. HTML místo MP3); 2 = NETWORK není důkaz poškození
+        finish(code === 3 || code === 4 ? 'bad' : 'unknown');
+      });
+      probe.src = url;
+    });
+  }
+
+  async function removeTrackFromAudioCache(url) {
+    try {
+      const cache = await caches.open(AUDIO_CACHE_NAME);
+      await cache.delete(url);
+    } catch (e) { /* ignore */ }
+  }
+
   window.downloadCurrentPlaylist = async function() {
     const btn = document.getElementById('btn-download');
     const progWrap = document.getElementById('download-progress-wrap');
@@ -4477,38 +4527,57 @@
     // než to označí za problém (viz bulkDownloadInProgress u net-status-badge).
     bulkDownloadInProgress = true;
 
+    let failedCount = 0;
+
     for (let i = 0; i < playlist.length; i++) {
       const track = playlist[i];
       btn.innerText = `DOWNLOADING ${Math.round((i / playlist.length) * 100)}%`;
+      let trackOk = false;
 
       try {
-        const already = await isTrackCached(track.src);
-        if (!already) {
-          // Tyto MP3 soubory jsou hostované na GitHubu (releases), který u nich
-          // NEPOSÍLÁ hlavičku Access-Control-Allow-Origin. Obyčejný fetch() v
-          // režimu 'cors' (výchozí) proto pro každou zatím nestaženou skladbu
-          // rovnou SELHAL (CORS chyba) - tiše skončil dole v catch bloku, ale
-          // progress bar přesto naskočil na další skladbu, jako by bylo
-          // hotovo. Mode 'no-cors' je přesně to, co bez problémů používá i
-          // přehrávání přes <audio> tag, takže funguje spolehlivě i tady.
-          // Service Worker (sw.js) navíc teď čeká, než je soubor opravdu
-          // celý uložený v Cache Storage, než tuto odpověď vrátí.
-          await fetch(track.src, { mode: 'no-cors' });
+        // Až 3 pokusy: pokus se opakuje jen tehdy, když uložený soubor NENÍ přehratelný
+        // (typicky chybová stránka z GitHubu). Už stažená skladba se také ověří, takže
+        // se tím vyléčí i dřív poškozené položky v cache.
+        for (let attempt = 1; attempt <= 3 && !trackOk; attempt++) {
+          const already = await isTrackCached(track.src);
+          if (!already) {
+            // Tyto MP3 soubory jsou hostované na GitHubu (releases), který u nich
+            // NEPOSÍLÁ hlavičku Access-Control-Allow-Origin. Obyčejný fetch() v
+            // režimu 'cors' (výchozí) proto pro každou zatím nestaženou skladbu
+            // rovnou SELHAL (CORS chyba) - tiše skončil dole v catch bloku, ale
+            // progress bar přesto naskočil na další skladbu, jako by bylo
+            // hotovo. Mode 'no-cors' je přesně to, co bez problémů používá i
+            // přehrávání přes <audio> tag, takže funguje spolehlivě i tady.
+            // Service Worker (sw.js) navíc teď čeká, než je soubor opravdu
+            // celý uložený v Cache Storage, než tuto odpověď vrátí.
+            await fetch(track.src, { mode: 'no-cors' });
+          }
+          // Ověříme si přímo v cache, jestli je skladba doopravdy stažená,
+          // místo abychom to jen předpokládali - badge/status tak vždy
+          // odpovídá realitě.
+          const nowCached = await isTrackCached(track.src);
+          if (!nowCached) {
+            console.log('Track still not cached after download attempt:', track.title);
+            break; // nejde o poškozený soubor (např. SW zatím nepřebírá kontrolu) - další pokus by jen zbytečně stahoval znovu
+          }
+          // Opaque odpověď nejde zkontrolovat podle statusu, takže ověříme obsah.
+          const verdict = await probeTrackPlayable(track.src);
+          if (verdict === 'bad') {
+            console.log(`Cached file is not playable (attempt ${attempt}/3), removing:`, track.title);
+            await removeTrackFromAudioCache(track.src);
+            if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt));
+            continue;
+          }
+          trackOk = true; // 'ok', nebo 'unknown' (ověření se nepovedlo - raději nic nemažeme)
         }
-        // Ověříme si přímo v cache, jestli je skladba doopravdy stažená,
-        // místo abychom to jen předpokládali - badge/status tak vždy
-        // odpovídá realitě.
-        const nowCached = await isTrackCached(track.src);
-        if (nowCached) {
-          const badge = document.getElementById(`offline-badge-${i}`);
-          if (badge) badge.innerText = '✓ OFFLINE';
-        } else {
-          console.log('Track still not cached after download attempt:', track.title);
-        }
+
+        const badge = document.getElementById(`offline-badge-${i}`);
+        if (badge) badge.innerText = trackOk ? '✓ OFFLINE' : '';
         updateOfflineStatus();
       } catch (e) {
         console.log('Failed to download:', track.title, e);
       } finally {
+        if (!trackOk) failedCount++;
         const pct = Math.round(((i + 1) / playlist.length) * 100);
         progBar.style.width = `${pct}%`;
         btn.innerText = `DOWNLOADING ${pct}%`;
@@ -4516,7 +4585,7 @@
     }
 
     bulkDownloadInProgress = false;
-    btn.innerText = '✓ DONE';
+    btn.innerText = failedCount > 0 ? `⚠ ${failedCount} FAILED - TRY AGAIN` : '✓ DONE';
     updateOfflineStatus();
     setTimeout(() => {
       btn.innerText = originalText;
