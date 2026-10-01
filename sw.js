@@ -51,9 +51,20 @@
 // scope "./player", takže tarot teď patří do nainstalované aplikace).
 // player-tarot.html přidán do offline seznamu; tarot.html v něm zůstává,
 // je to už jen malé přesměrování pro staré odkazy.
+// v40 - vyloučeny i hub (hub.html), DZMASTER (dzmaster*, vč. landingů) a
+// ŠNEKOMETR (snekometr*), ať je master SW nezachytává ani necachuje.
+// Seznam vyloučených appek je nově ukotvený na ZAČÁTEK cesty (vzhledem ke
+// scope SW) - dřív stačilo, aby se název objevil kdekoli v cestě. Cache
+// zvýšena na v1038, aby se z ní smazaly už uložené soubory těchto appek.
+// v41 - app shell se cachuje JEN pro soubory ze seznamu ASSETS_TO_CACHE (bílá
+// listina). Cokoli jiného - jiné stránky webu, jiné appky, cizí servery
+// (Google Fonts, Firebase SDK, …) - jde rovnou na síť a SW to vůbec nezachytává.
+// Výjimka: MP3 skladby (audio cache pro DOWNLOAD OFFLINE), ty se řeší zvlášť.
+// Cache klíč bere jen cestu bez ?parametrů, ať cache neroste kvůli ?fbclid apod.
+// Cache zvýšena na v1039, aby se smazaly dříve uložené soubory mimo seznam.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1037';
+const APP_CACHE_NAME = 'synthlucida-app-v1040';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -124,15 +135,37 @@ self.addEventListener('activate', (event) => {
 // nemá vůbec řešit. Shoduje se se začátkem názvu souboru, takže pokrývá i jejich
 // landingy, zásady, manifesty a obrázky (tripcost-landing.html, michani-liquidu-og.png...).
 // "landing_" pokrývá všechny landingy pojmenované landing_něco.html.
-const EXCLUDED_APPS = /\/(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|e-liquid-mixing-calculator|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|delnas-en|seochecker|seochecker-en|landing_|xtally-landing|relax-landing)/i;
+const EXCLUDED_APPS = /^(weather|progrese|denik-vozidla|tripcost|webzen|vyplata|michani-liquidu|e-liquid-mixing-calculator|vodovaha|vodovaha-en|vapetrack|vapetrack-en|pohadkovnik|delnas|delnas-en|seochecker|seochecker-en|landing_|xtally-landing|relax-landing|hub\.html|dzmaster|snekometr)/i;
+
+// Cesta se porovnává vzhledem ke scope SW (u synthlucida.com kořen "/"), takže
+// "/weather.html" -> "weather.html". Shoduje se jen začátek cesty, ne cokoli uvnitř.
+function isExcludedApp(pathname) {
+  const base = new URL(self.registration.scope).pathname;
+  const rel = pathname.startsWith(base) ? pathname.slice(base.length) : pathname.replace(/^\//, '');
+  return EXCLUDED_APPS.test(rel);
+}
 
 function isAudioRequest(url) {
   return /\.mp3($|\?)/i.test(url.pathname);
 }
 
-// Cizí servery, jejichž soubory má smysl mít i offline (písma a Firebase SDK).
-// Vše ostatní z cizích domén (API, počítadla, chat) jde rovnou na síť bez cache.
-const CACHEABLE_CDN = /^(fonts\.googleapis\.com|fonts\.gstatic\.com|www\.gstatic\.com)$/i;
+// Bílá listina: jediné soubory, které app shell cachuje, jsou ty z ASSETS_TO_CACHE.
+// Cesty se skládají vůči scope SW ('./' -> '/', './player.html' -> '/player.html').
+const SHELL_PATHS = new Set(
+  ASSETS_TO_CACHE.map((u) => new URL(u, self.registration.scope).pathname)
+);
+
+function isShellAsset(url) {
+  return url.origin === self.location.origin && SHELL_PATHS.has(url.pathname);
+}
+
+// Klíč do cache = adresa bez ?parametrů a #hash (jedna kopie na soubor).
+function shellCacheKey(request) {
+  const u = new URL(request.url);
+  u.search = '';
+  u.hash = '';
+  return u.href;
+}
 
 self.addEventListener('fetch', (event) => {
   // Jen GET se dá cachovat - odeslání formulářů apod. (POST) nechat jít rovnou na síť.
@@ -149,7 +182,7 @@ self.addEventListener('fetch', (event) => {
   // zachytával a plnil jimi synthlucida-app cache, i když s playerem
   // vůbec nesouvisí. Kdyby jednou dostaly vlastní offline podporu,
   // dostanou vlastní sw.js se scope jen na sebe.
-  if (EXCLUDED_APPS.test(url.pathname)) {
+  if (isExcludedApp(url.pathname)) {
     return;
   }
 
@@ -168,9 +201,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cizí domény kromě MP3 a písem/Firebase SDK (API počítadla návštěv,
-  // Firebase chat, …) - rovnou na síť, nic necachovat.
-  if (url.origin !== self.location.origin && !isAudioRequest(url) && !CACHEABLE_CDN.test(url.hostname)) {
+  // Cizí domény kromě MP3 (Google Fonts, Firebase SDK a chat, počítadla, …)
+  // - rovnou na síť, nic necachovat.
+  if (url.origin !== self.location.origin && !isAudioRequest(url)) {
+    return;
+  }
+
+  // Bílá listina: kromě MP3 se zachytává jen to, co je v ASSETS_TO_CACHE.
+  // Všechno ostatní jde rovnou na síť a SW to vůbec neřeší.
+  if (!isAudioRequest(url) && !isShellAsset(url)) {
     return;
   }
 
@@ -183,7 +222,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode !== 'navigate' && event.clientId) {
     event.respondWith((async () => {
       const client = await self.clients.get(event.clientId);
-      if (client && EXCLUDED_APPS.test(new URL(client.url).pathname)) {
+      if (client && isExcludedApp(new URL(client.url).pathname)) {
         return fetch(event.request);
       }
       return isAudioRequest(url) ? handleAudioRequest(event) : handleAppShellRequest(event.request);
@@ -204,6 +243,7 @@ self.addEventListener('fetch', (event) => {
 
 async function handleAppShellRequest(request) {
   const cache = await caches.open(APP_CACHE_NAME);
+  const cacheKey = shellCacheKey(request);
   try {
     // cache: 'no-cache' vynutí, aby si prohlížeč vždy ověřil u serveru, jestli
     // má nejnovější verzi (podmíněný požadavek), místo aby v rámci
@@ -211,13 +251,13 @@ async function handleAppShellRequest(request) {
     // bez kontaktování serveru.
     const networkResponse = await fetch(request, { cache: 'no-cache' });
     if (networkResponse && networkResponse.ok) {
-      cache.put(request, networkResponse.clone()).catch((err) => {
+      cache.put(cacheKey, networkResponse.clone()).catch((err) => {
         console.log('[SW] Could not cache app shell file:', err);
       });
     }
     return networkResponse;
   } catch (err) {
-    const cached = await cache.match(request);
+    const cached = await cache.match(cacheKey);
     if (cached) return cached;
     throw err;
   }
