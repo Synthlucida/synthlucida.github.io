@@ -1387,7 +1387,7 @@
 
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
-        async src="//gc.zgo.at/count.js"></script>
+        async src="https://gc.zgo.at/count.js"></script>
 
 <script>
 /* ===== Orbitron CZ — česká písmena pro Orbitron =====
@@ -5052,6 +5052,16 @@
     updateSectionEqIndicators();
   };
 
+  // review 10/2026: do My Files patří jen audio. Prohlížeč u některých formátů vrací prázdný typ
+  // nebo application/octet-stream, proto se v takovém případě rozhoduje podle přípony.
+  const AUDIO_UPLOAD_EXT = /\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|weba|webm|mp4|aif|aiff)$/i;
+  function isAudioUpload(file) {
+    const type = file && file.type ? file.type : '';
+    if (type.indexOf('audio/') === 0) return true;
+    if (type === '' || type === 'application/octet-stream') return AUDIO_UPLOAD_EXT.test(file.name || '');
+    return false;
+  }
+
   // Nahrání nových souborů uživatelem
   window.handleMyFilesUpload = async function(event) {
     const input = event.target;
@@ -5059,7 +5069,9 @@
     input.value = ''; // aby šlo znovu vybrat stejný soubor příště
     if (!files.length) return;
 
+    const skippedFiles = [];
     for (const file of files) {
+      if (!isAudioUpload(file)) { skippedFiles.push(file.name); continue; }
       const id = myFilesGenId();
       const title = file.name.replace(/\.[^/.]+$/, '');
       try {
@@ -5068,6 +5080,9 @@
         console.error('Nelze uložit soubor:', e);
         alert('Could not save one of the files on this device.');
       }
+    }
+    if (skippedFiles.length) {
+      alert('Skipped (not an audio file): ' + skippedFiles.slice(0, 5).join(', ') + (skippedFiles.length > 5 ? '…' : ''));
     }
     await refreshMyFilesLibrary();
     renderMyFiles();
@@ -5404,12 +5419,19 @@
 
         const actions = document.createElement('div');
         actions.className = 'queue-actions';
-        actions.innerHTML = `
-          <button class="btn-feature" onclick="playMyPlaylist('${pl.id}')">▶ PLAY</button>
-          <button class="btn-feature" onclick="stopPlayback()">■ STOP</button>
-          <button class="btn-feature" onclick="renameMyPlaylist('${pl.id}')">RENAME</button>
-          <button class="btn-feature" onclick="deleteMyPlaylist('${pl.id}')">DELETE</button>
-        `;
+        // review 10/2026: žádné inline onclick s vloženým pl.id (ID z localStorage se nesmí dostat do kódu v atributu)
+        [
+          ['▶ PLAY', () => playMyPlaylist(pl.id)],
+          ['■ STOP', () => stopPlayback()],
+          ['RENAME', () => renameMyPlaylist(pl.id)],
+          ['DELETE', () => deleteMyPlaylist(pl.id)]
+        ].forEach(([label, handler]) => {
+          const actionBtn = document.createElement('button');
+          actionBtn.className = 'btn-feature';
+          actionBtn.textContent = label;
+          actionBtn.addEventListener('click', handler);
+          actions.appendChild(actionBtn);
+        });
         body.appendChild(actions);
 
         card.appendChild(body);
@@ -6330,7 +6352,13 @@
       if (saved) {
         const parsedQueue = JSON.parse(saved);
         customQueue = Array.isArray(parsedQueue)
-          ? parsedQueue.filter(e => e && typeof e === 'object' && typeof e.title === 'string' && typeof e.src === 'string')
+          ? parsedQueue
+              // review 10/2026: stejná kontrola adresy jako u importu (jen GitHub release nebo blob:
+              // vlastního souboru); položka vlastního souboru (fileId) zůstane, jen s vyčištěnou adresou,
+              // kterou si appka při startu sama obnoví (repairCustomQueueBlobUrls).
+              .filter(e => e && typeof e === 'object' && typeof e.title === 'string' && typeof e.src === 'string' &&
+                (isSafeDownloadSrc(e.src) || typeof e.fileId === 'string'))
+              .map(e => (isSafeDownloadSrc(e.src) ? e : Object.assign({}, e, { src: '' })))
           : [];
       }
     } catch (e) { customQueue = []; }
@@ -7783,15 +7811,19 @@
   function pruneOldCommunityMessages() {
     if (!communityMessagesRef) return;
     const now = Date.now();
-    // Musí se projít všechny zprávy (ne jen ty starší než 24h), protože admin
-    // zprávy smí přežít déle - jednotný "endAt" cutoff by je smazal moc brzy.
-    communityMessagesRef.once('value').then((snap) => {
+    // review 10/2026: stahují se jen zprávy starší než běžná životnost (24 h) - dřív se při
+    // každém startu a každou hodinu stahovala CELÁ historie všem návštěvníkům. Admin zprávy
+    // (14 dní) mezi nimi jsou taky, ty se níže podle vlastní životnosti přeskočí.
+    // Rezerva 5 min: když jde hodinám zařízení napřed, Security Rules (serverový čas) by
+    // odmítly celý hromadný zápis, protože by v něm byla zpráva, které ještě nevypršela životnost.
+    const PRUNE_MARGIN_MS = 5 * 60 * 1000;
+    communityMessagesRef.orderByChild('ts').endAt(now - COMMUNITY_MSG_LIFETIME_MS - PRUNE_MARGIN_MS).once('value').then((snap) => {
       const updates = {};
       snap.forEach((child) => {
         const msg = child.val();
         if (!msg || !msg.ts) return;
         const lifetime = msg.isAdmin === true ? COMMUNITY_ADMIN_MSG_LIFETIME_MS : COMMUNITY_MSG_LIFETIME_MS;
-        if (now - msg.ts >= lifetime) {
+        if (now - msg.ts >= lifetime + PRUNE_MARGIN_MS) {
           updates['messages/' + child.key] = null;
           updates['reactions/' + child.key] = null;
         }
