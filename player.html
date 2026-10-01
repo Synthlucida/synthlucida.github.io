@@ -1005,7 +1005,33 @@
   }
   .btn-vol-adj:hover { opacity: 1; background: rgba(255,255,255,0.1); }
   .btn-vol-adj:active { transform: scale(0.88); }
-  #volume-slider { width: 90px; accent-color: var(--accent-color); cursor: pointer; }
+  /* Vlastní vzhled posuvníku hlasitosti: nativní accent-color si prohlížeč přebarvuje sám
+     (dopočítává kontrastní barvy) a u animovaných témat (AURORA, NEON) pak barva skáče
+     z bílé na tmavou. Tady jsou všechny barvy dané explicitně, takže se jen plynule mění s tématem. */
+  #volume-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 16px; margin: 0; padding: 0;
+    background: transparent; cursor: pointer;
+    --vol: 0.3; /* 0–1, nastavuje JS podle hlasitosti */
+  }
+  #volume-slider:focus { outline: none; }
+  #volume-slider::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(to right,
+      var(--accent-color) 0, var(--accent-color) calc(7px + (100% - 14px) * var(--vol)),
+      rgba(255,255,255,0.15) calc(7px + (100% - 14px) * var(--vol)), rgba(255,255,255,0.15) 100%);
+  }
+  #volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; margin-top: -4px; border: none; border-radius: 50%;
+    background: var(--accent-color); box-shadow: 0 0 6px var(--accent-color);
+  }
+  #volume-slider::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.15); }
+  #volume-slider::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent-color); }
+  #volume-slider::-moz-range-thumb {
+    width: 14px; height: 14px; border: none; border-radius: 50%;
+    background: var(--accent-color); box-shadow: 0 0 6px var(--accent-color);
+  }
   .vol-icon { font-size: 11px; color: var(--accent-color); display: flex; align-items: center; }
   
   .timer-section { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
@@ -3035,6 +3061,7 @@
   const initialVolume = isFinite(parsedSavedVolume) ? Math.min(1, Math.max(0, parsedSavedVolume)) : 0.3;
   audio.volume = initialVolume;
   volumeSlider.value = initialVolume;
+  volumeSlider.style.setProperty('--vol', initialVolume);
 
   function initEffects() {
       canvas.width = window.innerWidth;
@@ -4308,7 +4335,7 @@
     }
   });
 
-  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ } });
+  volumeSlider.addEventListener('input', (e) => { audio.volume = e.target.value; e.target.style.setProperty('--vol', e.target.value); try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ } });
 
   // Tlačítka +/- nad sliderem hlasitosti - klik po kroku 0.05, slider zůstává
   // funkční i nadále a hlasitost se ukládá stejně jako při tažení slideru.
@@ -7091,7 +7118,7 @@
     "Nech vlny, ať tě zalijí.",
     "Klid je supersíla.",
     "Tvá mysl je tichá místnost.",
-    "Naslaď se na rytmus přítomnosti.",
+    "Nalaď se na rytmus přítomnosti.",
     "Analogové srdce, digitální klid.",
     "Čistá mysl, čistý signál.",
     "Zůstaň v proudu.",
@@ -7104,7 +7131,7 @@
     "Buď na svou mysl hodný/á.",
     "Věř si. Velké věci chtějí čas.",
     "Sni ve velkém. Začni v malém. Nikdy nepřestávej.",
-    "Tvůj jediný limit je ten, který si odmítneš překonat.",
+    "Tvůj jediný limit je ten, který odmítáš překonat.",
     "Úspěch začíná odvahou to zkusit.",
     "Malé kroky každý den vedou k velkým úspěchům.",
     "Nejlepší investice je investice do sebe sama.",
