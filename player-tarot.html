@@ -858,10 +858,10 @@
     <h2 data-i18n="title">CARD OF THE DAY</h2>
 
     <h3 data-i18n="h_intro">THE DRAW</h3>
-    <p data-i18n="p_intro">Every time you open this page, one card is drawn truly at random from the full 78-card tarot deck — the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.</p>
+    <p data-i18n="p_intro">When you open this page, the card waits face down. Pick a deck using the tabs below the title and a card is drawn truly at random from it — for the classic tarot from the full 78 cards, the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.</p>
 
     <h3 data-i18n="h_decks">THREE DECKS</h3>
-    <p data-i18n="p_decks">Switch anytime between the classic 78-card Tarot, the original 24-card Cosmic Whisper Oracle, and the original 22-card Night Tarot using the tabs below the title. The very first card each time you open this page is always drawn from a randomly chosen deck.</p>
+    <p data-i18n="p_decks">Switch anytime between the classic 78-card Tarot, the original 24-card Cosmic Whisper Oracle, and the original 22-card Night Tarot using the tabs below the title. The first card is drawn only once you click a deck tab.</p>
 
     <h3 data-i18n="h_deck">THE DECK</h3>
     <p data-i18n="p_deck">The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body. The Oracle deck carries its own single, simpler message per card, with no reversed meanings. The Night Tarot is a 22-card original arcana with a cosmic, signal-and-static theme, and it does use reversed meanings.</p>
@@ -1069,7 +1069,6 @@
           </g>
           <g fill="#d4af37">
             <path d="M50 -21 A8 8 0 0 0 50 -5 A10.5 10.5 0 0 1 50 -21Z"/>
-            <path d="M50 105 A8 8 0 0 1 50 121 A10.5 10.5 0 0 0 50 105Z"/>
           </g>
           <g fill="#f0d77a" fill-opacity=".85">
             <path d="M35 -16 L35.9 -13.9 L38 -13 L35.9 -12.1 L35 -10 L34.1 -12.1 L32 -13 L34.1 -13.9Z"/>
@@ -1304,7 +1303,7 @@
     night: { label: '🌙 NIGHT', hasReversed: true, cards: nightDeck }
   };
   var deckKeys = Object.keys(decks);
-  var currentDeckKey = deckKeys[Math.floor(Math.random() * deckKeys.length)];
+  var currentDeckKey = null; // při otevření stránky není vybrán žádný balíček - karta čeká rubem nahoru, dokud uživatel neklikne na záložku
 
   // ---------- HISTORY (table of drawn cards, kept for 60 minutes) ----------
   var HISTORY_KEY = 'synthlucida_tarot_history';
@@ -2056,13 +2055,13 @@
     pendingDrawTimeouts.push(t1);
   }
 
-  drawBtn.addEventListener('click', function () { draw(false, true); });
+  drawBtn.addEventListener('click', function () { if (!currentDeckKey) return; draw(false, true); });
   document.getElementById('tab-tarot').addEventListener('click', function () { selectDeck('tarot'); });
   document.getElementById('tab-oracle').addEventListener('click', function () { selectDeck('oracle'); });
   document.getElementById('tab-night').addEventListener('click', function () { selectDeck('night'); });
   window.addEventListener('DOMContentLoaded', function () {
     updateDeckTabsUI();
-    draw(true);
+    // karta zůstává otočená rubem; táhne se až po kliknutí na záložku balíčku
   });
 
   // ---------- CLOCK ----------
@@ -2158,9 +2157,9 @@
   var i18nText = {
     title: { en: 'CARD OF THE DAY', cz: 'KARTA DNE' },
     h_intro: { en: 'THE DRAW', cz: 'VÝKLAD' },
-    p_intro: { en: 'Every time you open this page, one card is drawn truly at random from the full 78-card tarot deck — the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.', cz: 'Pokaždé, když otevřete tuto stránku, je zcela náhodně vytažena jedna karta z celého 78kartového tarotového balíčku — 22 velkých arkán a 56 malých arkán — a zobrazena buď vzpřímeně, nebo obráceně.' },
+    p_intro: { en: 'When you open this page, the card waits face down. Pick a deck using the tabs below the title and a card is drawn truly at random from it — for the classic tarot from the full 78 cards, the 22 Major Arcana and the 56 Minor Arcana — and shown either upright or reversed.', cz: 'Po otevření stránky karta čeká rubem nahoru. Vyberte balíček pomocí záložek pod nadpisem a zcela náhodně se z něj vytáhne jedna karta — u klasického tarotu z celých 78 karet (22 velkých a 56 malých arkán) — a zobrazí se buď vzpřímeně, nebo obráceně.' },
     h_decks: { en: 'THREE DECKS', cz: 'TŘI BALÍČKY' },
-    p_decks: { en: 'Switch anytime between the classic 78-card Tarot, the original 24-card Cosmic Whisper Oracle, and the original 22-card Night Tarot using the tabs below the title. The very first card each time you open this page is always drawn from a randomly chosen deck.', cz: 'Kdykoli můžete přepnout mezi klasickým 78kartovým tarotem, originálním 24kartovým orákulem Kosmický šepot a originálním 22kartovým Nočním tarotem pomocí záložek pod nadpisem. Úplně první karta při každém otevření této stránky je vždy vytažena z náhodně zvoleného balíčku.' },
+    p_decks: { en: 'Switch anytime between the classic 78-card Tarot, the original 24-card Cosmic Whisper Oracle, and the original 22-card Night Tarot using the tabs below the title. The first card is drawn only once you click a deck tab.', cz: 'Kdykoli můžete přepnout mezi klasickým 78kartovým tarotem, originálním 24kartovým orákulem Kosmický šepot a originálním 22kartovým Nočním tarotem pomocí záložek pod nadpisem. Úplně první karta se táhne až po kliknutí na záložku balíčku.' },
     h_deck: { en: 'THE DECK', cz: 'BALÍČEK' },
     p_deck: { en: 'The Major Arcana (The Fool through The World) speak to big life themes and turning points. The Minor Arcana are grouped into four suits — Wands, Cups, Swords and Pentacles — each with its own flavor: passion and action, emotion and intuition, thought and conflict, or the material world and the body. The Oracle deck carries its own single, simpler message per card, with no reversed meanings. The Night Tarot is a 22-card original arcana with a cosmic, signal-and-static theme, and it does use reversed meanings.', cz: 'Velké arkány (od Blázna po Svět) vypovídají o velkých životních tématech a zlomových bodech. Malé arkány se dělí do čtyř barev — Hole, Poháry, Meče a Disky — každá s vlastní náladou: vášeň a čin, cit a intuice, myšlenka a konflikt, nebo hmotný svět a tělo. Orákulum nese vlastní jediné, jednodušší poselství pro každou kartu, bez obrácených významů. Noční tarot je originální 22kartová arkána v kosmickém, signálovém a šumovém tématu, a obrácené významy používá.' },
     h_reversed: { en: 'UPRIGHT & REVERSED', cz: 'VZPŘÍMENĚ A OBRÁCENĚ' },
