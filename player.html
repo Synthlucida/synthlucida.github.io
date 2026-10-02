@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.7.6">
+<meta name="app-version" content="1.7.7">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -474,7 +474,9 @@
   }
   
   .atmospheres {
-    display: flex; justify-content: center; gap: 5px; margin-bottom: 5px; padding: 0 10px; flex-wrap: wrap;
+    display: flex; justify-content: center; gap: 6px; margin-bottom: 5px; padding: 0 10px; flex-wrap: wrap;
+    /* relative + z-index: rozbalený seznam (.atmos-panel) se vykresluje přes obsah pod ním */
+    position: relative; z-index: 40;
   }
   .btn-atmos {
     position: relative;
@@ -485,6 +487,37 @@
   .btn-atmos.active {
     border-color: var(--accent-color);
     box-shadow: 0 0 15px var(--accent-color);
+  }
+
+  /* Dvě hlavní rozbalovací tlačítka (MUSIC / EXPLORE). Seznam pod nimi je absolutně
+     pozicovaný (dropdown přes obsah), takže se rozložení stránky nikdy neposune ani nepřeteče. */
+  .atmos-toggle {
+    position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    max-width: 100%; box-sizing: border-box; white-space: nowrap;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 5px 7px; border-radius: 8px;
+    font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px;
+    cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
+  }
+  .atmos-toggle::after { content: '\25BE'; font-size: 8px; line-height: 1; transition: transform 0.25s ease; }
+  .atmos-toggle.open { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
+  .atmos-toggle.open::after { transform: rotate(180deg); }
+  /* Tečka NEW na MUSIC, když je v některém playlistu nová skladba (v rozbaleném seznamu je i u konkrétního playlistu) */
+  .atmos-toggle.has-new-track::before {
+    content: ''; position: absolute; top: -3px; right: -3px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #ffcc00; box-shadow: 0 0 6px rgba(255, 204, 0, 0.9);
+  }
+  .atmos-panel {
+    display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 4px; padding: 6px; gap: 5px; flex-wrap: wrap; justify-content: center;
+    width: max-content; max-width: calc(100vw - 20px); box-sizing: border-box;
+    background: rgba(8,8,18,0.94); border: 1px solid rgba(255,255,255,0.18); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+  .atmos-panel.open { display: flex; }
+  @media (max-width: 400px) {
+    .atmos-toggle { padding: 5px 6px; font-size: 8.5px; letter-spacing: 0.5px; }
   }
 
   /* Tečka na ASMR/PIANO/CHILL, když v té kategorii přibyla nová skladba (viz "added" u tracku) */
@@ -1460,13 +1493,76 @@
 </div>
 
 <div class="atmospheres">
-  <button class="btn-atmos active" onclick="setPlaylist('asmr', this)">ASMR</button>
-  <button class="btn-atmos" onclick="setPlaylist('piano', this)">PIANO</button>
-  <button class="btn-atmos" onclick="setPlaylist('chill', this)">CHILL</button>
-  <button class="btn-atmos" onclick="location.href='game.html'">GAME</button>
-  <button class="btn-atmos" onclick="location.href='relax.html'">RELAX</button>
-  <button class="btn-atmos" onclick="location.href='draw.html'">DRAWING</button>
+  <button type="button" class="atmos-toggle" id="atmos-toggle-music" aria-expanded="false" aria-controls="atmos-panel-music" aria-haspopup="true"><span class="atmos-toggle-label">MUSIC</span></button>
+  <button type="button" class="atmos-toggle" id="atmos-toggle-explore" aria-expanded="false" aria-controls="atmos-panel-explore" aria-haspopup="true"><span class="atmos-toggle-label">EXPLORE</span></button>
+  <div class="atmos-panel" id="atmos-panel-music" role="group" aria-label="Playlists">
+    <button class="btn-atmos active" onclick="setPlaylist('asmr', this)">ASMR</button>
+    <button class="btn-atmos" onclick="setPlaylist('piano', this)">PIANO</button>
+    <button class="btn-atmos" onclick="setPlaylist('chill', this)">CHILL</button>
+  </div>
+  <div class="atmos-panel" id="atmos-panel-explore" role="group" aria-label="More pages">
+    <button class="btn-atmos" onclick="location.href='game.html'">GAME</button>
+    <button class="btn-atmos" onclick="location.href='relax.html'">RELAX</button>
+    <button class="btn-atmos" onclick="location.href='draw.html'">DRAWING</button>
+    <button class="btn-atmos" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
+  </div>
 </div>
+<script>
+  /* Rozbalování MUSIC / EXPLORE. Samostatný skript (nesahá do hlavního kódu): původních šest tlačítek
+     .btn-atmos zůstalo beze změny, takže přepínání playlistů, tečka NEW i obnovení posledního playlistu
+     fungují jako dřív. Když se tady něco pokazí, jen se menu nerozbalí - appka jede dál. */
+  (function () {
+    try {
+      var root = document.querySelector('.atmospheres');
+      if (!root) return;
+      var toggles = Array.prototype.slice.call(root.querySelectorAll('.atmos-toggle'));
+      var panels = Array.prototype.slice.call(root.querySelectorAll('.atmos-panel'));
+
+      function closeAll() {
+        toggles.forEach(function (t) { t.classList.remove('open'); t.setAttribute('aria-expanded', 'false'); });
+        panels.forEach(function (p) { p.classList.remove('open'); });
+      }
+      function toggleOne(t) {
+        var panel = document.getElementById(t.getAttribute('aria-controls'));
+        var willOpen = !t.classList.contains('open');
+        closeAll();
+        if (willOpen && panel) {
+          t.classList.add('open');
+          t.setAttribute('aria-expanded', 'true');
+          panel.classList.add('open');
+        }
+      }
+      toggles.forEach(function (t) { t.addEventListener('click', function () { toggleOne(t); }); });
+      // Výběr v rozbaleném seznamu ho zase zavře (inline onclick tlačítka proběhne dřív)
+      panels.forEach(function (p) {
+        p.addEventListener('click', function (e) {
+          if (e.target.closest && e.target.closest('.btn-atmos')) closeAll();
+        });
+      });
+      // Klepnutí mimo menu nebo Escape ho taky zavře
+      document.addEventListener('click', function (e) {
+        if (!(e.target.closest && e.target.closest('.atmospheres'))) closeAll();
+      });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
+
+      // Tlačítko MUSIC ukazuje aktuální playlist ("MUSIC: PIANO") a tečku NEW, když je v některém nová skladba
+      var musicToggle = document.getElementById('atmos-toggle-music');
+      var musicLabel = musicToggle && musicToggle.querySelector('.atmos-toggle-label');
+      var musicBtns = Array.prototype.slice.call(document.querySelectorAll('#atmos-panel-music .btn-atmos'));
+      function syncMusicToggle() {
+        if (!musicToggle || !musicLabel) return;
+        var active = musicBtns.filter(function (b) { return b.classList.contains('active'); })[0];
+        musicLabel.textContent = active ? 'MUSIC: ' + active.textContent.trim() : 'MUSIC';
+        musicToggle.classList.toggle('has-new-track', musicBtns.some(function (b) { return b.classList.contains('has-new-track'); }));
+      }
+      syncMusicToggle();
+      if (window.MutationObserver) {
+        var mo = new MutationObserver(syncMusicToggle);
+        musicBtns.forEach(function (b) { mo.observe(b, { attributes: true, attributeFilter: ['class'] }); });
+      }
+    } catch (e) { /* rozbalovací menu je jen vzhled, nesmí nic rozbít */ }
+  })();
+</script>
 
 <div class="crossfade-container">
   <span class="crossfade-label">⇄ CROSSFADE</span>
@@ -1485,7 +1581,6 @@
   <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation">＋ PHOTO</button>
   <input type="file" id="sun-photo-input" accept="image/*" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
-  <button class="btn-feature" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
   <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()">🎵 MY PLAYLIST <span id="queue-count-badge"></span></button>
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
@@ -1717,7 +1812,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_atmos">Atmospheres & playlists</h4>
-      <p data-i18n="p_atmos">Switch between the ASMR, PIANO and CHILL playlists at the top of the screen. GAME and RELAX open separate pages with their own soundscapes. The playlist you last listened to is remembered automatically the next time you open the player.</p>
+      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player.</p>
     </div>
 
     <div class="main-guide-section">
@@ -1732,7 +1827,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_breath">Breathing exercise</h4>
-      <p data-i18n="p_breath">Tap BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.</p>
+      <p data-i18n="p_breath">Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.</p>
     </div>
 
     <div class="main-guide-section">
@@ -4835,13 +4930,13 @@
     h_playback: { en: "Playback", cz: "Přehrávání" },
     p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
-    p_atmos: { en: "Switch between the ASMR, PIANO and CHILL playlists at the top of the screen. GAME and RELAX open separate pages with their own soundscapes. The playlist you last listened to is remembered automatically the next time you open the player.", cz: "V horní části obrazovky můžete přepínat mezi playlisty ASMR, PIANO a CHILL. GAME a RELAX otevřou samostatné stránky s vlastní zvukovou atmosférou. Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje." },
+    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou) a BREATHE (vedené dechové cvičení). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
     p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
-    p_breath: { en: "Tap BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.", cz: "Klepnutím na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh." },
+    p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
     p_timer: { en: "Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.", cz: "Pomocí tlačítek časovače nastavte automatické zastavení přehrávání po 15, 30 nebo 60 minutách, nebo aktivní časovač kdykoli zrušte tlačítkem ✖." },
     h_crossfade: { en: "Crossfade", cz: "Prolínání (Crossfade)" },
