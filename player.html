@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.7.4">
+<meta name="app-version" content="1.7.5">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1821,6 +1821,7 @@
     <div class="queue-actions">
       <button class="btn-feature" onclick="resetStats()">RESET STATISTICS</button>
       <button class="btn-feature" onclick="openRemindersFromStats()">🔔 REMINDERS</button>
+      <button class="btn-feature" id="motivation-toggle-btn" onclick="toggleMotivationTexts()">MOTIVATION: OFF</button>
     </div>
     <p class="main-guide-note" data-i18n="stats_note">Stats are stored locally in your browser and are never sent anywhere.</p>
 
@@ -4700,6 +4701,35 @@
     updateReminderPanelUI();
   };
 
+  // ==========================================
+  // MOTIVAČNÍ TEXTY na úvodní obrazovce (slogany) - výchozí stav je VYPNUTO.
+  // Přepínač je v sekci S vedle REMINDERS. Změna platí hned, ale natrvalo se uloží
+  // až tlačítkem SAVE (klíč motivationTexts v synthlucida_settings). Chatové zprávy
+  // od komunity se zobrazují vždy, bez ohledu na tenhle přepínač.
+  // ==========================================
+  let motivationTextsEnabled = false;
+
+  function updateMotivationBtnUI() {
+    const btn = document.getElementById('motivation-toggle-btn');
+    if (!btn) return;
+    const key = motivationTextsEnabled ? 'motivation_on' : 'motivation_off';
+    btn.innerText = i18nText[key][guideLang] || i18nText[key].en;
+    btn.classList.toggle('active', motivationTextsEnabled);
+  }
+
+  window.toggleMotivationTexts = function() {
+    motivationTextsEnabled = !motivationTextsEnabled;
+    updateMotivationBtnUI();
+    if (motivationTextsEnabled) {
+      showToast(i18nText.motivation_toast_enabled[guideLang] || i18nText.motivation_toast_enabled.en, '💬');
+      showSlogan(); // rovnou ukáže první text, ať uživatel nemusí čekat až 40 s
+    } else {
+      // Právě zobrazený slogan hned zmizí; zpráva od komunity (pokud zrovna svítí) zůstane
+      if (!currentCommunityMsgId) sloganEl.classList.remove('visible');
+      showToast(i18nText.motivation_toast_disabled[guideLang] || i18nText.motivation_toast_disabled.en, '💬');
+    }
+  };
+
   window.setReminderInterval = function(minutes) {
     reminderIntervalMinutes = minutes;
     saveReminderSettings();
@@ -4875,6 +4905,10 @@
     reminders_toast_blocked: { en: "Notifications blocked - check browser settings", cz: "Notifikace zablokovány - zkontrolujte nastavení prohlížeče" },
     reminders_toast_enable_first: { en: "Enable notifications first", cz: "Nejprve povolte notifikace" },
     reminders_toast_test_sent: { en: "Test notification sent", cz: "Testovací notifikace odeslána" },
+    motivation_on: { en: "MOTIVATION: ON", cz: "MOTIVAČNÍ TEXTY: ZAP" },
+    motivation_off: { en: "MOTIVATION: OFF", cz: "MOTIVAČNÍ TEXTY: VYP" },
+    motivation_toast_enabled: { en: "Motivational texts on (press SAVE to keep)", cz: "Motivační texty zapnuty (uložíš tlačítkem SAVE)" },
+    motivation_toast_disabled: { en: "Motivational texts off (press SAVE to keep)", cz: "Motivační texty vypnuty (uložíš tlačítkem SAVE)" },
     breath_guide_title: { en: "How to breathe", cz: "Jak dýchat" },
     breath_guide_intro: { en: "Sit comfortably and follow the glowing orb: it expands on the inhale, holds steady and shimmers during a hold, and shrinks on the exhale. Breathe through the nose when the technique doesn't say otherwise. Pick whichever technique fits the moment — you can switch anytime.", cz: "Pohodlně se posaďte a sledujte zářící kouli: při nádechu se rozpíná, při zádrži drží velikost a jemně se třpytí a při výdechu se zmenšuje. Dýchejte nosem, pokud technika neříká jinak. Vyberte si techniku, která se hodí k danému okamžiku — kdykoli ji můžete změnit." },
     breath_478_title: { en: "4-7-8 — Dr. Weil", cz: "4-7-8 — Dr. Weil" },
@@ -4913,6 +4947,7 @@
     document.querySelectorAll('.lang-toggle-btn').forEach((btn) => {
       btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
     });
+    if (typeof updateMotivationBtnUI === 'function') updateMotivationBtnUI();
   }
 
   window.toggleGuideLanguage = function() {
@@ -6987,6 +7022,7 @@
     settings.crossfade = crossfadeDuration;
     settings.logoGlowEnabled = logoGlowEnabled;
     settings.sparkleState = sparkleState;
+    settings.motivationTexts = motivationTextsEnabled;
     try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
     
     // Malý vizuální feedback
@@ -7098,10 +7134,12 @@
             // ukládat/obnovovat taky - promítneme ho tedy i sem.
             if (typeof settings.logoGlowEnabled === 'boolean') logoGlowEnabled = settings.logoGlowEnabled;
             if (typeof settings.sparkleState === 'number' && (settings.sparkleState === 0 || settings.sparkleState === 1 || settings.sparkleState === 2)) sparkleState = settings.sparkleState;
+            if (typeof settings.motivationTexts === 'boolean') motivationTextsEnabled = settings.motivationTexts;
         }
     } catch (e) { console.error("Nelze načíst nastavení:", e); }
     applyLogoGlowUI();
     applySparkleUI();
+    updateMotivationBtnUI();
 
     const crossfadeBtn = Array.from(document.querySelectorAll('.btn-crossfade'))
       .find(b => parseInt(b.dataset.cf, 10) === savedCrossfade);
@@ -7329,6 +7367,8 @@
   }
 
   function showSlogan() {
+    // Motivační texty jsou ve výchozím stavu vypnuté (přepínač v sekci S); chat se tím neovlivní
+    if (!motivationTextsEnabled) return;
     // Pokud zrovna svítí zpráva od komunity, běžný slogan ji nepřebije
     if (currentCommunityMsgId) return;
     sloganEl.classList.remove('community-msg');
