@@ -62,9 +62,17 @@
 // Výjimka: MP3 skladby (audio cache pro DOWNLOAD OFFLINE), ty se řeší zvlášť.
 // Cache klíč bere jen cestu bez ?parametrů, ať cache neroste kvůli ?fbclid apod.
 // Cache zvýšena na v1039, aby se smazaly dříve uložené soubory mimo seznam.
+// v42 - skladby z GitHubu (opaque odpovědi) se při BĚŽNÉM PŘEHRÁVÁNÍ už do offline
+// cache neukládají. Dřív se ukládaly na pozadí z proudu dat, který čte přehrávač,
+// takže po přerušení přehrávání (přepnutí skladby, rychlé proklikání) mohl v cache
+// zůstat záznam, podle kterého appka ukázala "✓ OFFLINE", ale skladba offline
+// nehrála. Offline cache se teď plní jen tlačítkem DOWNLOAD OFFLINE (to čeká na
+// celé uložení a ověřuje skladbu). Přehrávač dostává stejnou odpověď jako dřív;
+// vlastní MP3 ze stejného webu a servery z CORS_AUDIO_HOSTS se chovají beze změny.
+// Audio cache (synthlucida-audio-v1) se nemění, už stažené skladby zůstanou.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1043';
+const APP_CACHE_NAME = 'synthlucida-app-v1044';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -370,6 +378,13 @@ async function handleAudioRequest(event) {
     // stav vidět není, ta se ukládá jako dřív.
     const readable = networkResponse.type !== 'opaque';
     if (readable && networkResponse.status !== 200) {
+      return networkResponse;
+    }
+
+    // Běžné přehrávání skladby z cizího serveru (GitHub): přehrávač dostane odpověď
+    // jako dřív, ale nic se neukládá - záznam v cache smí vzniknout jen ze stažení
+    // tlačítkem DOWNLOAD OFFLINE (níže), které počká na celé uložení.
+    if (isMedia && !corsHost) {
       return networkResponse;
     }
 
