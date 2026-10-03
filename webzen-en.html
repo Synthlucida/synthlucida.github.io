@@ -1258,6 +1258,18 @@ function richTextPlain(str){
     return richTextPlain(t.inner);
   }).join('').replace(/\u200B/g, '');
 }
+// Text pro meta description / og:description — bez formátovacích značek, na jednom řádku, max ~160 znaků.
+function metaDescriptionText(str){
+  const plain = richTextPlain(str).replace(/\s+/g, ' ').trim();
+  if (plain.length <= 160) return plain;
+  const cut = plain.slice(0, 157);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > 100 ? cut.slice(0, sp) : cut).replace(/[\s,.;:–-]+$/, '') + '…';
+}
+// Bezpečná adresa do CSS url('…') uvnitř inline stylu.
+function cssUrlEscape(u){
+  return String(u ?? '').replace(/[\\'"()\s]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'));
+}
 // JSON for embedding inside <script> (JSON-LD, constants in scripts) —
 // "<" is written as \u003c, so text like "<\/script>" in the content can't
 // terminate the script early and break the page.
@@ -1267,7 +1279,7 @@ function jsonForScript(v, space){
 // Finální výstup (na webu) — značky zmizí, zůstane jen skutečné HTML formátování.
 function richText(str){
   return tokenizeRichText(str).map(t => {
-    if (t.type === 'text') return escapeHtml(t.raw.replace(/\u200B/g, ''));
+    if (t.type === 'text') return escapeHtml(t.raw.replace(/\u200B/g, '')).replace(/\n/g, '<br>');
     if (t.type === 'link') {
       const label = escapeHtml(t.label.replace(/\u200B/g, ''));
       const url = escapeAttr(t.url);
@@ -2986,13 +2998,15 @@ function renderSections(){
       updatePreviewIndicator();
       // Tlačítka, která odkazovala na smazanou (nebo teď neplatnou) stránku, přesměruj zpět na Funkce.
       state.ctaButtons.forEach(cb => {
-        if(cb.targetType === 'section' && (cb.sectionIndex == null || cb.sectionIndex >= state.sections.length)){
-          cb.targetType = 'features'; cb.sectionIndex = null;
+        if(cb.targetType === 'section'){
+          if(cb.sectionIndex == null || cb.sectionIndex === removedIndex){ cb.targetType = 'features'; cb.sectionIndex = null; }
+          else if(cb.sectionIndex > removedIndex){ cb.sectionIndex--; }
         }
       });
       state.cards.forEach(c => {
-        if(c.linkType === 'section' && (c.sectionIndex == null || c.sectionIndex >= state.sections.length)){
-          c.linkType = 'none'; c.sectionIndex = null;
+        if(c.linkType === 'section'){
+          if(c.sectionIndex == null || c.sectionIndex === removedIndex){ c.linkType = 'none'; c.sectionIndex = null; }
+          else if(c.sectionIndex > removedIndex){ c.sectionIndex--; }
         }
       });
       renderSections(); renderCtaList(); renderCards(); updatePreview();
@@ -3049,7 +3063,7 @@ function iconsSectionHtml(s){
   let html = `
     <div class="icon-crop-row">
       <div class="icon-crop-viewport" id="iconCropViewport">
-        <div class="icon-crop-preview" id="iconCropPreview" style="background-image:url('${escapeAttr(s.icons.source)}');transform:scale(${zoom});background-position:${s.iconsCrop.x}% ${s.iconsCrop.y}%;"></div>
+        <div class="icon-crop-preview" id="iconCropPreview" style="background-image:url('${escapeAttr(cssUrlEscape(s.icons.source))}');transform:scale(${zoom});background-position:${s.iconsCrop.x}% ${s.iconsCrop.y}%;"></div>
       </div>
       <div class="icon-crop-controls">
         <label style="margin-top:0;">Zoom</label>
@@ -3408,7 +3422,7 @@ function renderEshopProducts(){
     inp.addEventListener('input', () => {
       const i = +inp.dataset.eshopProduct, key = inp.dataset.key;
       const p = state.eshop.products[i];
-      if (key === 'price') { p.price = parseFloat(String(inp.value).replace(',', '.')) || 0; }
+      if (key === 'price') { p.price = parseFloat(String(inp.value).replace(/\s/g, '').replace(',', '.')) || 0; }
       else { p[key] = inp.value; }
       updatePreview();
     });
@@ -3579,7 +3593,7 @@ function renderEshopShipping(){
   el.querySelectorAll('[data-eshop-shipping]').forEach(inp => {
     inp.addEventListener('input', () => {
       const i = +inp.dataset.eshopShipping, key = inp.dataset.key;
-      if (key === 'price') state.eshop.shipping[i].price = parseFloat(String(inp.value).replace(',', '.')) || 0;
+      if (key === 'price') state.eshop.shipping[i].price = parseFloat(String(inp.value).replace(/\s/g, '').replace(',', '.')) || 0;
       else state.eshop.shipping[i][key] = inp.value;
       updatePreview();
     });
@@ -4804,7 +4818,7 @@ function eshopUnlockScript(){
 // digital-product unlocking. Only generated in shop mode
 // (state.mode === 'eshop'), see exportAllBtn and buildCurrentPreviewHTML.
 function buildCartPageHTML(s, customSectionsData, homeFilename){
-  const domain = (s.domain || 'https://example.com/').trim();
+  const domain = (s.domain || 'https://example.com/').trim().replace(/\/?$/, '/');
   const pageUrl = domain.replace(/\/$/, '') + '/' + CART_FILENAME;
   const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
   const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: '' });
@@ -5438,7 +5452,7 @@ function buildSiteHTML(s){
           <p>${richText(f.a)}</p>
         </details>`).join('');
 
-  const domain = (s.domain || 'https://example.com/').trim();
+  const domain = (s.domain || 'https://example.com/').trim().replace(/\/?$/, '/');
   const customSectionsData = computeCustomSectionsData(s);
   const homeFilename = getHomeFilename(s);
 
@@ -5514,7 +5528,7 @@ function buildSiteHTML(s){
   // For the "Background image" hero layout, the image goes directly into the hero section's
   // style (instead of an <img> tag), so it isn't downloaded twice.
   const heroBgAttr = (heroLayoutClass === 'imagebg' && hasHeroImage)
-    ? ` style="background-image:url('${escapeAttr(customImageSrc)}')"`
+    ? ` style="background-image:url('${escapeAttr(cssUrlEscape(customImageSrc))}')"`
     : '';
   const heroVisualHtml = (heroLayoutClass !== 'imagebg' && hasHeroImage)
     ? `<img class="hero-visual-img" src="${escapeAttr(customImageSrc)}" alt="${escapeAttr(s.heroImageAlt || s.heroTitle || '')}" loading="eager">`
@@ -5592,7 +5606,7 @@ ${sideNavHtml}
       <div class="wrap">
         ${heroVisualHtml}
         <div class="hero-text">
-          <span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>
+          ${(s.heroEyebrow || '').trim() ? `<span class="eyebrow">${escapeHtml(s.heroEyebrow)}</span>` : ''}
           <h1>${escapeHtml(s.heroTitle)}</h1>
           <p>${richText(s.heroSubtitle)}</p>
           <div class="cta-group">
@@ -5719,9 +5733,9 @@ ${customBodyEndHtml(s)}
    GENEROVÁNÍ VÝSLEDNÉHO STATICKÉHO HTML — vlastní (samostatná) stránka
    ============================================================ */
 function buildSectionPageHTML(s, sec, customSectionsData, homeFilename){
-  const domain = (s.domain || 'https://example.com/').trim();
+  const domain = (s.domain || 'https://example.com/').trim().replace(/\/?$/, '/');
   const pageUrl = domain.replace(/\/$/, '') + '/' + sec.filename;
-  const description = ((sec.type === 'landing' ? sec.landingSubtitle : sec.text) || s.description || '').trim();
+  const description = metaDescriptionText((sec.type === 'landing' ? sec.landingSubtitle : sec.text) || s.description || '');
   const standalone = !!sec.standalone;
 
   const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
@@ -5840,9 +5854,9 @@ ${customBodyEndHtml(s)}
 // categoryIndex filter). The homepage (buildSiteHTML) is unaffected and
 // keeps showing every product.
 function buildEshopCategoryPageHTML(s, cat, customSectionsData, homeFilename){
-  const domain = (s.domain || 'https://example.com/').trim();
+  const domain = (s.domain || 'https://example.com/').trim().replace(/\/?$/, '/');
   const pageUrl = domain.replace(/\/$/, '') + '/' + cat.filename;
-  const description = (cat.intro || s.description || '').trim();
+  const description = metaDescriptionText(cat.intro || s.description || '');
 
   const navLinksData = buildNavLinksData(s, customSectionsData, { isHome: false, homeFilename });
   const sideNavHtml = renderSideNavHtml(s, navLinksData, { isHome: false, homeFilename, currentSlug: cat.id });
