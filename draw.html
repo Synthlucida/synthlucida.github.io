@@ -157,8 +157,16 @@
   .corner-btn:active { transform: scale(0.92); }
   .corner-btn-left { left: 10px; font-style: italic; }
   .corner-btn-right { right: 10px; font-size: 11px; }
+  .corner-btn-right svg { width: 14px; height: 14px; display: block; }
   .corner-btn-home { right: 44px; }
   .corner-btn-home svg { width: 13px; height: 13px; display: block; }
+  .info-hub-link {
+    display: block; width: fit-content; margin: 0 auto 12px; padding: 6px 14px; border-radius: 16px;
+    border: 1px solid var(--accent-color); color: var(--accent-color); text-decoration: none;
+    font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 1px;
+    background: rgba(0,240,255,0.08); transition: 0.2s;
+  }
+  .info-hub-link:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 8px var(--accent-color); }
 
   .themes-container { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; padding: 0 10px; }
   .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.2s; padding: 2px; }
@@ -488,7 +496,7 @@
 <body class="theme-amber" id="body">
 
 <button class="corner-btn corner-btn-left" id="btn-info" title="How to draw" aria-label="How to draw">i</button>
-<a href="player.html" class="corner-btn corner-btn-right" id="btn-close" title="Close canvas" aria-label="Close canvas">✕</a>
+<a href="player.html" class="corner-btn corner-btn-right" id="btn-close" title="Back to player" aria-label="Back to player"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></a>
 <a href="https://synthlucida.com/draw-landing.html" class="corner-btn corner-btn-home" id="btn-home" title="SYNTHLUCIDA home" aria-label="SYNTHLUCIDA home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg></a>
 <button class="corner-btn corner-btn-fullscreen" id="btn-fullscreen" title="Fullscreen" aria-label="Fullscreen">⛶</button>
 
@@ -497,6 +505,7 @@
     <button class="info-close" id="btn-info-close" aria-label="Close">✕</button>
     <button class="info-lang-toggle" id="info-lang-toggle" onclick="toggleInfoLanguage()" aria-label="Switch language">CZ</button>
     <h2 data-i18n="title">HOW TO DRAW</h2>
+    <a href="https://synthlucida.com/hub.html?lang=en" class="info-hub-link" id="info-hub-link" data-i18n="btn_hub">SYNTHLUCIDA HUB ↗</a>
 
     <h3 data-i18n="h_drawing">DRAWING</h3>
     <p data-i18n="p_drawing">Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.</p>
@@ -533,7 +542,7 @@
     <p data-i18n="p_textemoji">Press 🔤 TEXT, then tap anywhere on the canvas to write a word in your current brush color. You'll be offered a set of graphic looks (NEON, GOLD, FIRE, ICE, BUBBLE, OUTLINE, RAINBOW, 3D) to style it with. Press 😀 EMOJI to open the emoji picker, choose one, then tap the canvas to drop it there. Both are added to your drawing's history, so they replay with ▶ ANIMATE and appear in your VIDEO and GIF exports too.</p>
 
     <h3 data-i18n="h_sound">AMBIENT SOUND</h3>
-    <p data-i18n="p_sound">While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound "off" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.</p>
+    <p data-i18n="p_sound">While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound "off" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it its own tone color — SOFT is pure and warm, INK is fuller with a slow swell, CHALK is dry and grainy, NEON is bright and shimmering, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.</p>
 
     <h3 data-i18n="h_life">BRING THE PICTURE TO LIFE</h3>
     <p data-i18n="p_life">Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), or TWINKLE (a soft flicker, lovely for stars). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're "attached" to the body.</p>
@@ -3407,12 +3416,37 @@
     return out;
   })();
 
+  // Každý štětec má vlastní charakter tónu: tvar vlny (osc), dolní propust,
+  // rozladění, rychlost náběhu a případnou "křídovou" šumovou vrstvu.
+  //   osc: t = tvar vlny, m = násobek frekvence, g = váha, d = směr rozladění (-1/0/1)
   const STYLE_TIMBRE = {
-    soft:  { cutoff: 900,  detune: 4 },
-    ink:   { cutoff: 1100, detune: 5 },
-    chalk: { cutoff: 750,  detune: 7 },
-    neon:  { cutoff: 1300, detune: 3 }
+    // SOFT: čistý, hřejivý, pomalu se rozvíjející sinus
+    soft:  { cutoff: 900,  q: 0.15, detune: 4, attack: 0.5, level: 0.06, noise: 0,
+             osc: [{ t: 'sine', m: 1, g: 1, d: -1 }, { t: 'sine', m: 1, g: 1, d: 1 }] },
+    // INK: plnější a "kulatější" tón s podtónem o oktávu níž, pomalý nádech jako tah štětcem
+    ink:   { cutoff: 1000, q: 0.3,  detune: 5, attack: 0.9, level: 0.06, noise: 0,
+             osc: [{ t: 'sine', m: 1, g: 1, d: -1 }, { t: 'triangle', m: 1, g: 0.8, d: 1 }, { t: 'sine', m: 0.5, g: 0.45, d: 0 }] },
+    // CHALK: matný trojúhelník + jemný šum (zrnitost), rychlejší náběh, výraznější chorus
+    chalk: { cutoff: 1500, q: 0.2,  detune: 9, attack: 0.25, level: 0.058, noise: 0.05,
+             osc: [{ t: 'triangle', m: 1, g: 1, d: -1 }, { t: 'triangle', m: 1, g: 1, d: 1 }] },
+    // NEON: jasný, zářivý tón s vyššími harmonickými (oktáva a kvinta nad), rychlý náběh
+    neon:  { cutoff: 3200, q: 0.7,  detune: 3, attack: 0.12, level: 0.05, noise: 0,
+             osc: [{ t: 'triangle', m: 1, g: 1, d: -1 }, { t: 'triangle', m: 1, g: 1, d: 1 }, { t: 'sine', m: 2, g: 0.45, d: 0 }, { t: 'sine', m: 3, g: 0.2, d: 0 }] }
   };
+  // Guma: tichý, tlumený tón (stejný jako dřív)
+  const ERASE_TIMBRE = { cutoff: 380, q: 0.15, detune: 4, attack: 0.5, level: 0.035, noise: 0,
+    osc: [{ t: 'sine', m: 1, g: 1, d: -1 }, { t: 'sine', m: 1, g: 1, d: 1 }] };
+
+  let noiseBuffer = null;
+  function getNoiseBuffer() {
+    if (noiseBuffer && noiseBuffer.sampleRate === audioCtx.sampleRate) return noiseBuffer;
+    const len = Math.floor(audioCtx.sampleRate * 2);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    noiseBuffer = buf;
+    return buf;
+  }
 
   function makeReverbImpulse(ctx, duration, decay) {
     const rate = ctx.sampleRate;
@@ -3474,29 +3508,18 @@
     if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
     stopVoice(0.08);
 
-    const timbre = STYLE_TIMBRE[brushStyle] || STYLE_TIMBRE.soft;
+    const timbre = erase ? ERASE_TIMBRE : (STYLE_TIMBRE[brushStyle] || STYLE_TIMBRE.soft);
     const now = audioCtx.currentTime;
     const f = erase ? SCALE_ROOT * 0.75 : noteFreqFromY(y, rect.height);
 
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = erase ? 380 : timbre.cutoff;
-    filter.Q.value = 0.15;
+    filter.frequency.value = timbre.cutoff;
+    filter.Q.value = timbre.q;
 
     const gain = audioCtx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(erase ? 0.035 : 0.06, now + 0.5);
-
-    // Two pure sine voices, very slightly detuned, for a soft chorus-like warmth (no harsh overtones).
-    const osc1 = audioCtx.createOscillator();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(f, now);
-    osc1.detune.setValueAtTime(-timbre.detune, now);
-
-    const osc2 = audioCtx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(f, now);
-    osc2.detune.setValueAtTime(timbre.detune, now);
+    gain.gain.linearRampToValueAtTime(timbre.level, now + timbre.attack);
 
     // Slow, subtle vibrato for an organic, breathing feel.
     const lfo = audioCtx.createOscillator();
@@ -3505,8 +3528,40 @@
     const lfoGain = audioCtx.createGain();
     lfoGain.gain.value = 2.5;
     lfo.connect(lfoGain);
-    lfoGain.connect(osc1.detune);
-    lfoGain.connect(osc2.detune);
+
+    // Oscillators of this brush's timbre. Weights are normalised so every brush
+    // has about the same loudness (the sum of weights is always 2, as with the old two sines).
+    const totalW = timbre.osc.reduce((s, o) => s + o.g, 0) || 1;
+    const oscs = timbre.osc.map(o => {
+      const osc = audioCtx.createOscillator();
+      osc.type = o.t;
+      osc.frequency.setValueAtTime(f * o.m, now);
+      osc.detune.setValueAtTime(o.d * timbre.detune, now);
+      lfoGain.connect(osc.detune);
+      const og = audioCtx.createGain();
+      og.gain.value = o.g * 2 / totalW;
+      osc.connect(og);
+      og.connect(filter);
+      return { osc, og, m: o.m };
+    });
+    filter.connect(gain);
+
+    // CHALK: a quiet layer of band-passed noise for the dry, grainy feel.
+    let noiseSrc = null, noiseFilter = null, noiseGain = null;
+    if (timbre.noise > 0) {
+      noiseSrc = audioCtx.createBufferSource();
+      noiseSrc.buffer = getNoiseBuffer();
+      noiseSrc.loop = true;
+      noiseFilter = audioCtx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = 1800;
+      noiseFilter.Q.value = 0.7;
+      noiseGain = audioCtx.createGain();
+      noiseGain.gain.value = timbre.noise;
+      noiseSrc.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(gain);
+    }
 
     const dryGain = audioCtx.createGain();
     dryGain.gain.value = 0.55;
@@ -3514,9 +3569,6 @@
     wetGain.gain.value = 0.8;
 
     let panner = null;
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(gain);
     if (audioCtx.createStereoPanner) {
       panner = audioCtx.createStereoPanner();
       panner.pan.setValueAtTime(Math.max(-1, Math.min(1, (x / Math.max(1, rect.width)) * 2 - 1)), now);
@@ -3528,18 +3580,17 @@
       gain.connect(wetGain).connect(reverbNode);
     }
 
-    osc1.start(now);
-    osc2.start(now);
+    oscs.forEach(o => o.osc.start(now));
     lfo.start(now);
-    activeVoice = { osc1, osc2, lfo, gain, filter, panner, dryGain, wetGain };
+    if (noiseSrc) noiseSrc.start(now);
+    activeVoice = { oscs, lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain };
   }
 
   function updateVoice(x, y, rect) {
     if (!activeVoice || !audioCtx) return;
     const now = audioCtx.currentTime;
     const f = noteFreqFromY(y, rect.height);
-    activeVoice.osc1.frequency.setTargetAtTime(f, now, 0.14);
-    activeVoice.osc2.frequency.setTargetAtTime(f, now, 0.14);
+    activeVoice.oscs.forEach(o => o.osc.frequency.setTargetAtTime(f * o.m, now, 0.14));
     if (activeVoice.panner) {
       activeVoice.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, (x / Math.max(1, rect.width)) * 2 - 1)), now, 0.15);
     }
@@ -3547,18 +3598,20 @@
 
   function stopVoice(release) {
     if (!activeVoice || !audioCtx) return;
-    const { osc1, osc2, lfo, gain, filter, panner, dryGain, wetGain } = activeVoice;
+    const { oscs, lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain } = activeVoice;
     const now = audioCtx.currentTime;
     const rel = typeof release === 'number' ? release : 1.2;
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.linearRampToValueAtTime(0, now + rel);
-    try { osc1.stop(now + rel + 0.05); osc2.stop(now + rel + 0.05); lfo.stop(now + rel + 0.05); } catch (e) {}
+    const endT = now + rel + 0.05;
+    try { oscs.forEach(o => o.osc.stop(endT)); lfo.stop(endT); if (noiseSrc) noiseSrc.stop(endT); } catch (e) {}
     // Uzly se po doznění musí explicitně odpojit — jinak na slabších telefonech
     // postupně přibývají "tiché" uzly v audio grafu, které i tak zatěžují CPU
     // a po delším kreslení způsobují praskání.
-    const cleanupNodes = [osc1, osc2, lfo, gain, filter, panner, dryGain, wetGain].filter(Boolean);
-    osc1.onended = () => {
+    const cleanupNodes = [lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain]
+      .concat(oscs.map(o => o.osc), oscs.map(o => o.og)).filter(Boolean);
+    oscs[0].osc.onended = () => {
       cleanupNodes.forEach(n => { try { n.disconnect(); } catch (e) {} });
     };
     activeVoice = null;
@@ -4025,6 +4078,7 @@
 
   const i18nText = {
     title: { en: "HOW TO DRAW", cz: "JAK KRESLIT" },
+    btn_hub: { en: "SYNTHLUCIDA HUB ↗", cz: "SYNTHLUCIDA HUB ↗" },
     h_drawing: { en: "DRAWING", cz: "KRESLENÍ" },
     p_drawing: { en: "Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.", cz: "Stiskněte a táhněte myší nebo prstem a malujte. Jediné klepnutí zanechá tečku. Níže vyberte BRUSH FEEL a změňte tak vzhled svých tahů." },
     h_brush: { en: "BRUSH", cz: "ŠTĚTEC" },
@@ -4052,7 +4106,7 @@
     p_textemoji: { en: "Press 🔤 TEXT, then tap anywhere on the canvas to write a word. Right after, pick a graphic look for it — NEON, GOLD, FIRE, ICE, BUBBLE, OUTLINE, RAINBOW or 3D — previewed live in your brush color. Press 😀 EMOJI to open the emoji picker, choose one, then tap the canvas to drop it there. Both are added to your drawing's history, so they replay with ▶ ANIMATE and appear in your VIDEO and GIF exports too. Turn on ✨ ANIMATE TEXT before writing a word and you'll also get to pick a motion for it right after choosing its look, the same way you do with ➕ MARK PART.", cz: "Stiskněte 🔤 TEXT a poté klepněte kamkoli na plátno — napíšete slovo. Hned poté si pro něj vyberete grafický styl — NEON, GOLD, FIRE, ICE, BUBBLE, OUTLINE, RAINBOW nebo 3D — s náhledem přímo ve vaší barvě štětce. Stiskněte 😀 EMOJI, otevřete výběr emoji, vyberte jedno a klepnutím na plátno ho tam umístíte. Obojí se přidá do historie kresby, takže se přehraje i v ▶ ANIMATE a objeví se i ve vašich exportech VIDEO a GIF. Zapněte ✨ ANIMATE TEXT ještě před napsáním slova a po výběru stylu si hned budete moct vybrat i pohyb, stejně jako u ➕ MARK PART." },
     p_textemoji_hint: { en: "Write a word, pick a graphic style for it, or drop an emoji anywhere on the canvas. Turn on ✨ ANIMATE TEXT to make your words move.", cz: "Napište slovo, vyberte mu grafický styl, nebo kamkoli na plátno umístěte emoji. Zapněte ✨ ANIMATE TEXT, aby se vaše slova hýbala." },
     h_sound: { en: "AMBIENT SOUND", cz: "AMBIENTNÍ ZVUK" },
-    p_sound: { en: "While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound \"off\" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it a slightly different tone color, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.", cz: "Zatímco kreslíte, tichý ambientní tón jemně sleduje váš štětec. Vždy je naladěn na klidnou pětitónovou stupnici, takže nikdy nemůže znít „mimo“ — výš na plátně zní vyšší tón, níž hlubší, a mezi nimi plynule klouže podle vašeho pohybu. Tón se posouvá vlevo a vpravo podle polohy štětce, pomalu se rozvine a při zvednutí prstu pomalu odezní, a má jemný nádech reverbu pro měkký, prostorový pocit. Každý styl štětce (BRUSH FEEL) mu dodá mírně jinou barvu tónu a gumování hraje svůj vlastní tichý, tlumený tón. Kdykoli ho přepnete tlačítkem 🔊 SOUND a posuvníkem vedle něj nastavíte hlasitost (výchozích 40 %) — obě volby se zapamatují." },
+    p_sound: { en: "While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound \"off\" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it its own tone color — SOFT is pure and warm, INK is fuller with a slow swell, CHALK is dry and grainy, NEON is bright and shimmering, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.", cz: "Zatímco kreslíte, tichý ambientní tón jemně sleduje váš štětec. Vždy je naladěn na klidnou pětitónovou stupnici, takže nikdy nemůže znít „mimo“ — výš na plátně zní vyšší tón, níž hlubší, a mezi nimi plynule klouže podle vašeho pohybu. Tón se posouvá vlevo a vpravo podle polohy štětce, pomalu se rozvine a při zvednutí prstu pomalu odezní, a má jemný nádech reverbu pro měkký, prostorový pocit. Každý styl štětce (BRUSH FEEL) mu dodá vlastní barvu tónu — SOFT je čistý a hřejivý, INK plnější s pomalým náběhem, CHALK suchý a zrnitý, NEON jasný a třpytivý a gumování hraje svůj vlastní tichý, tlumený tón. Kdykoli ho přepnete tlačítkem 🔊 SOUND a posuvníkem vedle něj nastavíte hlasitost (výchozích 40 %) — obě volby se zapamatují." },
     h_life: { en: "BRING THE PICTURE TO LIFE", cz: "OŽIVTE SVŮJ OBRÁZEK" },
     p_life: { en: "Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), TWINKLE (a soft flicker, lovely for stars), SHAKE (a playful jitter), or RAINBOW (slowly cycling colors). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're \"attached\" to the body.", cz: "Nakreslete obrázek (např. ptáka), poté stiskněte ➕ MARK PART a přetáhněte přes část, kterou chcete rozhýbat (např. křídlo). Vyberte pohyb — FLAP, SWAY, SPIN, BOB, PULSE (jemné dýchání), FADE (jemné dýchání průhlednosti), DRIFT (pomalé plutí), TWINKLE (jemné blikání, skvělé pro hvězdy), SHAKE (hravé chvění) nebo RAINBOW (pomalu se měnící barvy). Přidejte tolik částí, kolik chcete, a stiskněte 🦋 LIVE — zbytek obrázku zůstane nehybný, zatímco označené části se pohybují kolem bodu, kde jsou „připojené“ k tělu." },
     btn_choose_outline: { en: "CHOOSE A PAGE", cz: "VYBRAT OMALOVÁNKU" },
@@ -4067,6 +4121,14 @@
     });
     const btn = document.getElementById('info-lang-toggle');
     if (btn) btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
+    const hub = document.getElementById('info-hub-link');
+    if (hub) hub.href = 'https://synthlucida.com/hub.html?lang=' + (guideLang === 'cz' ? 'cz' : 'en');
+    const back = document.getElementById('btn-close');
+    if (back) {
+      const backLabel = guideLang === 'cz' ? 'Zpět na přehrávač' : 'Back to player';
+      back.title = backLabel;
+      back.setAttribute('aria-label', backLabel);
+    }
     const home = document.getElementById('btn-home');
     if (home) {
       home.href = guideLang === 'cz' ? 'https://synthlucida.com/draw-landing-cz.html' : 'https://synthlucida.com/draw-landing.html';
