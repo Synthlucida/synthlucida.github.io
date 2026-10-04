@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.7.8">
+<meta name="app-version" content="1.7.9">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1579,7 +1579,7 @@
 <div class="effects-container">
   <button class="btn-feature" id="btn-weather" onclick="toggleWeather()">WEATHER: OFF</button>
   <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation">＋ PHOTO</button>
-  <input type="file" id="sun-photo-input" accept="image/*" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
+  <input type="file" id="sun-photo-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
   <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()">🎵 MY PLAYLIST <span id="queue-count-badge"></span></button>
   <button class="btn-feature" onclick="saveSettings()">SAVE</button>
@@ -1773,7 +1773,7 @@
     </div>
   </div>
 </div>
-<input type="file" id="sun-photo-dev-input" accept="image/*" style="display:none;" onchange="handleDevBuiltinUpload(event)">
+<input type="file" id="sun-photo-dev-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" style="display:none;" onchange="handleDevBuiltinUpload(event)">
 
 <div class="sun-photo-lightbox" id="sun-photo-lightbox" onclick="closeSunPhotoLightbox()">
   <button class="sun-photo-lightbox-close" onclick="event.stopPropagation(); closeSunPhotoLightbox()" aria-label="Close photo preview">✖</button>
@@ -2892,6 +2892,47 @@
       if (input) input.click();
   };
 
+  // ---- Bezpečnost + limity importu vlastních fotek ----
+  // Povolené jen PNG/JPEG/WebP/GIF/AVIF (SVG záměrně ne). Typ se ověřuje i podle skutečného
+  // obsahu souboru (magic bytes), ne jen podle přípony/MIME, takže přejmenovaný soubor neprojde.
+  const SUN_PHOTO_MAX_BYTES = 10 * 1024 * 1024; // max velikost jedné fotky (10 MB)
+  const SUN_PHOTO_MAX_COUNT = 40;               // max počet vlastních fotek celkem
+
+  function detectSunImageType(file) {
+      return new Promise((resolve) => {
+          try {
+              const reader = new FileReader();
+              reader.onload = () => {
+                  try {
+                      const b = new Uint8Array(reader.result);
+                      const str = (from, to) => String.fromCharCode.apply(null, Array.from(b.slice(from, to)));
+                      if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return resolve('png');
+                      if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return resolve('jpeg');
+                      if (b.length >= 6 && str(0, 4) === 'GIF8') return resolve('gif');
+                      if (b.length >= 12 && str(0, 4) === 'RIFF' && str(8, 12) === 'WEBP') return resolve('webp');
+                      if (b.length >= 12 && str(4, 8) === 'ftyp' && (str(8, 12) === 'avif' || str(8, 12) === 'avis')) return resolve('avif');
+                      resolve(null);
+                  } catch (e) { resolve(null); }
+              };
+              reader.onerror = () => resolve(null);
+              reader.readAsArrayBuffer(file.slice(0, 32));
+          } catch (e) { resolve(null); }
+      });
+  }
+
+  // Vrátí true, pokud je v úložišti zjevně málo místa pro daný soubor (když to prohlížeč umí zjistit).
+  async function sunPhotoStorageTooFull(neededBytes) {
+      try {
+          if (navigator.storage && navigator.storage.estimate) {
+              const est = await navigator.storage.estimate();
+              if (est && est.quota && typeof est.usage === 'number') {
+                  return (est.quota - est.usage) < neededBytes * 2;
+              }
+          }
+      } catch (e) { /* nelze zjistit - nebudeme blokovat */ }
+      return false;
+  }
+
   window.handleSunPhotoUpload = async function(event) {
       const input = event.target;
       const files = Array.from(input.files || []);
@@ -2899,8 +2940,13 @@
       if (!files.length) return;
 
       let addedCount = 0;
+      let rejectedType = 0, rejectedSize = 0, rejectedCount = 0, rejectedStorage = 0;
       for (const file of files) {
-          if (!file.type || file.type.indexOf('image/') !== 0) continue;
+          if (!file.type || file.type.indexOf('image/') !== 0) { rejectedType++; continue; }
+          if (customSunPhotoEntries.length >= SUN_PHOTO_MAX_COUNT) { rejectedCount++; continue; }
+          if (file.size > SUN_PHOTO_MAX_BYTES) { rejectedSize++; continue; }
+          if (!(await detectSunImageType(file))) { rejectedType++; continue; }
+          if (await sunPhotoStorageTooFull(file.size)) { rejectedStorage++; continue; }
           const id = myFilesGenId();
           const order = sunPhotoOrderCounter++;
           try {
@@ -2911,6 +2957,16 @@
               console.error('Nelze uložit SUN fotku:', e);
               alert('Could not save one of the photos on this device.');
           }
+      }
+
+      if (rejectedType + rejectedSize + rejectedCount + rejectedStorage > 0) {
+          const cz = guideLang === 'cz';
+          const reasons = [];
+          if (rejectedType) reasons.push(cz ? 'jen PNG, JPEG, WebP, GIF, AVIF' : 'only PNG, JPEG, WebP, GIF, AVIF allowed');
+          if (rejectedSize) reasons.push(cz ? `max ${SUN_PHOTO_MAX_BYTES / 1048576} MB na fotku` : `max ${SUN_PHOTO_MAX_BYTES / 1048576} MB per photo`);
+          if (rejectedCount) reasons.push(cz ? `max ${SUN_PHOTO_MAX_COUNT} fotek` : `max ${SUN_PHOTO_MAX_COUNT} photos`);
+          if (rejectedStorage) reasons.push(cz ? 'málo místa v úložišti' : 'not enough storage space');
+          alert((cz ? 'Některé soubory nebyly přidány: ' : 'Some files were not added: ') + reasons.join('; ') + '.');
       }
 
       if (addedCount > 0) saveSunPhotoOrder();
@@ -3057,6 +3113,12 @@
       const id = sunPhotoDevPendingId;
       sunPhotoDevPendingId = null;
       if (!file || !id || !file.type || file.type.indexOf('image/') !== 0) return;
+      if (file.size > SUN_PHOTO_MAX_BYTES || !(await detectSunImageType(file)) || await sunPhotoStorageTooFull(file.size)) {
+          alert(guideLang === 'cz'
+              ? `Soubor nelze použít (jen PNG, JPEG, WebP, GIF, AVIF, max ${SUN_PHOTO_MAX_BYTES / 1048576} MB).`
+              : `This file can't be used (only PNG, JPEG, WebP, GIF, AVIF, max ${SUN_PHOTO_MAX_BYTES / 1048576} MB).`);
+          return;
+      }
       try {
           await sunPhotoDbPut({ id, kind: 'builtin_override', name: file.name, addedAt: Date.now(), blob: file });
           applyBuiltinOverride(id, URL.createObjectURL(file), true);
