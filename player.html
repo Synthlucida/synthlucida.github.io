@@ -502,6 +502,10 @@
   .atmos-toggle::after { content: '\25BE'; font-size: 8px; line-height: 1; transition: transform 0.25s ease; }
   .atmos-toggle.open { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
   .atmos-toggle.open::after { transform: rotate(180deg); }
+  /* Malé kostkové tlačítko vlevo od MUSIC: náhodná skladba z PIANO/CHILL + zapnutý shuffle */
+  .atmos-dice { padding: 5px 7px; font-size: 11px; letter-spacing: 0; }
+  .atmos-dice::after { content: none; }
+  .atmos-dice.active { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
   /* Tečka NEW na MUSIC, když je v některém playlistu nová skladba (v rozbaleném seznamu je i u konkrétního playlistu) */
   .atmos-toggle.has-new-track::before {
     content: ''; position: absolute; top: -3px; right: -3px;
@@ -1506,6 +1510,7 @@
 </div>
 
 <div class="atmospheres">
+  <button type="button" class="atmos-toggle atmos-dice" id="btn-random-mix" onclick="playRandomMix()" title="Random track from PIANO &amp; CHILL, then shuffle" aria-label="Random track, then shuffle" aria-pressed="false">🎲</button>
   <button type="button" class="atmos-toggle" id="atmos-toggle-music" aria-expanded="false" aria-controls="atmos-panel-music" aria-haspopup="true"><span class="atmos-toggle-label">MUSIC</span></button>
   <button type="button" class="atmos-toggle" id="atmos-toggle-explore" aria-expanded="false" aria-controls="atmos-panel-explore" aria-haspopup="true"><span class="atmos-toggle-label">EXPLORE</span></button>
   <div class="atmos-panel" id="atmos-panel-music" role="group" aria-label="Playlists">
@@ -1818,7 +1823,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_atmos">Atmospheres & playlists</h4>
-      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player.</p>
+      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off.</p>
     </div>
 
     <div class="main-guide-section">
@@ -4554,6 +4559,44 @@
   window.toggleShuffle = function() {
       shuffleEnabled = !shuffleEnabled;
       document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled);
+      const dice = document.getElementById('btn-random-mix');
+      if (dice && !shuffleEnabled) dice.dataset.used = '0';
+      syncRandomMixBtn();
+  };
+
+  // Kostka vlevo od MUSIC: vybere náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí,
+  // zobrazí její playlist dole a zapne shuffle, takže po dohrání pokračuje náhodné přehrávání
+  // v tomto playlistu (stejně jako když uživatel sám klikne na 🔀).
+  function syncRandomMixBtn() {
+    const dice = document.getElementById('btn-random-mix');
+    const sh = document.getElementById('btn-shuffle');
+    if (!dice || !sh) return;
+    const on = shuffleEnabled && dice.dataset.used === '1';
+    dice.classList.toggle('active', on);
+    dice.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  window.playRandomMix = function() {
+    const pool = [];
+    Object.keys(tracks).forEach(key => {
+      if (key === 'asmr' || !Array.isArray(tracks[key])) return;
+      tracks[key].forEach((t, i) => pool.push({ key, i }));
+    });
+    if (!pool.length) return;
+    let pick = pool[Math.floor(Math.random() * pool.length)];
+    // nevybírat hned znovu stejnou skladbu, která právě hraje
+    if (pool.length > 1 && pick.key === currentPlaylistKey && pick.i === currentTrackIndex && !customQueueActive) {
+      const others = pool.filter(p => !(p.key === pick.key && p.i === pick.i));
+      pick = others[Math.floor(Math.random() * others.length)];
+    }
+    const plBtn = Array.from(document.querySelectorAll('#atmos-panel-music .btn-atmos'))
+      .find(b => b.textContent.trim().toLowerCase() === pick.key);
+    if (plBtn) setPlaylist(pick.key, plBtn);
+    else { playlist = tracks[pick.key]; currentPlaylistKey = pick.key; updatePlaylistUI(); }
+    playTrack(pick.i);
+    if (!shuffleEnabled) toggleShuffle();
+    const dice = document.getElementById('btn-random-mix');
+    if (dice) dice.dataset.used = '1';
+    syncRandomMixBtn();
   };
 
   window.toggleRepeat = function() {
@@ -5021,7 +5064,7 @@
     h_playback: { en: "Playback", cz: "Přehrávání" },
     p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
-    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou) a BREATHE (vedené dechové cvičení). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje." },
+    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) a BREATHE (vedené dechové cvičení). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
