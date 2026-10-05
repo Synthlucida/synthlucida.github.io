@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.7.9">
+<meta name="app-version" content="1.8.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1156,7 +1156,15 @@
     transition: background 0.4s linear;
   }
   /* Vše kromě overlaye zmizí ze scény - jedno pravidlo pokryje i budoucí sekce */
-  body.breathing-active > *:not(.breathing-overlay) { display: none !important; }
+  body.breathing-active > *:not(.breathing-overlay):not(#rain-canvas) { display: none !important; }
+  body.breathing-active::before { display: none; }
+  /* WEATHER uvnitr dechoveho cviceni: canvas s pocasim (#rain-canvas) zustava viditelny pod overlayem,
+     overlay proto dostane pruhledne pozadi (jinak by canvas zakryl svym gradientem) */
+  .breathing-overlay.breath-weather { background: transparent; }
+  body.weather-photo-mode .breathing-overlay.breath-weather .breath-ambient { display: none; }
+  /* Samostatný řádek pod START/STOP/VIBE/SAVE - vycentrovaný, na úzkých displejích se nezalamuje */
+  .breath-weather-row { display: flex; justify-content: center; margin-top: 10px; padding: 0 20px; }
+  #breath-weather-btn { min-width: 122px; }
   body.breathing-active { overflow: hidden; }
   body.breathing-active .breathing-overlay { display: flex; }
 
@@ -1232,14 +1240,19 @@
 
   /* Výběr techniky dechu - více variant podle studií, uživatel si vybere */
   .breath-technique-select {
-    position: relative; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
-    max-width: 320px; padding: 0 16px; margin-bottom: 8px;
+    position: relative; display: flex; flex-wrap: nowrap; justify-content: center; gap: 4px;
+    width: 100%; max-width: 360px; box-sizing: border-box; padding: 0 8px; margin-bottom: 8px;
   }
   .btn-breath-tech {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
     color: #fff; opacity: 0.55; padding: 5px 10px; border-radius: 20px;
     font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1px;
     cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
+    white-space: nowrap; flex: 0 1 auto; min-width: 0;
+  }
+  /* Všech 5 technik vždy v jedné řadě - na nejužších displejích se jen zmenší odsazení */
+  @media (max-width: 340px) {
+    .btn-breath-tech { padding: 5px 6px; letter-spacing: 0.5px; }
   }
   .btn-breath-tech:hover { opacity: 0.85; }
   .btn-breath-tech.active {
@@ -1820,7 +1833,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_breath">Breathing exercise</h4>
-      <p data-i18n="p_breath">Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.</p>
+      <p data-i18n="p_breath">Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.</p>
     </div>
 
     <div class="main-guide-section">
@@ -2080,6 +2093,9 @@
     <button class="btn-breath-ctrl" id="breath-stop-btn" onclick="pauseBreathCycle()">STOP</button>
     <button class="btn-breath-ctrl" id="breath-vibe-btn" onclick="toggleBreathVibration()">VIBE: ON</button>
     <button class="btn-breath-ctrl" id="breath-save-btn" onclick="saveBreathSettings()">SAVE</button>
+  </div>
+  <div class="breath-weather-row">
+    <button class="btn-breath-ctrl" id="breath-weather-btn" onclick="toggleWeather()">WEATHER: OFF</button>
   </div>
 
   <div class="breath-hint">tap ✖ to exit</div>
@@ -3338,7 +3354,8 @@
   window.addEventListener('resize', initEffects);
 
   function drawEffects() {
-      if(breathingActive || (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive())) {
+      // Pri dechovem cviceni se kresli jen WEATHER (SUNSET/NIGHT a vanoce zustavaji skryte jako dosud)
+      if(breathingActive ? weatherMode === 0 : (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive())) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -3346,7 +3363,7 @@
       canvasLoopActive = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if(isChristmasActive()) {
+      if(!breathingActive && isChristmasActive()) {
           drawChristmasOverlay();
       }
 
@@ -3362,7 +3379,9 @@
           drawWinterAmbient2();
       }
 
-      if(sunsetMode === 1) {
+      if(breathingActive) {
+          // SUNSET/NIGHT se v dechovem cviceni nekresli
+      } else if(sunsetMode === 1) {
           let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
           grad.addColorStop(0, 'rgba(255, 40, 100, 0.22)');
           grad.addColorStop(0.5, 'rgba(255, 110, 20, 0.15)');
@@ -3847,7 +3866,7 @@
   }
 
   function updateCanvasState() {
-      let active = weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive();
+      let active = breathingActive ? weatherMode !== 0 : (weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive());
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
       else if (!active) ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -3872,7 +3891,21 @@
           btn.classList.add('active');
       }
       updateWeatherPhotoMode();
+      updateBreathWeatherUI();
       updateCanvasState();
+  }
+
+  // Tlačítko WEATHER uvnitř dechového cvičení - sdílí stav (weatherMode) s tlačítkem v playeru,
+  // takže se přepínají stejné scény i fotky. Overlay je při aktivním WEATHER průhledný, aby bylo vidět canvas.
+  function updateBreathWeatherUI() {
+      let bbtn = document.getElementById('breath-weather-btn');
+      let wbtn = document.getElementById('btn-weather');
+      if (bbtn && wbtn) {
+          bbtn.innerText = wbtn.innerText;
+          bbtn.classList.toggle('active', weatherMode !== 0);
+      }
+      let ov = document.getElementById('breathing-overlay');
+      if (ov) ov.classList.toggle('breath-weather', breathingActive && weatherMode !== 0);
   }
 
   // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> WINTER II -> OFF (stejný princip jako u SUNSET)
@@ -4299,6 +4332,8 @@
     breathCycleStarted = false;
     breathPhaseIndex = 0;
     document.body.classList.add('breathing-active'); // vše ostatní se schová, hudba klidně hraje dál
+    updateBreathWeatherUI();
+    updateCanvasState(); // pokud je zapnuté WEATHER, canvas s počasím zůstane vidět i v dechu
 
     // Okamžitě (bez přechodu) nastavit výchozí "vydechnutý" stav a nechat appku
     // čekat v pozastaveném stavu - samotný cyklus i odpočet XP času se spustí
@@ -4383,6 +4418,7 @@
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) settings = {};
     settings.vibrationEnabled = vibrationEnabled;
     settings.breathTechnique = currentBreathTechnique;
+    settings.weather = weatherMode;
     try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
 
     const btn = document.getElementById('breath-save-btn');
@@ -4465,6 +4501,7 @@
     document.getElementById('breathing-overlay').classList.remove('breath-paused');
     const guide = document.getElementById('breath-guide');
     if (guide) guide.classList.remove('visible');
+    updateBreathWeatherUI();
     updateCanvasState(); // obnoví déšť/sunset/night canvas, pokud byl zapnutý
   };
 
@@ -4990,7 +5027,7 @@
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
     p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
-    p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh." },
+    p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh. Tlačítko WEATHER pod tlačítky START a STOP na dechové obrazovce zapne stejné scény počasí a fotky jako v playeru." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
     p_timer: { en: "Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.", cz: "Pomocí tlačítek časovače nastavte automatické zastavení přehrávání po 15, 30 nebo 60 minutách, nebo aktivní časovač kdykoli zrušte tlačítkem ✖." },
     h_crossfade: { en: "Crossfade", cz: "Prolínání (Crossfade)" },
