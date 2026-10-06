@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.8.1">
+<meta name="app-version" content="1.8.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -506,6 +506,47 @@
   .atmos-dice { padding: 5px 7px; font-size: 11px; letter-spacing: 0; }
   .atmos-dice::after { content: none; }
   .atmos-dice.active { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
+  /* Kostka se točí, jen když je zapnutá (.active); po vypnutí se animace zastaví */
+  .atmos-dice .dice-face { display: inline-block; line-height: 1; transform-origin: 50% 50%; }
+  @keyframes dice-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .atmos-dice.active .dice-face { animation: dice-spin 2.2s linear infinite; }
+  }
+
+  /* Animace tlačítek shuffle / repeat / držení displeje - jen když jsou zapnutá (.active),
+     po vypnutí se zastaví. Stejný stav (.active) už nastavuje stávající JS. */
+  .ctrl-icon { display: inline-block; line-height: 1; transform-origin: 50% 50%; }
+  @keyframes ctrl-shuffle-wobble {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-14deg) scale(1.18); }
+    75% { transform: rotate(14deg) scale(1.18); }
+  }
+  @keyframes ctrl-repeat-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes ctrl-wake-glow {
+    0%, 100% { box-shadow: 0 0 6px var(--accent-color); }
+    50% { box-shadow: 0 0 16px var(--accent-color), 0 0 4px var(--accent-color) inset; }
+  }
+  @keyframes ctrl-wake-icon { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
+  /* Zvýraznění zapnutého držení displeje (i bez animace) */
+  .btn-focus-mode#btn-wakelock.active { background: rgba(255,255,255,0.14); }
+  @keyframes ctrl-next-skip {
+    0% { transform: translateX(0); opacity: 1; }
+    45% { transform: translateX(15px); opacity: 0; }
+    46% { transform: translateX(-15px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes ctrl-play-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(0,0,0,0.2), 0 0 4px var(--accent-color); }
+    50% { box-shadow: 0 0 6px rgba(0,0,0,0.2), 0 0 20px var(--accent-color); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    #btn-shuffle.active .ctrl-icon-shuffle { animation: ctrl-shuffle-wobble 1.6s ease-in-out infinite; }
+    #btn-repeat.active .ctrl-icon-repeat { animation: ctrl-repeat-spin 2.6s linear infinite; }
+    #btn-next .ctrl-icon-next.skipping { animation: ctrl-next-skip 0.4s ease-out 1; }
+    #btn-play.playing { animation: ctrl-play-pulse 2s ease-in-out infinite; }
+    #btn-wakelock.active { animation: ctrl-wake-glow 2s ease-in-out infinite; }
+    #btn-wakelock.active .ctrl-icon-wake { animation: ctrl-wake-icon 2s ease-in-out infinite; }
+  }
   /* Tečka NEW na MUSIC, když je v některém playlistu nová skladba (v rozbaleném seznamu je i u konkrétního playlistu) */
   .atmos-toggle.has-new-track::before {
     content: ''; position: absolute; top: -3px; right: -3px;
@@ -1510,7 +1551,7 @@
 </div>
 
 <div class="atmospheres">
-  <button type="button" class="atmos-toggle atmos-dice" id="btn-random-mix" onclick="playRandomMix()" title="Random track from PIANO &amp; CHILL, then shuffle" aria-label="Random track, then shuffle" aria-pressed="false">🎲</button>
+  <button type="button" class="atmos-toggle atmos-dice" id="btn-random-mix" onclick="playRandomMix()" title="Random track from PIANO &amp; CHILL, then shuffle" aria-label="Random track, then shuffle" aria-pressed="false"><span class="dice-face" aria-hidden="true">🎲</span></button>
   <button type="button" class="atmos-toggle" id="atmos-toggle-music" aria-expanded="false" aria-controls="atmos-panel-music" aria-haspopup="true"><span class="atmos-toggle-label">MUSIC</span></button>
   <button type="button" class="atmos-toggle" id="atmos-toggle-explore" aria-expanded="false" aria-controls="atmos-panel-explore" aria-haspopup="true"><span class="atmos-toggle-label">EXPLORE</span></button>
   <div class="atmos-panel" id="atmos-panel-music" role="group" aria-label="Playlists">
@@ -1661,10 +1702,10 @@
 
   <div class="controls-row">
     <div class="controls">
-      <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle">🔀</button>
+      <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle"><span class="ctrl-icon ctrl-icon-shuffle" aria-hidden="true">🔀</span></button>
       <button class="btn-ctrl" id="btn-play">▶</button>
-      <button class="btn-ctrl" id="btn-next">⏭</button>
-      <button class="btn-ctrl-sub" id="btn-repeat" onclick="toggleRepeat()" title="Repeat">🔁</button>
+      <button class="btn-ctrl" id="btn-next"><span class="ctrl-icon ctrl-icon-next" aria-hidden="true">⏭</span></button>
+      <button class="btn-ctrl-sub" id="btn-repeat" onclick="toggleRepeat()" title="Repeat"><span class="ctrl-icon ctrl-icon-repeat" aria-hidden="true">🔁</span></button>
     </div>
     <div class="mini-stats">
       <span class="mini-stat-label" id="mini-level-label">LVL 1</span>
@@ -1677,7 +1718,7 @@
       <button class="btn-focus-mode community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
       <button class="btn-focus-mode community-history-btn" id="community-history-btn" onclick="toggleCommunityHistory()" data-i18n-aria="community_history_btn" aria-label="Message history">🕓</button>
       <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
-      <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on">🔆</button>
+      <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on"><span class="ctrl-icon ctrl-icon-wake" aria-hidden="true">🔆</span></button>
       <span class="net-speed-badge" id="net-speed-badge" title="Current network speed" aria-label="Network speed"></span>
       <span class="net-status-badge status-checking" id="net-status-badge" title="Checking connection…" aria-label="Connection status"><span class="net-status-dot"></span><span id="net-status-text">…</span></span>
       <button class="btn-focus-mode admin-logout-btn" id="admin-logout-btn" onclick="adminLogout()" title="Admin odhlásit" aria-label="Admin logout">🔓</button>
@@ -2416,6 +2457,13 @@
     if (nowPlayingNewFlag) nowPlayingNewFlag.classList.toggle('visible', !!isNew);
   }
   const playBtn = document.getElementById('btn-play');
+  // Animace tlačítka play: třída .playing se drží podle toho, jestli tlačítko ukazuje ⏸ (hraje) nebo ▶.
+  // Řeší se pozorováním změny textu, takže se nemusí upravovat všechna místa, kde se text mění.
+  (function() {
+    const syncPlayBtnAnim = () => playBtn.classList.toggle('playing', (playBtn.textContent || '').indexOf('⏸') !== -1);
+    try { new MutationObserver(syncPlayBtnAnim).observe(playBtn, { childList: true, characterData: true, subtree: true }); } catch (e) { /* bez animace */ }
+    syncPlayBtnAnim();
+  })();
   const nextBtn = document.getElementById('btn-next');
   const body = document.getElementById('body');
   const playlistEl = document.getElementById('playlist');
@@ -7141,7 +7189,19 @@
     }
   });
 
-  nextBtn.addEventListener('click', () => { playNextTrack(); });
+  nextBtn.addEventListener('click', () => {
+    // Vizuální odezva přeskoku: ikona ⏭ "uletí" doprava a vrátí se zleva (jen kosmetika)
+    try {
+      const ic = nextBtn.querySelector('.ctrl-icon-next');
+      if (ic) {
+        ic.classList.remove('skipping');
+        void ic.offsetWidth; // restart animace při rychlém opakovaném klikání
+        ic.classList.add('skipping');
+        ic.addEventListener('animationend', () => ic.classList.remove('skipping'), { once: true });
+      }
+    } catch (e) { /* bez animace */ }
+    playNextTrack();
+  });
 
   // Malé rozhraní pro ovládání přehrávání zvenčí (např. z player-tarot.html přes skrytý
   // iframe) - umožňuje spustit/pozastavit hudbu a zjistit stav, aniž by muselo
