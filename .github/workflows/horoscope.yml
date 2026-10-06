@@ -1,0 +1,43 @@
+# .github/workflows/horoscope.yml
+# Jednou denně zkontroluje horoskopy (výchozí: měsíční) a pokud se změnily, commitne horoscope.json.
+name: Update daily horoscope
+
+on:
+  schedule:
+    - cron: '30 4 * * *'   # každý den 04:30 UTC (06:30 letního času v ČR); GitHub cron běží vždy v UTC
+  workflow_dispatch:         # jde spustit i ručně z karty Actions
+
+permissions:
+  contents: write            # workflow potřebuje pushnout horoscope.json
+
+concurrency:
+  group: horoscope
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Stáhnout horoskopy
+        run: node scripts/fetch-horoscope.mjs
+        env:
+          HOROSCOPE_PERIOD: monthly   # monthly | weekly | daily
+
+      - name: Commit, pokud se něco změnilo
+        run: |
+          if [ -z "$(git status --porcelain horoscope.json)" ]; then
+            echo "Žádná změna, nic necommituju."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add horoscope.json
+          git commit -m "chore: update daily horoscope"
+          git push
