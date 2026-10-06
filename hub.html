@@ -402,7 +402,7 @@ footer{margin-top:44px;border-top:1px solid var(--line);
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
 </style>
-<script>try{if(localStorage.getItem('slhub-bg')==='stars')document.documentElement.classList.add('bg-stars')}catch(e){}</script>
+<script>(function(){var h=new Date().getHours(),on=(h>=20||h<6)&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);try{var o=JSON.parse(localStorage.getItem('slhub-bg')||'null');if(o&&typeof o==='object'&&o.until>Date.now())on=!!o.on}catch(e){}if(on)document.documentElement.classList.add('bg-stars')})();</script>
 <script data-goatcounter="https://synthlucida.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
@@ -1237,19 +1237,39 @@ var SK = (function(){
   return { start:start, stop:stop };
 })();
 
+var BG_KEY = 'slhub-bg';
+var NIGHT_FROM = 20, NIGHT_TO = 6;   /* automatic night sky: 20:00 – 06:00 */
+function isNight(d){ var h = d.getHours(); return h >= NIGHT_FROM || h < NIGHT_TO; }
+function nextSwitch(d){            /* next moment the schedule flips (06:00 or 20:00) */
+  var n = new Date(d.getTime()), h = d.getHours();
+  if (h < NIGHT_TO) n.setHours(NIGHT_TO, 0, 0, 0);
+  else if (h < NIGHT_FROM) n.setHours(NIGHT_FROM, 0, 0, 0);
+  else { n.setDate(n.getDate() + 1); n.setHours(NIGHT_TO, 0, 0, 0); }
+  return n.getTime();
+}
+function reduceMotion(){ try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; } }
+/* a manual choice wins until the next 06:00 / 20:00, after that the schedule takes over again */
+function wantStars(){
+  var o = store.get(BG_KEY, null);
+  if (o && typeof o === 'object' && o.until > Date.now()) return !!o.on;
+  return isNight(new Date()) && !reduceMotion();
+}
+function syncBg(){ var w = wantStars(); if (w !== starsOn) setBg(w, false); }
+setInterval(syncBg, 30000);
+document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') syncBg(); });
 var bgBtn = $('bgToggle');
 function setBg(on, save){
   starsOn = on;
   document.documentElement.classList.toggle('bg-stars', on);
   bgBtn.setAttribute('aria-pressed', String(on));
   if (on) SK.start(); else SK.stop();
-  if (save) store.put('slhub-bg', on ? 'stars' : 'default');
+  if (save) store.put(BG_KEY, JSON.stringify({ on:on, until:nextSwitch(new Date()) }));
 }
 
 /* ============ INIT ============ */
 applyLang();
 render(false);
-setBg(store.raw('slhub-bg') === 'stars', false);
+setBg(wantStars(), false);
 })();
 </script>
 </body>
