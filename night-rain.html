@@ -509,6 +509,23 @@
   .site-footer-full nav { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
   .site-footer-full nav a { text-decoration: none; opacity: 0.85; }
   .site-footer-full nav a:hover { opacity: 1; text-decoration: underline; }
+  .btn-music {
+    position: relative; width: 38px; height: 38px; border-radius: 50%; font-size: 13px; padding: 0;
+    background: radial-gradient(circle at 50% 30%, rgba(60,28,110,0.9), rgba(12,5,28,0.9));
+    border: 1px solid rgba(212,175,55,0.7); color: var(--gold-hi);
+    cursor: pointer; transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    box-shadow: 0 8px 20px -10px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .btn-music:hover, .btn-music.playing {
+    background: linear-gradient(180deg, var(--gold-hi), var(--accent-color) 60%, var(--gold-lo));
+    color: #1c0f00; box-shadow: 0 0 14px rgba(212,175,55,0.55);
+  }
+  .btn-music:active { transform: scale(0.92); }
+  .btn-music.loading { opacity: 0.55; cursor: wait; }
+  .sr-only {
+    position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important;
+    overflow: hidden !important; clip-path: inset(50%) !important; border: 0 !important; pointer-events: none;
+  }
 </style>
 <script>
 /* ===== Orbitron CZ — česká písmena pro Orbitron =====
@@ -599,9 +616,12 @@
 
   <div class="action-row">
     <button class="btn-newgame" id="btn-newgame" data-i18n="btn_newgame">NOVÁ HRA</button>
+    <button class="btn-music" id="btn-music" title="Play music" aria-label="Play or pause music">▶</button>
     <button class="btn-secondary" id="btn-hide-cards" data-i18n="btn_hide_cards" style="display:none;">SCHOVAT KARTY</button>
   </div>
 </div>
+
+<iframe id="music-bridge" src="about:blank" style="position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; border:0; opacity:0; pointer-events:none;" aria-hidden="true" tabindex="-1"></iframe>
 
 <div id="suit-overlay">
   <div class="modal-panel">
@@ -632,7 +652,7 @@
     <button class="modal-close" id="btn-info-close" aria-label="Close">✕</button>
     <button class="info-lang-toggle" id="info-lang-toggle" aria-label="Switch language">EN</button>
     <h2 data-i18n="rules_title">PRAVIDLA HRY</h2>
-    <p data-i18n="rules_intro">Noční liják se hraje se 40 kartami — čtyři barvy (Měsíc, Hvězda, Plamen, Kapka), každá s hodnotami 1 až 10. Cíl je jednoduchý: na tahu se zbavte jedné karty z ruky — kdo první vyloží všechny, vyhrává. Pět hodnot má speciální účinek a dvě z nich pocházejí přímo z velké arkány Noctuary Tarotu.</p>
+    <p data-i18n="rules_intro">Noční liják se hraje se 40 kartami — čtyři barvy (Měsíc, Hvězda, Plamen, Kapka), každá s hodnotami 1 až 10. Cíl je jednoduchý: na tahu se zbavte jedné karty z ruky — kdo první vyloží všechny, vyhrává. Pět hodnot má speciální účinek a dvě z nich pocházejí přímo z velké arkány tarotu.</p>
 
     <div class="rules-legend">
       <div class="rules-legend-item"><span class="mini-card"><span class="mc-value">1</span><span class="mc-symbol">🌑</span></span><span class="txt"><b data-i18n="legend_eclipse_label">1 — ZATMĚNÍ:</b> <span data-i18n="legend_eclipse_desc">soupeř má tah přeskočený, jdete znovu</span></span></div>
@@ -660,10 +680,10 @@
   </div>
 </div>
 
-<section class="seo-content" id="about">
+<section class="seo-content sr-only" id="about">
   <p class="lead" data-i18n="seo_lead">Noční liják je karetní hra zdarma do prohlížeče pro jednoho i dva hráče — bez stahování, bez registrace, ať už proti počítači, nebo s kamarádem u jednoho zařízení.</p>
   <h2 data-i18n="seo_h_about">O hře Noční liják</h2>
-  <p data-i18n="seo_p_about1">Noční liják je originální karetní hra od tvůrců Noctuary Tarot, určená každému, kdo má rád rychlé, taktické hry na zbavování se karet — tedy rodinné karetní hry hrané v mnoha zemích pod mnoha různými jmény. Noční liják má stejného snadno pochopitelného a návykového ducha, ale s vlastní čtyřbarevnou sadou karet a vlastními speciálními kartami, z nichž dvě — Věž a Kolo štěstí — přímo čerpají z velké arkány tarotu.</p>
+  <p data-i18n="seo_p_about1">Noční liják je originální karetní hra, určená každému, kdo má rád rychlé, taktické hry na zbavování se karet — tedy rodinné karetní hry hrané v mnoha zemích pod mnoha různými jmény. Noční liják má stejného snadno pochopitelného a návykového ducha, ale s vlastní čtyřbarevnou sadou karet a vlastními speciálními kartami, z nichž dvě — Věž a Kolo štěstí — přímo čerpají z velké arkány tarotu.</p>
   <p data-i18n="seo_p_about2">Celá partie běží přímo ve vašem prohlížeči. Není třeba nic instalovat, zakládat účet, ani hlídat čas — novou partii si rozdejte, kdykoliv budete chtít. Hrajte sami proti počítači, nebo přepněte na režim pro dva hráče a s kamarádem si u jednoho zařízení předávejte tah za tahem.</p>
   <h2 data-i18n="seo_h_rules">Pravidla ve zkratce</h2>
   <div class="seo-rules-grid">
@@ -684,7 +704,7 @@
 </section>
 
 <footer class="site-footer-full">
-  <nav aria-label="Navigace">
+  <nav class="sr-only" aria-label="Navigace">
     <a href="night-rain-en.html" hreflang="en" lang="en">Play in English</a>
     <a href="player-tarot.html" data-i18n="footer_link_home">Karta dne</a>
     <a href="player.html">SYNTHLUCIDA Player</a>
@@ -720,7 +740,7 @@
     btn_playagain: { en: 'PLAY AGAIN', cz: 'HRÁT ZNOVU' },
     suit_pick_title: { en: 'CHOOSE THE NEXT SUIT', cz: 'VYBERTE DALŠÍ BARVU' },
     rules_title: { en: 'HOW TO PLAY', cz: 'PRAVIDLA HRY' },
-    rules_intro: { en: 'Night Rain is played with a 40-card deck — four suits (Moon, Star, Flame, Drop), each numbered 1 to 10. The goal is simple: be the first to play every card out of your hand. Five values carry a special effect, and two of them are drawn straight from the Noctuary Tarot\u2019s Major Arcana.', cz: 'Noční liják se hraje se 40 kartami — čtyři barvy (Měsíc, Hvězda, Plamen, Kapka), každá s hodnotami 1 až 10. Cíl je jednoduchý: na tahu se zbavte jedné karty z ruky — kdo první vyloží všechny, vyhrává. Pět hodnot má speciální účinek a dvě z nich pocházejí přímo z velké arkány Noctuary Tarotu.' },
+    rules_intro: { en: 'Night Rain is played with a 40-card deck — four suits (Moon, Star, Flame, Drop), each numbered 1 to 10. The goal is simple: be the first to play every card out of your hand. Five values carry a special effect, and two of them are drawn straight from the tarot\u2019s Major Arcana.', cz: 'Noční liják se hraje se 40 kartami — čtyři barvy (Měsíc, Hvězda, Plamen, Kapka), každá s hodnotami 1 až 10. Cíl je jednoduchý: na tahu se zbavte jedné karty z ruky — kdo první vyloží všechny, vyhrává. Pět hodnot má speciální účinek a dvě z nich pocházejí přímo z velké arkány tarotu.' },
     legend_eclipse_label: { en: '1 — ECLIPSE:', cz: '1 — ZATMĚNÍ:' },
     legend_eclipse_desc: { en: 'opponent\u2019s turn is skipped, you go again', cz: 'soupeř má tah přeskočený, jdete znovu' },
     legend_tower_label: { en: '4 — THE TOWER:', cz: '4 — VĚŽ:' },
@@ -764,7 +784,7 @@
     result_lose_sub: { en: 'The opponent emptied their hand first. Try again.', cz: 'Soupeř vyložil karty jako první. Zkuste to znovu.' },
     seo_lead: { en: 'Night Rain is a free browser card game for one or two players — no download, no account, just you against the computer or head-to-head with a friend.', cz: 'Noční liják je karetní hra zdarma do prohlížeče pro jednoho i dva hráče — bez stahování, bez registrace, ať už proti počítači, nebo s kamarádem u jednoho zařízení.' },
     seo_h_about: { en: 'About Night Rain', cz: 'O hře Noční liják' },
-    seo_p_about1: { en: 'Night Rain (Noční liják) is an original card game from the makers of Noctuary Tarot, built for anyone who enjoys quick, tactical shedding games — the kind of family card game played across many countries under many different names. Night Rain has that same easy-to-learn, hard-to-put-down spirit, with its own four-suit deck and its own set of special cards, two of which — The Tower and Wheel of Fortune — are drawn directly from the tarot\u2019s Major Arcana.', cz: 'Noční liják je originální karetní hra od tvůrců Noctuary Tarot, určená každému, kdo má rád rychlé, taktické hry na zbavování se karet — tedy rodinné karetní hry hrané v mnoha zemích pod mnoha různými jmény. Noční liják má stejného snadno pochopitelného a návykového ducha, ale s vlastní čtyřbarevnou sadou karet a vlastními speciálními kartami, z nichž dvě — Věž a Kolo štěstí — přímo čerpají z velké arkány tarotu.' },
+    seo_p_about1: { en: 'Night Rain (Noční liják) is an original card game, built for anyone who enjoys quick, tactical shedding games — the kind of family card game played across many countries under many different names. Night Rain has that same easy-to-learn, hard-to-put-down spirit, with its own four-suit deck and its own set of special cards, two of which — The Tower and Wheel of Fortune — are drawn directly from the tarot\u2019s Major Arcana.', cz: 'Noční liják je originální karetní hra, určená každému, kdo má rád rychlé, taktické hry na zbavování se karet — tedy rodinné karetní hry hrané v mnoha zemích pod mnoha různými jmény. Noční liják má stejného snadno pochopitelného a návykového ducha, ale s vlastní čtyřbarevnou sadou karet a vlastními speciálními kartami, z nichž dvě — Věž a Kolo štěstí — přímo čerpají z velké arkány tarotu.' },
     seo_p_about2: { en: 'The whole match runs in your browser. There is nothing to install, no account to create, and no time limit — deal a new hand whenever you like. Play solo against the computer, or switch to two-player mode and pass the same device back and forth with a friend for a proper face-to-face duel.', cz: 'Celá partie běží přímo ve vašem prohlížeči. Není třeba nic instalovat, zakládat účet, ani hlídat čas — novou partii si rozdejte, kdykoliv budete chtít. Hrajte sami proti počítači, nebo přepněte na režim pro dva hráče a s kamarádem si u jednoho zařízení předávejte tah za tahem.' },
     seo_h_rules: { en: 'Rules at a Glance', cz: 'Pravidla ve zkratce' },
     seo_rule1_h: { en: '🌧️ 7 — Downpour', cz: '🌧️ 7 — Liják' },
@@ -1515,6 +1535,46 @@
   updateScoreDisplay();
   newGame('pc');
 })();
+</script>
+<script>
+  /* Hudba z player.html (stejně jako v player-tarot.html): skrytý iframe se načte až po prvním klepnutí. */
+  (function () {
+    var btn = document.getElementById('btn-music');
+    var frame = document.getElementById('music-bridge');
+    if (!btn || !frame) return;
+    var loaded = false, pending = false, timer = null;
+    function ui(playing) {
+      btn.classList.toggle('playing', !!playing);
+      btn.classList.remove('loading');
+      btn.textContent = playing ? '\u23F8' : '\u25B6';
+    }
+    function api() {
+      try { return frame.contentWindow && frame.contentWindow.slPlayback ? frame.contentWindow.slPlayback : null; } catch (e) { return null; }
+    }
+    function poll() {
+      var a = api();
+      if (!a) return;
+      try { ui(a.isPlaying()); } catch (e) {}
+    }
+    btn.addEventListener('click', function () {
+      if (pending) return;
+      if (!loaded) {
+        pending = true;
+        btn.classList.add('loading');
+        frame.addEventListener('load', function onLoad() {
+          frame.removeEventListener('load', onLoad);
+          loaded = true; pending = false;
+          btn.classList.remove('loading');
+          var a = api(); if (a) { try { a.toggle(); } catch (e) {} }
+          if (!timer) timer = setInterval(poll, 700);
+          poll();
+        });
+        frame.src = 'player.html';
+      } else {
+        var a = api(); if (a) { try { a.toggle(); } catch (e) {} }
+      }
+    });
+  })();
 </script>
 <script>
   /* Fit the subtitle on one line: shrink the font to the available width (works for both languages) */
