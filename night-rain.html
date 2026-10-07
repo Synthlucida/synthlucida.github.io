@@ -190,7 +190,7 @@
     display: flex; align-items: center; justify-content: center; font-family: var(--ui);
     font-size: 15px; line-height: 1; text-decoration: none; transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
   }
-  .corner-btn:hover {
+  .corner-btn:hover, .corner-btn.active {
     background: linear-gradient(180deg, var(--gold-hi), var(--accent-color) 60%, var(--gold-lo));
     color: #1c0f00; border-color: rgba(255,236,170,0.8); box-shadow: 0 0 14px rgba(212,175,55,0.55);
   }
@@ -199,6 +199,7 @@
   .corner-btn-info { left: 10px; top: calc(10px + 38px + env(safe-area-inset-top, 0px)); font-style: italic; font-family: var(--serif); font-size: 17px; font-weight: 600; }
   .corner-btn-player { left: 10px; top: calc(10px + 38px + env(safe-area-inset-top, 0px)); font-size: 12px; }
   .corner-btn-lang { left: 10px; top: calc(10px + 76px + env(safe-area-inset-top, 0px)); font-size: 12px; font-weight: 600; }
+  .corner-btn-fs { left: auto; right: 10px; top: calc(10px + 38px + env(safe-area-inset-top, 0px)); font-size: 13px; }
   .corner-btn-howto { left: auto; right: 10px; font-style: italic; font-family: var(--serif); font-size: 17px; font-weight: 600; }
   @media (max-width: 600px) {
     .corner-btn { width: 24px; height: 24px; font-size: 12px; top: calc(6px + env(safe-area-inset-top, 0px)); }
@@ -206,6 +207,7 @@
     .corner-btn-info, .corner-btn-player { top: calc(6px + 28px + env(safe-area-inset-top, 0px)); font-size: 10px; }
     .corner-btn-info { font-size: 13px; }
     .corner-btn-lang { top: calc(6px + 56px + env(safe-area-inset-top, 0px)); font-size: 9px; }
+    .corner-btn-fs { left: auto; right: 6px; top: calc(6px + 28px + env(safe-area-inset-top, 0px)); font-size: 11px; }
     .corner-btn-howto { left: auto; right: 6px; font-size: 15px; }
   }
 
@@ -569,6 +571,7 @@
 <a class="corner-btn corner-btn-home" href="player-tarot.html" title="Zpět na tarot / Back to tarot" aria-label="Back to tarot">🔮</a>
 <a class="corner-btn corner-btn-player" href="player.html" title="Zpět do přehrávače / Back to player" aria-label="Back to player">♪</a>
 <button class="corner-btn corner-btn-lang" id="btn-lang-toggle" title="Language / Jazyk" aria-label="Switch language">EN</button>
+<button class="corner-btn corner-btn-fs" id="btn-fullscreen-toggle" onclick="toggleFullscreen()" title="Celá obrazovka / Fullscreen" aria-label="Toggle fullscreen">⤢</button>
 <button class="corner-btn corner-btn-howto" id="btn-howto" title="Jak hrát / How to play" aria-label="How to play">i</button>
 
 <div class="sky" aria-hidden="true"><div class="nebula nebula-1"></div><div class="nebula nebula-2"></div><div class="stars stars-a"></div><div class="stars stars-b"></div></div>
@@ -1594,6 +1597,62 @@
     window.addEventListener('load', fit);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
     new MutationObserver(fit).observe(el, { childList: true, characterData: true, subtree: true });
+  })();
+</script>
+<script>
+  /* Celá obrazovka (stejně jako v player-tarot.html). iPhone Safari fullscreen API pro stránky nemá, starší Safari zná jen webkit variantu. */
+  (function () {
+    function getFsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+    function requestPageFullscreen(errLabel) {
+      var el = document.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      try {
+        var result = req.call(el);
+        if (result && typeof result.catch === 'function') {
+          result.catch(function (err) { console.log(errLabel + ': ' + err.message); });
+        }
+      } catch (err) { console.log(errLabel + ': ' + err.message); }
+    }
+    window.toggleFullscreen = function () {
+      if (!getFsEl()) {
+        requestPageFullscreen('Chyba fullscreenu');
+      } else {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) {
+          try {
+            var r = exit.call(document);
+            if (r && typeof r.catch === 'function') r.catch(function () {});
+          } catch (e) {}
+        }
+      }
+    };
+    function onFsChange() {
+      var fsBtn = document.getElementById('btn-fullscreen-toggle');
+      if (getFsEl()) {
+        if (fsBtn) fsBtn.classList.add('active');
+        try { localStorage.setItem('synthlucida_fullscreen_pref', '1'); } catch (e) {}
+      } else {
+        if (fsBtn) fsBtn.classList.remove('active');
+        try { localStorage.setItem('synthlucida_fullscreen_pref', '0'); } catch (e) {}
+      }
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+
+    /* Pokud byla poslední stránka (přehrávač / tarot) zavřena na celé obrazovce, obnoví se při prvním klepnutí. */
+    try {
+      if (localStorage.getItem('synthlucida_fullscreen_pref') === '1') {
+        var restore = function (e) {
+          var onFsButton = e && e.target && e.target.closest && e.target.closest('#btn-fullscreen-toggle');
+          if (!onFsButton && !getFsEl()) requestPageFullscreen('Chyba obnovení fullscreenu');
+          document.removeEventListener('click', restore);
+          document.removeEventListener('touchend', restore);
+        };
+        document.addEventListener('click', restore, { once: true });
+        document.addEventListener('touchend', restore, { once: true });
+      }
+    } catch (e) {}
   })();
 </script>
 </body>
