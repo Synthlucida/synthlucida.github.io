@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.8.3">
+<meta name="app-version" content="1.8.4">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -249,6 +249,7 @@
     transition: 0.2s;
     -webkit-tap-highlight-color: transparent;
   }
+.ico-svg.ico-tiny { width: 11px; height: 9px; stroke-width: 1.8; }
   .logo-glow-toggle-btn.active { color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
   .desc-text { font-size: 8px; opacity: 0.7; padding: 0 20px; line-height: 1.3; margin-bottom: 4px; }
 
@@ -359,6 +360,26 @@
   .main-guide-btn:hover, .main-guide-btn:active, .main-donate-btn:hover, .main-donate-btn:active,
   .main-stats-btn:hover, .main-stats-btn:active, .main-files-btn:hover, .main-files-btn:active {
     opacity: 1; box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+
+  /* Jemná animace rohových tlačítek (ⓘ ☕ S F) při najetí myší: tlačítko se zlehka nadzvedne a zvětší,
+     zář se plynule rozsvítí a ikona / písmeno se jemně pohnou. Jen pro myš (hover), na dotykových
+     zařízeních se nic nezasekává. Při stisku se tlačítko vrátí dolů. */
+  .main-guide-btn, .main-donate-btn, .main-stats-btn, .main-files-btn {
+    transition: transform 0.25s cubic-bezier(.2,.8,.3,1.2), box-shadow 0.3s ease, opacity 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+  .main-guide-btn svg, .main-donate-btn svg { transition: transform 0.35s cubic-bezier(.2,.8,.3,1.3); }
+  @media (hover: hover) and (pointer: fine) {
+    .main-guide-btn:hover, .main-donate-btn:hover, .main-stats-btn:hover, .main-files-btn:hover { transform: translateY(-2px) scale(1.08); }
+    .main-guide-btn:hover svg { transform: scale(1.12) rotate(-8deg); }
+    .main-donate-btn:hover svg { transform: translateY(-1px) rotate(-6deg) scale(1.1); }
+    .main-donate-btn:hover svg path:nth-child(3) { animation: steamRise 1.6s ease-in-out infinite; }
+  }
+  .main-guide-btn:active, .main-donate-btn:active, .main-stats-btn:active, .main-files-btn:active { transform: scale(0.96); }
+  @keyframes steamRise { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-1.2px); opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) {
+    .main-guide-btn, .main-donate-btn, .main-stats-btn, .main-files-btn, .main-guide-btn svg, .main-donate-btn svg { transition: none; }
+    .main-donate-btn:hover svg path:nth-child(3) { animation: none; }
   }
 
   /* Když je logo vypnuté (tlačítko 💡), přeskupí se ⓘ+☕ a S+F z dvou svislých
@@ -549,6 +570,18 @@
   .atmos-toggle::after { content: '\25BE'; font-size: 8px; line-height: 1; transition: transform 0.25s ease; }
   .atmos-toggle.open { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
   .atmos-toggle.open::after { transform: rotate(180deg); }
+  /* Tlačítka MUSIC / EXPLORE / kostka: "vytažený" (vypouklý) vzhled - světlejší horní hrana, tmavší spodní,
+     stín pod tlačítkem; při stisku se vmáčknou. Rozměry a písmo zůstávají beze změny. */
+  .atmos-toggle {
+    background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 55%, rgba(0,0,0,0.12) 100%);
+    border-color: rgba(255,255,255,0.26); border-bottom-color: rgba(255,255,255,0.12);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4), 0 1px 0 rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -2px 3px rgba(0,0,0,0.18);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.45);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .atmos-toggle:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.4); }
+  .atmos-toggle.open, .atmos-dice.active { box-shadow: 0 0 12px var(--accent-color), 0 3px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.28); }
+  .ico-dice { width: 10px; height: 10px; display: block; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
   /* Malé kostkové tlačítko vlevo od MUSIC: náhodná skladba z PIANO/CHILL + zapnutý shuffle */
   .atmos-dice { padding: 5px 7px; font-size: 11px; letter-spacing: 0; }
   .atmos-dice::after { content: none; }
@@ -583,8 +616,8 @@
     100% { transform: translateX(0); opacity: 1; }
   }
   @keyframes ctrl-play-pulse {
-    0%, 100% { box-shadow: 0 0 6px rgba(0,0,0,0.2), 0 0 4px var(--accent-color); }
-    50% { box-shadow: 0 0 6px rgba(0,0,0,0.2), 0 0 20px var(--accent-color); }
+    0%, 100% { box-shadow: 0 4px 8px rgba(0,0,0,0.45), 0 0 4px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.35); }
+    50% { box-shadow: 0 4px 8px rgba(0,0,0,0.45), 0 0 20px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.35); }
   }
   @media (prefers-reduced-motion: no-preference) {
     #btn-shuffle.active .ctrl-icon-shuffle { animation: ctrl-shuffle-wobble 1.6s ease-in-out infinite; }
@@ -633,10 +666,12 @@
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
 
   .crossfade-container { display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; padding: 0 10px; }
-  .crossfade-label { font-size: 7px; opacity: 0.45; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 3px; }
+  .crossfade-label { font-size: 7px; opacity: 0.6; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 3px; }
   .crossfade-group {
     display: inline-flex; border: 1px solid rgba(255,255,255,0.18); border-radius: 16px;
-    background: rgba(255,255,255,0.04); overflow: hidden;
+    background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(255,255,255,0.05) 100%); overflow: hidden;
+    border-color: rgba(255,255,255,0.24);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1), 0 2px 6px rgba(0,0,0,0.25);
   }
   .btn-crossfade {
     background: none; border: none; color: #fff; opacity: 0.55; font-family: 'Orbitron', 'Orbitron CZ', sans-serif;
@@ -645,8 +680,9 @@
   .btn-crossfade + .btn-crossfade { border-left: 1px solid rgba(255,255,255,0.1); }
   .btn-crossfade:hover { opacity: 0.9; background: rgba(255,255,255,0.06); }
   .btn-crossfade.active {
-    opacity: 1; color: #05020a; background: var(--accent-color);
-    box-shadow: 0 0 10px var(--accent-color), inset 0 0 6px rgba(0,0,0,0.25);
+    opacity: 1; color: #05020a;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 78%, #fff) 0%, var(--accent-color) 55%, color-mix(in srgb, var(--accent-color) 75%, #000) 100%);
+    box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 3px rgba(0,0,0,0.25);
   }
 
   /* Historie přehrávání */
@@ -998,8 +1034,8 @@
   }
   .mini-spinner-pct.active { opacity: 0.8; }
 
-  .progress-container { width: 85%; max-width: 400px; margin: 0 auto 8px auto; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; }
-  .progress-bar { height: 100%; width: 0%; background: var(--accent-color); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color); transition: width 0.1s linear; }
+  .progress-container { width: 85%; max-width: 400px; margin: 0 auto 8px auto; height: 6px; background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(255,255,255,0.1) 100%); border-radius: 3px; cursor: pointer; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1), 0 1px 0 rgba(255,255,255,0.08); }
+  .progress-bar { height: 100%; width: 0%; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 70%, #fff) 0%, var(--accent-color) 50%, color-mix(in srgb, var(--accent-color) 80%, #000) 100%); border-radius: 3px; box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.4); transition: width 0.1s linear; }
 
   /* Grafický progress bar pro offline stahování playlistu */
   .download-progress-wrap {
@@ -1068,10 +1104,31 @@
   .btn-ctrl:active { transform: scale(0.95); }
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0.6; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
+  /* Ovládací tlačítka přehrávače (shuffle / play / next / repeat): "vytažený" vypouklý vzhled - světlá horní hrana,
+     tmavší spodek, stín pod tlačítkem, při stisku se vmáčknou. Velikosti beze změny. */
+  .btn-ctrl {
+    background: radial-gradient(circle at 50% 28%, rgba(255,255,255,0.18) 0%, rgba(0,0,0,0.55) 70%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.35);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-ctrl:active { transform: translateY(2px) scale(0.97); box-shadow: 0 1px 3px rgba(0,0,0,0.45), inset 0 3px 6px rgba(0,0,0,0.5); }
+  .btn-ctrl-sub {
+    background: radial-gradient(circle at 50% 28%, rgba(255,255,255,0.16) 0%, rgba(0,0,0,0.4) 75%);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 3px rgba(0,0,0,0.3);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-ctrl-sub:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.5); }
+  .btn-ctrl-sub.active { box-shadow: 0 0 10px var(--accent-color), 0 3px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25); }
+  .ico-svg.ico-sub { width: 15px; height: 15px; }
+  .ico-svg.ico-next { width: 18px; height: 18px; stroke-width: 2.2; }
+  .btn-ctrl .ctrl-icon, .btn-ctrl-sub .ctrl-icon { display: flex; align-items: center; justify-content: center; }
   .controls-row { position: relative; display: flex; align-items: center; margin-bottom: 8px; }
   .controls-row .controls { flex: 1; margin-bottom: 0; }
   .mini-stats { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
   .mini-stat-label { font-size: 9px; letter-spacing: 0.5px; opacity: 0.55; color: #fff; text-transform: uppercase; user-select: none; white-space: nowrap; }
+  /* LVL / XP: úroveň v barvě tématu s jemnou září, XP světlejší s lehkým stínem - velikost i rozestupy beze změny */
+  #mini-level-label { color: var(--accent-color); opacity: 0.95; text-shadow: 0 0 6px var(--accent-color); }
+  #mini-xp-label { opacity: 0.8; text-shadow: 0 1px 2px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.25); }
 
   /* Focus mode toggle and screen-wake toggle - sit right under the LVL/XP indicator, on opposite sides */
   .focus-mode-row { display: flex; justify-content: space-between; align-items: center; margin-top: -4px; margin-bottom: 6px; gap: 6px; }
@@ -1083,8 +1140,16 @@
   .focus-mode-left .btn-focus-mode,
   .focus-mode-left .online-count-badge { flex-shrink: 0; }
   .btn-focus-mode { background: none; border: 1px solid rgba(255,255,255,0.25); color: #fff; opacity: 0.55; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; flex-shrink: 0; }
+  /* Malá kulatá tlačítka v řádku (chat, historie, displej, karta, motiv, fullscreen, focus): stejný "vytažený"
+     vzhled jako play / next - světlá horní hrana, tmavší spodek, stín. Velikost 22 px beze změny. */
+  .btn-focus-mode {
+    background: radial-gradient(circle at 50% 28%, rgba(255,255,255,0.16) 0%, rgba(0,0,0,0.5) 75%);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 3px rgba(0,0,0,0.3);
+    opacity: 0.75; -webkit-tap-highlight-color: transparent;
+  }
+  .btn-focus-mode:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.45), inset 0 2px 3px rgba(0,0,0,0.5); }
   .btn-focus-mode:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
-  .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
+  .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color), 0 2px 5px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25); }
 
   /* Malý odznak s aktuální rychlostí připojení, vedle 🔆 tlačítka "display stále zapnutý" */
   .net-speed-badge { font-size: 9px; letter-spacing: 0.03em; color: #fff; opacity: 0.5; white-space: nowrap; user-select: none; pointer-events: none; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
@@ -1150,20 +1215,26 @@
 
   .extra-features { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; margin-bottom: 8px; padding: 0 15px;}
   .volume-controls-row { display: flex; justify-content: center; align-items: center; gap: 8px; }
-  /* Tlačítka − / ＋: zapuštěný (vmáčknutý) vzhled - tmavší dno s vnitřním stínem a světlým okrajem dole;
-     při stisku se zapustí ještě hlouběji a při najetí se rozsvítí barvou tématu. */
+  /* Čárové SVG ikony (chat, historie, karta dne, motiv, − / ＋) místo emoji - barví se přes currentColor */
+  .ico-svg { width: 12px; height: 12px; display: block; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .ico-svg.ico-vol { width: 12px; height: 12px; stroke-width: 2.2; }
+  /* Tlačítka − / ＋: zapuštěný vzhled - tmavší dno s vnitřním stínem a rovnoměrným tenkým okrajem
+     (bez různobarevných stran, které na kruhu dělaly viditelný zlom nahoře). Zvýraznění barvou tématu
+     je jen KRÁTKÉ, po dobu stisku (:active) - po puštění / kliknutí plynule zmizí, nezůstává při
+     najetí myší ani po dotyku na mobilu. */
   .btn-vol-adj {
-    background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 100%);
-    border: 1px solid rgba(255,255,255,0.14); border-bottom-color: rgba(255,255,255,0.28); border-top-color: rgba(0,0,0,0.5);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.75), inset 0 -1px 1px rgba(255,255,255,0.06), 0 1px 0 rgba(255,255,255,0.08);
-    color: #fff;
+    background: radial-gradient(circle at 50% 35%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.92);
     width: 24px; height: 24px; border-radius: 50%; font-size: 13px; line-height: 1;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: 0.2s; opacity: 0.85; padding: 0;
+    transition: color 0.35s ease, box-shadow 0.35s ease, transform 0.15s ease, border-color 0.35s ease; opacity: 0.85; padding: 0;
+    box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none;
   }
   .vol-percent { font-size: 10px; color: var(--accent-color); min-width: 32px; text-align: left; font-variant-numeric: tabular-nums; user-select: none; }
-  .btn-vol-adj:hover { opacity: 1; color: var(--accent-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.75), inset 0 -1px 1px rgba(255,255,255,0.06), 0 0 8px var(--accent-color); }
-  .btn-vol-adj:active { transform: scale(0.94); box-shadow: inset 0 3px 6px rgba(0,0,0,0.9), 0 0 5px var(--accent-color); }
+  .btn-vol-adj:active { transform: scale(0.94); color: var(--accent-color); border-color: var(--accent-color); box-shadow: inset 0 3px 5px rgba(0,0,0,0.85), 0 0 8px var(--accent-color); transition-duration: 0.05s; }
+  .btn-vol-adj:focus-visible { border-color: var(--accent-color); }
   /* Vlastní vzhled posuvníku hlasitosti: nativní accent-color si prohlížeč přebarvuje sám
      (dopočítává kontrastní barvy) a u animovaných témat (AURORA, NEON) pak barva skáče
      z bílé na tmavou. Tady jsou všechny barvy dané explicitně, takže se jen plynule mění s tématem. */
@@ -1212,6 +1283,17 @@
   .btn-timer.active { border-color: var(--accent-color); color: var(--accent-color); background: rgba(255,255,255,0.12); box-shadow: 0 0 8px var(--accent-color); }
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
+  /* Hezčí tlačítka funkcí (WEATHER / SUNSET / PHOTO / MY PLAYLIST / SAVE ...): skleněný vzhled s jemným
+     přechodem, světlým okrajem nahoře a stínem. Rozměry, odsazení, písmo i min. šířky zůstávají beze změny. */
+  .btn-feature {
+    background: linear-gradient(180deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.03) 100%);
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-feature:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 3px rgba(0,0,0,0.35); }
+  .btn-feature.active { background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 100%); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .ico-inline { width: 9px; height: 9px; display: inline-block; vertical-align: -1px; margin-right: 3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   #btn-download { min-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #btn-install { min-width: 110px; white-space: nowrap; }
   /* Pevná min. šířka SAVE tlačítka - text se mění na "SAVED!" a bez toho poskakovala sousední tlačítka */
@@ -1635,14 +1717,14 @@
 <div class="header">
   <img src="logo.jpg" alt="SYNTHLUCIDA" id="logo-img" class="logo" onerror="this.style.display='none'" onclick="handleLogoClick()">
   <div class="brand-name-row">
-    <button class="logo-glow-toggle-btn" id="btn-logo-pulse" onclick="toggleTextGlow()" title="Toggle SYNTHLUCIDA text glow" aria-label="Toggle SYNTHLUCIDA text glow">✨</button>
+    <button class="logo-glow-toggle-btn" id="btn-logo-pulse" onclick="toggleTextGlow()" title="Toggle SYNTHLUCIDA text glow" aria-label="Toggle SYNTHLUCIDA text glow"><svg class="ico-svg ico-tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3l1.8 5.700L17.500 10.500 11.800 12.300 10 18 8.200 12.300 2.500 10.500 8.200 8.700z"/><path d="M18.500 14l.8 2.200 2.200.8-2.200.8-.8 2.200-.8-2.200-2.200-.8 2.200-.8z"/></svg></button>
     <div class="brand-name">SYNTHLUCIDA</div>
-    <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight">💡</button>
+    <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight"><svg class="ico-svg ico-tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.500 10.900c.6.5 1 1.200 1 2V16h5v-.1c0-.8.4-1.500 1-2A6 6 0 0 0 12 3z"/></svg></button>
   </div>
 </div>
 
 <div class="atmospheres">
-  <button type="button" class="atmos-toggle atmos-dice" id="btn-random-mix" onclick="playRandomMix()" title="Random track from PIANO &amp; CHILL, then shuffle" aria-label="Random track, then shuffle" aria-pressed="false"><span class="dice-face" aria-hidden="true">🎲</span></button>
+  <button type="button" class="atmos-toggle atmos-dice" id="btn-random-mix" onclick="playRandomMix()" title="Random track from PIANO &amp; CHILL, then shuffle" aria-label="Random track, then shuffle" aria-pressed="false"><span class="dice-face" aria-hidden="true"><svg class="ico-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.3" fill="currentColor" stroke="none"/></svg></span></button>
   <button type="button" class="atmos-toggle" id="atmos-toggle-music" aria-expanded="false" aria-controls="atmos-panel-music" aria-haspopup="true"><span class="atmos-toggle-label">MUSIC</span></button>
   <button type="button" class="atmos-toggle" id="atmos-toggle-explore" aria-expanded="false" aria-controls="atmos-panel-explore" aria-haspopup="true"><span class="atmos-toggle-label">EXPLORE</span></button>
   <div class="atmos-panel" id="atmos-panel-music" role="group" aria-label="Playlists">
@@ -1729,11 +1811,10 @@
 
 <div class="effects-container">
   <button class="btn-feature" id="btn-weather" onclick="toggleWeather()">WEATHER: OFF</button>
-  <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation">＋ PHOTO</button>
+  <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg>PHOTO</button>
   <input type="file" id="sun-photo-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
-  <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()">🎵 MY PLAYLIST <span id="queue-count-badge"></span></button>
-  <button class="btn-feature" onclick="saveSettings()">SAVE</button>
+  <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>MY PLAYLIST <span id="queue-count-badge"></span></button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
   <button class="btn-feature" id="btn-install" onclick="installApp()" style="display:none;">📲 INSTALL APP</button>
   <span class="offline-status" id="offline-status"></span>
@@ -1794,10 +1875,10 @@
 
   <div class="controls-row">
     <div class="controls">
-      <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle"><span class="ctrl-icon ctrl-icon-shuffle" aria-hidden="true">🔀</span></button>
+      <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle"><span class="ctrl-icon ctrl-icon-shuffle" aria-hidden="true"><svg class="ico-svg ico-sub" viewBox="0 0 24 24"><path d="M3 7h3.5c2 0 3.2 1 4.5 3l2 4c1.300 2 2.500 3 4.500 3H21"/><path d="M3 17h3.5c2 0 3.200-1 4.500-3"/><path d="M13 8c1.200-1.300 2.400-1 4.500-1H21"/><path d="M18.500 4.500L21 7l-2.500 2.500M18.500 14.500L21 17l-2.500 2.500"/></svg></span></button>
       <button class="btn-ctrl" id="btn-play">▶</button>
-      <button class="btn-ctrl" id="btn-next"><span class="ctrl-icon ctrl-icon-next" aria-hidden="true">⏭</span></button>
-      <button class="btn-ctrl-sub" id="btn-repeat" onclick="toggleRepeat()" title="Repeat"><span class="ctrl-icon ctrl-icon-repeat" aria-hidden="true">🔁</span></button>
+      <button class="btn-ctrl" id="btn-next"><span class="ctrl-icon ctrl-icon-next" aria-hidden="true"><svg class="ico-svg ico-next" viewBox="0 0 24 24"><path d="M6 5.500v13l9-6.500z" fill="currentColor"/><path d="M18 5.500v13"/></svg></span></button>
+      <button class="btn-ctrl-sub" id="btn-repeat" onclick="toggleRepeat()" title="Repeat"><span class="ctrl-icon ctrl-icon-repeat" aria-hidden="true"><svg class="ico-svg ico-sub" viewBox="0 0 24 24"><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M17 3l3 3-3 3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/><path d="M7 21l-3-3 3-3"/></svg></span></button>
     </div>
     <div class="mini-stats">
       <span class="mini-stat-label" id="mini-level-label">LVL 1</span>
@@ -1807,17 +1888,17 @@
 
   <div class="focus-mode-row">
     <div class="focus-mode-left">
-      <button class="btn-focus-mode community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone">💬</button>
-      <button class="btn-focus-mode community-history-btn" id="community-history-btn" onclick="toggleCommunityHistory()" data-i18n-aria="community_history_btn" aria-label="Message history">🕓</button>
+      <button class="btn-focus-mode community-toggle-btn" id="community-toggle-btn" onclick="toggleCommunityInput()" data-i18n-aria="community_toggle_btn" aria-label="Message everyone"><svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="8.5" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r="0.9" fill="currentColor" stroke="none"/></svg></button>
+      <button class="btn-focus-mode community-history-btn" id="community-history-btn" onclick="toggleCommunityHistory()" data-i18n-aria="community_history_btn" aria-label="Message history"><svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4.5v4h4"/><path d="M12 7.5V12l3 2"/></svg></button>
       <span class="online-count-badge" id="online-count-badge" aria-label="Listeners currently online" title="Listeners online">–</span>
-      <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on"><span class="ctrl-icon ctrl-icon-wake" aria-hidden="true">🔆</span></button>
+      <button class="btn-focus-mode" id="btn-wakelock" onclick="toggleWakeLock()" title="Keep screen from turning off" aria-label="Toggle keep-screen-on"><span class="ctrl-icon ctrl-icon-wake" aria-hidden="true"><svg class="ico-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.500v2.500M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300l1.800 1.800M16.900 16.900l1.800 1.800M5.300 18.700l1.800-1.800M16.900 7.100l1.800-1.800"/></svg></span></button>
       <span class="net-speed-badge" id="net-speed-badge" title="Current network speed" aria-label="Network speed"></span>
       <span class="net-status-badge status-checking" id="net-status-badge" title="Checking connection…" aria-label="Connection status"><span class="net-status-dot"></span><span id="net-status-text">…</span></span>
       <button class="btn-focus-mode admin-logout-btn" id="admin-logout-btn" onclick="adminLogout()" title="Admin odhlásit" aria-label="Admin logout">🔓</button>
     </div>
     <div class="focus-mode-right">
-      <a href="player-tarot.html" class="btn-focus-mode tarot-toggle-btn" id="btn-tarot" title="Card of the day" aria-label="Card of the day" data-i18n-aria="tarot_btn" style="text-decoration:none;">🃏</a>
-      <button class="btn-focus-mode visual-toggle-btn" id="btn-visual-toggle" onclick="toggleVisualPanel()" title="Visual themes" aria-label="Toggle visual themes">🎨</button>
+      <a href="player-tarot.html" class="btn-focus-mode tarot-toggle-btn" id="btn-tarot" title="Card of the day" aria-label="Card of the day" data-i18n-aria="tarot_btn" style="text-decoration:none;"><svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="3" width="13" height="18" rx="2.2"/><path d="M12 7.5l1.6 3.4 3.4.5-2.5 2.4.6 3.5L12 15.6 8.9 17.3l.6-3.5L7 11.4l3.4-.5z"/></svg></a>
+      <button class="btn-focus-mode visual-toggle-btn" id="btn-visual-toggle" onclick="toggleVisualPanel()" title="Visual themes" aria-label="Toggle visual themes"><svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-.9 1.6-1.9-.3-1.1.4-2.1 1.5-2.1H17a4 4 0 0 0 4-4c0-5.2-4-10-9-10z"/><circle cx="7.8" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.2" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.8" r="1" fill="currentColor" stroke="none"/></svg></button>
       <button class="btn-focus-mode fullscreen-toggle-btn" id="btn-fullscreen-toggle" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle fullscreen">⤢</button>
       <button class="btn-focus-mode" id="btn-focus-mode" onclick="toggleFocusMode()" title="Focus mode" aria-label="Toggle focus mode">⛶</button>
     </div>
@@ -1858,8 +1939,8 @@
   <div class="extra-features">
     <div class="volume-controls-row">
       <span class="vol-icon" title="Volume">VOL🔉</span>
-      <button type="button" class="btn-vol-adj" id="btn-vol-down" onclick="adjustVolume(-0.05)" aria-label="Volume down" title="Volume down">－</button>
-      <button type="button" class="btn-vol-adj" id="btn-vol-up" onclick="adjustVolume(0.05)" aria-label="Volume up" title="Volume up">＋</button>
+      <button type="button" class="btn-vol-adj" id="btn-vol-down" onclick="adjustVolume(-0.05)" aria-label="Volume down" title="Volume down"><svg class="ico-svg ico-vol" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+      <button type="button" class="btn-vol-adj" id="btn-vol-up" onclick="adjustVolume(0.05)" aria-label="Volume up" title="Volume up"><svg class="ico-svg ico-vol" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
       <span class="vol-percent" id="vol-percent" aria-live="off" title="Volume">30%</span>
     </div>
     <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.3">
@@ -1871,6 +1952,7 @@
     <button class="btn-timer" data-timer-min="30" onclick="setTimer(30)">30m</button>
     <button class="btn-timer" data-timer-min="60" onclick="setTimer(60)">60m</button>
     <button class="btn-timer" onclick="cancelTimer()">✖</button>
+    <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   </div>
 </div>
 
