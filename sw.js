@@ -72,7 +72,7 @@
 // Audio cache (synthlucida-audio-v1) se nemění, už stažené skladby zůstanou.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1082';
+const APP_CACHE_NAME = 'synthlucida-app-v1083';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -88,6 +88,8 @@ const ASSETS_TO_CACHE = [
   './services.html',
   './tarot.html',
   './player-tarot.html',
+  './night-rain.html',
+  './night-rain-en.html',
   './manifest.json',
   './privacy_policy.html',
   './icon.png',
