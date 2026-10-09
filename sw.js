@@ -72,7 +72,7 @@
 // Audio cache (synthlucida-audio-v1) se nemění, už stažené skladby zůstanou.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1092';
+const APP_CACHE_NAME = 'synthlucida-app-v1093';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
