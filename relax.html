@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SYNTHLUCIDA | Ambient Flow — Relaxation Soundscape &amp; Sleep App</title>
 <meta name="description" content="Ambient Flow is a free interactive relaxation soundscape: binaural waves, soothing nature sounds, a generative tap-synth melody maker, a step sequencer, a sleep timer and a living night sky synced to real time. No sign-up, works in your browser.">
 <meta name="keywords" content="ambient sounds, relaxation app, binaural beats, sleep sounds, meditation app, generative music, white noise, night sky, sound therapy, SYNTHLUCIDA">
@@ -65,6 +65,8 @@
   @supports (height: 100dvh) { body, html { height: 100dvh; } }
   * { -webkit-tap-highlight-color: transparent; }
   button, input[type="range"], select, a.btn { touch-action: manipulation; }
+  /* zoom by pinching stays possible, only the double-tap zoom delay is off (fast taps on the sky) */
+  html, body { touch-action: manipulation; }
 
   #stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; transition: opacity 9s ease; }
 
@@ -228,7 +230,7 @@
   }
   .lang-btn.active-btn { color: rgba(255,255,255,0.75); box-shadow: 0 0 10px rgba(255,255,255,0.12); }
 
-  #tap-synth-toggle {
+  #tap-synth-toggle, #piano-toggle {
     min-width: 44px; padding: 6px 14px;
     border-radius: 20px; font-size: 0.9rem;
     background: rgba(120, 80, 255, 0.18);
@@ -237,7 +239,8 @@
     box-shadow: 0 0 14px rgba(120, 80, 255, 0.35);
     animation: synthTogglePulse 3.2s ease-in-out infinite;
   }
-  #tap-synth-toggle:hover, #tap-synth-toggle.active-btn {
+  #piano-toggle { animation: none; }
+  #tap-synth-toggle:hover, #tap-synth-toggle.active-btn, #piano-toggle:hover, #piano-toggle.active-btn {
     background: rgba(120, 80, 255, 0.32);
     border-color: rgba(190, 165, 255, 0.95);
     box-shadow: 0 0 22px rgba(150, 120, 255, 0.6);
@@ -265,11 +268,12 @@
     padding: 14px 22px 16px; border-radius: 16px;
     background: rgba(10, 8, 20, 0.85); border: 1px solid rgba(255,255,255,0.15);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.35s ease, transform 0.35s ease;
+    opacity: 0; pointer-events: none; visibility: hidden;
+    transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s linear 0.35s;
     box-sizing: border-box;
   }
   .tap-synth-panel.open {
+    visibility: visible; transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s;
     opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0);
   }
   .tap-synth-panel::-webkit-scrollbar { width: 4px; }
@@ -303,6 +307,61 @@
     width: 12px; height: 12px; border-radius: 50%; border: none;
     background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.5); cursor: pointer;
   }
+
+  /* --- synth panel: rotary knobs in a grid --- */
+  .tsp-sub { font-size: 0.42rem; letter-spacing: 3px; color: rgba(255,255,255,0.3); padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .sel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 10px; width: 100%; padding-bottom: 8px; }
+  .sel-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .sel-cell .tsp-label { min-width: 0; }
+  .sel-cell select { width: 100%; background: #1a1a2e; color: #fff; border: none; border-radius: 4px; font-size: 0.5rem; outline: none; cursor: pointer; padding: 4px 2px; }
+  .knob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px 4px; width: 100%; }
+  .knob-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; --kc: 255,255,255; }
+  .knob-cell[data-color="kick"] { --kc: 255,189,107; }
+  .knob-dial { width: 40px; height: 40px; border-radius: 50%; cursor: ns-resize; touch-action: none; outline: none; -webkit-user-select: none; user-select: none; }
+  .knob-dial:focus-visible { box-shadow: 0 0 0 2px rgba(120,255,180,0.6); }
+  .knob-dial svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .k-track { fill: none; stroke: rgba(255,255,255,0.14); stroke-width: 3; stroke-linecap: round; }
+  .k-val { fill: none; stroke: rgb(var(--kc)); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(var(--kc),0.5)); }
+  .k-body { fill: rgba(255,255,255,0.06); stroke: rgba(255,255,255,0.18); stroke-width: 1; }
+  .k-line { stroke: rgb(var(--kc)); stroke-width: 2; stroke-linecap: round; }
+  .knob-label { font-size: 0.42rem; letter-spacing: 1px; color: rgba(255,255,255,0.45); text-transform: uppercase; text-align: center; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 0.8rem; min-height: 0.8rem; }
+  .knob-cell.active .knob-label { color: #fff; }
+  @media (pointer: coarse) { .knob-dial { width: 44px; height: 44px; } .knob-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); } } /* bigger touch target on phones */
+  .knob-cell .tsp-toggle-btn { padding: 2px 8px; font-size: 0.38rem; margin-top: 2px; }
+
+  /* --- piano keyboard (opens above the controls, the synth panel stays usable above it) --- */
+  .piano-panel {
+    display: none; flex-direction: column; gap: 6px; width: 95vw; max-width: 600px; box-sizing: border-box;
+    padding: 8px 10px 10px; border-radius: 16px;
+    background: rgba(10, 8, 20, 0.85); border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  }
+  .piano-panel.open { display: flex; }
+  .piano-head { display: flex; align-items: center; gap: 8px; }
+  /* second line: MIDI status (takes the free space, long device names are cut with an ellipsis) · ● SEQ · target track */
+  .piano-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  #piano-midi { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #piano-rec { white-space: nowrap; }
+  #piano-rec { color: #ff9b9b; border-color: rgba(255,107,107,0.35); }
+  #piano-rec.active-btn { color: #fff; border-color: rgba(255,107,107,0.75); background: rgba(255,107,107,0.25); box-shadow: 0 0 8px rgba(255,107,107,0.4); }
+  #piano-rec-track { display: none; background: #1a1a2e; color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; font-size: 0.42rem; padding: 3px 4px; max-width: 96px; min-width: 0; flex: 0 1 96px; font-family: 'Orbitron', sans-serif; outline: none; cursor: pointer; }
+  #piano-rec-track.show { display: inline-block; }
+  .piano-head > .tsp-label:first-child { margin-right: auto; color: #fff; min-width: 0; }
+  .piano-hint { font-size: 0.36rem; letter-spacing: 1px; color: rgba(255,255,255,0.3); margin-right: auto; white-space: nowrap; }
+  @media (pointer: coarse), (max-width: 480px) { .piano-hint { display: none; } }
+  .piano-keys { position: relative; height: 84px; touch-action: none; -webkit-user-select: none; user-select: none; }
+  @media (max-width: 480px) { .piano-keys { height: 72px; } }
+  @media (max-height: 480px) {
+    .piano-keys { height: 54px; }
+    /* short (landscape) screens: the piano floats over the bottom of the controls instead of pushing the synth panel off the top */
+    .piano-panel { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); z-index: 30; }
+  }
+  .pk { position: absolute; top: 0; box-sizing: border-box; cursor: pointer; }
+  .pk-white { height: 100%; background: linear-gradient(#f4f5fb, #cfd3e6); border: 1px solid rgba(10,8,20,0.6); border-radius: 0 0 5px 5px; }
+  .pk-white::after { content: attr(data-note); position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-size: 0.4rem; color: rgba(10,8,20,0.55); pointer-events: none; }
+  .pk-black { height: 60%; background: linear-gradient(#2a2440, #0d0a18); border: 1px solid rgba(255,255,255,0.12); border-radius: 0 0 4px 4px; z-index: 2; }
+  .pk-white.down { background: linear-gradient(#c9b8ff, #9d86ff); }
+  .pk-black.down { background: linear-gradient(#7a5cff, #4a30c8); }
 
   .vol-label {
     font-size: 0.55rem; letter-spacing: 3px; color: rgba(255,255,255,0.35);
@@ -371,6 +430,19 @@
   }
   .home-info-link:hover { background: rgba(255,255,255,0.2); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
   .top-bar.tsp-hidden { opacity: 0; pointer-events: none; }
+
+  .toast {
+    position: fixed; top: calc(64px + env(safe-area-inset-top, 0px)); left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    max-width: min(90vw, 420px); box-sizing: border-box;
+    padding: 10px 22px; border-radius: 30px;
+    background: rgba(10, 8, 20, 0.88); border: 1px solid rgba(255,107,107,0.45);
+    color: #fff; font-size: 0.6rem; letter-spacing: 2px; text-align: center; text-transform: uppercase; line-height: 1.5;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    opacity: 0; pointer-events: none; z-index: 30;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .info-btn {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6);
     width: 30px; height: 30px; border-radius: 50%; font-family: 'Orbitron', sans-serif; font-size: 0.9rem;
@@ -382,9 +454,9 @@
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
     background: rgba(5, 3, 12, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
+    opacity: 0; pointer-events: none; visibility: hidden; transition: opacity 0.5s ease, visibility 0s linear 0.5s;
   }
-  .info-overlay.open { opacity: 1; pointer-events: auto; }
+  .info-overlay.open { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 0.5s ease, visibility 0s; }
   
   .info-content {
     max-width: 600px; width: calc(100% - 24px); box-sizing: border-box;
@@ -429,6 +501,7 @@
   }
   .seq-dot:hover, .kick-dot:hover { background: rgba(255,255,255,0.15); }
   .seq-dot.active { background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+  .seq-dot.active.has-pitch { background: #c9b8ff; box-shadow: 0 0 8px rgba(157,134,255,0.75); } /* step recorded from the piano (exact pitch) */
   .kick-dot.active { background: #ffbd6b; box-shadow: 0 0 8px rgba(255,189,107,0.6); }
   .seq-dot.playing, .kick-dot.playing { border-color: #ff6b6b; transform: scale(1.1); }
 
@@ -474,17 +547,18 @@
 <body>
 
 <audio id="crickets-audio" src="cvrcci.mp3" loop></audio>
+<div id="app-toast" class="toast" role="status" aria-live="polite"></div>
 
 <div class="top-bar">
   <button id="info-btn" class="info-btn" aria-label="Information and guide">ℹ</button>
 </div>
 
-<div id="info-overlay" class="info-overlay">
+<div id="info-overlay" class="info-overlay" role="dialog" aria-modal="true" aria-label="Information and guide" aria-hidden="true" inert>
   <div class="info-content">
     <button class="lang-toggle-btn" id="info-lang-toggle" onclick="toggleInfoLanguage()" aria-label="Switch language">CZ</button>
     <div class="home-info-wrap">
-      <button id="back-to-app-btn" class="home-info-link" title="Back to app" aria-label="Back to app">⬅ BACK</button>
-      <a id="home-link" class="home-info-link" href="https://synthlucida.com/relax-landing.html" title="Home" aria-label="Home">🏠 HOME</a>
+      <button id="back-to-app-btn" class="home-info-link" title="Back to app" aria-label="Back to app" data-i18n-html="btn_back">⬅ BACK</button>
+      <a id="home-link" class="home-info-link" href="https://synthlucida.com/relax-landing.html" title="Home" aria-label="Home" data-i18n-html="btn_home">🏠 HOME</a>
     </div>
     <h2 data-i18n-html="title">Information and Guide</h2>
     <div class="warning" data-i18n-html="warning">
@@ -499,6 +573,8 @@
       <li data-i18n-html="li_3"><strong>TAP SYNTHESIZER (TAP SYNTH):</strong> Click or tap anywhere on the night sky. This triggers a generative synthesizer tone. The higher up on the screen you click, the higher the pitch. Additionally, a visual star cluster appears around the touch point.</li>
       <li data-i18n-html="li_4"><strong>SEQUENCER (KICK & MELODY):</strong> Open the 🎛 panel. Design a sound in the panel below, then hit <em>+ ADD SOUND</em> to turn it into its own 32-step track. Design another sound and add it too — each track keeps its own timbre, and they all play together, so you can layer multiple different sounds into one track. Each track can be muted (MUTE) or removed (✕). <em>KICK SEQ</em> adds a separate rhythmic kick drum. Use the PLAY button to start, and the BPM slider to set the speed.</li>
       <li data-i18n-html="li_5"><strong>How to program a melody into a track:</strong> The sequencer remembers the exact tone you last played. First, tap anywhere on the night sky to play and "grab" a specific tone. Then click a square in that track's grid to lock that exact tone into that step. To place a different tone in another step (even in the same track), tap a new spot in the sky first, then click the target square.</li>
+      <li data-i18n-html="li_5b"><strong>RECORDING THE PIANO INTO A TRACK (🎹 ● SEQ):</strong> Open the 🎹 keyboard and press <em>● SEQ</em> to arm it, then pick the target sound track in the menu next to it (a track is created for you if there is none). Press PLAY and play along — every key snaps to the nearest step and is stored in that track with its exact pitch, and several keys on one step make a chord. If the sequencer is stopped, it starts by itself with your first key. Notes you play over the same steps are added to the ones already there, so you can build a chord by layering one note per pass; click a lit square to erase the whole step. You can also press a piano key first and then click a square in a track's grid to lock that exact pitch into the step. Recorded steps glow violet. The REC 🔴 button records everything you hear, piano included, into the <code>.wav</code> file.</li>
+      <li data-i18n-html="li_5c"><strong>MIDI KEYBOARD (🎹 MIDI):</strong> Plug in a USB / Bluetooth MIDI keyboard, open the 🎹 panel and press <em>MIDI</em> (allow access when the browser asks). Your keys then play the current sound, light up the on-screen piano, and — with <em>● SEQ</em> armed — record into the chosen track just like the on-screen keys. Needs a browser with Web MIDI (Chrome, Edge, Opera, Firefox); iPhone/iPad Safari does not support it.</li>
       <li data-i18n-html="li_6"><strong>SOUND DESIGN (PANEL 🎛):</strong> As a creator, you can go wild here. Change musical scales (Scale), oscillator wave shapes (OSC1/OSC2), adjust filter, decay, reverb (space), echo (delay), or add saturation (Drive). Reverb, delay (SYNC DEL.) and echo each have their own independent ON/OFF button right next to the slider, so you can instantly cut that effect without losing the level you dialed in — turning one off never affects the other sounds or effects still playing. Use the SAVE button to save your preset to your browser.</li>
       <li data-i18n-html="li_7"><strong>SLEEP TIMER (TIMER):</strong> Set an automatic shutdown for 15, 30, or 60 minutes. Once the countdown ends, all sounds will gently turn off automatically so you can sleep in peace.</li>
       <li data-i18n-html="li_8"><strong>RECORDING (REC 🔴):</strong> Want to save your jam? Click REC to start recording. After clicking STOP again, the session will automatically download to your device as a high-quality <code>.wav</code> file.</li>
@@ -506,7 +582,7 @@
       <li data-i18n-html="li_10"><strong>SAVE:</strong> Saves your current sequencer patterns and all sound design parameters to your browser so you can pick up exactly where you left off.</li>
       <li data-i18n-html="li_11"><strong>Preset:</strong> A dropdown menu that lets you switch between the factory 'Default' state and your saved 'User' patch.</li>
       <li data-i18n-html="li_12"><strong>Reset:</strong> Removes all sequencer tracks, resets all synth parameters to their default state, and clears the looper buffer to give you a completely blank canvas.</li>
-      <li data-i18n-html="li_13"><strong>LIVE DAY/NIGHT SKY:</strong> The sky is synced to your device's real clock, cycling gently through night, dawn, day and dusk as time actually passes — the horizon glow, star brightness and moon all shift along with it. This uses only your local clock time, never your location: no GPS, no permission prompt, and nothing is sent anywhere.</li>
+      <li data-i18n-html="li_13"><strong>LIVE DAY/NIGHT SKY:</strong> The sky is synced to your device's real clock, cycling gently through night, dawn, day and dusk as time actually passes — the horizon glow, star brightness and moon all shift along with it. This uses only your local clock time, never your location: no GPS, no permission prompt, and the clock reading is never sent anywhere. The page does use GoatCounter, a simple visit counter that collects anonymous visit statistics (no cookies, no personal profile).</li>
       <li data-i18n-html="li_14"><strong>MOON:</strong> The moon is rendered from a real photograph and its lit/dark phase updates automatically to match today's actual lunar phase.</li>
       <li data-i18n-html="li_15"><strong>NIGHT SKY DETAILS:</strong> Beyond the stars themselves, keep an eye out for the small extra touches: gentle random twinkling and occasional brighter flares, shooting stars that streak across every so often, satellites drifting slowly overhead, and a handful of real constellations (including the Big Dipper, Cassiopeia and Orion) woven into the starfield.</li>
     </ul>
@@ -536,6 +612,23 @@
   <div class="headphones-notice">BEST EXPERIENCED WITH HEADPHONES</div>
   <div class="tap-notice">TAP THE SKY TO PLAY A MELODY — OR JUST RELAX</div>
   <div id="binaural-status" class="binaural-status">DELTA WAVES (2Hz) - DEEP CALM</div>
+  <div id="piano-panel" class="piano-panel" role="group" aria-label="Piano keyboard">
+    <div class="piano-head">
+      <span class="tsp-label">PIANO</span>
+      <span class="piano-hint">KEYS A–; · Z / X = OCTAVE</span>
+      <button type="button" id="piano-oct-down" class="tsp-toggle-btn" aria-label="Octave down">−</button>
+      <span id="piano-oct-label" class="tsp-label" style="min-width:48px; text-align:center; color:#fff;">C4–C6</span>
+      <button type="button" id="piano-oct-up" class="tsp-toggle-btn" aria-label="Octave up">+</button>
+      <button type="button" id="piano-close" class="tsp-toggle-btn" aria-label="Close piano" style="margin-left:4px;">✕</button>
+    </div>
+    <div class="piano-tools">
+      <button type="button" id="piano-midi" class="tsp-toggle-btn" aria-pressed="false" title="Connect a MIDI keyboard">MIDI</button>
+      <button type="button" id="piano-rec" class="tsp-toggle-btn" aria-pressed="false" title="Record played notes into a sequencer track">● SEQ</button>
+      <select id="piano-rec-track" aria-label="Target sequencer track"></select>
+    </div>
+    <div id="piano-keys" class="piano-keys"></div>
+  </div>
+
   <div class="controls">
     <a href="player.html" class="btn">BACK TO PLAYER</a>
 
@@ -560,7 +653,10 @@
     <button id="timer-btn" class="btn">TIMER: OFF</button>
     <button id="rec-btn" class="btn" style="color: #ff6b6b; border-color: rgba(255,107,107,0.3);">REC 🔴</button>
 
+    <div class="ctrl-pair" style="gap:10px;"><!-- synth + piano buttons wrap onto a new row together -->
     <button id="tap-synth-toggle" class="btn lang-btn">🎛</button>
+    <button id="piano-toggle" class="btn lang-btn" aria-label="Piano keyboard" aria-expanded="false" aria-controls="piano-panel">🎹</button>
+    </div>
   </div>
 
   <div id="tap-synth-panel" class="tap-synth-panel">
@@ -569,7 +665,7 @@
       <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
         <button id="tsp-reset" style="background:rgba(255,107,107,0.3); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">RESET</button>
         <select id="tsp-preset" style="background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.45rem; outline:none; cursor:pointer;">
-          <option value="user">User</option><option value="default">Default</option>
+          <option value="default">Default</option>
         </select>
         <button id="tsp-save" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">SAVE</button>
         <button id="tsp-exp-json" style="background:rgba(255,255,255,0.2); color:#fff; border:none; padding:2px 8px; font-size:0.45rem; border-radius:4px; cursor:pointer;">EXP FILE</button>
@@ -580,16 +676,13 @@
     </div>
 
     <div class="tsp-row" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-direction: column; align-items: flex-start; gap: 8px;">
-      <div style="display:flex; justify-content: space-between; width: 100%; align-items: center;">
+      <div style="display:flex; justify-content: space-between; width: 100%; align-items: center; flex-wrap: wrap; gap: 6px;">
         <span class="tsp-label" style="min-width:auto; color: #fff;">SEQUENCER</span>
+        <div class="knob-cell" data-label="BPM"><input type="range" id="seq-bpm" min="40" max="240" value="110" hidden></div>
         <div style="display:flex; gap:6px;">
           <button id="tsp-add-track" style="background:rgba(120,255,180,0.22); color:#fff; border:1px solid rgba(120,255,180,0.4); padding: 4px 10px; border-radius:4px; font-size:0.45rem; cursor:pointer; font-family: 'Orbitron', sans-serif; white-space:nowrap;">+ ADD SOUND</button>
           <button id="seq-play" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.3); padding: 4px 10px; border-radius:4px; font-size:0.45rem; cursor:pointer; font-family: 'Orbitron', sans-serif;">PLAY</button>
         </div>
-      </div>
-      <div class="tsp-row" style="width: 100%;">
-        <span class="tsp-label">BPM</span>
-        <input type="range" id="seq-bpm" min="40" max="240" value="110">
       </div>
       <div id="tracks-container" style="width: 100%; display:flex; flex-direction:column; gap:10px; margin-top: 4px;">
         <!-- Track rows injected by JS -->
@@ -603,14 +696,15 @@
       <div id="kick-grid" style="display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; width: 100%; margin-top: 2px; box-sizing: border-box;">
         <!-- Dots injected by JS -->
       </div>
-      <div class="tsp-row" style="width:100%; margin-top:6px;"><span class="tsp-label">KCK VOL</span><input type="range" id="tsp-kick-vol" min="0" max="100" value="80"></div>
-      <div class="tsp-row" style="width:100%;"><span class="tsp-label">KCK PCH</span><input type="range" id="tsp-kick-pitch" min="40" max="200" value="120"></div>
-      <div class="tsp-row" style="width:100%;"><span class="tsp-label">KCK DEC</span><input type="range" id="tsp-kick-decay" min="10" max="100" value="40"></div>
+      <div class="knob-grid" style="margin-top:6px;">
+        <div class="knob-cell" data-label="KCK VOL" data-color="kick"><input type="range" id="tsp-kick-vol" min="0" max="100" value="80" hidden></div>
+        <div class="knob-cell" data-label="KCK PCH" data-color="kick"><input type="range" id="tsp-kick-pitch" min="40" max="200" value="120" hidden></div>
+        <div class="knob-cell" data-label="KCK DEC" data-color="kick"><input type="range" id="tsp-kick-decay" min="10" max="100" value="40" hidden></div>
+      </div>
     </div>
     
-    <div class="tsp-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <span class="tsp-label">SCALE</span>
-      <select id="tsp-scale" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+    <div class="sel-grid">
+      <label class="sel-cell"><span class="tsp-label">SCALE</span><select id="tsp-scale">
         <option value="pentatonic">PENTATONIC (Zen)</option>
         <option value="minor">MINOR (Dark)</option>
         <option value="major">MAJOR (Happy)</option>
@@ -621,82 +715,148 @@
         <option value="blues">BLUES (Soulful)</option>
         <option value="harmonicMinor">HARM. MINOR (Exotic)</option>
         <option value="wholeTone">WHOLE TONE (Floating)</option>
-      </select>
-    </div>
-
-    <div class="tsp-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <span class="tsp-label">RANGE</span>
-      <select id="tsp-range" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+      </select></label>
+      <label class="sel-cell"><span class="tsp-label">RANGE</span><select id="tsp-range">
         <option value="0.25">SUB-BASS</option>
         <option value="0.5">BASS</option>
         <option value="1" selected>STANDARD</option>
-      </select>
-    </div>
-
-    <div class="tsp-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <span class="tsp-label">CHORD</span>
-      <select id="tsp-chord" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+      </select></label>
+      <label class="sel-cell"><span class="tsp-label">CHORD</span><select id="tsp-chord">
         <option value="off">OFF (Single note)</option>
         <option value="power5">POWER 5TH</option>
         <option value="triad">TRIAD</option>
         <option value="sus4">SUS4</option>
         <option value="seventh">7TH (Rich)</option>
-      </select>
-    </div>
-
-    <div class="tsp-row"><span class="tsp-label">LOOPER</span><input type="range" id="tsp-looper" min="0" max="100" value="0"></div>
-    <div class="tsp-row"><span class="tsp-label">VOLUME</span><input type="range" id="tsp-volume" min="0" max="100" value="46"></div>
-    <div class="tsp-row"><span class="tsp-label">TONE</span><input type="range" id="tsp-brightness" min="0" max="100" value="50"></div>
-    <div class="tsp-row"><span class="tsp-label">ATTACK</span><input type="range" id="tsp-attack" min="0" max="100" value="10"></div>
-    <div class="tsp-row"><span class="tsp-label">DECAY</span><input type="range" id="tsp-decay" min="0" max="100" value="43"></div>
-    <div class="tsp-row"><span class="tsp-label">TIMBRE</span><input type="range" id="tsp-timbre" min="0" max="100" value="0"></div>
-    <div class="tsp-row"><span class="tsp-label">DETUNE</span><input type="range" id="tsp-detune" min="0" max="100" value="15"></div>
-    <div class="tsp-row"><span class="tsp-label">SYNC DEL.</span><input type="range" id="tsp-delay-time" min="1" max="100" value="42"><button type="button" id="tsp-delay-toggle" class="tsp-toggle-btn active-btn">ON</button></div>
-    <div class="tsp-row"><span class="tsp-label">ECHO</span><input type="range" id="tsp-echo" min="0" max="100" value="51"><button type="button" id="tsp-echo-toggle" class="tsp-toggle-btn active-btn">ON</button></div>
-    <div class="tsp-row"><span class="tsp-label">FILT Q</span><input type="range" id="tsp-filter-q" min="0" max="100" value="0"></div>
-    <div class="tsp-row"><span class="tsp-label">LFO</span><input type="range" id="tsp-lfo" min="0" max="100" value="0"></div>
-    <div class="tsp-row"><span class="tsp-label">DRIVE</span><input type="range" id="tsp-drive" min="0" max="100" value="0"></div>
-    
-    <div class="tsp-row">
-      <span class="tsp-label">ARP SPD</span>
-      <input type="range" id="tsp-arp" min="0" max="100" value="0" style="flex:1;">
-      <select id="tsp-arp-mode" style="width: 45px; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.4rem; outline:none; margin-left: 5px; cursor:pointer;">
-        <option value="up">UP</option><option value="down">DOWN</option><option value="updown">UP-DN</option><option value="random">RND</option>
-      </select>
-    </div>
-    
-    <div class="tsp-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
-      <span class="tsp-label">OSC1 WAV</span>
-      <select id="tsp-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+      </select></label>
+      <label class="sel-cell"><span class="tsp-label">OSC1 WAVE</span><select id="tsp-wave">
         <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth">SAW (Rich)</option>
         <option value="warm">WARM PAD</option><option value="glass">GLASS BELL</option><option value="vox">VOX (Airy)</option>
-      </select>
-    </div>
-    
-    <div class="tsp-row">
-      <span class="tsp-label">OSC2 WAV</span>
-      <select id="tsp-osc2-wave" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+      </select></label>
+      <label class="sel-cell"><span class="tsp-label">OSC2 WAVE</span><select id="tsp-osc2-wave">
         <option value="sine">SINE (Soft)</option><option value="triangle">TRIANGLE (Warm)</option><option value="square">SQUARE (Retro)</option><option value="sawtooth" selected>SAW (Rich)</option>
         <option value="warm">WARM PAD</option><option value="glass">GLASS BELL</option><option value="vox">VOX (Airy)</option>
-      </select>
-    </div>
-    <div class="tsp-row">
-      <span class="tsp-label">OSC2 OCT</span>
-      <select id="tsp-osc2-oct" style="flex:1; background:#1a1a2e; color:#fff; border:none; border-radius:4px; font-size:0.5rem; outline:none; cursor:pointer; padding: 2px;">
+      </select></label>
+      <label class="sel-cell"><span class="tsp-label">OSC2 OCT</span><select id="tsp-osc2-oct">
         <option value="-2">-2 OCT</option><option value="-1" selected>-1 OCT</option><option value="0">0 OCT</option><option value="1">+1 OCT</option><option value="2">+2 OCT</option>
-      </select>
-    </div>
-    <div class="tsp-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-      <span class="tsp-label">OSC2 VOL</span><input type="range" id="tsp-osc2-vol" min="0" max="100" value="0">
+      </select></label>
+      <label class="sel-cell"><span class="tsp-label">ARP MODE</span><select id="tsp-arp-mode">
+        <option value="up">UP</option><option value="down">DOWN</option><option value="updown">UP-DN</option><option value="random">RND</option>
+      </select></label>
     </div>
 
-    <div class="tsp-row"><span class="tsp-label">UNISON</span><input type="range" id="tsp-unison" min="0" max="100" value="0"></div>
-    <div class="tsp-row"><span class="tsp-label">REVERB</span><input type="range" id="tsp-reverb" min="0" max="100" value="30"><button type="button" id="tsp-reverb-toggle" class="tsp-toggle-btn active-btn">ON</button></div>
-    <div class="tsp-row"><span class="tsp-label">NOISE</span><input type="range" id="tsp-noise" min="0" max="100" value="0"></div>
+    <div class="tsp-sub">SOUND</div>
+    <div class="knob-grid">
+      <div class="knob-cell" data-label="VOLUME"><input type="range" id="tsp-volume" min="0" max="100" value="46" hidden></div>
+      <div class="knob-cell" data-label="TONE"><input type="range" id="tsp-brightness" min="0" max="100" value="50" hidden></div>
+      <div class="knob-cell" data-label="ATTACK"><input type="range" id="tsp-attack" min="0" max="100" value="10" hidden></div>
+      <div class="knob-cell" data-label="DECAY"><input type="range" id="tsp-decay" min="0" max="100" value="43" hidden></div>
+      <div class="knob-cell" data-label="TIMBRE"><input type="range" id="tsp-timbre" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="DETUNE"><input type="range" id="tsp-detune" min="0" max="100" value="15" hidden></div>
+      <div class="knob-cell" data-label="FILT Q"><input type="range" id="tsp-filter-q" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="LFO"><input type="range" id="tsp-lfo" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="DRIVE"><input type="range" id="tsp-drive" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="UNISON"><input type="range" id="tsp-unison" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="NOISE"><input type="range" id="tsp-noise" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="ARP SPD"><input type="range" id="tsp-arp" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="OSC2 VOL"><input type="range" id="tsp-osc2-vol" min="0" max="100" value="0" hidden></div>
+    </div>
+
+    <div class="tsp-sub">FX</div>
+    <div class="knob-grid">
+      <div class="knob-cell" data-label="LOOPER"><input type="range" id="tsp-looper" min="0" max="100" value="0" hidden></div>
+      <div class="knob-cell" data-label="SYNC DEL."><input type="range" id="tsp-delay-time" min="1" max="100" value="42" hidden><button type="button" id="tsp-delay-toggle" class="tsp-toggle-btn active-btn">ON</button></div>
+      <div class="knob-cell" data-label="ECHO"><input type="range" id="tsp-echo" min="0" max="100" value="51" hidden><button type="button" id="tsp-echo-toggle" class="tsp-toggle-btn active-btn">ON</button></div>
+      <div class="knob-cell" data-label="REVERB"><input type="range" id="tsp-reverb" min="0" max="100" value="30" hidden><button type="button" id="tsp-reverb-toggle" class="tsp-toggle-btn active-btn">ON</button></div>
+    </div>
   </div>
 </div>
 
 <script>
+  // --- Rotary knobs for the synth panel ---
+  // Every knob sits on top of a hidden <input type="range">, so the rest of the app keeps reading
+  // .value / listening for 'input' exactly as before (presets, tracks, import/export all unchanged).
+  (function initKnobs() {
+    const valDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    const R = 17, C = 22;
+    const pt = (deg) => { const a = deg * Math.PI / 180; return [(C + R * Math.cos(a)).toFixed(2), (C + R * Math.sin(a)).toFixed(2)]; };
+    const [x0, y0] = pt(135), [x1, y1] = pt(45);
+    const arc = `M${x0} ${y0} A${R} ${R} 0 1 1 ${x1} ${y1}`; // 270 degrees, gap at the bottom
+    document.querySelectorAll('.knob-cell').forEach((cell) => {
+      const input = cell.querySelector('input[type="range"]');
+      if (!input) return;
+      const min = Number(input.min), max = Number(input.max), def = Number(input.defaultValue);
+      const name = cell.dataset.label || input.id;
+      const dial = document.createElement('div');
+      dial.className = 'knob-dial'; dial.tabIndex = 0; dial.setAttribute('role', 'slider');
+      dial.setAttribute('aria-label', name); dial.setAttribute('aria-valuemin', min); dial.setAttribute('aria-valuemax', max);
+      dial.innerHTML = `<svg viewBox="0 0 44 44" aria-hidden="true"><path class="k-track" d="${arc}" pathLength="100"/><path class="k-val" d="${arc}" pathLength="100"/><g class="k-ptr"><circle class="k-body" cx="22" cy="22" r="12"/><line class="k-line" x1="22" y1="13" x2="22" y2="19"/></g></svg>`;
+      const label = document.createElement('div'); label.className = 'knob-label'; label.textContent = name;
+      cell.insertBefore(label, input.nextSibling); cell.insertBefore(dial, label);
+      const valPath = dial.querySelector('.k-val'), ptr = dial.querySelector('.k-ptr');
+
+      const read = () => { const n = Number(valDesc.get.call(input)); return isFinite(n) ? Math.min(max, Math.max(min, n)) : min; };
+      let dragging = false, flashTimer = null;
+      const showName = () => { label.textContent = name; cell.classList.remove('active'); };
+      const showValue = () => { label.textContent = String(read()); cell.classList.add('active'); };
+      const paint = () => {
+        const v = read(), p = (v - min) / (max - min);
+        valPath.style.strokeDasharray = (p * 100).toFixed(2) + ' 100';
+        valPath.style.opacity = p <= 0 ? 0 : 1;
+        ptr.setAttribute('transform', `rotate(${(-135 + p * 270).toFixed(1)} 22 22)`);
+        dial.setAttribute('aria-valuenow', v);
+        if (dragging || flashTimer) label.textContent = String(v);
+      };
+      const setFrom = (v) => {
+        v = Math.round(Math.min(max, Math.max(min, v)));
+        if (v === read() && valDesc.get.call(input) !== '') return;
+        valDesc.set.call(input, String(v)); paint();
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      const flash = () => { showValue(); clearTimeout(flashTimer); flashTimer = setTimeout(() => { flashTimer = null; if (!dragging) showName(); }, 900); };
+      // presets / RESET set .value from code - keep the knob in step with it
+      Object.defineProperty(input, 'value', { configurable: true, get() { return valDesc.get.call(this); }, set(v) { valDesc.set.call(this, v); paint(); } });
+
+      let drag = null, lastTap = 0;
+      dial.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault(); dial.focus({ preventScroll: true }); dial.setPointerCapture(e.pointerId);
+        drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, v: read() }; dragging = true; showValue();
+      });
+      dial.addEventListener('pointermove', (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
+        // up / right = more, ~150 px for the whole range, Shift = fine
+        drag.v = Math.min(max, Math.max(min, drag.v + ((dx - dy) / 150) * (max - min) * (e.shiftKey ? 0.2 : 1)));
+        setFrom(drag.v);
+      });
+      const endDrag = (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+        const tapped = drag.moved < 6; drag = null; dragging = false; showName();
+        if (tapped && e.type === 'pointerup') { // double tap / double click = back to the default value
+          const now = performance.now();
+          if (now - lastTap < 350) { setFrom(def); lastTap = 0; flash(); } else lastTap = now;
+        }
+      };
+      dial.addEventListener('pointerup', endDrag); dial.addEventListener('pointercancel', endDrag);
+      dial.addEventListener('keydown', (e) => {
+        const big = Math.max(1, Math.round((max - min) / 10)); let v = read();
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') v += e.shiftKey ? big : 1;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') v -= e.shiftKey ? big : 1;
+        else if (e.key === 'PageUp') v += big; else if (e.key === 'PageDown') v -= big;
+        else if (e.key === 'Home') v = min; else if (e.key === 'End') v = max;
+        else return;
+        e.preventDefault(); setFrom(v); flash();
+      });
+      // mouse wheel only while the knob is focused (otherwise it would hijack scrolling the panel)
+      dial.addEventListener('wheel', (e) => {
+        if (document.activeElement !== dial) return;
+        e.preventDefault(); setFrom(read() + (e.deltaY < 0 ? 1 : -1) * Math.max(1, Math.round((max - min) / 50))); flash();
+      }, { passive: false });
+      paint();
+    });
+  })();
+
   // --- Moon Logic ---
   function updateMoonPhase() {
   const synodic = 29.53058867;
@@ -865,6 +1025,8 @@ setInterval(updateMoonPhase, 3600000);
     li_3: { en: "<strong>TAP SYNTHESIZER (TAP SYNTH):</strong> Click or tap anywhere on the night sky. This triggers a generative synthesizer tone. The higher up on the screen you click, the higher the pitch. Additionally, a visual star cluster appears around the touch point.", cz: "<strong>DOTYKOVÝ SYNTEZÁTOR (TAP SYNTH):</strong> Klikněte nebo klepněte kdekoli na noční oblohu. Spustí se tím generativní tón syntezátoru. Čím výš na obrazovce kliknete, tím vyšší je tón. Navíc se kolem místa doteku objeví shluk hvězd." },
     li_4: { en: "<strong>SEQUENCER (KICK & MELODY):</strong> Open the 🎛 panel. Design a sound in the panel below, then hit <em>+ ADD SOUND</em> to turn it into its own 32-step track. Design another sound and add it too — each track keeps its own timbre, and they all play together, so you can layer multiple different sounds into one track. Each track can be muted (MUTE) or removed (✕). <em>KICK SEQ</em> adds a separate rhythmic kick drum. Use the PLAY button to start, and the BPM slider to set the speed.", cz: "<strong>SEKVENCER (KICK & MELODY):</strong> Otevřete panel 🎛. Navrhněte zvuk v panelu níže a poté stiskněte <em>+ ADD SOUND</em>, čímž se z něj stane vlastní 32krokový track. Navrhněte další zvuk a přidejte i ten — každý track si zachová svou vlastní barvu zvuku a všechny hrají společně, takže do jednoho tracku můžete vrstvit více různých zvuků. Každý track lze ztlumit (MUTE) nebo odebrat (✕). <em>KICK SEQ</em> přidá samostatný rytmický kick buben. Tlačítkem PLAY spustíte přehrávání a posuvníkem BPM nastavíte tempo." },
     li_5: { en: "<strong>How to program a melody into a track:</strong> The sequencer remembers the exact tone you last played. First, tap anywhere on the night sky to play and \"grab\" a specific tone. Then click a square in that track's grid to lock that exact tone into that step. To place a different tone in another step (even in the same track), tap a new spot in the sky first, then click the target square.", cz: "<strong>Jak naprogramovat melodii do tracku:</strong> Sekvencer si pamatuje přesně poslední zahraný tón. Nejprve klepněte kdekoli na noční oblohu, abyste přehráli a „chytili“ konkrétní tón. Poté klikněte na čtvereček v mřížce daného tracku a tím tento přesný tón do kroku uzamknete. Chcete-li umístit jiný tón do jiného kroku (i ve stejném tracku), nejprve klepněte na nové místo na obloze a poté klikněte na cílový čtvereček." },
+    li_5b: { en: "<strong>RECORDING THE PIANO INTO A TRACK (🎹 ● SEQ):</strong> Open the 🎹 keyboard and press <em>● SEQ</em> to arm it, then pick the target sound track in the menu next to it (a track is created for you if there is none). Press PLAY and play along — every key snaps to the nearest step and is stored in that track with its exact pitch, and several keys on one step make a chord. If the sequencer is stopped, it starts by itself with your first key. Notes you play over the same steps are added to the ones already there, so you can build a chord by layering one note per pass; click a lit square to erase the whole step. You can also press a piano key first and then click a square in a track's grid to lock that exact pitch into the step. Recorded steps glow violet. The REC 🔴 button records everything you hear, piano included, into the <code>.wav</code> file.", cz: "<strong>NAHRÁVÁNÍ PIANA DO TRACKU (🎹 ● SEQ):</strong> Otevřete klaviaturu 🎹 a stisknutím <em>● SEQ</em> ji aktivujte pro nahrávání, poté v nabídce vedle vyberte cílový track (pokud žádný neexistuje, vytvoří se automaticky). Stiskněte PLAY a hrajte — každá klávesa se přichytí k nejbližšímu kroku a uloží se do tracku se svou přesnou výškou; více kláves na jednom kroku vytvoří akord. Je-li sekvencer zastavený, spustí se sám s vaší první klávesou. Noty zahrané přes stejné kroky se přidávají k těm, které tam už jsou, takže akord můžete skládat postupně — po jedné notě za průchod; rozsvícený čtvereček (celý krok) smažete kliknutím. Můžete také nejprve stisknout klávesu na pianu a poté kliknout na čtvereček v mřížce tracku — tím do kroku uzamknete právě tuto výšku. Nahrané kroky svítí fialově. Tlačítko REC 🔴 nahrává do souboru <code>.wav</code> vše, co slyšíte, včetně piana.", },
+    li_5c: { en: "<strong>MIDI KEYBOARD (🎹 MIDI):</strong> Plug in a USB / Bluetooth MIDI keyboard, open the 🎹 panel and press <em>MIDI</em> (allow access when the browser asks). Your keys then play the current sound, light up the on-screen piano, and — with <em>● SEQ</em> armed — record into the chosen track just like the on-screen keys. Needs a browser with Web MIDI (Chrome, Edge, Opera, Firefox); iPhone/iPad Safari does not support it.", cz: "<strong>MIDI KLAVESNICE (🎹 MIDI):</strong> Připojte USB / Bluetooth MIDI klávesnici, otevřete panel 🎹 a stiskněte <em>MIDI</em> (až se prohlížeč zeptá, přístup povolte). Vaše klávesy pak hrají aktuální zvuk, rozsvěcují klávesy na obrazovce a při zapnutém <em>● SEQ</em> se nahrávají do vybraného tracku stejně jako klávesy na obrazovce. Vyžaduje prohlížeč s Web MIDI (Chrome, Edge, Opera, Firefox); Safari na iPhonu/iPadu ho nepodporuje.", },
     li_6: { en: "<strong>SOUND DESIGN (PANEL 🎛):</strong> As a creator, you can go wild here. Change musical scales (Scale), oscillator wave shapes (OSC1/OSC2), adjust filter, decay, reverb (space), echo (delay), or add saturation (Drive). Reverb, delay (SYNC DEL.) and echo each have their own independent ON/OFF button right next to the slider, so you can instantly cut that effect without losing the level you dialed in — turning one off never affects the other sounds or effects still playing. Use the SAVE button to save your preset to your browser.", cz: "<strong>SOUND DESIGN (PANEL 🎛):</strong> Jako tvůrce se tu můžete pořádně vyřádit. Měňte hudební stupnice (Scale), tvary vln oscilátorů (OSC1/OSC2), upravujte filtr, decay, reverb (space), echo (delay) nebo přidejte saturaci (Drive). Reverb, delay (SYNC DEL.) i echo mají každý svoje vlastní nezávislé tlačítko ON/OFF hned vedle posuvníku, takže daný efekt můžete okamžitě vypnout, aniž byste přišli o nastavenou úroveň — vypnutí jednoho nikdy neovlivní ostatní zvuky nebo efekty, které stále hrají. Tlačítkem SAVE uložíte svůj preset do prohlížeče." },
     li_7: { en: "<strong>SLEEP TIMER (TIMER):</strong> Set an automatic shutdown for 15, 30, or 60 minutes. Once the countdown ends, all sounds will gently turn off automatically so you can sleep in peace.", cz: "<strong>ČASOVAČ SPÁNKU (TIMER):</strong> Nastavte automatické vypnutí po 15, 30 nebo 60 minutách. Jakmile odpočítávání skončí, všechny zvuky se automaticky jemně vypnou, abyste mohli klidně usnout." },
     li_8: { en: "<strong>RECORDING (REC 🔴):</strong> Want to save your jam? Click REC to start recording. After clicking STOP again, the session will automatically download to your device as a high-quality <code>.wav</code> file.", cz: "<strong>NAHRÁVÁNÍ (REC 🔴):</strong> Chcete si uložit svou improvizaci? Klikněte na REC a spusťte nahrávání. Po opětovném kliknutí na STOP se relace automaticky stáhne do vašeho zařízení jako kvalitní soubor <code>.wav</code>." },
@@ -872,10 +1034,13 @@ setInterval(updateMoonPhase, 3600000);
     li_10: { en: "<strong>SAVE:</strong> Saves your current sequencer patterns and all sound design parameters to your browser so you can pick up exactly where you left off.", cz: "<strong>SAVE:</strong> Uloží aktuální vzory sekvenceru a všechny parametry zvukového designu do vašeho prohlížeče, abyste mohli pokračovat přesně tam, kde jste skončili." },
     li_11: { en: "<strong>Preset:</strong> A dropdown menu that lets you switch between the factory 'Default' state and your saved 'User' patch.", cz: "<strong>Preset:</strong> Rozbalovací nabídka, která umožňuje přepínat mezi továrním stavem „Default“ a vaším uloženým patchem „User“." },
     li_12: { en: "<strong>Reset:</strong> Removes all sequencer tracks, resets all synth parameters to their default state, and clears the looper buffer to give you a completely blank canvas.", cz: "<strong>Reset:</strong> Odstraní všechny tracky sekvenceru, vrátí všechny parametry syntezátoru do výchozího stavu a vymaže buffer looperu, čímž získáte zcela čisté plátno." },
-    li_13: { en: "<strong>LIVE DAY/NIGHT SKY:</strong> The sky is synced to your device's real clock, cycling gently through night, dawn, day and dusk as time actually passes — the horizon glow, star brightness and moon all shift along with it. This uses only your local clock time, never your location: no GPS, no permission prompt, and nothing is sent anywhere.", cz: "<strong>ŽIVÁ DENNÍ/NOČNÍ OBLOHA:</strong> Obloha je synchronizovaná se skutečným časem vašeho zařízení a plynule prochází nocí, svítáním, dnem a soumrakem tak, jak čas skutečně plyne — spolu s ním se mění i záře na horizontu, jas hvězd i měsíc. Používá se pouze místní čas vašeho zařízení, nikdy vaše poloha: žádné GPS, žádná žádost o povolení a nic se nikam neodesílá." },
+    li_13: { en: "<strong>LIVE DAY/NIGHT SKY:</strong> The sky is synced to your device's real clock, cycling gently through night, dawn, day and dusk as time actually passes — the horizon glow, star brightness and moon all shift along with it. This uses only your local clock time, never your location: no GPS, no permission prompt, and the clock reading is never sent anywhere. The page does use GoatCounter, a simple visit counter that collects anonymous visit statistics (no cookies, no personal profile).", cz: "<strong>ŽIVÁ DENNÍ/NOČNÍ OBLOHA:</strong> Obloha je synchronizovaná se skutečným časem vašeho zařízení a plynule prochází nocí, svítáním, dnem a soumrakem tak, jak čas skutečně plyne — spolu s ním se mění i záře na horizontu, jas hvězd i měsíc. Používá se pouze místní čas vašeho zařízení, nikdy vaše poloha: žádné GPS, žádná žádost o povolení a hodnota hodin se nikam neodesílá. Stránka používá počítadlo návštěv GoatCounter, které sbírá anonymní statistiku návštěv (bez cookies a bez osobního profilu)." },
     li_14: { en: "<strong>MOON:</strong> The moon is rendered from a real photograph and its lit/dark phase updates automatically to match today's actual lunar phase.", cz: "<strong>MĚSÍC:</strong> Měsíc je vykreslen ze skutečné fotografie a jeho osvětlená/tmavá fáze se automaticky aktualizuje tak, aby odpovídala dnešní skutečné fázi měsíce." },
     li_15: { en: "<strong>NIGHT SKY DETAILS:</strong> Beyond the stars themselves, keep an eye out for the small extra touches: gentle random twinkling and occasional brighter flares, shooting stars that streak across every so often, satellites drifting slowly overhead, and a handful of real constellations (including the Big Dipper, Cassiopeia and Orion) woven into the starfield.", cz: "<strong>DETAILY NOČNÍ OBLOHY:</strong> Kromě samotných hvězd si všímejte i drobných detailů navíc: jemné náhodné blikání a občasné jasnější záblesky, padající hvězdy, které tu a tam prolétnou oblohou, satelity pomalu plující nad hlavou a hrstka skutečných souhvězdí (včetně Velkého vozu, Kassiopeji a Orionu) vetkaných do hvězdného pole." },
-    btn_close: { en: "CLOSE", cz: "ZAVŘÍT" }
+    btn_close: { en: "CLOSE", cz: "ZAVŘÍT" },
+    btn_back: { en: "⬅ BACK", cz: "⬅ ZPĚT" },
+    btn_home: { en: "🏠 HOME", cz: "🏠 DOMŮ" },
+    nature_unavailable: { en: "Audio is not available", cz: "Audio není k dispozici" }
   };
 
   function applyGuideLanguage() {
@@ -885,6 +1050,14 @@ setInterval(updateMoonPhase, 3600000);
     });
     const btn = document.getElementById('info-lang-toggle');
     if (btn) btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
+    // tooltips / screen-reader labels follow the language too
+    const isCz = guideLang === 'cz';
+    const setLabel = (id, text, withTitle) => { const el = document.getElementById(id); if (!el) return; el.setAttribute('aria-label', text); if (withTitle) el.title = text; };
+    setLabel('back-to-app-btn', isCz ? 'Zpět do aplikace' : 'Back to app', true);
+    setLabel('home-link', isCz ? 'Domů' : 'Home', true);
+    setLabel('info-lang-toggle', isCz ? 'Přepnout jazyk' : 'Switch language', false);
+    setLabel('info-btn', isCz ? 'Informace a návod' : 'Information and guide', false);
+    setLabel('info-overlay', isCz ? 'Informace a návod' : 'Information and guide', false);
     // Home button always points to the landing page matching whichever
     // language the guide/info panel is currently set to (guideLang), so
     // visitors land on the CZ or EN version they were already reading in.
@@ -913,9 +1086,20 @@ setInterval(updateMoonPhase, 3600000);
   const infoOverlay = document.getElementById('info-overlay');
   const closeInfoBtn = document.getElementById('close-info-btn');
   const backToAppBtn = document.getElementById('back-to-app-btn');
-  infoBtn.addEventListener('click', () => infoOverlay.classList.add('open'));
-  if (backToAppBtn) backToAppBtn.addEventListener('click', () => infoOverlay.classList.remove('open'));
-  closeInfoBtn.addEventListener('click', () => infoOverlay.classList.remove('open'));
+  function openInfo() {
+    infoOverlay.removeAttribute('inert'); infoOverlay.removeAttribute('aria-hidden');
+    infoOverlay.classList.add('open');
+    (backToAppBtn || closeInfoBtn).focus({ preventScroll: true });
+  }
+  function closeInfo() {
+    if (!infoOverlay.classList.contains('open')) return;
+    infoOverlay.classList.remove('open');
+    infoOverlay.setAttribute('inert', ''); infoOverlay.setAttribute('aria-hidden', 'true'); // closed = out of the tab order
+    infoBtn.focus({ preventScroll: true });
+  }
+  infoBtn.addEventListener('click', openInfo);
+  if (backToAppBtn) backToAppBtn.addEventListener('click', closeInfo);
+  closeInfoBtn.addEventListener('click', closeInfo);
 
   const canvas = document.getElementById('canvas');
   const dropsCanvas = document.getElementById('drops');
@@ -1169,7 +1353,7 @@ setInterval(updateMoonPhase, 3600000);
     starsCtx.globalAlpha = 1;
 
     for (let i = meteors.length - 1; i >= 0; i--) {
-      const m = meteors[i]; const elapsed = ts - m.spawnTs;
+      const m = meteors[i]; const elapsed = Math.max(0, ts - m.spawnTs); // rAF ts can be older than spawnTs
       if (elapsed > m.duration) { meteors.splice(i, 1); continue; }
       const progress = elapsed / m.duration;
       const alpha = progress < 0.12 ? progress / 0.12 : 1 - (progress - 0.12) / 0.88;
@@ -1184,7 +1368,7 @@ setInterval(updateMoonPhase, 3600000);
     }
 
     for (let i = satellites.length - 1; i >= 0; i--) {
-      const sat = satellites[i]; const elapsed = ts - sat.spawnTs;
+      const sat = satellites[i]; const elapsed = Math.max(0, ts - sat.spawnTs); // negative -> negative alpha is ignored -> full brightness
       if (elapsed > sat.duration) { satellites.splice(i, 1); continue; }
       const x = sat.startX + sat.vx * elapsed;
       const edgeFade = Math.min(1, elapsed / 900, (sat.duration - elapsed) / 900);
@@ -1529,7 +1713,9 @@ setInterval(updateMoonPhase, 3600000);
     }
   });
 
+  let toneStopTimer = null;
   function playTone(base, beat) {
+    clearTimeout(toneStopTimer); // a pending shutdown from stopTone() must not kill the new tone
     const now = audioCtx.currentTime;
     let startAt = now;
     let fadeIn = 2.5;
@@ -1560,6 +1746,13 @@ setInterval(updateMoonPhase, 3600000);
     const now = audioCtx.currentTime;
     gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
     gainL.gain.setTargetAtTime(0, now, 1.5); gainR.gain.setTargetAtTime(0, now, 1.5);
+    // After the fade (9 s = 6 time constants, ~0.25 % left) shut the oscillators down for real
+    // instead of leaving them running at near-zero volume.
+    clearTimeout(toneStopTimer);
+    toneStopTimer = setTimeout(() => {
+      const l = oscL, r = oscR; oscL = oscR = null;
+      [l, r].forEach(o => { if (!o) return; try { o.stop(); } catch (e) {} try { o.disconnect(); } catch (e) {} });
+    }, 9000);
   }
 
   binBtn.addEventListener('click', () => {
@@ -1576,20 +1769,62 @@ setInterval(updateMoonPhase, 3600000);
   cricketsAudio.volume = cricketsVolSlider.value / 100;
   cricketsVolSlider.addEventListener('input', (e) => { setNatureVolume(e.target.value / 100); });
 
+  // Small message bubble at the top of the screen (used when the nature sound can't play).
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById('app-toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 4500);
+  }
+
+  function setNatureUI(on) {
+    cricketsBtn.innerText = on ? "NATURE: ON" : "NATURE: OFF";
+    cricketsBtn.classList.toggle('active-btn', on);
+  }
+
+  // The button only says ON once the browser has really started playing. If playback fails
+  // (file missing / blocked / unsupported) the button stays OFF and a message is shown instead.
+  function natureUnavailable() {
+    try { cricketsAudio.pause(); } catch (e) {}
+    setNatureUI(false);
+    const entry = i18nText.nature_unavailable;
+    showToast(entry[guideLang] || entry.en);
+  }
+
+  // The file stopped working while it was already playing (e.g. connection lost).
+  cricketsAudio.addEventListener('error', () => {
+    if (cricketsBtn.classList.contains('active-btn')) natureUnavailable();
+  });
+
   cricketsBtn.addEventListener('click', () => {
     initAudio();
     routeNatureIntoEngine();
     natureFadeId++;                                     // a running timer fade no longer applies
     if (cricketsAudio.paused) {
       setNatureVolume(cricketsVolSlider.value / 100);   // start at your slider volume (even right after a timer fade)
-      cricketsAudio.play().catch(err => console.log("Audio nezapuštěno: ", err));
-      cricketsBtn.innerText = "NATURE: ON"; cricketsBtn.classList.add('active-btn');
+      let playPromise;
+      try { playPromise = cricketsAudio.play(); } catch (err) { console.log("Audio nezapuštěno: ", err); natureUnavailable(); return; }
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(() => {
+          if (!cricketsAudio.paused) setNatureUI(true);
+        }).catch(err => {
+          // pressing NATURE again (or the timer) while it was still starting is not an error
+          if (err && err.name === 'AbortError') return;
+          console.log("Audio nezapuštěno: ", err);
+          natureUnavailable();
+        });
+      } else {
+        setNatureUI(true); // very old browsers: play() returns nothing, so there is nothing to wait for
+      }
     } else {
-      cricketsAudio.pause(); cricketsBtn.innerText = "NATURE: OFF"; cricketsBtn.classList.remove('active-btn');
+      cricketsAudio.pause(); setNatureUI(false);
     }
   });
 
-  let tapMasterGain, tapDelay, tapFeedback, tapDelayFilter, tapDriveNode, tapDelayOutGain;
+  let tapMasterGain, tapDelay, tapFeedback, tapDelayFilter, tapDelayOutGain;
   let tapReverbNode, tapReverbGain;
   let noiseBuffer;
   let looperDelay, looperFeedback, looperGain;
@@ -1703,6 +1938,9 @@ setInterval(updateMoonPhase, 3600000);
   // so multiple different sounds can be layered and all play together.
   let tracks = [];
   let trackIdSeq = 0;
+  let trackNameSeq = 0; // names are never reused after a delete (tracks.length + 1 was)
+  const nextTrackName = () => 'SOUND ' + (++trackNameSeq);
+  const noteTrackName = (name) => { const m = /^SOUND (\d+)$/.exec(name); if (m) trackNameSeq = Math.max(trackNameSeq, Number(m[1])); };
   let kickSteps = Array.from({length: 32}, () => false);
 
   // Snapshot of everything that shapes the *timbre* of a note, as currently set on the panel.
@@ -1721,10 +1959,17 @@ setInterval(updateMoonPhase, 3600000);
   let seqBpm = 110;
   let seqCurrentStep = 0;
   let seqLastX = 0.5; let seqLastY = 0.5;
+  let seqLastFreq = null;       // exact pitch of the last piano key (null = the last grabbed tone came from the sky)
+  let seqLoopCount = 0;         // which pass through the 32 steps the next scheduled step belongs to
+  const seqLog = [];            // the most recently scheduled steps {step, time, loop} - used to quantize piano notes
+  let pianoRecTrackId = null;   // sequencer track that piano recording writes into
+  let refreshRecTrackSelect = () => {}; // replaced once the piano panel code has run
   let seqTimerID = null;
+  let seqWorker = null;
   let nextNoteTime = 0;
-  const seqLookahead = 25.0; 
-  const seqScheduleAheadTime = 0.1; 
+  const seqLookahead = 25.0;       // how often the scheduler wakes up (ms)
+  const seqAheadVisible = 0.2;     // seconds of notes queued in advance while the page is on screen
+  const seqAheadHidden = 1.5;      // ...and while it is in the background / phone locked, where timers get throttled
 
   function updateDelayTime() {
     if(!tapDelay || !audioCtx) return;
@@ -1745,7 +1990,25 @@ setInterval(updateMoonPhase, 3600000);
       x = i * 2 / n_samples - 1;
       curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
     }
+    // The raw formula peaks at only ~1/3 (at 0 it is exactly x/3), so switching DRIVE on from 0
+    // dropped the level to a third. Scale it so full-scale input stays full-scale: at 0 the curve
+    // is a straight line, i.e. identical to the bypassed signal.
+    const peak = ( 3 + k ) * 20 * deg / ( Math.PI + k );
+    for ( i = 0; i < n_samples; ++i ) curve[i] /= peak;
     return curve;
+  }
+
+  // Every note gets its own WaveShaper (so notes can never bleed into each other's envelopes),
+  // but they share the curve array: it is only built once per DRIVE amount and then reused.
+  let driveCurveCache = {}, driveCurveCount = 0;
+  function getDriveCurve(amount) {
+    const key = Math.round(Math.max(0, Math.min(1, amount)) * 100);
+    if (!driveCurveCache[key]) {
+      if (driveCurveCount >= 24) { driveCurveCache = {}; driveCurveCount = 0; } // keep memory bounded
+      driveCurveCache[key] = makeDistortionCurve(key / 100);
+      driveCurveCount++;
+    }
+    return driveCurveCache[key];
   }
 
   function initTapAudio() {
@@ -1791,10 +2054,6 @@ setInterval(updateMoonPhase, 3600000);
     tapDelayOutGain = audioCtx.createGain(); tapDelayOutGain.gain.value = tapDelayOn ? 1 : 0;
     tapDelay.connect(tapDelayOutGain); tapDelayOutGain.connect(tapMasterGain);
     
-    tapDriveNode = audioCtx.createWaveShaper();
-    tapDriveNode.curve = makeDistortionCurve(tapDriveAmount);
-    tapDriveNode.oversample = '4x';
-
     looperDelay = audioCtx.createDelay(10.0); looperDelay.delayTime.value = 8.0; 
     looperFeedback = audioCtx.createGain(); looperFeedback.gain.value = 0.92; 
     looperGain = audioCtx.createGain(); looperGain.gain.value = tapLooper;
@@ -1861,7 +2120,31 @@ setInterval(updateMoonPhase, 3600000);
     }
   }
 
-  function playAmbientNote(xRatio, yRatio, schedTime = 0, settings = null) {
+  // Piano keys play exact (chromatic) pitches, but ARP and CHORD still think in scale degrees:
+  // these helpers map a pressed pitch onto the current SCALE, so both keep working on the keyboard.
+  const scaleSemisCache = {};
+  function scaleSemitones(name) {
+    if (!scaleSemisCache[name]) {
+      const set = new Set();
+      scales[name].forEach(f => set.add(((Math.round(12 * Math.log2(f / 261.63)) % 12) + 12) % 12));
+      scaleSemisCache[name] = Array.from(set).sort((a, b) => a - b);
+    }
+    return scaleSemisCache[name];
+  }
+  function nearestDegreeIndex(freq, name) {
+    const semis = scaleSemitones(name);
+    const pc = ((Math.round(12 * Math.log2(freq / 261.63)) % 12) + 12) % 12;
+    let best = 0, bestDist = 99;
+    semis.forEach((x, i) => { const d = Math.min(Math.abs(x - pc), 12 - Math.abs(x - pc)); if (d < bestDist) { bestDist = d; best = i; } });
+    return best;
+  }
+  function degreeFreq(freq, name, idx0, deg) {
+    const semis = scaleSemitones(name), n = semis.length;
+    const at = (i) => semis[((i % n) + n) % n] + 12 * Math.floor(i / n);
+    return freq * Math.pow(2, (at(idx0 + deg) - at(idx0)) / 12);
+  }
+
+  function playAmbientNote(xRatio, yRatio, schedTime = 0, settings = null, forcedFreq = null) {
     initTapAudio();
     const now = schedTime || audioCtx.currentTime;
     const s = settings || getLiveSettings(); // no settings passed = live "design" preview using the current panel
@@ -1870,8 +2153,9 @@ setInterval(updateMoonPhase, 3600000);
     const noteEnd = now + Math.max(0.015, s.attack) + s.decay + 0.2;
 
     const activeScale = scales[s.scale];
-    const noteIndex = Math.min(activeScale.length - 1, Math.floor(xRatio * activeScale.length));
-    const baseFreq = activeScale[noteIndex] * (yRatio < 0.5 ? 2 : 1) * s.range;
+    const forced = typeof forcedFreq === 'number' && isFinite(forcedFreq) && forcedFreq > 0; // played from the piano
+    const noteIndex = forced ? nearestDegreeIndex(forcedFreq, s.scale) : Math.min(activeScale.length - 1, Math.floor(xRatio * activeScale.length));
+    const baseFreq = forced ? forcedFreq : activeScale[noteIndex] * (yRatio < 0.5 ? 2 : 1) * s.range;
 
     const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
     applyWave(osc1, s.wave); 
@@ -1884,12 +2168,19 @@ setInterval(updateMoonPhase, 3600000);
       const stepTime = 0.05 + (1 - s.arp) * 0.3; 
       let t = now; let step = 0;
       while (t < noteEnd + 0.3) {
+        let aFreq;
+        if (forced) {
+          const rel = s.arpMode === 'up' ? step % 4 : s.arpMode === 'down' ? -(step % 4)
+            : s.arpMode === 'updown' ? (step % 8 < 4 ? step % 8 : 8 - (step % 8)) : Math.floor(Math.random() * 5);
+          aFreq = degreeFreq(forcedFreq, s.scale, noteIndex, rel) * (Math.floor(step / 4) % 2 === 1 ? 2 : 1);
+        } else {
         let arpIndex;
         if (s.arpMode === 'up') arpIndex = Math.min(activeScale.length - 1, noteIndex + (step % 4));
         else if (s.arpMode === 'down') arpIndex = Math.max(0, noteIndex - (step % 4));
         else if (s.arpMode === 'updown') { const cyc = step % 8; const rel = cyc < 4 ? cyc : 8 - cyc; arpIndex = Math.min(activeScale.length - 1, noteIndex + rel); }
         else arpIndex = Math.floor(Math.random() * activeScale.length);
-        const aFreq = activeScale[arpIndex] * (yRatio < 0.5 ? 2 : 1) * (Math.floor(step / 4) % 2 === 1 ? 2 : 1) * s.range;
+        aFreq = activeScale[arpIndex] * (yRatio < 0.5 ? 2 : 1) * (Math.floor(step / 4) % 2 === 1 ? 2 : 1) * s.range;
+        }
         osc1.frequency.setValueAtTime(aFreq, t); osc2.frequency.setValueAtTime(aFreq * s.detune, t);
         t += stepTime; step++;
       }
@@ -1908,14 +2199,18 @@ setInterval(updateMoonPhase, 3600000);
     osc3.start(now); osc3.stop(noteEnd);
 
     if(s.drive > 0) {
-      noteFilter.connect(tapDriveNode); tapDriveNode.connect(noteGain);
-      // The drive node is shared by every note, so unhook this note from it once it's over.
-      // Before, each finished note stayed attached at ~-60 dB; after a few hundred DRIVE notes
-      // those leftovers added up - new notes stopped decaying, got cut off abruptly at the end,
-      // and the CPU load kept growing the longer you played.
+      // Own shaper for this note only: before, one shared WaveShaper summed all notes playing at
+      // the same time and fed the sum into every note's gain, so each note was heard several times
+      // with other notes' envelopes and the volume/distortion grew with the number of notes.
+      // The amount comes from this note's own settings, so a track keeps the DRIVE it was made with.
+      const driveShaper = audioCtx.createWaveShaper();
+      driveShaper.curve = getDriveCurve(s.drive);
+      driveShaper.oversample = isMobile ? '2x' : '4x'; // every note has its own shaper now - 2x keeps phones light
+      noteFilter.connect(driveShaper); driveShaper.connect(noteGain);
+      // Unhook the finished note so nothing is left hanging in the audio graph.
       osc1.addEventListener('ended', () => {
-        try { tapDriveNode.disconnect(noteGain); } catch (e) {}
-        try { noteFilter.disconnect(tapDriveNode); } catch (e) {}
+        try { noteFilter.disconnect(driveShaper); } catch (e) {}
+        try { driveShaper.disconnect(); } catch (e) {}
       });
     } else {
       noteFilter.connect(noteGain);
@@ -1967,7 +2262,7 @@ setInterval(updateMoonPhase, 3600000);
         const idx = noteIndex + step;
         const oct = Math.floor(idx / activeScale.length);
         const wrapped = ((idx % activeScale.length) + activeScale.length) % activeScale.length;
-        const cFreq = activeScale[wrapped] * Math.pow(2, oct) * (yRatio < 0.5 ? 2 : 1) * s.range;
+        const cFreq = forced ? degreeFreq(forcedFreq, s.scale, noteIndex, step) : activeScale[wrapped] * Math.pow(2, oct) * (yRatio < 0.5 ? 2 : 1) * s.range;
         playChordVoice(cFreq, yRatio, now, s);
       });
     }
@@ -1979,6 +2274,24 @@ setInterval(updateMoonPhase, 3600000);
 
   function updateTracksEmptyHint() {
     tracksEmptyHint.style.display = tracks.length ? 'none' : 'block';
+    refreshRecTrackSelect();
+  }
+
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  function freqToNoteName(f) {
+    const m = Math.round(69 + 12 * Math.log2(f / 440));
+    return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+  }
+  // A step either holds a sky tone (x, y) or - when recorded / grabbed from the piano - exact pitches in `freqs`.
+  function paintStepDot(dot, step) {
+    const pitched = !!step.active && Array.isArray(step.freqs) && step.freqs.length > 0;
+    dot.classList.toggle('active', !!step.active);
+    dot.classList.toggle('has-pitch', pitched);
+    if (pitched) dot.title = step.freqs.map(freqToNoteName).join(' '); else dot.removeAttribute('title');
+  }
+  function syncStepDot(track, i) {
+    const grid = tracksContainer.querySelector('[data-track-id="' + track.id + '"] .trk-grid');
+    if (grid && grid.children[i]) paintStepDot(grid.children[i], track.steps[i]);
   }
 
   function createTrackRow(track) {
@@ -2007,11 +2320,13 @@ setInterval(updateMoonPhase, 3600000);
     grid.style.cssText = 'display:grid; grid-template-columns: repeat(16, minmax(0,1fr)); gap:4px; width:100%; box-sizing:border-box;';
     for (let i = 0; i < 32; i++) {
       const dot = document.createElement('div'); dot.className = 'seq-dot';
-      dot.classList.toggle('active', track.steps[i].active);
+      paintStepDot(dot, track.steps[i]);
       dot.addEventListener('click', () => {
-        track.steps[i].active = !track.steps[i].active;
-        if (track.steps[i].active) { track.steps[i].x = seqLastX; track.steps[i].y = seqLastY; }
-        dot.classList.toggle('active', track.steps[i].active);
+        const st = track.steps[i];
+        st.active = !st.active;
+        if (st.active) { st.x = seqLastX; st.y = seqLastY; st.freqs = seqLastFreq ? [seqLastFreq] : []; } // lock the last grabbed tone (sky or piano)
+        else st.freqs = [];
+        paintStepDot(dot, st);
       });
       grid.appendChild(dot);
     }
@@ -2037,12 +2352,13 @@ setInterval(updateMoonPhase, 3600000);
   function addTrackFromCurrentSettings() {
     const track = {
       id: trackIdSeq++,
-      name: 'SOUND ' + (tracks.length + 1),
+      name: nextTrackName(),
       settings: getLiveSettings(),
       muted: false,
       steps: Array.from({ length: 32 }, () => ({ active: false, x: 0.5, y: 0.5 }))
     };
     tracks.push(track);
+    pianoRecTrackId = track.id; // a freshly added sound becomes the piano's recording target
     createTrackRow(track);
   }
   document.getElementById('tsp-add-track').addEventListener('click', addTrackFromCurrentSettings);
@@ -2061,19 +2377,26 @@ setInterval(updateMoonPhase, 3600000);
     const secondsPerBeat = 60.0 / seqBpm;
     nextNoteTime += 0.25 * secondsPerBeat; 
     seqCurrentStep = (seqCurrentStep + 1) % 32;
+    if (seqCurrentStep === 0) seqLoopCount++;
   }
 
   function seqScheduleNote(stepNumber, time) {
     const timeUntilNote = time - audioCtx.currentTime;
 
+    seqLog.push({ step: stepNumber, time: time, loop: seqLoopCount });
+    if (seqLog.length > 6) seqLog.shift();
+
     tracks.forEach(track => {
-      if (!track.muted && track.steps[stepNumber].active) {
-        playAmbientNote(track.steps[stepNumber].x, track.steps[stepNumber].y, time, track.settings);
-      }
+      const st = track.steps[stepNumber];
+      if (track.muted || !st.active) return;
+      if (Array.isArray(st.freqs) && st.freqs.length) st.freqs.forEach(f => playAmbientNote(st.x, st.y, time, track.settings, f)); // recorded from the piano: exact pitches
+      else playAmbientNote(st.x, st.y, time, track.settings);
     });
     if (kickSteps[stepNumber]) playKickNote(time);
 
+    if (document.hidden) return; // nobody is looking at the step highlight in the background
     setTimeout(() => {
+      if (!seqIsPlaying) return;  // PAUSE was pressed in the meantime - don't light the grid up again
       document.querySelectorAll('.trk-grid').forEach(grid => {
         for (let idx = 0; idx < 32; idx++) {
           if (grid.children[idx]) grid.children[idx].classList.toggle('playing', idx === stepNumber);
@@ -2083,29 +2406,70 @@ setInterval(updateMoonPhase, 3600000);
     }, Math.max(0, timeUntilNote * 1000));
   }
 
-  function seqScheduler() {
-    while (nextNoteTime < audioCtx.currentTime + seqScheduleAheadTime) {
+  // Queues every step that falls inside the look-ahead window. Called by the ticker below.
+  function seqTick() {
+    if (!seqIsPlaying || !audioCtx) return;
+    const ahead = document.hidden ? seqAheadHidden : seqAheadVisible;
+    // After a long stall (e.g. the phone was asleep) skip the missed steps instead of
+    // firing all of them at once as a burst.
+    if (nextNoteTime < audioCtx.currentTime - 0.25) nextNoteTime = audioCtx.currentTime + 0.05;
+    while (nextNoteTime < audioCtx.currentTime + ahead) {
       seqScheduleNote(seqCurrentStep, nextNoteTime);
       seqAdvanceNote();
     }
-    seqTimerID = setTimeout(seqScheduler, seqLookahead);
   }
 
-  document.getElementById('seq-play').addEventListener('click', () => {
-    initAudio(); seqIsPlaying = !seqIsPlaying;
+  // Plain setTimeout loop - only used when a Web Worker is not available.
+  function seqFallbackLoop() {
+    seqTick();
+    seqTimerID = setTimeout(seqFallbackLoop, seqLookahead);
+  }
+
+  // The ticking runs in a Web Worker: browsers slow down normal page timers to ~1 s in a
+  // background tab / locked phone (notes then drop out or stutter), but a worker's timer keeps
+  // its pace. If a worker can't be created, it falls back to the old setTimeout loop.
+  function startSeqTicker() {
+    stopSeqTicker();
+    try {
+      const url = URL.createObjectURL(new Blob(
+        ["let id=null;onmessage=function(e){clearInterval(id);id=null;if(e.data==='start')id=setInterval(function(){postMessage(0);}," + seqLookahead + ");};"],
+        { type: 'text/javascript' }));
+      seqWorker = new Worker(url);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      seqWorker.onmessage = seqTick;
+      seqWorker.onerror = () => { stopSeqTicker(); if (seqIsPlaying) seqFallbackLoop(); };
+      seqWorker.postMessage('start');
+    } catch (err) {
+      seqWorker = null;
+      seqFallbackLoop();
+    }
+  }
+
+  function stopSeqTicker() {
+    clearTimeout(seqTimerID); seqTimerID = null;
+    if (seqWorker) { try { seqWorker.terminate(); } catch (err) {} seqWorker = null; }
+  }
+
+  // Shared by the PLAY button and by piano recording (which starts the sequencer by itself on the first key).
+  function setSeqPlaying(on) {
+    initAudio();
+    if (on === seqIsPlaying) return;
+    seqIsPlaying = on;
     const playBtn = document.getElementById('seq-play');
     if (seqIsPlaying) {
       if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+      seqLog.length = 0;
       nextNoteTime = audioCtx.currentTime + 0.1;
-      seqScheduler();
+      seqTick(); startSeqTicker();
       playBtn.style.background = 'rgba(255,107,107,0.4)'; playBtn.style.borderColor = '#ff6b6b'; playBtn.innerText = 'PAUSE';
     } else {
-      clearTimeout(seqTimerID);
+      stopSeqTicker();
       document.querySelectorAll('.seq-dot').forEach(d => d.classList.remove('playing'));
       document.querySelectorAll('.kick-dot').forEach(d => d.classList.remove('playing'));
       playBtn.style.background = 'rgba(255,255,255,0.1)'; playBtn.style.borderColor = 'rgba(255,255,255,0.3)'; playBtn.innerText = 'PLAY';
     }
-  });
+  }
+  document.getElementById('seq-play').addEventListener('click', () => setSeqPlaying(!seqIsPlaying));
 
   document.getElementById('seq-bpm').addEventListener('input', (e) => {
       seqBpm = parseInt(e.target.value);
@@ -2117,7 +2481,7 @@ setInterval(updateMoonPhase, 3600000);
     if (e.target.closest && e.target.closest('.top-bar')) return;
     if (e.target.closest && e.target.closest('.info-overlay')) return;
     const x = e.clientX, y = e.clientY;
-    seqLastX = x / window.innerWidth; seqLastY = y / window.innerHeight;
+    seqLastX = x / window.innerWidth; seqLastY = y / window.innerHeight; seqLastFreq = null;
     playAmbientNote(seqLastX, seqLastY);
     tapSparkles.push({ x, y, spawnTs: performance.now(), duration: 900 });
   }
@@ -2128,10 +2492,222 @@ setInterval(updateMoonPhase, 3600000);
   const topBar = document.querySelector('.top-bar');
   tapSynthToggle.addEventListener('click', () => {
     updateSynthPanelMaxHeight(); // re-measure right before opening, in case the control bar's own height changed since the last resize
-    const isOpen = tapSynthPanel.classList.toggle('open');
+    setSynthPanelOpen(!tapSynthPanel.classList.contains('open'));
+  });
+  function setSynthPanelOpen(isOpen) {
+    tapSynthPanel.classList.toggle('open', isOpen);
     tapSynthToggle.classList.toggle('active-btn', isOpen);
     if (topBar) topBar.classList.toggle('tsp-hidden', isOpen); // hide the top-left info button while the synth panel covers that area
+  }
+  // Esc closes whatever is open: the info panel first, then the synth panel
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (infoOverlay.classList.contains('open')) { closeInfo(); return; }
+    if (tapSynthPanel.classList.contains('open')) { setSynthPanelOpen(false); tapSynthToggle.focus({ preventScroll: true }); }
+    else if (pianoPanel.classList.contains('open')) { setPianoOpen(false); pianoToggle.focus({ preventScroll: true }); }
   });
+
+  // --- Piano keyboard: try the sound on real keys while tweaking the knobs ---
+  // Keys use the CURRENT panel settings (wave, filter, envelope, drive, FX, ARP, CHORD ...), exactly like
+  // tapping the sky, but at exact chromatic pitches. Two octaves, shift with the - / + buttons.
+  const pianoToggle = document.getElementById('piano-toggle');
+  const pianoPanel = document.getElementById('piano-panel');
+  const pianoKeys = document.getElementById('piano-keys');
+  const pianoOctLabel = document.getElementById('piano-oct-label');
+  let pianoOct = 4; // the lowest key is C<pianoOct> (C4 = middle C)
+  const pianoKeyEls = []; // index = semitones above the lowest C (0..24)
+  (function buildPiano() {
+    const whiteSemis = [0, 2, 4, 5, 7, 9, 11], WHITE = 15, w = 100 / WHITE;
+    for (let i = 0; i < WHITE; i++) {
+      const semi = whiteSemis[i % 7] + 12 * Math.floor(i / 7);
+      const k = document.createElement('div');
+      k.className = 'pk pk-white'; k.dataset.semi = semi; k.style.left = (i * w) + '%'; k.style.width = w + '%';
+      pianoKeys.appendChild(k); pianoKeyEls[semi] = k;
+    }
+    for (let i = 0; i < WHITE - 1; i++) {
+      if ([0, 1, 3, 4, 5].indexOf(i % 7) === -1) continue; // no black key after E and B
+      const semi = whiteSemis[i % 7] + 12 * Math.floor(i / 7) + 1;
+      const k = document.createElement('div');
+      k.className = 'pk pk-black'; k.dataset.semi = semi; k.style.width = (w * 0.62) + '%'; k.style.left = ((i + 1) * w - w * 0.31) + '%';
+      pianoKeys.appendChild(k); pianoKeyEls[semi] = k;
+    }
+  })();
+  function updatePianoLabels() {
+    [0, 12, 24].forEach(semi => { pianoKeyEls[semi].dataset.note = 'C' + (pianoOct + semi / 12); });
+    pianoOctLabel.textContent = 'C' + pianoOct + '–C' + (pianoOct + 2);
+  }
+  function shiftPianoOct(d) { pianoOct = Math.min(6, Math.max(1, pianoOct + d)); updatePianoLabels(); }
+  const setKeyDown = (semi, on) => { const k = pianoKeyEls[semi]; if (k) k.classList.toggle('down', on); };
+  function pianoPlay(semi) {
+    const midi = (pianoOct + 1) * 12 + semi;
+    pianoPlayFreq(440 * Math.pow(2, (midi - 69) / 12));
+  }
+  function pianoPlayFreq(freq) { // shared by the on-screen keys, the computer keyboard and MIDI keyboards
+    seqLastFreq = freq; // "grab" this exact pitch: clicking a step in a track grid now locks it in
+    if (pianoRecArmed) recordPianoNote(freq);
+    else playAmbientNote(0.5, 0.5, 0, null, freq);
+  }
+
+  // --- Piano -> sequencer recording ---
+  // With ● SEQ armed every key is quantized to the nearest step of the chosen track and stored there with its
+  // exact pitch. While recording the key sounds with that TRACK's sound, so what you hear is what will play back.
+  let pianoRecArmed = false;
+  const pianoRecBtn = document.getElementById('piano-rec');
+  const pianoRecSel = document.getElementById('piano-rec-track');
+
+  refreshRecTrackSelect = function () {
+    if (!tracks.some(t => t.id === pianoRecTrackId)) pianoRecTrackId = tracks.length ? tracks[tracks.length - 1].id : null;
+    pianoRecSel.innerHTML = '';
+    tracks.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; pianoRecSel.appendChild(o); });
+    if (pianoRecTrackId !== null) pianoRecSel.value = String(pianoRecTrackId);
+    pianoRecSel.classList.toggle('show', pianoRecArmed && tracks.length > 0);
+  };
+  pianoRecSel.addEventListener('change', (e) => { pianoRecTrackId = Number(e.target.value); });
+  pianoRecBtn.addEventListener('click', () => {
+    pianoRecArmed = !pianoRecArmed;
+    pianoRecBtn.classList.toggle('active-btn', pianoRecArmed);
+    pianoRecBtn.setAttribute('aria-pressed', String(pianoRecArmed));
+    if (pianoRecArmed && !tracks.length) addTrackFromCurrentSettings(); // nothing to record into yet - make a track from the current sound
+    refreshRecTrackSelect();
+  });
+
+  // Which step is "now"? Compare the heard moment with the steps that were just scheduled (and the next one still waiting).
+  function nearestSeqSlot() {
+    const heardAt = audioCtx.currentTime - (audioCtx.outputLatency || audioCtx.baseLatency || 0);
+    let best = { step: seqCurrentStep, time: nextNoteTime, loop: seqLoopCount, upcoming: true };
+    let bestD = Math.abs(nextNoteTime - heardAt);
+    seqLog.forEach(e => {
+      const d = Math.abs(e.time - heardAt);
+      if (d < bestD) { bestD = d; best = { step: e.step, time: e.time, loop: e.loop, upcoming: false }; }
+    });
+    return best;
+  }
+
+  // Notes LAYER: whatever is already on the step stays and the new pitch is added (build chords note by note, pass by pass).
+  // A step that only held a sky tone gets the piano pitch instead. Clicking the lit square erases the whole step.
+  function commitPianoNote(track, step, freq) {
+    const st = track.steps[step];
+    const hasPitches = st.active && Array.isArray(st.freqs) && st.freqs.length > 0;
+    if (!hasPitches) st.freqs = [freq];
+    else if (st.freqs.indexOf(freq) === -1 && st.freqs.length < 12) st.freqs.push(freq);
+    st.active = true;
+    syncStepDot(track, step);
+  }
+
+  function recordPianoNote(freq) {
+    initAudio();
+    if (!tracks.length) addTrackFromCurrentSettings();
+    const track = tracks.find(t => t.id === pianoRecTrackId) || tracks[tracks.length - 1];
+    if (!seqIsPlaying) {
+      // the first key starts the sequencer and lands on step 1; the scheduler plays it, so no extra live note
+      seqCurrentStep = 0;
+      commitPianoNote(track, 0, freq);
+      setSeqPlaying(true);
+      return;
+    }
+    const slot = nearestSeqSlot();
+    commitPianoNote(track, slot.step, freq);
+    // a step that is still waiting to be scheduled will sound by itself; otherwise play the key right away
+    if (!slot.upcoming) playAmbientNote(track.steps[slot.step].x, track.steps[slot.step].y, 0, track.settings, freq);
+  }
+  function setPianoOpen(isOpen) {
+    pianoPanel.classList.toggle('open', isOpen);
+    pianoToggle.classList.toggle('active-btn', isOpen);
+    pianoToggle.setAttribute('aria-expanded', String(isOpen));
+    updateSynthPanelMaxHeight(); // the controls moved up or down - re-fit the synth panel above them
+  }
+  pianoToggle.addEventListener('click', () => setPianoOpen(!pianoPanel.classList.contains('open')));
+  document.getElementById('piano-close').addEventListener('click', () => { setPianoOpen(false); pianoToggle.focus({ preventScroll: true }); });
+  document.getElementById('piano-oct-down').addEventListener('click', () => shiftPianoOct(-1));
+  document.getElementById('piano-oct-up').addEventListener('click', () => shiftPianoOct(1));
+  updatePianoLabels();
+
+  // touch / mouse: press, and slide across the keys to glide (several fingers work too)
+  const pianoPointers = new Map();
+  const pianoSemiAt = (x, y) => { const el = document.elementFromPoint(x, y); const k = el && el.closest ? el.closest('.pk') : null; return k ? Number(k.dataset.semi) : null; };
+  pianoKeys.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    const semi = pianoSemiAt(e.clientX, e.clientY); if (semi === null) return;
+    try { pianoKeys.setPointerCapture(e.pointerId); } catch (err) {}
+    pianoPointers.set(e.pointerId, semi); setKeyDown(semi, true); pianoPlay(semi);
+  });
+  pianoKeys.addEventListener('pointermove', (e) => {
+    if (!pianoPointers.has(e.pointerId)) return;
+    const semi = pianoSemiAt(e.clientX, e.clientY), prev = pianoPointers.get(e.pointerId);
+    if (semi === null || semi === prev) return;
+    setKeyDown(prev, false); pianoPointers.set(e.pointerId, semi); setKeyDown(semi, true); pianoPlay(semi);
+  });
+  const pianoRelease = (e) => { if (!pianoPointers.has(e.pointerId)) return; setKeyDown(pianoPointers.get(e.pointerId), false); pianoPointers.delete(e.pointerId); };
+  pianoKeys.addEventListener('pointerup', pianoRelease); pianoKeys.addEventListener('pointercancel', pianoRelease);
+
+  // computer keyboard (physical key positions, so it works on a Czech layout too): A W S E D F T G Y H U J K O L P ;
+  const PIANO_KEYMAP = { KeyA: 0, KeyW: 1, KeyS: 2, KeyE: 3, KeyD: 4, KeyF: 5, KeyT: 6, KeyG: 7, KeyY: 8, KeyH: 9, KeyU: 10, KeyJ: 11, KeyK: 12, KeyO: 13, KeyL: 14, KeyP: 15, Semicolon: 16 };
+  document.addEventListener('keydown', (e) => {
+    if (!pianoPanel.classList.contains('open') || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (infoOverlay.classList.contains('open')) return;
+    const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.code === 'KeyZ') { shiftPianoOct(-1); return; }
+    if (e.code === 'KeyX') { shiftPianoOct(1); return; }
+    if (PIANO_KEYMAP[e.code] === undefined) return;
+    e.preventDefault(); setKeyDown(PIANO_KEYMAP[e.code], true); pianoPlay(PIANO_KEYMAP[e.code]);
+  });
+  document.addEventListener('keyup', (e) => { if (PIANO_KEYMAP[e.code] !== undefined) setKeyDown(PIANO_KEYMAP[e.code], false); });
+
+  // --- MIDI keyboard input (Web MIDI) ---
+  // Notes play the current sound at their exact pitch, light up the on-screen key when it is in view, and go through the
+  // same path as the on-screen piano - so ● SEQ recording works with them too. Channel 10 (drums) is ignored.
+  const pianoMidiBtn = document.getElementById('piano-midi');
+  let midiAccess = null;
+  const midiHeld = new Map(); // MIDI note -> on-screen key that was lit for it (or null)
+  function midiReleaseAll() { midiHeld.forEach((semi) => { if (semi !== null) setKeyDown(semi, false); }); midiHeld.clear(); }
+  function onMidiMessage(e) {
+    const d = e.data; if (!d || d.length < 2) return;
+    const cmd = d[0] & 0xF0, ch = d[0] & 0x0F, note = d[1], vel = d.length > 2 ? d[2] : 0;
+    if (ch === 9) return;
+    if (cmd === 0x90 && vel > 0) {
+      if (midiHeld.has(note)) { const old = midiHeld.get(note); if (old !== null) setKeyDown(old, false); }
+      const semi = note - (pianoOct + 1) * 12, inView = semi >= 0 && semi <= 24;
+      midiHeld.set(note, inView ? semi : null); if (inView) setKeyDown(semi, true);
+      pianoPlayFreq(440 * Math.pow(2, (note - 69) / 12));
+    } else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) {
+      if (midiHeld.has(note)) { const semi = midiHeld.get(note); if (semi !== null) setKeyDown(semi, false); midiHeld.delete(note); }
+    } else if (cmd === 0xB0 && (note === 123 || note === 120)) midiReleaseAll(); // all notes off
+  }
+  function midiRefreshInputs() {
+    if (!midiAccess) return;
+    const names = [];
+    midiAccess.inputs.forEach((inp) => { if (inp.state === 'disconnected') return; inp.onmidimessage = onMidiMessage; names.push(inp.name || 'MIDI'); });
+    pianoMidiBtn.classList.toggle('active-btn', names.length > 0);
+    pianoMidiBtn.setAttribute('aria-pressed', String(names.length > 0));
+    pianoMidiBtn.textContent = names.length ? 'MIDI: ' + names[0].slice(0, 16) + (names.length > 1 ? ' +' + (names.length - 1) : '') : 'MIDI: NO DEVICE';
+    pianoMidiBtn.title = names.length ? 'Connected: ' + names.join(', ') + ' (click to disconnect)' : 'No MIDI keyboard found - plug one in';
+  }
+  async function midiConnect(fromUserClick) {
+    if (!navigator.requestMIDIAccess) {
+      if (fromUserClick) { pianoMidiBtn.textContent = 'NO MIDI'; pianoMidiBtn.title = 'Web MIDI is not supported in this browser (try Chrome, Edge, Opera or Firefox)'; }
+      return;
+    }
+    try {
+      if (fromUserClick) initAudio(); // the click is the user gesture that lets the audio start
+      midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+      midiAccess.onstatechange = midiRefreshInputs; // plugging in / unplugging later is picked up
+      midiRefreshInputs();
+      try { localStorage.setItem('synthlucida_midi', '1'); } catch (err) {}
+    } catch (err) {
+      midiAccess = null;
+      if (fromUserClick) { pianoMidiBtn.textContent = 'MIDI DENIED'; pianoMidiBtn.title = 'MIDI access was blocked - allow it in the browser site settings'; }
+    }
+  }
+  function midiDisconnect() {
+    if (midiAccess) { midiAccess.inputs.forEach((inp) => { inp.onmidimessage = null; }); midiAccess.onstatechange = null; }
+    midiAccess = null; midiReleaseAll();
+    pianoMidiBtn.classList.remove('active-btn'); pianoMidiBtn.setAttribute('aria-pressed', 'false');
+    pianoMidiBtn.textContent = 'MIDI'; pianoMidiBtn.title = 'Connect a MIDI keyboard';
+    try { localStorage.removeItem('synthlucida_midi'); } catch (err) {}
+  }
+  pianoMidiBtn.addEventListener('click', () => { if (midiAccess) midiDisconnect(); else midiConnect(true); });
+  try { if (localStorage.getItem('synthlucida_midi') === '1') midiConnect(false); } catch (err) {} // reconnect automatically when it was used before
 
   document.getElementById('tsp-scale').addEventListener('change', (e) => currentScale = e.target.value);
   document.getElementById('tsp-range').addEventListener('change', (e) => tapRange = parseFloat(e.target.value));
@@ -2148,7 +2724,6 @@ setInterval(updateMoonPhase, 3600000);
   
   document.getElementById('tsp-drive').addEventListener('input', (e) => {
     tapDriveAmount = e.target.value / 100;
-    if (tapDriveNode) tapDriveNode.curve = makeDistortionCurve(tapDriveAmount);
   });
 
   document.getElementById('tsp-looper').addEventListener('input', (e) => { tapLooper = e.target.value / 100; if(looperGain) looperGain.gain.setTargetAtTime(tapLooper, audioCtx.currentTime, 0.1); });
@@ -2197,6 +2772,12 @@ setInterval(updateMoonPhase, 3600000);
 
   const saveBtn = document.getElementById('tsp-save');
   const presetSel = document.getElementById('tsp-preset');
+  // "User" is only offered once a user preset really exists (saved or imported)
+  function ensureUserOption() {
+    if (presetSel.querySelector('option[value="user"]')) return;
+    const o = document.createElement('option'); o.value = 'user'; o.textContent = 'User';
+    presetSel.insertBefore(o, presetSel.firstChild);
+  }
   
   function getPresetObj() {
     return {
@@ -2277,19 +2858,24 @@ setInterval(updateMoonPhase, 3600000);
     // Wipe current tracks and rebuild from the preset
     tracksContainer.innerHTML = '';
     tracks = [];
+    trackNameSeq = 0;
 
     const ratio = (v) => { const n = Number(v); return (typeof v === 'number' || typeof v === 'string') && v !== '' && isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.5; };
+    const cleanFreqs = (f) => Array.isArray(f) ? f.map(Number).filter(n => isFinite(n) && n >= 20 && n <= 8000).slice(0, 12) : [];
     const normalizeSteps = (raw) => {
       let steps = (Array.isArray(raw) ? raw.slice(0, 32) : []).map(step => (typeof step === 'boolean' ? { active: step, x: 0.5, y: 0.5 }
-        : (step && typeof step === 'object' ? { active: !!step.active, x: ratio(step.x), y: ratio(step.y) } : { active: false, x: 0.5, y: 0.5 })));
+        : (step && typeof step === 'object' ? { active: !!step.active, x: ratio(step.x), y: ratio(step.y), freqs: cleanFreqs(step.freqs) } : { active: false, x: 0.5, y: 0.5 })));
       while (steps.length < 32) steps.push({ active: false, x: 0.5, y: 0.5 });
       return steps;
     };
 
     if (Array.isArray(obj.tracks)) {
-      obj.tracks.filter(to => to && typeof to === 'object').slice(0, 32).forEach(to => {
+      const loadedTracks = obj.tracks.filter(to => to && typeof to === 'object').slice(0, 32);
+      // first remember the SOUND n names that already exist, so unnamed tracks can't duplicate them
+      loadedTracks.forEach(to => { if (typeof to.name === 'string') noteTrackName(to.name.trim().slice(0, 40)); });
+      loadedTracks.forEach(to => {
         const track = {
-          id: trackIdSeq++, name: (typeof to.name === 'string' && to.name.trim()) ? to.name.slice(0, 40) : ('SOUND ' + (tracks.length + 1)),
+          id: trackIdSeq++, name: (typeof to.name === 'string' && to.name.trim()) ? to.name.slice(0, 40) : nextTrackName(),
           muted: !!to.muted, settings: cleanTrackSettings(to.settings),
           steps: normalizeSteps(to.steps)
         };
@@ -2300,11 +2886,11 @@ setInterval(updateMoonPhase, 3600000);
       // Backward compatibility with older presets that only had a single global sound + seqSteps/seq2Steps
       const legacySettings = getLiveSettings();
       if (obj.seqSteps !== undefined) {
-        const track = { id: trackIdSeq++, name: 'SOUND 1', muted: false, settings: legacySettings, steps: normalizeSteps(obj.seqSteps) };
+        const track = { id: trackIdSeq++, name: nextTrackName(), muted: false, settings: legacySettings, steps: normalizeSteps(obj.seqSteps) };
         tracks.push(track); createTrackRow(track);
       }
       if (obj.seq2Steps !== undefined) {
-        const track = { id: trackIdSeq++, name: 'SOUND 2', muted: false, settings: legacySettings, steps: normalizeSteps(obj.seq2Steps) };
+        const track = { id: trackIdSeq++, name: nextTrackName(), muted: false, settings: legacySettings, steps: normalizeSteps(obj.seq2Steps) };
         tracks.push(track); createTrackRow(track);
       }
     }
@@ -2321,7 +2907,7 @@ setInterval(updateMoonPhase, 3600000);
   saveBtn.addEventListener('click', () => {
     try {
       localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj()));
-      presetSel.value = 'user'; saveBtn.innerText = 'OK';
+      ensureUserOption(); presetSel.value = 'user'; saveBtn.innerText = 'OK';
     } catch (e) {
       saveBtn.innerText = 'NO STORAGE'; // private mode / storage blocked - use EXP FILE instead
     }
@@ -2384,8 +2970,7 @@ setInterval(updateMoonPhase, 3600000);
         alert("Invalid preset file");
         return;
       }
-      presetSel.value = 'user';
-      try { localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj())); } catch (storageErr) {}
+      try { localStorage.setItem('synthlucida_preset', JSON.stringify(getPresetObj())); ensureUserOption(); presetSel.value = 'user'; } catch (storageErr) {}
     };
     reader.readAsText(file);
     e.target.value = ''; // Reset inputu
@@ -2408,22 +2993,24 @@ setInterval(updateMoonPhase, 3600000);
       let events = [];
       for(let i=0; i<32; i++) {
         let tick = i * 30; // 30 ticks = 1/16th (protože 120 TPQN)
-        let note = null;
+        const notes = [];
+        const toMidi = (freq) => Math.max(0, Math.min(127, Math.round(69 + 12 * Math.log2(freq / 440))));
         if(isDrum) {
-          if(steps[i]) note = 36;
-        } else {
-          if(steps[i] && steps[i].active) {
+          if(steps[i]) notes.push(36);
+        } else if(steps[i] && steps[i].active) {
+          if (Array.isArray(steps[i].freqs) && steps[i].freqs.length) {
+            steps[i].freqs.forEach(f => notes.push(toMidi(f))); // recorded from the piano: exact pitches (chords too)
+          } else {
             let activeScale = scales[(trackSettings && trackSettings.scale) || currentScale];
             let noteIndex = Math.min(activeScale.length - 1, Math.floor(steps[i].x * activeScale.length));
             let freq = activeScale[noteIndex] * (steps[i].y < 0.5 ? 2 : 1) * ((trackSettings && trackSettings.range) || 1);
-            note = Math.round(69 + 12 * Math.log2(freq / 440));
-            note = Math.max(0, Math.min(127, note));
+            notes.push(toMidi(freq));
           }
         }
-        if(note !== null) {
+        notes.forEach(note => {
           events.push({ tick: tick, msg: [0x90 | channel, note, 100] });
-          events.push({ tick: tick + 28, msg: [0x80 | channel, note, 0] }); 
-        }
+          events.push({ tick: tick + 28, msg: [0x80 | channel, note, 0] });
+        });
       }
       events.sort((a,b) => a.tick - b.tick);
       let trkBytes = []; let lastTick = 0;
@@ -2461,7 +3048,7 @@ setInterval(updateMoonPhase, 3600000);
 
   try {
     const initialSaved = localStorage.getItem('synthlucida_preset');
-    if(initialSaved) { presetSel.value = 'user'; loadPresetObj(JSON.parse(initialSaved)); }
+    if(initialSaved) { const savedObj = JSON.parse(initialSaved); ensureUserOption(); presetSel.value = 'user'; loadPresetObj(savedObj); }
   } catch (e) { /* storage blocked or a damaged saved preset - start from the defaults */ }
 </script>
 </body>
