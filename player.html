@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.8.5">
+<meta name="app-version" content="1.8.6">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1651,6 +1651,131 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
 
+  /* ============================================
+     SPOLEČNÉ DÝCHÁNÍ (TOGETHER) - tlačítko v Breathe + celoobrazovková místnost
+     Vše má předponu together-/tg- a nesahá do stávajících stylů přehrávače.
+     ============================================ */
+  .breath-weather-row { gap: 8px; flex-wrap: wrap; }
+  #breath-together-btn { display: inline-flex; align-items: center; gap: 5px; min-width: 100px; justify-content: center; }
+  #breath-together-btn .tg-ico { width: 11px; height: 11px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #breath-together-btn.live { border-color: var(--accent-color); animation: togetherLivePulse 2.4s ease-in-out infinite; }
+  .tg-entry-count { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-color); }
+  .tg-entry-count[hidden] { display: none; }
+  .together-live-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-color); box-shadow: 0 0 8px var(--accent-color);
+    animation: togetherDotBlink 2s ease-in-out infinite;
+  }
+  @keyframes togetherDotBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @keyframes togetherLivePulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(255,255,255,0.12); }
+    50% { box-shadow: 0 0 16px var(--accent-color); }
+  }
+
+  .together-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 45%, var(--bg-color-1), var(--bg-color-2) 65%, #000000);
+    padding: calc(58px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+    overflow-y: auto; overflow-x: hidden; text-align: center; box-sizing: border-box;
+  }
+  /* Místnost se zobrazí nad dechovým cvičením (to zůstane pod ní, jen skryté). */
+  html body.breathing-active.together-active > #together-overlay,
+  html body.together-active > #together-overlay { display: flex !important; }
+  body.together-active .breathing-overlay { display: none !important; }
+  @media (max-height: 720px) { .together-overlay { justify-content: flex-start; } }
+
+  .together-close {
+    position: absolute; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(16px + env(safe-area-inset-right, 0px));
+    width: 36px; height: 36px; border-radius: 50%; z-index: 3;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
+    font-size: 14px; opacity: 0.6; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .together-close:hover, .together-close:focus-visible { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color); }
+  .together-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+  .together-head { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .together-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 13px; letter-spacing: 3px; color: #fff; text-shadow: 0 0 14px var(--accent-color); }
+  .together-count { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.85; max-width: 320px; line-height: 1.5; }
+
+  .together-evening-banner {
+    position: relative; z-index: 2; margin-top: 12px; padding: 7px 14px; border-radius: 20px;
+    border: 1px solid var(--accent-color); background: rgba(255,255,255,0.06);
+    font-size: 10px; letter-spacing: 1px; color: #fff; box-shadow: 0 0 14px var(--accent-color);
+    font-variant-numeric: tabular-nums;
+  }
+  .together-evening-banner[hidden] { display: none; }
+
+  .together-stage { position: relative; z-index: 1; width: 270px; height: 270px; margin: 18px auto 0; flex-shrink: 0; }
+  .together-orb {
+    position: absolute; left: 50%; top: 50%; width: 180px; height: 180px; margin: -90px 0 0 -90px;
+    border-radius: 50%; transform: scale(0.62); will-change: transform, opacity;
+    background: radial-gradient(circle, var(--accent-color) 0%, var(--accent-glow) 45%, transparent 72%);
+    filter: blur(6px); opacity: 0.32;
+  }
+  .together-core {
+    position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, var(--accent-color) 70%);
+    box-shadow: 0 0 14px var(--accent-color);
+  }
+  .together-dots { position: absolute; inset: 0; will-change: transform; }
+  .together-dot {
+    position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+    background: rgba(255,255,255,0.75); box-shadow: 0 0 6px var(--accent-color);
+  }
+  .together-dot.me { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
+  .together-hearts { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .together-heart {
+    position: absolute; left: 50%; bottom: 30%; width: 22px; height: 22px; opacity: 0; color: var(--accent-color);
+    filter: drop-shadow(0 0 6px var(--accent-color));
+    animation: togetherHeartFloat 3.2s ease-out forwards;
+  }
+  .together-heart svg { width: 100%; height: 100%; display: block; fill: currentColor; stroke: none; }
+  @keyframes togetherHeartFloat {
+    0% { opacity: 0; transform: translate(var(--hx, 0px), 0) scale(0.6); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(var(--hx, 0px) * 1.6), -150px) scale(1.15); }
+  }
+
+  .together-phase {
+    margin-top: 16px; min-height: 21px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent-color); text-shadow: 0 0 12px var(--accent-color); max-width: 300px; line-height: 1.5;
+  }
+  .together-countdown { margin-top: 6px; font-size: 46px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 20px var(--accent-color); min-height: 46px; }
+  .together-rhythm { margin-top: 12px; font-size: 10px; opacity: 0.55; letter-spacing: 0.3px; max-width: 320px; line-height: 1.5; }
+
+  .together-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; max-width: 340px; }
+  /* Oba texty tlačítka (např. SEND CALM / SENT) leží přes sebe ve stejné buňce mřížky a přepíná se jen
+     jejich viditelnost - tlačítko má vždy šířku delšího z nich a při změně textu nic neposkočí. */
+  .together-actions .btn-breath-ctrl { display: inline-grid; place-items: center; }
+  .together-actions .tg-lbl { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 5px; }
+  .together-actions .tg-lbl-b { visibility: hidden; }
+  .together-actions .tg-alt .tg-lbl-a { visibility: hidden; }
+  .together-actions .tg-alt .tg-lbl-b { visibility: visible; }
+  .together-overlay .tg-ico { width: 11px; height: 11px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .together-info { margin-top: 16px; font-size: 10.5px; opacity: 0.75; line-height: 1.6; max-width: 340px; }
+  .together-link-btn {
+    margin-top: 6px; background: none; border: none; padding: 4px 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    color: var(--accent-color); font-family: inherit; font-size: 10.5px; text-decoration: underline; text-underline-offset: 3px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .together-stats { margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font-size: 10px; opacity: 0.6; letter-spacing: 0.3px; }
+  .together-stats b { font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; }
+  #together-stopwatch { display: inline-block; min-width: 3em; text-align: left; }
+  .together-num { display: inline-block; min-width: 2.6em; text-align: left; font-variant-numeric: tabular-nums; }
+  .together-stats span:empty { display: none; }
+  .together-hint { margin-top: 14px; font-size: 8.5px; opacity: 0.4; letter-spacing: 1px; text-transform: uppercase; max-width: 320px; line-height: 1.6; }
+
+  @media (max-width: 380px) {
+    .together-stage { width: 236px; height: 236px; }
+    .together-countdown { font-size: 40px; min-height: 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #breath-together-btn.live, .together-live-dot { animation: none; }
+    .together-heart { animation-duration: 1.6s; }
+  }
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
         async src="https://gc.zgo.at/count.js"></script>
@@ -2053,6 +2178,11 @@
     </div>
 
     <div class="main-guide-section">
+      <h4 data-i18n="h_together">Breathe together</h4>
+      <p data-i18n="p_together">In BREATHE, the TOGETHER button opens a shared room where everyone who is there breathes 4-7-8 in the same second. You see how many people are breathing with you, can send a heart (SEND CALM) and invite a friend. Every evening at 21:00 (Prague time) there is a shared 10-minute session — you can download a calendar reminder.</p>
+    </div>
+
+    <div class="main-guide-section">
       <h4 data-i18n="h_breath">Breathing exercise</h4>
       <p data-i18n="p_breath">Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.</p>
     </div>
@@ -2317,9 +2447,53 @@
   </div>
   <div class="breath-weather-row">
     <button class="btn-breath-ctrl" id="breath-weather-btn" onclick="toggleWeather()">WEATHER: OFF</button>
+    <button class="btn-breath-ctrl" id="breath-together-btn" onclick="if(window.openTogether)openTogether()"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14.2c2.4 0 4.2 1.8 4.2 4.3"/></svg><span data-tg="entryBtn">TOGETHER</span><span class="tg-entry-count" id="breath-together-count" hidden><span class="together-live-dot"></span><span class="tg-entry-count-text"></span></span></button>
   </div>
 
   <div class="breath-hint">tap ✖ to exit</div>
+</div>
+
+<!-- ============================================
+     SPOLEČNÉ DÝCHÁNÍ — celoobrazovková místnost (všichni dýchají ve stejném rytmu 4-7-8)
+     ============================================ -->
+<div class="together-overlay" id="together-overlay" role="dialog" aria-modal="true" aria-labelledby="together-title">
+  <div class="breath-ambient" aria-hidden="true">
+    <div class="breath-blob b1"></div>
+    <div class="breath-blob b2"></div>
+  </div>
+  <button type="button" class="together-close" onclick="closeTogether()" id="together-close-btn" aria-label="Leave breathing together">✖</button>
+
+  <div class="together-head">
+    <div class="together-title" id="together-title" data-tg="title">BREATHE TOGETHER</div>
+    <div class="together-count"><span class="together-live-dot" aria-hidden="true"></span><span id="together-count-text" aria-live="polite">…</span></div>
+  </div>
+  <div class="together-evening-banner" id="together-evening-banner" hidden></div>
+
+  <div class="together-stage" id="together-stage" aria-hidden="true">
+    <div class="together-orb" id="together-orb"></div>
+    <div class="together-core"></div>
+    <div class="together-dots" id="together-dots"></div>
+    <div class="together-hearts" id="together-hearts"></div>
+  </div>
+  <div class="together-phase" id="together-phase" aria-live="polite"></div>
+  <div class="together-countdown" id="together-countdown"></div>
+  <div class="together-rhythm" data-tg="rhythm"></div>
+
+  <div class="together-actions">
+    <button type="button" class="btn-breath-ctrl" id="together-heart-btn" onclick="sendTogetherHeart()"><span class="tg-lbl tg-lbl-a"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.500-4.600-7.500-10A4.300 4.300 0 0 1 12 7.600 4.300 4.300 0 0 1 19.500 10C19.500 15.400 12 20 12 20z"/></svg><span data-tg="heartBtn"></span></span><span class="tg-lbl tg-lbl-b"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.500-4.600-7.500-10A4.300 4.300 0 0 1 12 7.600 4.300 4.300 0 0 1 19.500 10C19.500 15.400 12 20 12 20z"/></svg><span data-tg="heartSent"></span></span></button>
+    <button type="button" class="btn-breath-ctrl" id="together-vibe-btn" onclick="toggleTogetherVibration()"><span class="tg-lbl tg-lbl-a" data-tg="vibeOn"></span><span class="tg-lbl tg-lbl-b" data-tg="vibeOff"></span></button>
+    <button type="button" class="btn-breath-ctrl" id="together-invite-btn" onclick="inviteTogether(this)"><span class="tg-lbl tg-lbl-a"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1"/><path d="M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1"/></svg><span data-tg="inviteBtn"></span></span><span class="tg-lbl tg-lbl-b" data-tg="copied"></span></button>
+  </div>
+
+  <div class="together-info">
+    <div id="together-evening-text"></div>
+    <button type="button" class="together-link-btn" onclick="downloadTogetherReminder()"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.500" width="16" height="14.500" rx="2.500"/><path d="M4 10h16M8.500 3.500v4M15.500 3.500v4"/></svg><span data-tg="reminderBtn"></span></button>
+  </div>
+  <div class="together-stats">
+    <span><span data-tg="youBreathe"></span> <b id="together-stopwatch">00:00</b></span>
+    <span id="together-today-text"></span>
+  </div>
+  <div class="together-hint" data-tg="hint"></div>
 </div>
 
 <!-- Firebase - pohání komunitní zprávy a emoji reakce v reálném čase.
@@ -2413,7 +2587,7 @@
       { title: "SYNTHLUCIDA - Blue Hour", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/blue_hour.mp3", added: "2026-10-08" },
       { title: "SYNTHLUCIDA - Slow Morning", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/slow_morning.mp3", added: "2026-10-10" },
       { title: "SYNTHLUCIDA - Tales Of Raindrops - Solo Piano", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tales_of_raindrops_solo_piano.mp3", added: "2026-10-10" },
-      { title: "SYNTHLUCIDA - Everythning - Piano Version", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/everythning_piano_version.mp3", added: "2026-10-10" },
+      { title: "SYNTHLUCIDA - Everything - Piano Version", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/everythning_piano_version.mp3", added: "2026-10-10" },
     ],
     chill: [
       { title: "SYNTHLUCIDA - Spirits Of Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spirits_of_summer.mp3" },
@@ -5302,6 +5476,8 @@
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
     p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
+    h_together: { en: "Breathe together", cz: "Společné dýchání" },
+    p_together: { en: "In BREATHE, the TOGETHER button opens a shared room where everyone who is there breathes 4-7-8 in the same second. You see how many people are breathing with you, can send a heart (SEND CALM) and invite a friend. Every evening at 21:00 (Prague time) there is a shared 10-minute session — you can download a calendar reminder.", cz: "V sekci BREATHE otevře tlačítko SPOLEČNĚ sdílenou místnost, kde všichni přítomní dýchají 4-7-8 ve stejnou vteřinu. Vidíte, kolik lidí dýchá s vámi, můžete poslat srdíčko (POSLAT KLID) a pozvat přítele. Každý večer ve 21:00 (pražského času) probíhá společné desetiminutové sezení — můžete si stáhnout připomínku do kalendáře." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh. Tlačítko WEATHER pod tlačítky START a STOP na dechové obrazovce zapne stejné scény počasí a fotky jako v playeru." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
@@ -5411,6 +5587,7 @@
       btn.innerText = guideLang === 'en' ? 'CZ' : 'EN';
     });
     if (typeof updateMotivationBtnUI === 'function') updateMotivationBtnUI();
+    if (typeof window.togetherOnLanguage === 'function') window.togetherOnLanguage();
   }
 
   window.toggleGuideLanguage = function() {
@@ -8724,6 +8901,906 @@
     } else {
       initStatsTitleToggle();
     }
+  })();
+</script>
+
+<script>
+  // ==========================================
+  // SPOLEČNÉ DÝCHÁNÍ (TOGETHER) - součást sekce BREATHE.
+  // Všichni, kdo mají místnost otevřenou, se nadechují ve stejnou vteřinu (podle času serveru
+  // Firebase), vidí živý počet lidí, mohou poslat srdíčko ("Send calm") a každý večer ve 21:00
+  // (pražského času) je desetiminutové společné sezení.
+  //
+  // Používá SAMOSTATNÝ Firebase projekt (druhá instance aplikace pojmenovaná "together") a jen cesty
+  // /together, /togetherStats a /togetherHearts. Nesahá na komunitní chat ani počítadla v hlavním
+  // Firebase projektu přehrávače. Do Firebase se připojí až ve chvíli, kdy uživatel otevře BREATHE.
+  // Bez vyplněné konfigurace (níže) se nic neděje - místnost jede podle místních hodin a nic nepadá.
+  // Pravidla databáze nasadíš skriptem z balíčku firebase-nasazeni (viz NAVOD.txt).
+  // ==========================================
+  (function () {
+    'use strict';
+
+    // >>> KONFIGURACE NOVÉHO FIREBASE PROJEKTU (doplní ji skript nasadit-firebase.bat, nebo ji vlož ručně) <<<
+    /*TOGETHER_FIREBASE_CONFIG_START*/
+    const TOGETHER_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCHuoYFQUVCyF0X34vt6ysdz_FtO5fnNIg",
+      authDomain: "synthlucida.firebaseapp.com",
+      databaseURL: "https://synthlucida-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "synthlucida",
+      appId: "1:244515647380:web:c7f75f3bea55434f9b6981"
+    };
+    /*TOGETHER_FIREBASE_CONFIG_END*/
+
+    const LANG = {
+      cz: {
+        locale: 'cs-CZ',
+        title: 'SPOLEČNÉ DÝCHÁNÍ',
+        entryBtn: 'SPOLEČNĚ',
+        entryTitle: 'Dýchat společně s ostatními',
+        rhythm: 'Technika 4-7-8: nádech 4 s · zádrž 7 s · výdech 8 s · všichni ve stejnou vteřinu',
+        closeAria: 'Opustit společné dýchání',
+        connecting: 'Připojuji…',
+        offline: 'Bez připojení — rytmus běží dál podle hodin',
+        alone: 'Zatím tu dýcháš sám/sama — kdo se připojí, naskočí přesně do tvého rytmu',
+        many: 'Právě tu spolu dýcháte: {n}',
+        waitLabel: 'Připoj se s dalším nádechem',
+        inLabel: 'Nádech nosem',
+        holdLabel: 'Zadrž dech',
+        outLabel: 'Výdech ústy',
+        heartBtn: 'POSLAT KLID',
+        heartSent: 'POSLÁNO',
+        vibeOn: 'VIBE: ZAP',
+        vibeOff: 'VIBE: VYP',
+        inviteBtn: 'POZVAT',
+        copied: 'ZKOPÍROVÁNO',
+        reminderBtn: 'Přidat si denní připomínku do kalendáře',
+        youBreathe: 'Dýcháš',
+        hint: 'Kdyby se ti zatočila hlava, chvíli dýchej normálně. Nikdo tě tu nevidí — sdílí se jen anonymní počet lidí. Klepnutím na ✖ odejdeš.',
+        copyManually: 'Zkopíruj si odkaz:',
+        inviteTitle: 'SYNTHLUCIDA – společné dýchání',
+        inviteText: 'Pojď se mnou dýchat. Každý večer ve 21:00 je v přehrávači SYNTHLUCIDA společné dýchání.',
+        today: 'Dnes tu dýchalo lidí: {p} · společných minut: {m}',
+        todayPeople: 'Dnes tu dýchalo lidí: {p}',
+        eveningToday: 'Večerní společné dýchání dnes {time} · za {in}',
+        eveningTomorrow: 'Další večerní společné dýchání zítra {time} · za {in}',
+        eveningLive: 'Právě probíhá večerní společné dýchání — připoj se',
+        eveningLiveBanner: 'VEČERNÍ SEZENÍ PRÁVĚ PROBÍHÁ · ještě {left}',
+        timeAt: 've 21:00',
+        timeAtLocal: 've 21:00 českého času ({local} u tebe)',
+        durMin: '{m} min', durH: '{h} h', durHMin: '{h} h {m} min',
+        entryCount: '{n} teď',
+        icsLang: 'CS',
+        icsFile: 'spolecne-dychani.ics',
+        icsSummary: 'Společné dýchání – SYNTHLUCIDA',
+        icsDesc: '10 minut klidného dýchání spolu s ostatními. Otevři {url}',
+        icsAlarm: 'Za 5 minut začíná společné dýchání',
+        icsError: 'Připomínku se nepodařilo stáhnout.'
+      },
+      en: {
+        locale: 'en-GB',
+        title: 'BREATHE TOGETHER',
+        entryBtn: 'TOGETHER',
+        entryTitle: 'Breathe together with others',
+        rhythm: 'The 4-7-8 technique: inhale 4 s · hold 7 s · exhale 8 s · everyone on the same second',
+        closeAria: 'Leave breathing together',
+        connecting: 'Connecting…',
+        offline: 'Offline — the rhythm keeps going by the clock',
+        alone: "You're the only one here right now — anyone who joins falls right into your rhythm",
+        many: 'Breathing together right now: {n}',
+        waitLabel: 'Join on the next inhale',
+        inLabel: 'Inhale through the nose',
+        holdLabel: 'Hold your breath',
+        outLabel: 'Exhale through the mouth',
+        heartBtn: 'SEND CALM',
+        heartSent: 'SENT',
+        vibeOn: 'VIBE: ON',
+        vibeOff: 'VIBE: OFF',
+        inviteBtn: 'INVITE',
+        copied: 'COPIED',
+        reminderBtn: 'Add a daily reminder to your calendar',
+        youBreathe: 'You breathe',
+        hint: 'If you feel dizzy, breathe normally for a while. Nobody can see you here — only an anonymous head count is shared. Tap ✖ to leave.',
+        copyManually: 'Copy the link:',
+        inviteTitle: 'SYNTHLUCIDA – breathe together',
+        inviteText: 'Come breathe with me. Every evening at 21:00 (Prague time) there is a group breathing session in the SYNTHLUCIDA player.',
+        today: 'People today: {p} · minutes together: {m}',
+        todayPeople: 'People today: {p}',
+        eveningToday: 'Evening group session today {time} · in {in}',
+        eveningTomorrow: 'Next evening group session tomorrow {time} · in {in}',
+        eveningLive: 'The evening group session is on right now — join in',
+        eveningLiveBanner: 'EVENING SESSION LIVE · {left} left',
+        timeAt: 'at 21:00',
+        timeAtLocal: 'at 21:00 Prague time ({local} your time)',
+        durMin: '{m} min', durH: '{h} h', durHMin: '{h} h {m} min',
+        entryCount: '{n} now',
+        icsLang: 'EN',
+        icsFile: 'breathe-together.ics',
+        icsSummary: 'Breathe together – SYNTHLUCIDA',
+        icsDesc: '10 minutes of calm breathing together with others. Open {url}',
+        icsAlarm: 'Group breathing starts in 5 minutes',
+        icsError: 'The reminder could not be downloaded.'
+      }
+    };
+    const SHARE_URL = 'https://synthlucida.com/player.html#together';
+    let L = LANG.en;
+    function pickLang() {
+      let cz = false;
+      try { cz = (typeof guideLang !== 'undefined' && guideLang === 'cz'); } catch (e) { cz = false; }
+      L = cz ? LANG.cz : LANG.en;
+    }
+
+    // ---------- Nastavení ----------
+    // Technika 4-7-8 (Dr. Weil): nádech 4 s, zádrž 7 s, výdech 8 s = jeden dech za 19 s.
+    const IN_MS = 4000;
+    const HOLD_MS = 7000;
+    const OUT_MS = 8000;
+    const HOLD_END_MS = IN_MS + HOLD_MS;         // 11 s
+    const CYCLE_MS = IN_MS + HOLD_MS + OUT_MS;   // 19 s
+    const EVENING_HOUR = 21;                     // večerní sezení ve 21:00 pražského času
+    const EVENING_LEN_MS = 10 * 60 * 1000;       // trvá 10 minut
+    const PRESENCE_PATH = 'together';            // kdo právě dýchá (anonymní záznam + čas)
+    const STATS_PATH = 'togetherStats';          // denní součty (lidé, minuty)
+    const HEARTS_PATH = 'togetherHearts/count';  // počítadlo odeslaných srdíček
+    const STALE_MS = 3 * 60 * 60 * 1000;         // záznamy starší než 3 h se nepočítají
+    const CLEANUP_MS = 6 * 60 * 60 * 1000;       // záznamy starší než 6 h se rovnou smažou
+    const LIST_LIMIT = 200;
+    const MAX_DOTS = 48;
+    const COUNTED_KEY = 'synthlucida_together_counted';
+    const OUT_SCALE = 0.62, IN_SCALE = 1.15, OUT_OPACITY = 0.32, IN_OPACITY = 0.85;
+    const HEART_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.500-4.600-7.500-10A4.300 4.300 0 0 1 12 7.600 4.300 4.300 0 0 1 19.500 10C19.500 15.400 12 20 12 20z"/></svg>';
+
+    function noop() {}
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function fmt(str, vars) {
+      return String(str).replace(/\{(\w+)\}/g, function (m, k) { return vars && vars[k] !== undefined ? vars[k] : m; });
+    }
+    function $(id) { return document.getElementById(id); }
+
+    // ---------- Firebase (samostatná instance "together", zakládá se až při prvním použití) ----------
+    function configReady() {
+      const c = TOGETHER_FIREBASE_CONFIG;
+      return !!(c && c.apiKey && c.databaseURL && /^https:\/\//.test(c.databaseURL));
+    }
+    let db = null;
+    let dbFailed = false;
+    let watchersStarted = false;
+    function getDb() {
+      if (db) return db;
+      if (dbFailed || !configReady()) return null;
+      try {
+        if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function' || typeof firebase.database !== 'function') { dbFailed = true; return null; }
+        let app = null;
+        for (let i = 0; i < firebase.apps.length; i++) { if (firebase.apps[i].name === 'together') app = firebase.apps[i]; }
+        if (!app) app = firebase.initializeApp(TOGETHER_FIREBASE_CONFIG, 'together');
+        db = app.database();
+      } catch (e) {
+        db = null;
+        dbFailed = true;
+        try { console.warn('Společné dýchání: Firebase se nepodařilo spustit', e); } catch (e2) { /* ignore */ }
+      }
+      if (db && !watchersStarted) startWatchers();
+      return db;
+    }
+    function presenceQuery() {
+      return getDb().ref(PRESENCE_PATH).orderByValue().limitToLast(LIST_LIMIT);
+    }
+
+    // Čas serveru Firebase - díky němu mají všichni stejné "hodiny", i když má někdo v telefonu špatně nastavený čas.
+    let serverOffset = 0;
+    let serverOffsetKnown = false;
+    let isConnected = false;
+    function serverNow() { return Date.now() + serverOffset; }
+    function startWatchers() {
+      watchersStarted = true;
+      try {
+        db.ref('.info/serverTimeOffset').on('value', function (snap) {
+          const v = snap.val();
+          if (typeof v === 'number' && isFinite(v) && Math.abs(v) < 24 * 3600 * 1000) { serverOffset = v; serverOffsetKnown = true; }
+        }, noop);
+        db.ref('.info/connected').on('value', function (snap) {
+          const was = isConnected;
+          isConnected = snap.val() === true;
+          if (isConnected && !was && !isOpen) pollEntry();
+          if (isOpen) renderCountText();
+        }, noop);
+      } catch (e) { /* bez Firebase jede rytmus podle místních hodin */ }
+    }
+
+    // ---------- Čas v Praze (večerní sezení je vždy ve 21:00 pražského času) ----------
+    let pragueFmt = null;
+    try {
+      pragueFmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Prague', hourCycle: 'h23',
+        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    } catch (e) { pragueFmt = null; }
+
+    function pragueParts(ms) {
+      if (!pragueFmt) {
+        const d = new Date(ms);
+        return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes(), s: d.getSeconds() };
+      }
+      const o = {};
+      pragueFmt.formatToParts(new Date(ms)).forEach(function (p) { o[p.type] = p.value; });
+      return { y: +o.year, m: +o.month, d: +o.day, h: (+o.hour) % 24, mi: +o.minute, s: +o.second };
+    }
+    function pragueOffsetMs(ms) {
+      const p = pragueParts(ms);
+      const asUtc = Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s);
+      return Math.round((asUtc - Math.floor(ms / 1000) * 1000) / 60000) * 60000;
+    }
+    function pragueDateKey(ms) {
+      const p = pragueParts(ms);
+      return p.y + '-' + pad(p.m) + '-' + pad(p.d);
+    }
+    // Okamžik (UTC ms), kdy je v Praze daného dne 21:00.
+    function eveningStartFor(y, m, d) {
+      const wall = Date.UTC(y, m - 1, d, EVENING_HOUR, 0, 0);
+      let t = wall - pragueOffsetMs(wall);
+      t = wall - pragueOffsetMs(t); // zpřesnění kvůli letnímu/zimnímu času
+      return t;
+    }
+    function getEveningState(now) {
+      const p = pragueParts(now);
+      const todayStart = eveningStartFor(p.y, p.m, p.d);
+      if (now < todayStart) return { phase: 'today', start: todayStart };
+      if (now < todayStart + EVENING_LEN_MS) return { phase: 'live', start: todayStart, end: todayStart + EVENING_LEN_MS };
+      const next = new Date(Date.UTC(p.y, p.m - 1, p.d + 1));
+      return { phase: 'tomorrow', start: eveningStartFor(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate()) };
+    }
+    function formatIn(ms) {
+      const totalMin = Math.max(1, Math.ceil(ms / 60000));
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      if (!h) return fmt(L.durMin, { m: m });
+      if (!m) return fmt(L.durH, { h: h });
+      return fmt(L.durHMin, { h: h, m: m });
+    }
+    function eveningTimeLabel(start) {
+      const localOffset = -new Date(start).getTimezoneOffset() * 60000;
+      if (localOffset === pragueOffsetMs(start)) return L.timeAt;
+      let local = '';
+      try { local = new Date(start).toLocaleTimeString(L.locale, { hour: '2-digit', minute: '2-digit' }); } catch (e) { local = ''; }
+      return local ? fmt(L.timeAtLocal, { local: local }) : L.timeAt;
+    }
+    function eveningText(state, now) {
+      if (state.phase === 'live') return L.eveningLive;
+      const tpl = state.phase === 'today' ? L.eveningToday : L.eveningTomorrow;
+      return fmt(tpl, { time: eveningTimeLabel(state.start), 'in': formatIn(state.start - now) });
+    }
+
+    // ---------- Stav ----------
+    let isOpen = false;
+    let myRef = null;
+    let connectedCb = null;
+    let presenceCb = null;
+    let statsCb = null;
+    let statsDayKey = null;
+    let heartsCb = null;
+    let lastHearts = null;
+    let pendingOwnHearts = 0;
+    let lastHeartSentAt = 0;
+    let rafId = null;
+    let uiTimer = null;
+    let entryTimer = null;
+    let currentCount = null;
+    let lastPhaseKey = null;
+    let joinedAt = 0;
+    let activeMs = 0;
+    let lastTickAt = 0;
+    let joinCycleStart = 0;
+    let minutesReported = 0;
+    let wakeLock = null;
+    let dotsRendered = -1;
+    let openedAt = 0;
+    let presenceDenied = false;
+    let entryCount = null;
+
+    // ---------- Statické texty (podle jazyka přehrávače) ----------
+    function applyStaticTexts() {
+      pickLang();
+      document.querySelectorAll('[data-tg]').forEach(function (el) {
+        const v = L[el.getAttribute('data-tg')];
+        if (typeof v === 'string' && el.textContent !== v) el.textContent = v;
+      });
+      const close = $('together-close-btn');
+      if (close) close.setAttribute('aria-label', L.closeAria);
+      const entry = $('breath-together-btn');
+      if (entry) { entry.title = L.entryTitle; entry.setAttribute('aria-label', L.entryTitle); }
+      renderVibeBtn();
+      renderEntry();
+      if (isOpen) { lastPhaseKey = null; renderCountText(); renderTodayStats(); renderUi(); }
+    }
+    // Volá se po přepnutí jazyka přehrávače (CZ/EN).
+    window.togetherOnLanguage = function () { try { applyStaticTexts(); } catch (e) { /* ignore */ } };
+
+    // ---------- Vykreslení koule a teček ----------
+    function ease(t) { return 0.5 - 0.5 * Math.cos(Math.PI * t); }
+
+    function renderDots(n) {
+      const wrap = $('together-dots');
+      if (!wrap) return;
+      const count = Math.max(1, Math.min(MAX_DOTS, n || 1));
+      if (count === dotsRendered) return;
+      dotsRendered = count;
+      const stage = $('together-stage');
+      const size = stage ? stage.clientWidth : 270;
+      const radius = size / 2 - 12;
+      let html = '';
+      for (let i = 0; i < count; i++) {
+        const angle = (-90 + i * 360 / count) * Math.PI / 180;
+        const x = Math.round(Math.cos(angle) * radius * 10) / 10;
+        const y = Math.round(Math.sin(angle) * radius * 10) / 10;
+        html += '<span class="together-dot' + (i === 0 ? ' me' : '') + '" style="transform:translate(' + x + 'px,' + y + 'px)"></span>';
+      }
+      wrap.innerHTML = html;
+    }
+
+    function frame() {
+      rafId = null;
+      if (!isOpen) return;
+      const now = serverNow();
+      const t = ((now % CYCLE_MS) + CYCLE_MS) % CYCLE_MS;
+      const phaseType = t < IN_MS ? 'in' : (t < HOLD_END_MS ? 'hold' : 'out');
+      const inhale = phaseType === 'in';
+      let fill; // 0 = prázdné plíce, 1 = plné
+      if (phaseType === 'in') fill = ease(t / IN_MS);
+      else if (phaseType === 'hold') fill = 1;
+      else fill = 1 - ease((t - HOLD_END_MS) / OUT_MS);
+
+      const orb = $('together-orb');
+      if (orb) {
+        let opacity = OUT_OPACITY + (IN_OPACITY - OUT_OPACITY) * fill;
+        if (phaseType === 'hold') opacity -= 0.12 * (0.5 - 0.5 * Math.cos(2 * Math.PI * (t - IN_MS) / 2400));
+        orb.style.transform = 'scale(' + (OUT_SCALE + (IN_SCALE - OUT_SCALE) * fill).toFixed(4) + ')';
+        orb.style.opacity = opacity.toFixed(3);
+      }
+      const dots = $('together-dots');
+      if (dots) dots.style.transform = 'scale(' + (0.86 + 0.14 * fill).toFixed(4) + ')';
+
+      const phaseEnd = phaseType === 'in' ? IN_MS : (phaseType === 'hold' ? HOLD_END_MS : CYCLE_MS);
+      const secondsLeft = Math.max(1, Math.ceil((phaseEnd - t) / 1000));
+      const cycleStart = now - t;
+
+      if (!joinedAt && inhale && cycleStart > joinCycleStart) {
+        // První celý společný nádech po otevření - odteď se počítá čas i XP.
+        joinedAt = Date.now();
+        activeMs = 0;
+        lastTickAt = joinedAt;
+        minutesReported = 0;
+      }
+
+      const phaseEl = $('together-phase');
+      const countEl = $('together-countdown');
+      let phaseKey;
+      if (!joinedAt) {
+        const toNextInhale = CYCLE_MS - t;
+        phaseKey = 'wait';
+        if (phaseEl && phaseEl.textContent !== L.waitLabel) phaseEl.textContent = L.waitLabel;
+        if (countEl) countEl.textContent = String(Math.max(1, Math.ceil(toNextInhale / 1000)));
+      } else {
+        phaseKey = phaseType + ':' + cycleStart;
+        const label = phaseType === 'in' ? L.inLabel : (phaseType === 'hold' ? L.holdLabel : L.outLabel);
+        if (phaseEl && phaseEl.textContent !== label) phaseEl.textContent = label;
+        if (countEl) countEl.textContent = String(secondsLeft);
+        if (phaseKey !== lastPhaseKey && lastPhaseKey !== null && typeof triggerBreathVibration === 'function') {
+          try { triggerBreathVibration(phaseType); } catch (e) { /* ignore */ }
+        }
+      }
+      lastPhaseKey = phaseKey;
+      rafId = requestAnimationFrame(frame);
+    }
+
+    // ---------- Texty (počet lidí, večerní sezení, stopky, denní statistika) ----------
+    function renderCountText() {
+      const el = $('together-count-text');
+      if (!el) return;
+      let text;
+      const waitedLong = Date.now() - openedAt > 6000;
+      if (!configReady() || !getDb() || presenceDenied || (!isConnected && waitedLong)) text = L.offline;
+      else if (currentCount === null || !isConnected) text = L.connecting;
+      else if (currentCount <= 1) text = L.alone;
+      else text = fmt(L.many, { n: currentCount });
+      if (el.textContent !== text) el.textContent = text;
+      renderDots(currentCount || 1);
+    }
+
+    let lastStats = null;
+    function renderTodayStats() {
+      const el = $('together-today-text');
+      const people = lastStats && typeof lastStats.people === 'number' ? lastStats.people : 0;
+      const minutes = lastStats && typeof lastStats.minutes === 'number' ? lastStats.minutes : 0;
+      let text = '';
+      if (people > 0) text = minutes > 0 ? fmt(L.today, { p: people, m: minutes }) : fmt(L.todayPeople, { p: people });
+      if (el && el.textContent !== text) el.textContent = text;
+    }
+
+    // Vloží text šablony, ale měnící se číslo dá do <span> s pevnou šířkou, aby text neposkakoval.
+    function setTextWithNumber(el, template, key, value) {
+      const parts = String(template).split('{' + key + '}');
+      let num = el.querySelector('.together-num');
+      if (!num || el.dataset.tpl !== template) {
+        el.textContent = '';
+        el.dataset.tpl = template;
+        el.appendChild(document.createTextNode(parts[0] || ''));
+        num = document.createElement('span');
+        num.className = 'together-num';
+        el.appendChild(num);
+        el.appendChild(document.createTextNode(parts.slice(1).join('')));
+      }
+      if (num.textContent !== value) num.textContent = value;
+    }
+
+    function renderUi() {
+      const now = serverNow();
+      const state = getEveningState(now);
+
+      const banner = $('together-evening-banner');
+      if (banner) {
+        if (state.phase === 'live') {
+          const left = Math.max(0, state.end - now);
+          setTextWithNumber(banner, L.eveningLiveBanner, 'left', Math.floor(left / 60000) + ':' + pad(Math.floor(left / 1000) % 60));
+          banner.hidden = false;
+        } else {
+          banner.hidden = true;
+        }
+      }
+      const info = $('together-evening-text');
+      if (info) { const et = state.phase === 'live' ? '' : eveningText(state, now); if (info.textContent !== et) info.textContent = et; }
+
+      // Čas se připočítává jen při viditelné stránce a max. 2 s za jeden tik (setInterval se na pozadí zpomaluje).
+      const tickNow = Date.now();
+      if (joinedAt && !document.hidden) activeMs += Math.max(0, Math.min(2000, tickNow - lastTickAt));
+      lastTickAt = tickNow;
+      const sw = $('together-stopwatch');
+      if (sw) sw.textContent = pad(Math.floor(activeMs / 60000)) + ':' + pad(Math.floor(activeMs / 1000) % 60);
+
+      // Denní statistika: člověk se započítá jednou za den (po 30 s dýchání), minuty po každé celé minutě.
+      if (joinedAt && activeMs >= 30000) countMeToday();
+      if (joinedAt) {
+        const fullMinutes = Math.floor(activeMs / 60000);
+        while (minutesReported < fullMinutes) {
+          minutesReported++;
+          bumpStat('minutes');
+        }
+      }
+
+      // Při přechodu přes půlnoc přepni denní statistiku na nový den.
+      if (isOpen && getDb() && statsDayKey !== pragueDateKey(now)) subscribeStats();
+
+      renderCountText();
+    }
+
+    // ---------- Tlačítko v BREATHE: živý počet lidí ----------
+    function renderEntry() {
+      const btn = $('breath-together-btn');
+      if (!btn) return;
+      const state = getEveningState(serverNow());
+      btn.classList.toggle('live', state.phase === 'live');
+      const countEl = $('breath-together-count');
+      if (countEl) {
+        if (typeof entryCount === 'number' && entryCount > 0) {
+          countEl.hidden = false;
+          const txt = fmt(L.entryCount, { n: entryCount });
+          const label = countEl.querySelector('.tg-entry-count-text');
+          if (label && label.textContent !== txt) label.textContent = txt;
+        } else {
+          countEl.hidden = true;
+        }
+      }
+    }
+
+    function countFromSnap(snap) {
+      const now = serverNow();
+      let n = 0;
+      const stale = [];
+      snap.forEach(function (child) {
+        const v = child.val();
+        if (typeof v === 'number' && now - v < STALE_MS) n++;
+        else if (typeof v === 'number' && now - v > CLEANUP_MS) stale.push(child.ref);
+      });
+      // Úklid "duchů" (záznamů, které po pádu prohlížeče nestihl smazat onDisconnect) - max pár najednou.
+      if (serverOffsetKnown) stale.slice(0, 5).forEach(function (r) { try { r.remove().catch(noop); } catch (e) { /* ignore */ } });
+      return n;
+    }
+
+    function breathOverlayVisible() {
+      return document.body.classList.contains('breathing-active') && !document.body.classList.contains('together-active');
+    }
+    let entryRetry = null;
+    function pollEntry() {
+      if (isOpen || document.hidden || !breathOverlayVisible()) return;
+      const d = getDb();
+      if (!d) { renderEntry(); return; }
+      if (!isConnected) { renderEntry(); clearTimeout(entryRetry); entryRetry = setTimeout(pollEntry, 2500); return; }
+      try {
+        presenceQuery().once('value').then(function (snap) {
+          entryCount = countFromSnap(snap);
+          renderEntry();
+        }).catch(noop);
+      } catch (e) { /* ignore */ }
+      renderEntry();
+    }
+    function startEntryTimer() {
+      clearInterval(entryTimer);
+      pollEntry();
+      entryTimer = setInterval(pollEntry, 60000);
+    }
+    function stopEntryTimer() {
+      clearTimeout(entryRetry);
+      clearInterval(entryTimer);
+      entryTimer = null;
+    }
+
+    // ---------- Přítomnost v místnosti ----------
+    function joinPresence() {
+      const d = getDb();
+      if (!d) return;
+      try {
+        const ref = d.ref(PRESENCE_PATH).push();
+        myRef = ref;
+        connectedCb = d.ref('.info/connected').on('value', function (snap) {
+          if (snap.val() !== true || myRef !== ref) return;
+          ref.onDisconnect().remove().catch(noop);
+          if (!document.hidden) ref.set(firebase.database.ServerValue.TIMESTAMP).catch(noop);
+        }, noop);
+
+        presenceCb = presenceQuery().on('value', function (snap) {
+          presenceDenied = false;
+          currentCount = Math.max(1, countFromSnap(snap));
+          entryCount = currentCount;
+          renderCountText();
+        }, function () {
+          presenceDenied = true;
+          currentCount = null;
+          renderCountText();
+        });
+      } catch (e) {
+        myRef = null;
+      }
+    }
+
+    function leavePresence() {
+      const d = getDb();
+      if (!d) return;
+      try {
+        if (connectedCb) d.ref('.info/connected').off('value', connectedCb);
+        if (presenceCb) presenceQuery().off('value', presenceCb);
+      } catch (e) { /* ignore */ }
+      connectedCb = null;
+      presenceCb = null;
+      if (myRef) {
+        const ref = myRef;
+        myRef = null;
+        try {
+          ref.onDisconnect().cancel().catch(noop);
+          ref.remove().catch(noop);
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    // ---------- Denní statistika ----------
+    function subscribeStats() {
+      const d = getDb();
+      if (!d) return;
+      unsubscribeStats();
+      statsDayKey = pragueDateKey(serverNow());
+      try {
+        statsCb = d.ref(STATS_PATH + '/' + statsDayKey).on('value', function (snap) {
+          lastStats = snap.val();
+          renderTodayStats();
+        }, noop);
+      } catch (e) { statsCb = null; }
+    }
+    function unsubscribeStats() {
+      const d = getDb();
+      if (d && statsCb && statsDayKey) {
+        try { d.ref(STATS_PATH + '/' + statsDayKey).off('value', statsCb); } catch (e) { /* ignore */ }
+      }
+      statsCb = null;
+    }
+    function bumpStat(field) {
+      const d = getDb();
+      if (!d) return;
+      try {
+        d.ref(STATS_PATH + '/' + pragueDateKey(serverNow()) + '/' + field)
+          .transaction(function (cur) { return (typeof cur === 'number' ? cur : 0) + 1; })
+          .catch(noop);
+      } catch (e) { /* ignore */ }
+    }
+    function countMeToday() {
+      const today = pragueDateKey(serverNow());
+      let already = null;
+      try { already = localStorage.getItem(COUNTED_KEY); } catch (e) { already = null; }
+      if (already === today) return;
+      try { localStorage.setItem(COUNTED_KEY, today); } catch (e) { /* ignore */ }
+      if (countMeToday._doneFor === today) return; // pojistka, když localStorage nejde zapsat
+      countMeToday._doneFor = today;
+      bumpStat('people');
+    }
+
+    // ---------- Srdíčka ("Poslat klid") ----------
+    let heartQueue = 0;
+    let heartTimer = null;
+    function spawnHeart() {
+      const wrap = $('together-hearts');
+      if (!wrap || !isOpen) return;
+      if (wrap.childElementCount >= 10) return;
+      const h = document.createElement('span');
+      h.className = 'together-heart';
+      h.innerHTML = HEART_SVG;
+      h.style.setProperty('--hx', Math.round(Math.random() * 120 - 60) + 'px');
+      h.style.marginLeft = '-11px';
+      h.addEventListener('animationend', function () { h.remove(); });
+      wrap.appendChild(h);
+      setTimeout(function () { if (h.parentNode) h.remove(); }, 4000);
+    }
+    function queueHearts(n) {
+      heartQueue = Math.min(8, heartQueue + n);
+      if (heartTimer) return;
+      (function drain() {
+        if (heartQueue <= 0 || !isOpen) { heartTimer = null; heartQueue = 0; return; }
+        heartQueue--;
+        spawnHeart();
+        heartTimer = setTimeout(drain, 350);
+      })();
+    }
+    function subscribeHearts() {
+      const d = getDb();
+      if (!d) return;
+      lastHearts = null;
+      pendingOwnHearts = 0;
+      try {
+        heartsCb = d.ref(HEARTS_PATH).on('value', function (snap) {
+          const v = snap.val();
+          const num = typeof v === 'number' ? v : 0;
+          if (lastHearts !== null && num > lastHearts) {
+            let diff = num - lastHearts;
+            const own = Math.min(diff, pendingOwnHearts);
+            pendingOwnHearts -= own;
+            diff -= own;
+            if (diff > 0) queueHearts(diff);
+          }
+          lastHearts = num;
+        }, noop);
+      } catch (e) { heartsCb = null; }
+    }
+    function unsubscribeHearts() {
+      const d = getDb();
+      if (d && heartsCb) { try { d.ref(HEARTS_PATH).off('value', heartsCb); } catch (e) { /* ignore */ } }
+      heartsCb = null;
+    }
+
+    window.sendTogetherHeart = function () {
+      const now = Date.now();
+      if (now - lastHeartSentAt < 3000) return;
+      lastHeartSentAt = now;
+      spawnHeart();
+      const btn = $('together-heart-btn');
+      if (btn) {
+        // Popisek se nepřepisuje - jen se přepne, který ze dvou předpřipravených textů je vidět.
+        btn.classList.add('active', 'tg-alt');
+        clearTimeout(btn._togetherTimer);
+        btn._togetherTimer = setTimeout(function () { btn.classList.remove('active', 'tg-alt'); }, 3000);
+      }
+      const d = getDb();
+      if (!d) return;
+      pendingOwnHearts++;
+      try {
+        d.ref(HEARTS_PATH).transaction(function (cur) { return (typeof cur === 'number' ? cur : 0) + 1; })
+          .catch(function () { pendingOwnHearts = Math.max(0, pendingOwnHearts - 1); });
+      } catch (e) { pendingOwnHearts = Math.max(0, pendingOwnHearts - 1); }
+    };
+
+    // ---------- Vibrace (sdílí nastavení s hlavním dechovým cvičením) ----------
+    function renderVibeBtn() {
+      const btn = $('together-vibe-btn');
+      if (!btn) return;
+      const on = typeof vibrationEnabled === 'undefined' ? true : !!vibrationEnabled;
+      btn.classList.toggle('tg-alt', !on);
+      btn.classList.toggle('active', on);
+    }
+    window.toggleTogetherVibration = function () {
+      if (typeof toggleBreathVibration === 'function') toggleBreathVibration();
+      renderVibeBtn();
+    };
+
+    // ---------- Pozvat / připomínka do kalendáře ----------
+    window.inviteTogether = async function (btn) {
+      const data = { title: L.inviteTitle, text: L.inviteText, url: SHARE_URL };
+      if (navigator.share) {
+        try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      try {
+        await navigator.clipboard.writeText(L.inviteText + ' ' + SHARE_URL);
+        if (btn instanceof HTMLElement) {
+          btn.classList.add('tg-alt');
+          clearTimeout(btn._togetherTimer);
+          btn._togetherTimer = setTimeout(function () { btn.classList.remove('tg-alt'); }, 2200);
+        }
+      } catch (e) {
+        window.prompt(L.copyManually, SHARE_URL);
+      }
+    };
+
+    function icsEscape(s) { return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+    window.downloadTogetherReminder = function () {
+      const now = serverNow();
+      const state = getEveningState(now);
+      const p = pragueParts(state.start);
+      const ymd = p.y + pad(p.m) + pad(p.d);
+      const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+      const uid = 'together-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '@synthlucida.com';
+      const lines = [
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SYNTHLUCIDA//Together//' + L.icsLang, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+        'BEGIN:VTIMEZONE', 'TZID:Europe/Prague',
+        'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
+        'BEGIN:STANDARD', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD',
+        'END:VTIMEZONE',
+        'BEGIN:VEVENT', 'UID:' + uid, 'DTSTAMP:' + stamp,
+        'DTSTART;TZID=Europe/Prague:' + ymd + 'T210000', 'DURATION:PT10M', 'RRULE:FREQ=DAILY',
+        'SUMMARY:' + icsEscape(L.icsSummary),
+        'DESCRIPTION:' + icsEscape(fmt(L.icsDesc, { url: SHARE_URL })),
+        'URL:' + SHARE_URL,
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-PT5M', 'DESCRIPTION:' + icsEscape(L.icsAlarm), 'END:VALARM',
+        'END:VEVENT', 'END:VCALENDAR'
+      ];
+      try {
+        const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = L.icsFile;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      } catch (e) {
+        alert(L.icsError);
+      }
+    };
+
+    // ---------- Displej nezhasne během dýchání (kde to prohlížeč umí) ----------
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator && isOpen && !document.hidden) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', function () { wakeLock = null; });
+        }
+      } catch (e) { wakeLock = null; }
+    }
+    function releaseWakeLock() {
+      try { if (wakeLock) wakeLock.release(); } catch (e) { /* ignore */ }
+      wakeLock = null;
+    }
+    document.addEventListener('visibilitychange', function () {
+      // Do počtu "právě dýchá" patří jen ti, kdo mají místnost opravdu na obrazovce.
+      if (isOpen && myRef) {
+        try {
+          if (document.hidden) myRef.remove().catch(noop);
+          else if (isConnected) myRef.set(firebase.database.ServerValue.TIMESTAMP).catch(noop);
+        } catch (e) { /* ignore */ }
+      }
+      if (document.hidden) return;
+      if (isOpen) { if (!wakeLock) requestWakeLock(); }
+      else pollEntry();
+    });
+
+    // ---------- Otevření / zavření ----------
+    window.openTogether = function () {
+      if (isOpen) return;
+      try {
+        // Místnost se otevírá z dechového cvičení: rozběhnuté cvičení se pozastaví (pokračovat jde po návratu).
+        if (typeof breathingActive !== 'undefined' && !breathingActive && typeof startBreathing === 'function') startBreathing();
+        if (typeof breathingActive !== 'undefined' && breathingActive && typeof breathingPaused !== 'undefined' && !breathingPaused && typeof pauseBreathCycle === 'function') pauseBreathCycle();
+      } catch (e) { /* ignore */ }
+
+      pickLang();
+      applyStaticTexts();
+      isOpen = true;
+      openedAt = Date.now();
+      presenceDenied = false;
+      currentCount = null;
+      joinedAt = 0;
+      activeMs = 0;
+      lastPhaseKey = null;
+      minutesReported = 0;
+      dotsRendered = -1;
+      stopEntryTimer();
+      // Do rytmu se naskočí až s DALŠÍM celým nádechem, ne uprostřed výdechu.
+      const now = serverNow();
+      const t = ((now % CYCLE_MS) + CYCLE_MS) % CYCLE_MS;
+      joinCycleStart = now - t;
+
+      document.body.classList.add('together-active');
+      renderVibeBtn();
+      renderCountText();
+      renderTodayStats();
+      joinPresence();
+      subscribeStats();
+      subscribeHearts();
+      renderUi();
+      clearInterval(uiTimer);
+      uiTimer = setInterval(renderUi, 1000);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(frame);
+      requestWakeLock();
+      const closeBtn = $('together-close-btn');
+      if (closeBtn) { try { closeBtn.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    };
+
+    window.closeTogether = function () {
+      if (!isOpen) return;
+      renderUi(); // připočti poslední zlomek sekundy
+      const sessionMs = joinedAt ? activeMs : 0;
+      isOpen = false;
+      document.body.classList.remove('together-active');
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      clearInterval(uiTimer);
+      uiTimer = null;
+      clearTimeout(heartTimer);
+      heartTimer = null;
+      heartQueue = 0;
+      const hearts = $('together-hearts');
+      if (hearts) hearts.innerHTML = '';
+      leavePresence();
+      unsubscribeStats();
+      unsubscribeHearts();
+      releaseWakeLock();
+      joinedAt = 0;
+      activeMs = 0;
+
+      // Společné dýchání se počítá do statistik a XP stejně jako běžné dechové cvičení (stejné minimum času).
+      try {
+        const minMs = (typeof BREATHING_XP_MIN_SECONDS === 'number' ? BREATHING_XP_MIN_SECONDS : 60) * 1000;
+        if (sessionMs >= minMs && typeof stats !== 'undefined' && stats) {
+          stats.breathingSessions = (stats.breathingSessions || 0) + 1;
+          if (typeof saveStats === 'function') saveStats();
+          if (typeof updateMiniStats === 'function') updateMiniStats();
+        }
+      } catch (e) { /* ignore */ }
+
+      entryCount = null;
+      if (breathOverlayVisible()) startEntryTimer();
+      renderEntry();
+      const entry = $('breath-together-btn');
+      if (entry) { try { entry.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    };
+    window.isTogetherActive = function () { return isOpen; };
+
+    // Esc zavře nejdřív místnost (ne celé dechové cvičení) - posluchač je v capture fázi, aby předběhl stávající.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isOpen) {
+        e.stopPropagation();
+        window.closeTogether();
+      }
+    }, true);
+
+    // Při zavření stránky se záznam v místnosti smaže okamžitě (onDisconnect je jen záloha).
+    window.addEventListener('pagehide', function () {
+      if (myRef) { try { myRef.remove().catch(noop); } catch (e) { /* ignore */ } }
+    });
+
+    // ---------- Start ----------
+    function init() {
+      applyStaticTexts();
+      // Živý počet na tlačítku se načítá jen, dokud je dechové cvičení na obrazovce (šetří Firebase i data).
+      try {
+        new MutationObserver(function () {
+          if (isOpen) return;
+          if (breathOverlayVisible()) { if (!entryTimer) startEntryTimer(); }
+          else { stopEntryTimer(); entryCount = null; renderEntry(); }
+        }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      } catch (e) { /* ignore */ }
+
+      // Odkaz rovnou na společné dýchání (z pozvánky nebo připomínky v kalendáři): #together / #spolecne
+      const hash = (location.hash || '').replace('#', '').toLowerCase();
+      if (hash === 'together' || hash === 'spolecne' || hash === 'spolecne-dychani') {
+        setTimeout(function () { try { window.openTogether(); } catch (e) { /* ignore */ } }, 400);
+      }
+    }
+    try { init(); } catch (e) { try { console.warn('Společné dýchání: inicializace selhala', e); } catch (e2) { /* ignore */ } }
   })();
 </script>
 
