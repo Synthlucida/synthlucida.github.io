@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.8.9">
+<meta name="app-version" content="1.9.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1651,6 +1651,34 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
 
+  /* ===== Opravy: spodni okraj kulatych tlacitek a tlacitka u nazvu SYNTHLUCIDA ===== */
+  /* Radek .focus-mode-left ma overflow:hidden a vysku presne jako tlacitka - pri stisku (posun o 1 px dolu) se spodni okraj
+     orizl. Vnitrni odsazeni + stejne zaporne okraje: obsah ma misto navic, ale rozmery a rozlozeni zustavaji stejne. */
+  .focus-mode-left { padding: 4px 3px 5px; margin: -4px -3px -5px; }
+  /* Tlacitka vedle SYNTHLUCIDA: "vytazeny" vzhled jako ostatni male tlacitka, stejna velikost (padding/okraj/ikona beze zmeny). */
+  .logo-glow-toggle-btn {
+    background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(0,0,0,0.45) 100%);
+    border-color: rgba(255,255,255,0.28); color: rgba(255,255,255,0.75);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 3px rgba(0,0,0,0.3);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  }
+  .logo-glow-toggle-btn:hover { color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color), 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25); transform: translateY(-1px); }
+  .logo-glow-toggle-btn:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.45), inset 0 2px 3px rgba(0,0,0,0.5); }
+  .logo-glow-toggle-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  /* Zapnuty stav se pozna jen barvou ikony a jemnym okrajem - tlacitko NESVITI trvale, zari jen pri najeti/kliknuti. */
+  .logo-glow-toggle-btn.active { color: var(--accent-color); border-color: rgba(255,255,255,0.28); box-shadow: 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 3px rgba(0,0,0,0.3); }
+  .logo-glow-toggle-btn.active:hover { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color), 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
+  .logo-glow-toggle-btn:active, .logo-glow-toggle-btn.active:active { transform: translateY(1px); border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 2px 3px rgba(0,0,0,0.5); }
+
+  /* ORBS: vypne rotujici kulicky (body::before) a velke plynouci koule (.ambient-blobs), zustane jen barevny visual. */
+  body.no-orbs .ambient-blobs { display: none !important; }
+  body.no-orbs::before { display: none !important; }
+  /* Tlacitko stoji na miste popisku "VISUAL:" (je uzsi, takze se radky motivu nezalomi jinak nez dosud). */
+  .btn-orbs { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7.5px; cursor: pointer; transition: 0.3s; padding: 1px 3px; letter-spacing: 0.5px; -webkit-tap-highlight-color: transparent; }
+  .btn-orbs[aria-pressed="true"] { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+  .btn-orbs[aria-pressed="false"] { text-decoration: line-through; }
+  .btn-orbs:hover, .btn-orbs:focus-visible { opacity: 1; }
+
   /* ============================================
      SPOLEČNÉ DÝCHÁNÍ (TOGETHER) - tlačítko v Breathe + celoobrazovková místnost
      Vše má předponu together-/tg- a nesahá do stávajících stylů přehrávače.
@@ -1745,6 +1773,11 @@
   .together-countdown { margin-top: 6px; font-size: 46px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 20px var(--accent-color); min-height: 46px; }
   .together-rhythm { margin-top: 12px; font-size: 10px; opacity: 0.55; letter-spacing: 0.3px; max-width: 320px; line-height: 1.5; }
 
+  /* WEATHER v mistnosti: stejne jako v dechovem cviceni - pri zapnutem pocasi je overlay pruhledny, aby bylo videt canvas */
+  .together-overlay.tg-weather { background: transparent; }
+  body.weather-photo-mode .together-overlay.tg-weather .breath-ambient { display: none; }
+  .together-weather-row { display: flex; justify-content: center; margin-top: 8px; }
+  #together-weather-btn { min-width: 122px; }
   .together-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; max-width: 340px; }
   /* Oba texty tlačítka (např. SEND CALM / SENT) leží přes sebe ve stejné buňce mřížky a přepíná se jen
      jejich viditelnost - tlačítko má vždy šířku delšího z nich a při změně textu nic neposkočí. */
@@ -2034,7 +2067,7 @@
   </div>
 
   <div class="themes-container" id="themes-container">
-    <span style="font-size: 8px; opacity: 0.3;">VISUAL:</span>
+    <button type="button" class="btn-orbs" id="btn-orbs" onclick="toggleOrbs()" title="Floating orbs and big spheres: ON" aria-label="Floating orbs and big spheres" aria-pressed="true">ORBS</button>
     <button class="btn-theme" onclick="setVisualTheme('neon', this)">NEON</button>
     <button class="btn-theme" onclick="setVisualTheme('space', this)">SPACE</button>
     <button class="btn-theme" onclick="setVisualTheme('earth', this)">EARTH</button>
@@ -2487,6 +2520,9 @@
     <button type="button" class="btn-breath-ctrl" id="together-heart-btn" onclick="sendTogetherHeart()"><span class="tg-lbl tg-lbl-a"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.500-4.600-7.500-10A4.300 4.300 0 0 1 12 7.600 4.300 4.300 0 0 1 19.500 10C19.500 15.400 12 20 12 20z"/></svg><span data-tg="heartBtn"></span></span><span class="tg-lbl tg-lbl-b"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.500-4.600-7.500-10A4.300 4.300 0 0 1 12 7.600 4.300 4.300 0 0 1 19.500 10C19.500 15.400 12 20 12 20z"/></svg><span data-tg="heartSent"></span></span></button>
     <button type="button" class="btn-breath-ctrl" id="together-vibe-btn" onclick="toggleTogetherVibration()"><span class="tg-lbl tg-lbl-a" data-tg="vibeOn"></span><span class="tg-lbl tg-lbl-b" data-tg="vibeOff"></span></button>
     <button type="button" class="btn-breath-ctrl" id="together-invite-btn" onclick="inviteTogether(this)"><span class="tg-lbl tg-lbl-a"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.700 0l3-3a4 4 0 0 0-5.700-5.700l-1 1"/><path d="M14 10a4 4 0 0 0-5.700 0l-3 3a4 4 0 0 0 5.700 5.700l1-1"/></svg><span data-tg="inviteBtn"></span></span><span class="tg-lbl tg-lbl-b" data-tg="copied"></span></button>
+  </div>
+  <div class="together-weather-row">
+    <button type="button" class="btn-breath-ctrl" id="together-weather-btn" onclick="toggleWeather()">WEATHER: OFF</button>
   </div>
 
   <div class="together-info">
@@ -4321,6 +4357,7 @@
       }
       let ov = document.getElementById('breathing-overlay');
       if (ov) ov.classList.toggle('breath-weather', breathingActive && weatherMode !== 0);
+      if (typeof window.togetherOnWeather === 'function') window.togetherOnWeather();
   }
 
   // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> WINTER II -> OFF (stejný princip jako u SUNSET)
@@ -7686,6 +7723,7 @@
     settings.crossfade = crossfadeDuration;
     settings.logoGlowEnabled = logoGlowEnabled;
     settings.sparkleState = sparkleState;
+    settings.orbsOff = !!(window.isOrbsOff && window.isOrbsOff());
     settings.motivationTexts = motivationTextsEnabled;
     try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
     
@@ -9691,6 +9729,16 @@
     });
 
     // ---------- Otevření / zavření ----------
+    // WEATHER: tlacitko v mistnosti sdili stav (weatherMode) s tlacitky v playeru i v dechovem cviceni.
+    window.togetherOnWeather = function () {
+      try {
+        const ov = $('together-overlay'), btn = $('together-weather-btn'), src = $('btn-weather');
+        const on = typeof weatherMode !== 'undefined' && weatherMode !== 0;
+        if (btn && src) { if (btn.textContent !== src.textContent) btn.textContent = src.textContent; btn.classList.toggle('active', on); }
+        if (ov) ov.classList.toggle('tg-weather', on);
+      } catch (e) { /* ignore */ }
+    };
+
     window.openTogether = function () {
       if (isOpen) return;
       try {
@@ -9717,6 +9765,7 @@
       joinCycleStart = now - t;
 
       document.body.classList.add('together-active');
+      window.togetherOnWeather();
       renderVibeBtn();
       renderCountText();
       renderTodayStats();
@@ -9808,6 +9857,29 @@
   })();
 </script>
 
+<script>
+  // ORBS - zapnuti/vypnuti rotujicich kulicek a velkych koulí v pozadi (visual zustava jen jako barva).
+  // Tlacitko meni stav hned, ale TRVALE se ulozi az tlacitkem SAVE (settings.orbsOff) - stejne jako ostatni predvolby.
+  // Bez ulozeni jsou kulicky zapnute jako dosud. Po nacteni stranky se obnovi z ulozeneho nastaveni.
+  (function () {
+    var off = false;
+    try {
+      var s = JSON.parse(localStorage.getItem('synthlucida_settings') || 'null');
+      if (s && typeof s.orbsOff === 'boolean') off = s.orbsOff;
+    } catch (e) { /* ignore */ }
+    function apply() {
+      document.body.classList.toggle('no-orbs', off);
+      var btn = document.getElementById('btn-orbs');
+      if (btn) {
+        btn.setAttribute('aria-pressed', off ? 'false' : 'true');
+        btn.title = 'Floating orbs and big spheres: ' + (off ? 'OFF' : 'ON');
+      }
+    }
+    window.isOrbsOff = function () { return off; };
+    window.toggleOrbs = function () { off = !off; apply(); };
+    apply();
+  })();
+</script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
   <span class="app-toast-icon" id="app-toast-icon">✓</span>
   <span class="app-toast-text" id="app-toast-text"></span>
