@@ -1679,6 +1679,10 @@
   .btn-orbs[aria-pressed="false"] { text-decoration: line-through; }
   .btn-orbs:hover, .btn-orbs:focus-visible { opacity: 1; }
 
+  /* Volba zdroje fotek pro WEATHER: SUN (MIX / jen zakladni / jen vlastni) v panelu +PHOTO */
+  .sun-photos-source { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
+  .sun-photos-source .btn-feature { min-width: 0; }
+
   /* ============================================
      SPOLEČNÉ DÝCHÁNÍ (TOGETHER) - tlačítko v Breathe + celoobrazovková místnost
      Vše má předponu together-/tg- a nesahá do stávajících stylů přehrávače.
@@ -2157,7 +2161,13 @@
   <button class="main-guide-close" onclick="toggleSunPhotosPanel()" aria-label="Close photo manager">✖</button>
   <div class="main-guide-inner">
     <h3 data-i18n="sun_photos_title" onclick="handleSunPhotosTitleClick()">My SUN Photos</h3>
-    <p class="main-guide-intro" data-i18n="sun_photos_intro">The 8 default photos are always part of the WEATHER: SUN rotation and can be reordered but not removed. Add your own photos below to include them too - originals stay untouched and everything is stored only on this device.</p>
+    <p class="main-guide-intro" data-i18n="sun_photos_intro">Choose which photos WEATHER: SUN rotates: a MIX of the 8 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Default photos can be reordered but not removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.</p>
+    <div class="sun-photos-source" role="group" aria-label="Photo source">
+      <button type="button" class="btn-feature" id="sun-src-mix" onclick="setSunPhotoSource('mix')" aria-pressed="true" data-i18n="sun_src_mix">MIX</button>
+      <button type="button" class="btn-feature" id="sun-src-builtin" onclick="setSunPhotoSource('builtin')" aria-pressed="false" data-i18n="sun_src_builtin">DEFAULT ONLY</button>
+      <button type="button" class="btn-feature" id="sun-src-custom" onclick="setSunPhotoSource('custom')" aria-pressed="false" data-i18n="sun_src_custom">MY PHOTOS ONLY</button>
+    </div>
+    <p class="main-guide-note" id="sun-src-note" style="display:none;" data-i18n="sun_src_note">You haven't added any photos of your own yet - the default ones are used until you add some.</p>
     <p class="main-guide-note" id="sun-photos-empty-note" style="display:none;" data-i18n="sun_photos_empty">You haven't added any photos of your own yet - only the default ones are shown below.</p>
     <ul class="history-list sun-photos-list" id="sun-photos-list"></ul>
     <div class="queue-actions">
@@ -3245,13 +3255,50 @@
 
   // Poskládá pole sunPhotos (a tedy i rotaci WEATHER: SUN) podle aktuálního pořadí sunPhotoOrder.
   // Vestavěné i vlastní fotky se teď přeřazují společně - nic se tím nemaže, jen se mění pořadí.
+  // Zdroj fotek pro WEATHER: SUN: 'mix' (vestavene + vlastni), 'builtin' (jen vestavene), 'custom' (jen vlastni).
+  // Meni se hned v panelu, trvale se uklada tlacitkem SAVE (settings.sunPhotoSource). Bez ulozeni = 'mix' jako dosud.
+  let sunPhotoSourceMode = 'mix';
+  try {
+      const sSet = JSON.parse(localStorage.getItem('synthlucida_settings') || 'null');
+      if (sSet && (sSet.sunPhotoSource === 'builtin' || sSet.sunPhotoSource === 'custom')) sunPhotoSourceMode = sSet.sunPhotoSource;
+  } catch (e) { /* ignore */ }
+
   function rebuildSunPhotosArray() {
       sunPhotos.length = 0;
       for (const id of sunPhotoOrder) {
           const entry = sunPhotoEntriesById[id];
           if (entry) sunPhotos.push(entry);
       }
+      // Filtr podle zvoleneho zdroje. Kdyz by po filtru nezbyla zadna fotka (napr. "jen vlastni" bez vlastnich fotek),
+      // pouziji se vsechny - rotace SUN nikdy nesmi zustat prazdna.
+      if (sunPhotoSourceMode !== 'mix') {
+          const only = sunPhotos.filter((e) => sunPhotoSourceMode === 'custom' ? !e.builtin : !!e.builtin);
+          if (only.length) { sunPhotos.length = 0; only.forEach((e) => sunPhotos.push(e)); }
+      }
       if (sunPhotoIndex >= sunPhotos.length) sunPhotoIndex = 0;
+  }
+
+  window.getSunPhotoSource = function() { return sunPhotoSourceMode; };
+  window.setSunPhotoSource = function(mode) {
+      if (mode !== 'mix' && mode !== 'builtin' && mode !== 'custom') return;
+      sunPhotoSourceMode = mode;
+      sunPhotoIndex = 0;
+      sunPhotoFrame = 0;
+      rebuildSunPhotosArray();
+      renderSunPhotosPanel();
+  };
+  // Zvyrazni aktivni volbu zdroje a ukaze upozorneni, kdyz je zvoleno "jen vlastni" a zadne nejsou.
+  function updateSunSourceUI() {
+      ['mix', 'builtin', 'custom'].forEach((m) => {
+          const btn = document.getElementById('sun-src-' + m);
+          if (!btn) return;
+          btn.classList.toggle('active', sunPhotoSourceMode === m);
+          btn.setAttribute('aria-pressed', sunPhotoSourceMode === m ? 'true' : 'false');
+      });
+      const note = document.getElementById('sun-src-note');
+      if (note) note.style.display = (sunPhotoSourceMode === 'custom' && !customSunPhotoEntries.length) ? '' : 'none';
+      const emptyNote = document.getElementById('sun-photos-empty-note');
+      if (note && emptyNote && note.style.display === '') emptyNote.style.display = 'none';
   }
 
   function saveSunPhotoOrder() {
@@ -3488,11 +3535,14 @@
 
       listEl.innerHTML = '';
       if (emptyNote) emptyNote.style.display = customSunPhotoEntries.length ? 'none' : '';
+      updateSunSourceUI();
 
       sunPhotoOrder.forEach((id, pos) => {
           const entry = sunPhotoEntriesById[id];
           if (!entry) return;
           const li = document.createElement('li');
+          // Fotky, ktere jsou podle zvoleneho zdroje mimo rotaci, jsou v seznamu ztlumene (poradi jde dal menit).
+          if (sunPhotos.indexOf(entry) === -1) li.style.opacity = '0.4';
 
           const thumb = document.createElement('img');
           thumb.className = 'sun-photo-thumb';
@@ -5604,8 +5654,12 @@
     breath_sigh_text: { en: "Two inhales through the nose (one long, one short \"sip\" on top of it), followed by one long, slow exhale through the mouth. Studied at Stanford's Huberman Lab as one of the fastest ways to lower physiological stress in real time.", cz: "Dva nádechy nosem (jeden dlouhý a na něj navazující krátký „doušek“ vzduchu navíc), následované jedním dlouhým, pomalým výdechem ústy. Ve Stanfordské laboratoři Huberman Lab je tato technika zkoumána jako jeden z nejrychlejších způsobů, jak v reálném čase snížit fyziologický stres." },
     breath_guide_note: { en: "General relaxation information only — not medical advice. If you feel dizzy or unwell, breathe normally and stop.", cz: "Pouze obecné informace pro uvolnění — nejedná se o lékařskou radu. Pokud se vám udělá špatně nebo pocítíte závrať, dýchejte normálně a přestaňte cvičit." },
     sun_photos_title: { en: "My SUN Photos", cz: "Moje fotky pro SUN" },
-    sun_photos_intro: { en: "The 8 default photos are always part of the WEATHER: SUN rotation and can be reordered but not removed. Add your own photos below to include them too - originals stay untouched and everything is stored only on this device.", cz: "8 základních fotek je v rotaci WEATHER: SUN vždy zahrnuto a jde jim jen měnit pořadí, ne je smazat. Níže si přidejte vlastní fotky, aby se zařadily taky - originály zůstávají nedotčené a vše je uloženo jen ve vašem zařízení." },
+    sun_photos_intro: { en: "Choose which photos WEATHER: SUN rotates: a MIX of the 8 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Default photos can be reordered but not removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.", cz: "Vyberte, které fotky WEATHER: SUN střídá: MIX 8 základních a vašich vlastních, jen ZÁKLADNÍ, nebo jen VLASTNÍ. Základní fotky jde jen přeřadit, ne smazat. Níže si přidejte vlastní - originály zůstávají nedotčené a vše je uloženo jen ve vašem zařízení. Volbu si uložíte tlačítkem SAVE." },
     sun_photos_empty: { en: "You haven't added any photos of your own yet - only the default ones are shown below.", cz: "Zatím jste nepřidali žádné vlastní fotky - níže vidíte jen ty základní." },
+    sun_src_mix: { en: "MIX", cz: "MIX" },
+    sun_src_builtin: { en: "DEFAULT ONLY", cz: "JEN ZÁKLADNÍ" },
+    sun_src_custom: { en: "MY PHOTOS ONLY", cz: "JEN VLASTNÍ" },
+    sun_src_note: { en: "You haven't added any photos of your own yet - the default ones are used until you add some.", cz: "Zatím jste nepřidali žádné vlastní fotky - dokud nějaké nepřidáte, použijí se ty základní." },
     sun_photos_add_btn: { en: "＋ ADD PHOTOS", cz: "＋ PŘIDAT FOTKY" },
     sun_photo_toast_added_one: { en: "Photo added", cz: "Fotka přidána" },
     tarot_btn: { en: "Card of the day", cz: "Karta dne" }
@@ -7724,6 +7778,7 @@
     settings.logoGlowEnabled = logoGlowEnabled;
     settings.sparkleState = sparkleState;
     settings.orbsOff = !!(window.isOrbsOff && window.isOrbsOff());
+    settings.sunPhotoSource = (typeof window.getSunPhotoSource === 'function') ? window.getSunPhotoSource() : 'mix';
     settings.motivationTexts = motivationTextsEnabled;
     try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
     
