@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.9.0">
+<meta name="app-version" content="1.9.1">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1683,6 +1683,12 @@
   .sun-photos-source { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
   .sun-photos-source .btn-feature { min-width: 0; }
 
+  /* MY PLAYLIST: presouvani skladeb tazenim mysi (klik, podrzet, presunout) - sipky ▲▼ funguji dal */
+  body.qdrag-active, body.qdrag-active * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+  #queue-list li.qdrag-src, #myfiles-playlists li.qdrag-src, #sun-photos-list li.qdrag-src { opacity: 0.45; }
+  #queue-list li.qdrag-before, #myfiles-playlists li.qdrag-before, #sun-photos-list li.qdrag-before { box-shadow: inset 0 2px 0 var(--accent-color); }
+  #queue-list li.qdrag-after, #myfiles-playlists li.qdrag-after, #sun-photos-list li.qdrag-after { box-shadow: inset 0 -2px 0 var(--accent-color); }
+
   /* ============================================
      SPOLEČNÉ DÝCHÁNÍ (TOGETHER) - tlačítko v Breathe + celoobrazovková místnost
      Vše má předponu together-/tg- a nesahá do stávajících stylů přehrávače.
@@ -2142,7 +2148,7 @@
   <button class="main-guide-close" onclick="toggleCustomQueue()" aria-label="Close my playlist">✖</button>
   <div class="main-guide-inner">
     <h3 class="section-title-row">My Playlist<span class="eq" id="myplaylist-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span></h3>
-    <p class="main-guide-intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼, then hit PLAY to listen through your own list, in exactly the order you built it.</p>
+    <p class="main-guide-intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼ (or drag tracks with the mouse), then hit PLAY to listen through your own list, in exactly the order you built it.</p>
     <p class="main-guide-note" id="queue-empty-note" style="display:none;">Your playlist is empty. Add tracks from HISTORY.</p>
     <ul class="history-list" id="queue-list"></ul>
     <div class="queue-actions">
@@ -2161,7 +2167,7 @@
   <button class="main-guide-close" onclick="toggleSunPhotosPanel()" aria-label="Close photo manager">✖</button>
   <div class="main-guide-inner">
     <h3 data-i18n="sun_photos_title" onclick="handleSunPhotosTitleClick()">My SUN Photos</h3>
-    <p class="main-guide-intro" data-i18n="sun_photos_intro">Choose which photos WEATHER: SUN rotates: a MIX of the 8 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Default photos can be reordered but not removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.</p>
+    <p class="main-guide-intro" data-i18n="sun_photos_intro">Choose which photos WEATHER: SUN rotates: a MIX of the 8 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Reorder photos with ▲▼ or by dragging them with the mouse; default photos can't be removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.</p>
     <div class="sun-photos-source" role="group" aria-label="Photo source">
       <button type="button" class="btn-feature" id="sun-src-mix" onclick="setSunPhotoSource('mix')" aria-pressed="true" data-i18n="sun_src_mix">MIX</button>
       <button type="button" class="btn-feature" id="sun-src-builtin" onclick="setSunPhotoSource('builtin')" aria-pressed="false" data-i18n="sun_src_builtin">DEFAULT ONLY</button>
@@ -2251,7 +2257,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_myplaylist">My Playlist</h4>
-      <p data-i18n="p_myplaylist">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.</p>
+      <p data-i18n="p_myplaylist">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ (or drag them with the mouse) or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.</p>
     </div>
 
     <div class="main-guide-section">
@@ -2402,7 +2408,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_myfiles_step2">2. Build a playlist that mixes your files with SYNTHLUCIDA</h4>
-      <p data-i18n="p_myfiles_step2">Under "Your Playlists", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.</p>
+      <p data-i18n="p_myfiles_step2">Under "Your Playlists", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ (or drag them with the mouse) or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.</p>
     </div>
 
     <div class="main-guide-section">
@@ -3542,6 +3548,7 @@
           const entry = sunPhotoEntriesById[id];
           if (!entry) return;
           const li = document.createElement('li');
+          li.dataset.pid = id; // pro presouvani tazenim mysi
           // Fotky, ktere jsou podle zvoleneho zdroje mimo rotaci, jsou v seznamu ztlumene (poradi jde dal menit).
           if (sunPhotos.indexOf(entry) === -1) li.style.opacity = '0.4';
 
@@ -5579,7 +5586,7 @@
     h_history: { en: "History", cz: "Historie" },
     p_history: { en: "🕘 HISTORY shows the tracks you've recently played, with the playlist and time. Tap a track name to play it again, use 📄 EXPORT TXT to save the list as a text file to your device, or CLEAR HISTORY to reset it.", cz: "🕘 HISTORY zobrazuje naposledy přehrané skladby spolu s playlistem a časem. Klepnutím na název skladby ji spustíte znovu, tlačítkem 📄 EXPORT TXT uložíte seznam jako textový soubor do zařízení a tlačítkem CLEAR HISTORY historii vymažete." },
     h_myplaylist: { en: "My Playlist", cz: "Můj playlist" },
-    p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist." },
+    p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ (or drag them with the mouse) or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ (nebo je přetáhnete myší) či je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist." },
     h_gamification: { en: "XP, levels & unlocking downloads", cz: "XP, úrovně a odemykání stažení" },
     p_gamification: { en: "Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you listen to for at least 20 seconds (quickly skipping through tracks won't earn XP), 20 XP for every BREATHE session you keep going for at least a minute, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 180 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them, costing 270 XP per unlock. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.", cz: "Pouhým používáním SYNTHLUCIDA získáváte XP: přibližně 2 XP za minutu poslechu, 4 XP za každou skladbu, kterou posloucháte alespoň 20 sekund (rychlé proklikávání skladeb žádné XP nepřinese), 20 XP za každé dechové cvičení BREATHE, které vydržíte alespoň minutu, a bonus 30 XP za každý nový den, kdy appku otevřete — takže se vyplatí appku navštěvovat denně a udržovat si sérii. Každých 180 XP vás posune o úroveň výš. Jakmile skladbu označíte srdíčkem (♥) do 🎵 MY PLAYLIST, vaše rostoucí XP ji postupně odemkne ke skutečnému stažení ⬇ MP3 souboru do zařízení — vždy jednu skladbu po druhé, v pořadí, v jakém jste je přidali, za cenu 270 XP na odemčení. Skladby, které přidáte z vlastních nahraných souborů v Mých souborech, se do tohoto systému nepočítají — už je totiž máte v zařízení, takže zůstávají vždy odemčené a nezabírají místo ve frontě na odemčení. V panelu S (tlačítko S) uvidíte svou úroveň, postup XP i to, které skladby jsou už odemčené.", },
     h_myfiles: { en: "My Files", cz: "Vlastní soubory" },
@@ -5589,7 +5596,7 @@
     h_myfiles_step1: { en: "1. Add your own audio files", cz: "1. Přidání vlastních audio souborů" },
     p_myfiles_step1: { en: "Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under \"Your Files\". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to).", cz: "Otevřete panel F a klepněte na ＋ ADD AUDIO FILES. Vyberte jeden nebo více audio souborů ze svého zařízení - nahrají se okamžitě a nikam se přitom neodesílají; každý soubor se uloží pouze lokálně ve vašem prohlížeči a objeví se v seznamu „Your Files\". Klepnutím na název souboru ho rovnou samostatně přehrajete, klepnutím na ✕ ho smažete (tím se odebere i ze všech playlistů, kam byl přidán)." },
     h_myfiles_step2: { en: "2. Build a playlist that mixes your files with SYNTHLUCIDA", cz: "2. Vytvoření playlistu mixujícího vaše soubory se SYNTHLUCIDA" },
-    p_myfiles_step2: { en: "Under \"Your Playlists\", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.", cz: "V sekci „Your Playlists\" napište název a klepněte na CREATE. Otevřete kartu nového playlistu a pomocí rozbalovací nabídky do něj postupně přidávejte položky - nabídka obsahuje jak vaše nahrané soubory, tak všechny skladby SYNTHLUCIDA, takže si vlastní zvuky můžete libovolně prokládat se skladbami z ASMR, PIANO nebo CHILL v libovolném pořadí. Pořadí položek změníte pomocí ▲▼ nebo je odeberete tlačítkem ✕. Klepnutím na ▶ PLAY na kartě playlistu ho spustíte přesně v pořadí, jak jste si ho poskládali." },
+    p_myfiles_step2: { en: "Under \"Your Playlists\", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ (or drag them with the mouse) or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.", cz: "V sekci „Your Playlists\" napište název a klepněte na CREATE. Otevřete kartu nového playlistu a pomocí rozbalovací nabídky do něj postupně přidávejte položky - nabídka obsahuje jak vaše nahrané soubory, tak všechny skladby SYNTHLUCIDA, takže si vlastní zvuky můžete libovolně prokládat se skladbami z ASMR, PIANO nebo CHILL v libovolném pořadí. Pořadí položek změníte pomocí ▲▼ (nebo je přetáhnete myší) či je odeberete tlačítkem ✕. Klepnutím na ▶ PLAY na kartě playlistu ho spustíte přesně v pořadí, jak jste si ho poskládali." },
     h_myfiles_step3: { en: "3. Mix your files into MY PLAYLIST with ♥", cz: "3. Namixování vlastních souborů do MY PLAYLIST pomocí ♥" },
     p_myfiles_step3: { en: "There's a second, simpler way to mix: play one of your own files (or open any SYNTHLUCIDA playlist), then tap the ♥ next to a track to add it to MY PLAYLIST - the same heart-based playlist you use for SYNTHLUCIDA tracks. Add a few of your own files and a few SYNTHLUCIDA favorites this way, and a single MY PLAYLIST run will shuffle or play through both together.", cz: "Existuje i druhý, jednodušší způsob mixování: spusťte jeden ze svých vlastních souborů (nebo otevřete libovolný playlist SYNTHLUCIDA) a klepněte na ♥ u skladby, čímž ji přidáte do MY PLAYLIST - stejného playlistu na srdíčka, který používáte pro skladby SYNTHLUCIDA. Takto přidejte pár vlastních souborů a pár oblíbených skladeb SYNTHLUCIDA a jedno spuštění MY PLAYLIST je pak přehraje dohromady, ať už v pořadí nebo přes shuffle." },
     h_myfiles_step4: { en: "4. Everything else still works", cz: "4. Vše ostatní funguje jako obvykle" },
@@ -5655,7 +5662,7 @@
     breath_sigh_text: { en: "Two inhales through the nose (one long, one short \"sip\" on top of it), followed by one long, slow exhale through the mouth. Studied at Stanford's Huberman Lab as one of the fastest ways to lower physiological stress in real time.", cz: "Dva nádechy nosem (jeden dlouhý a na něj navazující krátký „doušek“ vzduchu navíc), následované jedním dlouhým, pomalým výdechem ústy. Ve Stanfordské laboratoři Huberman Lab je tato technika zkoumána jako jeden z nejrychlejších způsobů, jak v reálném čase snížit fyziologický stres." },
     breath_guide_note: { en: "General relaxation information only — not medical advice. If you feel dizzy or unwell, breathe normally and stop.", cz: "Pouze obecné informace pro uvolnění — nejedná se o lékařskou radu. Pokud se vám udělá špatně nebo pocítíte závrať, dýchejte normálně a přestaňte cvičit." },
     sun_photos_title: { en: "My SUN Photos", cz: "Moje fotky pro SUN" },
-    sun_photos_intro: { en: "Choose which photos WEATHER: SUN rotates: a MIX of the 8 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Default photos can be reordered but not removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.", cz: "Vyberte, které fotky WEATHER: SUN střídá: MIX 8 základních a vašich vlastních, jen ZÁKLADNÍ, nebo jen VLASTNÍ. Základní fotky jde jen přeřadit, ne smazat. Níže si přidejte vlastní - originály zůstávají nedotčené a vše je uloženo jen ve vašem zařízení. Volbu si uložíte tlačítkem SAVE." },
+    sun_photos_intro: { en: "Choose which photos WEATHER: SUN rotates: a MIX of the 8 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Reorder photos with ▲▼ or by dragging them with the mouse; default photos can't be removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.", cz: "Vyberte, které fotky WEATHER: SUN střídá: MIX 8 základních a vašich vlastních, jen ZÁKLADNÍ, nebo jen VLASTNÍ. Pořadí fotek měníte pomocí ▲▼ nebo tažením myší; základní fotky nejdou smazat. Níže si přidejte vlastní - originály zůstávají nedotčené a vše je uloženo jen ve vašem zařízení. Volbu si uložíte tlačítkem SAVE." },
     sun_photos_empty: { en: "You haven't added any photos of your own yet - only the default ones are shown below.", cz: "Zatím jste nepřidali žádné vlastní fotky - níže vidíte jen ty základní." },
     sun_src_mix: { en: "MIX", cz: "MIX" },
     sun_src_builtin: { en: "DEFAULT ONLY", cz: "JEN ZÁKLADNÍ" },
@@ -6217,6 +6224,7 @@
 
         const itemsList = document.createElement('ul');
         itemsList.className = 'history-list';
+        itemsList.dataset.plid = pl.id; // pro presouvani skladeb tazenim mysi
         pl.items.forEach((item, pos) => {
           const li = document.createElement('li');
 
@@ -9934,6 +9942,334 @@
     window.isOrbsOff = function () { return off; };
     window.toggleOrbs = function () { off = !off; apply(); };
     apply();
+  })();
+</script>
+<script>
+  // MY PLAYLIST - presouvani skladeb mysi: stisknout, podrzet a tahnout na nove misto. Sipky ▲▼ zustavaji beze zmeny.
+  // Tah zacne az po posunu o par pixelu, takze obycejny klik (prehrat od teto skladby) funguje jako dosud.
+  (function () {
+    var list = document.getElementById('queue-list');
+    if (!list) return;
+    var THRESHOLD = 5;
+    var st = null; // { from, x, y, dragging, to, after, timer }
+
+    function items() { return Array.prototype.slice.call(list.children); }
+    function clearMarks() {
+      items().forEach(function (li) { li.classList.remove('qdrag-src', 'qdrag-before', 'qdrag-after'); });
+    }
+    function scroller() {
+      var el = list.parentElement;
+      while (el && el !== document.body) {
+        var oy = getComputedStyle(el).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    // Z polohy kurzoru spocita cilovy index (pred ktery radek se vlozi) a zda pred/za nim.
+    function locate(y) {
+      var lis = items();
+      if (!lis.length) return null;
+      for (var i = 0; i < lis.length; i++) {
+        var r = lis[i].getBoundingClientRect();
+        if (y < r.top + r.height / 2) return { idx: i, after: false };
+      }
+      return { idx: lis.length - 1, after: true };
+    }
+    function mark() {
+      clearMarks();
+      var lis = items();
+      if (lis[st.from]) lis[st.from].classList.add('qdrag-src');
+      var t = lis[st.to];
+      if (t) t.classList.add(st.after ? 'qdrag-after' : 'qdrag-before');
+    }
+    function stop(cancelled) {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onCancel, true);
+      document.removeEventListener('keydown', onKey, true);
+      document.body.classList.remove('qdrag-active');
+      if (st && st.timer) clearInterval(st.timer);
+      clearMarks();
+      var s = st; st = null;
+      if (!s || !s.dragging) return;
+      // Po tahu nesmi "click" spustit prehrani skladby pod kurzorem.
+      suppress = true; setTimeout(function () { suppress = false; }, 0);
+      if (cancelled) return;
+      var to = s.to + (s.after ? 1 : 0); // pozice v poli PRED odebranim zdroje
+      if (to > s.from) to -= 1;          // po odebrani zdroje se indexy za nim posunou
+      if (to === s.from) return;
+      moveQueueItemTo(s.from, to);
+    }
+    function onMove(e) {
+      if (!st) return;
+      if (!st.dragging) {
+        if (Math.abs(e.clientX - st.x) < THRESHOLD && Math.abs(e.clientY - st.y) < THRESHOLD) return;
+        st.dragging = true;
+        document.body.classList.add('qdrag-active');
+        var sc = scroller();
+        st.timer = setInterval(function () { // automaticke posouvani panelu, kdyz je kurzor u horniho/dolniho okraje
+          if (!sc || !st) return;
+          var r = sc.getBoundingClientRect();
+          if (st.lastY < r.top + 36) sc.scrollTop -= 8;
+          else if (st.lastY > r.bottom - 36) sc.scrollTop += 8;
+        }, 30);
+      }
+      st.lastY = e.clientY;
+      var loc = locate(e.clientY);
+      if (loc) { st.to = loc.idx; st.after = loc.after; mark(); }
+      e.preventDefault();
+    }
+    function onUp() { stop(false); }
+    function onCancel() { stop(true); }
+    function onKey(e) { if (e.key === 'Escape' && st && st.dragging) { e.stopPropagation(); stop(true); } }
+
+    // Prehodi skladbu z pozice from na pozici to (stejna pravidla jako u sipek: aktivni skladba zustane aktivni).
+    function moveQueueItemTo(from, to) {
+      if (from < 0 || to < 0 || from >= customQueue.length || to >= customQueue.length || from === to) return;
+      var item = customQueue.splice(from, 1)[0];
+      customQueue.splice(to, 0, item);
+      if (customQueueActive) {
+        if (customQueueIndex === from) customQueueIndex = to;
+        else if (from < customQueueIndex && customQueueIndex <= to) customQueueIndex -= 1;
+        else if (to <= customQueueIndex && customQueueIndex < from) customQueueIndex += 1;
+      }
+      saveCustomQueue();
+      renderCustomQueue();
+    }
+    window.moveCustomQueueItemTo = moveQueueItemTo;
+
+    var suppress = false;
+    list.addEventListener('click', function (e) {
+      if (suppress) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+
+    list.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || st) return;
+      if (e.target.closest && e.target.closest('button')) return; // tlacitka (sipky, stazeni, odebrani) se netahaji
+      var li = e.target.closest ? e.target.closest('li') : null;
+      if (!li || li.parentNode !== list || list.children.length < 2) return;
+      st = { from: items().indexOf(li), x: e.clientX, y: e.clientY, lastY: e.clientY, dragging: false, to: 0, after: false, timer: null };
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
+      document.addEventListener('keydown', onKey, true);
+    });
+    // Zabrani oznacovani textu a nativnimu tazeni pri drzeni mysi na radku.
+    list.addEventListener('dragstart', function (e) { if (st) e.preventDefault(); });
+    list.addEventListener('selectstart', function (e) { if (st && st.dragging) e.preventDefault(); });
+  })();
+</script>
+<script>
+  // MY FILES & PLAYLISTS (F) - presouvani skladeb v playlistech mysi (stisknout, podrzet, tahnout). Sipky ▲▼ zustavaji.
+  // Stejne chovani jako v MY PLAYLIST: tah zacne az po posunu o par pixelu (klik na skladbu funguje dal), Esc tah zrusi.
+  (function () {
+    var root = document.getElementById('myfiles-playlists');
+    if (!root) return;
+    var THRESHOLD = 5;
+    var st = null; // { ul, plid, from, x, y, lastY, dragging, to, after, timer }
+    var suppress = false;
+
+    function items(ul) { return Array.prototype.slice.call(ul.children); }
+    function clearMarks(ul) {
+      if (!ul) return;
+      items(ul).forEach(function (li) { li.classList.remove('qdrag-src', 'qdrag-before', 'qdrag-after'); });
+    }
+    function scroller(ul) {
+      var el = ul.parentElement;
+      while (el && el !== document.body) {
+        var oy = getComputedStyle(el).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    function locate(ul, y) {
+      var lis = items(ul);
+      if (!lis.length) return null;
+      for (var i = 0; i < lis.length; i++) {
+        var r = lis[i].getBoundingClientRect();
+        if (y < r.top + r.height / 2) return { idx: i, after: false };
+      }
+      return { idx: lis.length - 1, after: true };
+    }
+    function mark() {
+      clearMarks(st.ul);
+      var lis = items(st.ul);
+      if (lis[st.from]) lis[st.from].classList.add('qdrag-src');
+      var t = lis[st.to];
+      if (t) t.classList.add(st.after ? 'qdrag-after' : 'qdrag-before');
+    }
+    function moveItemTo(plid, from, to) {
+      var pl = myPlaylists.find(function (p) { return p.id === plid; });
+      if (!pl || from < 0 || to < 0 || from >= pl.items.length || to >= pl.items.length || from === to) return;
+      var item = pl.items.splice(from, 1)[0];
+      pl.items.splice(to, 0, item);
+      saveMyPlaylistsToStorage();
+      renderMyFiles();
+    }
+    function stop(cancelled) {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onCancel, true);
+      document.removeEventListener('keydown', onKey, true);
+      document.body.classList.remove('qdrag-active');
+      if (st && st.timer) clearInterval(st.timer);
+      var s = st; st = null;
+      if (s) clearMarks(s.ul);
+      if (!s || !s.dragging) return;
+      suppress = true; setTimeout(function () { suppress = false; }, 0); // po tahu nesmi "click" nic spustit
+      if (cancelled) return;
+      var to = s.to + (s.after ? 1 : 0);
+      if (to > s.from) to -= 1;
+      if (to === s.from) return;
+      moveItemTo(s.plid, s.from, to);
+    }
+    function onMove(e) {
+      if (!st) return;
+      if (!st.dragging) {
+        if (Math.abs(e.clientX - st.x) < THRESHOLD && Math.abs(e.clientY - st.y) < THRESHOLD) return;
+        st.dragging = true;
+        document.body.classList.add('qdrag-active');
+        var sc = scroller(st.ul);
+        st.timer = setInterval(function () { // automaticke posouvani panelu u horniho/dolniho okraje
+          if (!sc || !st) return;
+          var r = sc.getBoundingClientRect();
+          if (st.lastY < r.top + 36) sc.scrollTop -= 8;
+          else if (st.lastY > r.bottom - 36) sc.scrollTop += 8;
+        }, 30);
+      }
+      st.lastY = e.clientY;
+      var loc = locate(st.ul, e.clientY);
+      if (loc) { st.to = loc.idx; st.after = loc.after; mark(); }
+      e.preventDefault();
+    }
+    function onUp() { stop(false); }
+    function onCancel() { stop(true); }
+    function onKey(e) { if (e.key === 'Escape' && st && st.dragging) { e.stopPropagation(); stop(true); } }
+
+    root.addEventListener('click', function (e) {
+      if (suppress) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    root.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || st) return;
+      if (!e.target.closest || e.target.closest('button')) return;
+      var ul = e.target.closest('ul[data-plid]');
+      var li = e.target.closest('li');
+      if (!ul || !li || li.parentNode !== ul || ul.children.length < 2) return;
+      st = { ul: ul, plid: ul.dataset.plid, from: items(ul).indexOf(li), x: e.clientX, y: e.clientY, lastY: e.clientY, dragging: false, to: 0, after: false, timer: null };
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
+      document.addEventListener('keydown', onKey, true);
+    });
+    root.addEventListener('dragstart', function (e) { if (st) e.preventDefault(); });
+    root.addEventListener('selectstart', function (e) { if (st && st.dragging) e.preventDefault(); });
+  })();
+</script>
+<script>
+  // +PHOTO (My SUN Photos) - presouvani fotek v poradi mysi (stisknout, podrzet, tahnout). Sipky ▲▼ zustavaji.
+  // Stejne chovani jako v MY PLAYLIST: tah zacne az po posunu o par pixelu (klik na miniaturu = nahled), Esc tah zrusi.
+  (function () {
+    var list = document.getElementById('sun-photos-list');
+    if (!list) return;
+    var THRESHOLD = 5;
+    var st = null;
+    var suppress = false;
+
+    function items() { return Array.prototype.slice.call(list.children); }
+    function clearMarks() { items().forEach(function (li) { li.classList.remove('qdrag-src', 'qdrag-before', 'qdrag-after'); }); }
+    function scroller() {
+      var el = list.parentElement;
+      while (el && el !== document.body) {
+        var oy = getComputedStyle(el).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    function locate(y) {
+      var lis = items();
+      if (!lis.length) return null;
+      for (var i = 0; i < lis.length; i++) {
+        var r = lis[i].getBoundingClientRect();
+        if (y < r.top + r.height / 2) return { idx: i, after: false };
+      }
+      return { idx: lis.length - 1, after: true };
+    }
+    function mark() {
+      clearMarks();
+      var lis = items();
+      if (lis[st.from]) lis[st.from].classList.add('qdrag-src');
+      var t = lis[st.to];
+      if (t) t.classList.add(st.after ? 'qdrag-after' : 'qdrag-before');
+    }
+    // Prehodi fotku v poradi (vestavene i vlastni spolecne) - stejne jako sipky, jen o vic pozic najednou.
+    function movePhotoTo(id, to) {
+      var from = sunPhotoOrder.indexOf(id);
+      if (from === -1 || to < 0 || to >= sunPhotoOrder.length || from === to) return;
+      sunPhotoOrder.splice(from, 1);
+      sunPhotoOrder.splice(to, 0, id);
+      rebuildSunPhotosArray();
+      saveSunPhotoOrder();
+      renderSunPhotosPanel();
+    }
+    function stop(cancelled) {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('pointercancel', onCancel, true);
+      document.removeEventListener('keydown', onKey, true);
+      document.body.classList.remove('qdrag-active');
+      if (st && st.timer) clearInterval(st.timer);
+      clearMarks();
+      var s = st; st = null;
+      if (!s || !s.dragging) return;
+      suppress = true; setTimeout(function () { suppress = false; }, 0); // po tahu nesmi "click" otevrit nahled
+      if (cancelled) return;
+      var to = s.to + (s.after ? 1 : 0);
+      if (to > s.from) to -= 1;
+      if (to === s.from) return;
+      movePhotoTo(s.id, to);
+    }
+    function onMove(e) {
+      if (!st) return;
+      if (!st.dragging) {
+        if (Math.abs(e.clientX - st.x) < THRESHOLD && Math.abs(e.clientY - st.y) < THRESHOLD) return;
+        st.dragging = true;
+        document.body.classList.add('qdrag-active');
+        var sc = scroller();
+        st.timer = setInterval(function () { // automaticke posouvani panelu u horniho/dolniho okraje
+          if (!sc || !st) return;
+          var r = sc.getBoundingClientRect();
+          if (st.lastY < r.top + 36) sc.scrollTop -= 8;
+          else if (st.lastY > r.bottom - 36) sc.scrollTop += 8;
+        }, 30);
+      }
+      st.lastY = e.clientY;
+      var loc = locate(e.clientY);
+      if (loc) { st.to = loc.idx; st.after = loc.after; mark(); }
+      e.preventDefault();
+    }
+    function onUp() { stop(false); }
+    function onCancel() { stop(true); }
+    function onKey(e) { if (e.key === 'Escape' && st && st.dragging) { e.stopPropagation(); stop(true); } }
+
+    list.addEventListener('click', function (e) {
+      if (suppress) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    list.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || st) return;
+      if (!e.target.closest || e.target.closest('button')) return;
+      var li = e.target.closest('li');
+      if (!li || li.parentNode !== list || !li.dataset.pid || list.children.length < 2) return;
+      st = { id: li.dataset.pid, from: items().indexOf(li), x: e.clientX, y: e.clientY, lastY: e.clientY, dragging: false, to: 0, after: false, timer: null };
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onUp, true);
+      document.addEventListener('pointercancel', onCancel, true);
+      document.addEventListener('keydown', onKey, true);
+    });
+    list.addEventListener('dragstart', function (e) { if (st) e.preventDefault(); }); // miniatura je <img> - bez nativniho tazeni obrazku
+    list.addEventListener('selectstart', function (e) { if (st && st.dragging) e.preventDefault(); });
   })();
 </script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
