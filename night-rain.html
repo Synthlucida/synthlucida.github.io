@@ -542,6 +542,16 @@
   }
   .btn-music:active { transform: scale(0.92); }
   .btn-music.loading { opacity: 0.55; cursor: wait; }
+  /* Název právě hrající skladby (stejně jako v player-tarot.html): výška je vyhrazená napevno,
+     řádek se jen zprůhlední/zobrazí, takže se při změně nic neposouvá. */
+  .now-playing {
+    position: relative; z-index: 1; font-family: var(--serif); font-style: italic;
+    font-size: 10.5px; line-height: 12px; height: 12px; opacity: 0; letter-spacing: 0.5px; color: #f1dc8f;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    width: 100%; max-width: 300px; margin: 8px auto 0;
+    transition: opacity 0.3s; text-align: center;
+  }
+  .now-playing.show { opacity: 0.75; }
   .sr-only {
     position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important;
     overflow: hidden !important; clip-path: inset(50%) !important; border: 0 !important; pointer-events: none;
@@ -640,6 +650,7 @@
     <button class="btn-music" id="btn-music" title="Play music" aria-label="Play or pause music">▶</button>
     <button class="btn-secondary" id="btn-hide-cards" data-i18n="btn_hide_cards" style="display:none;">SCHOVAT KARTY</button>
   </div>
+  <div class="now-playing" id="now-playing"></div>
 </div>
 
 <iframe id="music-bridge" src="about:blank" style="position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; border:0; opacity:0; pointer-events:none;" aria-hidden="true" tabindex="-1"></iframe>
@@ -1576,7 +1587,16 @@
     function poll() {
       var a = api();
       if (!a) return;
-      try { ui(a.isPlaying()); } catch (e) {}
+      try {
+        var pl = a.isPlaying();
+        ui(pl);
+        var np = document.getElementById('now-playing');
+        if (np) {
+          var title = a.nowPlaying ? a.nowPlaying() : null;
+          if (pl && title) { np.textContent = '\u266A ' + title; np.classList.add('show'); }
+          else np.classList.remove('show');
+        }
+      } catch (e) {}
     }
     btn.addEventListener('click', function () {
       if (pending) return;
