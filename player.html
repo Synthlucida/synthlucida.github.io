@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.9.2">
+<meta name="app-version" content="1.9.3">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1282,6 +1282,11 @@
   /* Právě běžící časovač spánku (15m/30m/60m) je zvýrazněný */
   .btn-timer.active { border-color: var(--accent-color); color: var(--accent-color); background: rgba(255,255,255,0.12); box-shadow: 0 0 8px var(--accent-color); }
   .btn-timer:hover, .btn-feature:hover { border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
+  /* Stejný vzhled i výška jako ostatní .btn-feature tlačítka, jen užší (samotná ikona bez textu) */
+  .btn-birds { padding: 3px 6px; line-height: 0; font-size: 0; }
+  .btn-birds .ico-inline { width: 11px; height: 11px; margin: 0; vertical-align: middle; }
+  .btn-birds:disabled { opacity: 0.35; cursor: default; }
+  .btn-birds:disabled:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
   .btn-feature.active { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); color: var(--accent-color); }
   /* Hezčí tlačítka funkcí (WEATHER / SUNSET / PHOTO / MY PLAYLIST / SAVE ...): skleněný vzhled s jemným
      přechodem, světlým okrajem nahoře a stínem. Rozměry, odsazení, písmo i min. šířky zůstávají beze změny. */
@@ -1397,6 +1402,14 @@
   }
   .breathing-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
 
+  /* Malý časovač pod tlačítkem ⓘ - ukazuje, jak dlouho uživatel skutečně dýchal (počítá se jen při běžícím cyklu) */
+  .breath-elapsed {
+    position: absolute; top: 58px; left: 16px; min-width: 36px; text-align: center; z-index: 2;
+    font-size: 11px; letter-spacing: 1px; font-variant-numeric: tabular-nums; color: var(--accent-color);
+    text-shadow: 0 0 8px var(--accent-color); opacity: 0.55; pointer-events: none; white-space: nowrap;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .breathing-overlay:not(.breath-paused) .breath-elapsed { opacity: 0.85; }
   .breathing-info {
     position: absolute; top: 16px; left: 16px; width: 36px; height: 36px; border-radius: 50%;
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;
@@ -1481,6 +1494,44 @@
     text-transform: uppercase; max-width: 260px; margin-bottom: 6px; min-height: 10px;
   }
 
+  .breath-stage { position: relative; display: flex; align-items: center; justify-content: center; }
+  .breath-arrow {
+    position: absolute; top: 50%; left: calc(50% + 122px);
+    width: 38px; height: 38px; margin-top: -19px;
+    color: var(--accent-color); filter: drop-shadow(0 0 8px var(--accent-color));
+    opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
+  }
+  .breath-arrow svg { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .breath-arrow[data-type="in"] .ba-in, .breath-arrow[data-type="hold"] .ba-hold, .breath-arrow[data-type="out"] .ba-out { display: block; }
+  .breath-arrow[data-type] { opacity: 0.9; }
+  .breathing-overlay.breath-paused .breath-arrow { opacity: 0; }
+  .breath-arrow[data-type="in"] svg { animation: breathArrowUp var(--ba-dur, 4s) ease-in-out forwards; }
+  .breath-arrow[data-type="out"] svg { animation: breathArrowDown var(--ba-dur, 4s) ease-in-out forwards; }
+  .breath-arrow[data-type="hold"] svg { animation: breathHoldShimmer 2.4s ease-in-out infinite; }
+  @keyframes breathArrowUp   { from { transform: translateY(8px); } to { transform: translateY(-8px); } }
+  @keyframes breathArrowDown { from { transform: translateY(-8px); } to { transform: translateY(8px); } }
+  @media (max-width: 480px) { .breath-arrow { left: calc(50% + 112px); width: 30px; height: 30px; margin-top: -15px; } }
+  @media (prefers-reduced-motion: reduce) { .breath-arrow svg { animation: none !important; } }
+
+  /* Přepínač tvaru: koule (výchozí) nebo mandala. Mandala je uvnitř orbu, takže zdědí jeho
+     scale / opacity / přechody z dechového cyklu - žádná další logika v JS není potřeba. */
+  .mandala-svg { display: none; position: absolute; inset: 0; width: 100%; height: 100%; color: var(--accent-color); overflow: visible; filter: drop-shadow(0 0 5px var(--accent-color)) drop-shadow(0 0 14px var(--accent-glow)); }
+  body.shape-mandala .mandala-svg { display: block; }
+  body.shape-mandala .breath-orb, body.shape-mandala .together-orb { background: none; filter: none; }
+  body.shape-mandala .breath-ring { display: none; }
+  .mand-petals path:not(.in) { fill: currentColor; fill-opacity: 0.12; }
+  .mand-petals path.in { fill: none; stroke-opacity: 0.65; stroke-width: 0.8; }
+  /* fill-box + center: každá vrstva je souměrná kolem středu, takže se otáčí přesně kolem středu mandaly */
+  .mandala-layer { transform-box: fill-box; transform-origin: center; }
+  .mandala-layer.ml-a { animation: mandalaSpinA 120s linear infinite; }
+  .mandala-layer.ml-b { animation: mandalaSpinB 80s linear infinite; }
+  .mandala-layer.ml-c { animation: mandalaSpinA 55s linear infinite; }
+  .mandala-layer.ml-d { animation: mandalaSpinB 40s linear infinite; }
+  @keyframes mandalaSpinA { to { transform: rotate(360deg); } }
+  @keyframes mandalaSpinB { to { transform: rotate(-360deg); } }
+  .breathing-overlay.breath-paused .mandala-layer { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) { .mandala-layer { animation: none !important; } }
+  #breath-shape-btn, #together-shape-btn { min-width: 112px; }
   .breath-orb-wrap {
     position: relative; width: 180px; height: 180px;
     display: flex; align-items: center; justify-content: center;
@@ -1808,6 +1859,16 @@
     background: radial-gradient(circle, var(--accent-color) 0%, var(--accent-glow) 45%, transparent 72%);
     filter: blur(6px); opacity: 0.32;
   }
+  .together-arrow {
+    position: absolute; top: 50%; left: calc(100% + 4px); width: 30px; height: 30px; margin-top: -15px;
+    color: var(--accent-color); filter: drop-shadow(0 0 8px var(--accent-color)); pointer-events: none; opacity: 0.9;
+  }
+  .together-arrow svg { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .together-arrow[data-type="in"] .ba-in, .together-arrow[data-type="hold"] .ba-hold, .together-arrow[data-type="out"] .ba-out { display: block; }
+  .together-arrow[data-type="hold"] svg { animation: breathHoldShimmer 2.4s ease-in-out infinite; }
+  /* Na úzkých displejích by šipka vedle kruhu přetekla - posune se do volného rohu stage (mimo kruh teček) */
+  @media (max-width: 420px) { .together-arrow { left: calc(100% - 30px); top: 0; margin-top: -4px; width: 26px; height: 26px; } }
+  @media (prefers-reduced-motion: reduce) { .together-arrow svg { animation: none !important; } }
   .together-core {
     position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
     background: radial-gradient(circle, #fff 0%, var(--accent-color) 70%);
@@ -1842,7 +1903,7 @@
   /* WEATHER v mistnosti: stejne jako v dechovem cviceni - pri zapnutem pocasi je overlay pruhledny, aby bylo videt canvas */
   .together-overlay.tg-weather { background: transparent; }
   body.weather-photo-mode .together-overlay.tg-weather .breath-ambient { display: none; }
-  .together-weather-row { display: flex; justify-content: center; margin-top: 8px; }
+  .together-weather-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   #together-weather-btn { min-width: 122px; }
   .together-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; max-width: 340px; }
   /* Oba texty tlačítka (např. SEND CALM / SENT) leží přes sebe ve stejné buňce mřížky a přepíná se jen
@@ -2038,6 +2099,7 @@
 </div>
 
 <div class="effects-container">
+  <button class="btn-feature btn-birds" id="btn-birds" onclick="toggleBirds()" aria-pressed="false" disabled title="Flying birds in WEATHER: SUN (turn on WEATHER: SUN first)" aria-label="Flying birds on/off (WEATHER: SUN)"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9c3-1 5.500-.5 7.500 2 1.500-3 4.500-4 7.500-3.500"/><path d="M12.500 13.500c2-2.500 4.500-3 8-2"/><path d="M9.500 11c-1 3.500-3 5.500-6 6.500"/></svg></button>
   <button class="btn-feature" id="btn-weather" onclick="toggleWeather()">WEATHER: OFF</button>
   <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg>PHOTO</button>
   <input type="file" id="sun-photo-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
@@ -2488,6 +2550,7 @@
   </div>
   <button class="breathing-close" onclick="stopBreathing()" aria-label="Exit breathing exercise">✖</button>
   <button class="breathing-info" onclick="toggleBreathGuide()" aria-label="Breathing guide">ⓘ</button>
+  <div class="breath-elapsed" id="breath-elapsed" aria-label="Time breathed" title="Time breathed">00:00</div>
 
   <div class="breath-guide" id="breath-guide">
     <div class="breath-guide-inner">
@@ -2559,15 +2622,23 @@
   </div>
   <div class="breath-technique-info" id="breath-technique-info"></div>
 
+  <div class="breath-stage">
   <div class="breath-orb-wrap" id="breath-orb-wrap">
     <div class="breath-ring breath-ring-1"></div>
     <div class="breath-ring breath-ring-2"></div>
-    <div class="breath-orb" id="breath-orb"></div>
+    <div class="breath-orb" id="breath-orb"><svg class="mandala-svg" viewBox="-100 -100 200 200" aria-hidden="true" focusable="false"><g class="mandala-layer ml-a" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle r="98" stroke-width=".9"/><circle r="90.5" stroke-width=".6"/><g fill="currentColor" stroke="none"><circle cx="0.0" cy="-94.3" r="1.25"/><circle cx="12.31" cy="-93.49" r="0.7"/><circle cx="24.41" cy="-91.09" r="1.25"/><circle cx="36.09" cy="-87.12" r="0.7"/><circle cx="47.15" cy="-81.67" r="1.25"/><circle cx="57.41" cy="-74.81" r="0.7"/><circle cx="66.68" cy="-66.68" r="1.25"/><circle cx="74.81" cy="-57.41" r="0.7"/><circle cx="81.67" cy="-47.15" r="1.25"/><circle cx="87.12" cy="-36.09" r="0.7"/><circle cx="91.09" cy="-24.41" r="1.25"/><circle cx="93.49" cy="-12.31" r="0.7"/><circle cx="94.3" cy="0.0" r="1.25"/><circle cx="93.49" cy="12.31" r="0.7"/><circle cx="91.09" cy="24.41" r="1.25"/><circle cx="87.12" cy="36.09" r="0.7"/><circle cx="81.67" cy="47.15" r="1.25"/><circle cx="74.81" cy="57.41" r="0.7"/><circle cx="66.68" cy="66.68" r="1.25"/><circle cx="57.41" cy="74.81" r="0.7"/><circle cx="47.15" cy="81.67" r="1.25"/><circle cx="36.09" cy="87.12" r="0.7"/><circle cx="24.41" cy="91.09" r="1.25"/><circle cx="12.31" cy="93.49" r="0.7"/><circle cx="0.0" cy="94.3" r="1.25"/><circle cx="-12.31" cy="93.49" r="0.7"/><circle cx="-24.41" cy="91.09" r="1.25"/><circle cx="-36.09" cy="87.12" r="0.7"/><circle cx="-47.15" cy="81.67" r="1.25"/><circle cx="-57.41" cy="74.81" r="0.7"/><circle cx="-66.68" cy="66.68" r="1.25"/><circle cx="-74.81" cy="57.41" r="0.7"/><circle cx="-81.67" cy="47.15" r="1.25"/><circle cx="-87.12" cy="36.09" r="0.7"/><circle cx="-91.09" cy="24.41" r="1.25"/><circle cx="-93.49" cy="12.31" r="0.7"/><circle cx="-94.3" cy="0.0" r="1.25"/><circle cx="-93.49" cy="-12.31" r="0.7"/><circle cx="-91.09" cy="-24.41" r="1.25"/><circle cx="-87.12" cy="-36.09" r="0.7"/><circle cx="-81.67" cy="-47.15" r="1.25"/><circle cx="-74.81" cy="-57.41" r="0.7"/><circle cx="-66.68" cy="-66.68" r="1.25"/><circle cx="-57.41" cy="-74.81" r="0.7"/><circle cx="-47.15" cy="-81.67" r="1.25"/><circle cx="-36.09" cy="-87.12" r="0.7"/><circle cx="-24.41" cy="-91.09" r="1.25"/><circle cx="-12.31" cy="-93.49" r="0.7"/></g><path transform="rotate(0)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(15)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(30)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(45)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(60)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(75)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(90)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(105)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(120)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(135)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(150)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(165)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(180)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(195)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(210)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(225)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(240)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(255)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(270)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(285)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(300)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(315)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(330)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(345)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><circle r="77" stroke-width=".8" stroke-dasharray="1.2 3.2"/></g><g class="mandala-layer ml-b mand-petals" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><g transform="rotate(0)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(22.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(45)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(67.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(90)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(112.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(135)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(157.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(180)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(202.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(225)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(247.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(270)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(292.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(315)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(337.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g></g><g class="mandala-layer ml-c mand-petals" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><g transform="rotate(22.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(67.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(112.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(157.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(202.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(247.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(292.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(337.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g></g><g class="mandala-layer ml-d" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M0.0 -34.0 L24.04 24.04 L-34.0 0.0 L24.04 -24.04 L0.0 34.0 L-24.04 -24.04 L34.0 -0.0 L-24.04 24.04 Z" stroke-width="1"/><circle r="36" stroke-width=".7"/><circle r="22" stroke-width=".9"/><path transform="rotate(0)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(22.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(45)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(67.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(90)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(112.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(135)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(157.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(180)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(202.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(225)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(247.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(270)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(292.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(315)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(337.5)" d="M0 -12 L0 -22" stroke-width=".8"/></g><circle r="11" fill="currentColor" fill-opacity=".22" stroke="none"/><circle r="6.5" fill="currentColor" stroke="none"/><circle r="11" fill="none" stroke="currentColor" stroke-width="1"/></svg></div>
     <!-- Logo v kouli natrvalo odstraněno (na přání) - element necháváme v DOM, jen
          skrytý přes CSS (.breath-logo { display: none; }), aby zbytek kódu, co
          mu nastavuje styl při každé fázi dýchání, nemusel na nic čekat ani se
          nerozbil kvůli chybějícímu elementu. -->
     <img src="logo.jpg" alt="" class="breath-logo" id="breath-logo" onerror="this.style.display='none'">
+  </div>
+  <!-- Indikátor fáze dechu vedle koule: šipka nahoru = nádech, pauza = zádrž, šipka dolů = výdech -->
+  <div class="breath-arrow" id="breath-arrow" aria-hidden="true">
+    <svg class="ba-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M5.5 11.5L12 5l6.5 6.5"/></svg>
+    <svg class="ba-hold" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
+    <svg class="ba-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M5.5 12.5L12 19l6.5-6.5"/></svg>
+  </div>
   </div>
   <div class="breath-phase" id="breath-phase" aria-live="polite">Breathe In</div>
   <div class="breath-count" id="breath-count">4</div>
@@ -2581,6 +2652,7 @@
   </div>
   <div class="breath-weather-row">
     <button class="btn-breath-ctrl" id="breath-weather-btn" onclick="toggleWeather()">WEATHER: OFF</button>
+    <button class="btn-breath-ctrl" id="breath-shape-btn" type="button" onclick="toggleBreathShape()">SHAPE: ORB</button>
     <button class="btn-breath-ctrl" id="breath-together-btn" onclick="if(window.openTogether)openTogether()"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14.2c2.4 0 4.2 1.8 4.2 4.3"/></svg><span data-tg="entryBtn">TOGETHER</span><span class="tg-entry-count" id="breath-together-count" hidden><span class="together-live-dot"></span><span class="tg-entry-count-text"></span></span></button>
   </div>
 
@@ -2604,10 +2676,16 @@
   <div class="together-evening-banner" id="together-evening-banner" hidden></div>
 
   <div class="together-stage" id="together-stage" aria-hidden="true">
-    <div class="together-orb" id="together-orb"></div>
+    <div class="together-orb" id="together-orb"><svg class="mandala-svg" viewBox="-100 -100 200 200" aria-hidden="true" focusable="false"><g class="mandala-layer ml-a" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle r="98" stroke-width=".9"/><circle r="90.5" stroke-width=".6"/><g fill="currentColor" stroke="none"><circle cx="0.0" cy="-94.3" r="1.25"/><circle cx="12.31" cy="-93.49" r="0.7"/><circle cx="24.41" cy="-91.09" r="1.25"/><circle cx="36.09" cy="-87.12" r="0.7"/><circle cx="47.15" cy="-81.67" r="1.25"/><circle cx="57.41" cy="-74.81" r="0.7"/><circle cx="66.68" cy="-66.68" r="1.25"/><circle cx="74.81" cy="-57.41" r="0.7"/><circle cx="81.67" cy="-47.15" r="1.25"/><circle cx="87.12" cy="-36.09" r="0.7"/><circle cx="91.09" cy="-24.41" r="1.25"/><circle cx="93.49" cy="-12.31" r="0.7"/><circle cx="94.3" cy="0.0" r="1.25"/><circle cx="93.49" cy="12.31" r="0.7"/><circle cx="91.09" cy="24.41" r="1.25"/><circle cx="87.12" cy="36.09" r="0.7"/><circle cx="81.67" cy="47.15" r="1.25"/><circle cx="74.81" cy="57.41" r="0.7"/><circle cx="66.68" cy="66.68" r="1.25"/><circle cx="57.41" cy="74.81" r="0.7"/><circle cx="47.15" cy="81.67" r="1.25"/><circle cx="36.09" cy="87.12" r="0.7"/><circle cx="24.41" cy="91.09" r="1.25"/><circle cx="12.31" cy="93.49" r="0.7"/><circle cx="0.0" cy="94.3" r="1.25"/><circle cx="-12.31" cy="93.49" r="0.7"/><circle cx="-24.41" cy="91.09" r="1.25"/><circle cx="-36.09" cy="87.12" r="0.7"/><circle cx="-47.15" cy="81.67" r="1.25"/><circle cx="-57.41" cy="74.81" r="0.7"/><circle cx="-66.68" cy="66.68" r="1.25"/><circle cx="-74.81" cy="57.41" r="0.7"/><circle cx="-81.67" cy="47.15" r="1.25"/><circle cx="-87.12" cy="36.09" r="0.7"/><circle cx="-91.09" cy="24.41" r="1.25"/><circle cx="-93.49" cy="12.31" r="0.7"/><circle cx="-94.3" cy="0.0" r="1.25"/><circle cx="-93.49" cy="-12.31" r="0.7"/><circle cx="-91.09" cy="-24.41" r="1.25"/><circle cx="-87.12" cy="-36.09" r="0.7"/><circle cx="-81.67" cy="-47.15" r="1.25"/><circle cx="-74.81" cy="-57.41" r="0.7"/><circle cx="-66.68" cy="-66.68" r="1.25"/><circle cx="-57.41" cy="-74.81" r="0.7"/><circle cx="-47.15" cy="-81.67" r="1.25"/><circle cx="-36.09" cy="-87.12" r="0.7"/><circle cx="-24.41" cy="-91.09" r="1.25"/><circle cx="-12.31" cy="-93.49" r="0.7"/></g><path transform="rotate(0)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(15)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(30)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(45)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(60)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(75)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(90)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(105)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(120)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(135)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(150)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(165)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(180)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(195)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(210)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(225)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(240)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(255)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(270)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(285)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(300)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(315)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(330)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><path transform="rotate(345)" d="M0 -78 L3 -84 L0 -90 L-3 -84 Z" fill="currentColor" fill-opacity=".25"/><circle r="77" stroke-width=".8" stroke-dasharray="1.2 3.2"/></g><g class="mandala-layer ml-b mand-petals" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><g transform="rotate(0)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(22.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(45)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(67.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(90)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(112.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(135)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(157.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(180)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(202.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(225)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(247.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(270)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(292.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(315)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g><g transform="rotate(337.5)"><path d="M0 -50 C 9.5 -53.48 9.025 -67.98 0 -79 C -9.025 -67.98 -9.5 -53.48 0 -50 Z"/><path class="in" d="M0 -55.8 C 4.275 -57.888 4.06125 -66.588 0 -73.2 C -4.06125 -66.588 -4.275 -57.888 0 -55.8 Z"/></g></g><g class="mandala-layer ml-c mand-petals" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><g transform="rotate(22.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(67.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(112.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(157.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(202.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(247.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(292.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g><g transform="rotate(337.5)"><path d="M0 -20 C 9 -23.6 8.55 -38.6 0 -50 C -8.55 -38.6 -9 -23.6 0 -20 Z"/><path class="in" d="M0 -26 C 4.05 -28.16 3.8475 -37.16 0 -44 C -3.8475 -37.16 -4.05 -28.16 0 -26 Z"/></g></g><g class="mandala-layer ml-d" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M0.0 -34.0 L24.04 24.04 L-34.0 0.0 L24.04 -24.04 L0.0 34.0 L-24.04 -24.04 L34.0 -0.0 L-24.04 24.04 Z" stroke-width="1"/><circle r="36" stroke-width=".7"/><circle r="22" stroke-width=".9"/><path transform="rotate(0)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(22.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(45)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(67.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(90)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(112.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(135)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(157.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(180)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(202.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(225)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(247.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(270)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(292.5)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(315)" d="M0 -12 L0 -22" stroke-width=".8"/><path transform="rotate(337.5)" d="M0 -12 L0 -22" stroke-width=".8"/></g><circle r="11" fill="currentColor" fill-opacity=".22" stroke="none"/><circle r="6.5" fill="currentColor" stroke="none"/><circle r="11" fill="none" stroke="currentColor" stroke-width="1"/></svg></div>
     <div class="together-core"></div>
     <div class="together-dots" id="together-dots"></div>
     <div class="together-hearts" id="together-hearts"></div>
+    <!-- Indikátor fáze: šipka nahoru = nádech, pauza = zádrž, šipka dolů = výdech -->
+    <div class="together-arrow" id="together-arrow" aria-hidden="true">
+      <svg class="ba-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M5.5 11.5L12 5l6.5 6.5"/></svg>
+      <svg class="ba-hold" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
+      <svg class="ba-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M5.5 12.5L12 19l6.5-6.5"/></svg>
+    </div>
   </div>
   <div class="together-phase" id="together-phase" aria-live="polite"></div>
   <div class="together-countdown" id="together-countdown"></div>
@@ -2620,6 +2698,7 @@
   </div>
   <div class="together-weather-row">
     <button type="button" class="btn-breath-ctrl" id="together-weather-btn" onclick="toggleWeather()">WEATHER: OFF</button>
+    <button type="button" class="btn-breath-ctrl" id="together-shape-btn" onclick="toggleBreathShape(true)">SHAPE: ORB</button>
   </div>
 
   <div class="together-info">
@@ -3227,6 +3306,7 @@
   moonImage.onload = function() { moonImageLoaded = true; };
   // WEATHER: SUN — reálná fotka západu slunce, ambientně oživená (ptáci, jiskření na hladině, záře slunce)
   let sunBirds = [];
+  let birdsEnabled = true; // zapnuté/vypnuté létající ptáky ve WEATHER: SUN (ukládá se globálním SAVE)
   let sunGlints = [];
   let sunFrame = 0;
   const sunImage = new Image();
@@ -4073,7 +4153,7 @@
 
       // Hejno ptáků volně proplouvajících oblohou — různé velikosti (blízcí/velcí i vzdálení/drobní)
       // a různé tempo letu, ať to působí přirozeně a ne jako jedna uniformní řada.
-      for (let i = 0; i < sunBirds.length; i++) {
+      for (let i = 0; birdsEnabled && i < sunBirds.length; i++) {
           let b = sunBirds[i];
           b.x += b.speed;
           b.flap += b.flapSpeed;
@@ -4464,7 +4544,23 @@
       else if (!active) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
+  // Malé tlačítko s ptákem vlevo od WEATHER: aktivní jen při WEATHER: SUN, zapíná/vypíná létající ptáky.
+  function applyBirdsUI() {
+      const bb = document.getElementById('btn-birds');
+      if (!bb) return;
+      const sun = weatherMode === 1;
+      bb.disabled = !sun;
+      bb.classList.toggle('active', sun && birdsEnabled);
+      bb.setAttribute('aria-pressed', (sun && birdsEnabled) ? 'true' : 'false');
+  }
+  window.toggleBirds = function() {
+      if (weatherMode !== 1) return;
+      birdsEnabled = !birdsEnabled;
+      applyBirdsUI();
+  };
+
   function applyWeatherUI() {
+      applyBirdsUI();
       let btn = document.getElementById('btn-weather');
       if (weatherMode === 0) {
           btn.innerText = "WEATHER: OFF";
@@ -4673,12 +4769,23 @@
     try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
   }
 
+  // Šipka vedle koule: nahoru = nádech, pauza = zádrž, dolů = výdech
+  const breathArrowEl = document.getElementById('breath-arrow');
+  function setBreathArrow(phase) {
+    if (!breathArrowEl) return;
+    breathArrowEl.removeAttribute('data-type');
+    void breathArrowEl.offsetWidth; // restart animace při každé fázi
+    breathArrowEl.style.setProperty('--ba-dur', phase.duration + 's');
+    breathArrowEl.setAttribute('data-type', phase.type);
+  }
+
   function runBreathPhase() {
     if (!breathingActive || breathingPaused) return;
     const phases = BREATH_TECHNIQUES[currentBreathTechnique].phases;
     const phase = phases[breathPhaseIndex];
     breathPhaseEl.innerText = phase.label || DEFAULT_PHASE_LABELS[phase.type];
     setBreathTransitionDuration(phase.duration);
+    setBreathArrow(phase);
 
     const visual = getPhaseVisual(phase);
     if (phase.type !== 'hold') lastBreathVisual = visual;
@@ -5069,6 +5176,34 @@
   probeConnection();
   setInterval(probeConnection, 30000);
 
+  // Přepínač tvaru uprostřed dechu: koule / mandala (platí v BREATHE i v TOGETHER).
+  // Tvar se ukládá tlačítkem SAVE v BREATHE spolu s ostatními nastaveními dechu (klíč breathShape
+  // v synthlucida_settings); v místnosti TOGETHER SAVE není, tak se tam uloží hned při přepnutí.
+  function currentBreathShape() { return document.body.classList.contains('shape-mandala') ? 'mandala' : 'orb'; }
+  function applyBreathShape(shape) {
+    const m = shape === 'mandala';
+    document.body.classList.toggle('shape-mandala', m);
+    ['breath-shape-btn', 'together-shape-btn'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) { b.textContent = m ? 'SHAPE: MANDALA' : 'SHAPE: ORB'; b.classList.toggle('active', m); }
+    });
+  }
+  function persistBreathShapeNow() {
+    let st = {};
+    try { const ex = localStorage.getItem('synthlucida_settings'); if (ex) st = JSON.parse(ex); } catch (e) { st = {}; }
+    if (!st || typeof st !== 'object' || Array.isArray(st)) st = {};
+    st.breathShape = currentBreathShape();
+    try { localStorage.setItem('synthlucida_settings', JSON.stringify(st)); } catch (e) { /* ignore */ }
+  }
+  window.toggleBreathShape = function(saveNow) {
+    applyBreathShape(currentBreathShape() === 'mandala' ? 'orb' : 'mandala');
+    if (saveNow === true) persistBreathShapeNow();
+  };
+  try {
+    const stInit = JSON.parse(localStorage.getItem('synthlucida_settings') || 'null');
+    applyBreathShape(stInit && stInit.breathShape === 'mandala' ? 'mandala' : 'orb');
+  } catch (e) { applyBreathShape('orb'); }
+
   window.startBreathing = function() {
     if (breathingActive) return;
     breathingActive = true;
@@ -5087,6 +5222,7 @@
     applyBreathPhase(OUT_VISUAL);
     breathPhaseEl.innerText = '';
     breathCountEl.innerText = '';
+    if (breathArrowEl) breathArrowEl.removeAttribute('data-type');
     document.getElementById('breathing-overlay').classList.add('breath-paused');
 
     updateBreathTechniqueUI();
@@ -5099,6 +5235,7 @@
   window.pauseBreathCycle = function() {
     if (!breathingActive || breathingPaused) return;
     breathingPaused = true;
+    breathElapsedPause();
     clearTimeout(breathPhaseTimeout);
     clearInterval(breathCountdownInterval);
     clearTimeout(breathSloganTimeout);
@@ -5114,6 +5251,7 @@
     if (!breathingPaused) return;
     breathingPaused = false;
     document.getElementById('breathing-overlay').classList.remove('breath-paused');
+    breathElapsedStart();
 
     if (!breathCycleStarted) {
       // Skutečný první start cyklu - teprve odsud se počítá čas pro XP (ochrana
@@ -5163,6 +5301,7 @@
     settings.vibrationEnabled = vibrationEnabled;
     settings.breathTechnique = currentBreathTechnique;
     settings.weather = weatherMode;
+    settings.breathShape = currentBreathShape();
     try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
 
     const btn = document.getElementById('breath-save-btn');
@@ -5217,11 +5356,40 @@
     }, delay);
   }
 
+  // Časovač dýchání: sčítá jen dobu, kdy cyklus opravdu běží (STOP ho zastaví, START naváže, zavření overlaye vynuluje)
+  let breathElapsedMs = 0, breathElapsedStamp = null, breathElapsedInterval = null;
+  function renderBreathElapsed() {
+    const el = document.getElementById('breath-elapsed');
+    if (!el) return;
+    const total = Math.floor((breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0)) / 1000);
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), sec = total % 60;
+    const mm = String(m).padStart(2, '0'), ss = String(sec).padStart(2, '0');
+    el.textContent = h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+  }
+  function breathElapsedStart() {
+    if (breathElapsedStamp) return;
+    breathElapsedStamp = Date.now();
+    clearInterval(breathElapsedInterval);
+    breathElapsedInterval = setInterval(renderBreathElapsed, 500);
+    renderBreathElapsed();
+  }
+  function breathElapsedPause() {
+    if (breathElapsedStamp) { breathElapsedMs += Date.now() - breathElapsedStamp; breathElapsedStamp = null; }
+    clearInterval(breathElapsedInterval); breathElapsedInterval = null;
+    renderBreathElapsed();
+  }
+  function breathElapsedReset() {
+    breathElapsedMs = 0; breathElapsedStamp = null;
+    clearInterval(breathElapsedInterval); breathElapsedInterval = null;
+    renderBreathElapsed();
+  }
+
   window.stopBreathing = function() {
     if (!breathingActive) return;
     breathingActive = false;
     breathingPaused = false;
     breathCycleStarted = false;
+    breathElapsedReset();
 
     // XP za dokončené cvičení - jen pokud reálně trvalo aspoň BREATHING_XP_MIN_SECONDS,
     // aby nešlo nasbírat XP rychlým klikáním start/stop
@@ -8025,6 +8193,7 @@
     settings.orbsOff = !!(window.isOrbsOff && window.isOrbsOff());
     settings.sunPhotoSource = (typeof window.getSunPhotoSource === 'function') ? window.getSunPhotoSource() : 'mix';
     settings.motivationTexts = motivationTextsEnabled;
+    settings.birdsEnabled = birdsEnabled;
     try { localStorage.setItem('synthlucida_settings', JSON.stringify(settings)); } catch (e) { /* ignore */ }
     
     // Malý vizuální feedback
@@ -8137,8 +8306,10 @@
             if (typeof settings.logoGlowEnabled === 'boolean') logoGlowEnabled = settings.logoGlowEnabled;
             if (typeof settings.sparkleState === 'number' && (settings.sparkleState === 0 || settings.sparkleState === 1 || settings.sparkleState === 2)) sparkleState = settings.sparkleState;
             if (typeof settings.motivationTexts === 'boolean') motivationTextsEnabled = settings.motivationTexts;
+            if (settings.birdsEnabled === false) birdsEnabled = false;
         }
     } catch (e) { console.error("Nelze načíst nastavení:", e); }
+    applyBirdsUI();
     applyLogoGlowUI();
     applySparkleUI();
     updateMotivationBtnUI();
@@ -9596,6 +9767,12 @@
         if (phaseType === 'hold') opacity -= 0.12 * (0.5 - 0.5 * Math.cos(2 * Math.PI * (t - IN_MS) / 2400));
         orb.style.transform = 'scale(' + (OUT_SCALE + (IN_SCALE - OUT_SCALE) * fill).toFixed(4) + ')';
         orb.style.opacity = opacity.toFixed(3);
+      }
+      const arrow = $('together-arrow');
+      if (arrow) {
+        if (arrow.getAttribute('data-type') !== phaseType) arrow.setAttribute('data-type', phaseType);
+        // šipka se jemně posouvá ve směru dechu (nahoru při nádechu, dolů při výdechu)
+        arrow.style.transform = phaseType === 'hold' ? '' : 'translateY(' + ((0.5 - fill) * 16).toFixed(2) + 'px)';
       }
       const dots = $('together-dots');
       if (dots) dots.style.transform = 'scale(' + (0.86 + 0.14 * fill).toFixed(4) + ')';
