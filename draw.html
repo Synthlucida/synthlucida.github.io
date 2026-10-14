@@ -51,7 +51,7 @@
   "featureList": [
     "Glowing neon, ink, chalk and soft brush styles",
     "Ambient sound that follows the brush",
-    "34 detailed coloring pages (mandalas, animals, nature scenes) with one-tap fill",
+    "37 detailed coloring pages (mandalas, animals, nature scenes) with one-tap fill",
     "Text and emoji stamps with graphic styles",
     "Bring-to-Life part animation (flap, sway, spin, bob, pulse, fade, drift, twinkle)",
     "Export as PNG image, animated GIF, or WEBM video"
@@ -259,6 +259,19 @@
   }
   .color-swatch:hover { transform: scale(1.08); }
   .color-swatch.active { border-color: #fff; box-shadow: 0 0 10px var(--c, #fff), 0 0 3px #fff; transform: scale(1.12); }
+  /* Rainbow brush swatch: the colors slowly rotate (browsers without @property just show it still). */
+  @property --rb-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  .color-swatch-rainbow {
+    position: relative;
+    background: conic-gradient(from var(--rb-a), #ff3b3b, #ffb400, #ffee33, #3dff88, #33d6ff, #6a6bff, #c15cff, #ff4fd2, #ff3b3b);
+    animation: rbSpin 7s linear infinite;
+  }
+  .color-swatch-rainbow::after {
+    content: ''; position: absolute; inset: 18%; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0) 62%);
+  }
+  @keyframes rbSpin { to { --rb-a: 360deg; } }
+  @media (prefers-reduced-motion: reduce) { .color-swatch-rainbow { animation: none; } }
 
   .color-swatch-custom {
     width: 32px; height: 32px; border-radius: 50%; cursor: pointer; flex-shrink: 0; position: relative;
@@ -342,11 +355,14 @@
   .template-gallery {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px;
     max-height: 0; overflow: hidden; opacity: 0; margin-top: 0;
-    transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
+    transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.25s ease, padding 0.25s ease;
   }
-  .template-gallery.open { max-height: 260px; overflow-y: auto; opacity: 1; margin-top: 8px; }
+  /* Padding gives hovered/active buttons room for their glow and zoom (overflow-y:auto also clips
+     sideways, which used to cut the border of the first/last column and top row); the negative
+     margin keeps the buttons exactly where they were. */
+  .template-gallery.open { max-height: 278px; overflow-y: auto; opacity: 1; padding: 9px; margin: -1px -9px -9px; }
   #template-gallery { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
-  #template-gallery.open { max-height: 360px; }
+  #template-gallery.open { max-height: 378px; }
   .btn-template-thumb { padding: 3px; background: rgba(0,0,0,0.35); }
   .btn-template-thumb .tpl-thumb { width: 100%; height: 100%; display: block; pointer-events: none; }
   .template-toggle-thumb { width: 18px; height: 18px; display: inline-block; vertical-align: middle; border-radius: 3px; background: rgba(0,0,0,0.4); }
@@ -518,7 +534,7 @@
     <p data-i18n="p_drawing">Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.</p>
 
     <h3 data-i18n="h_brush">BRUSH</h3>
-    <p data-i18n="p_brush">Pick a color from the palette and set the size with the slider. The "+" swatch opens a full custom color picker. Your last choice is remembered next time you visit.</p>
+    <p data-i18n="p_brush">Pick a color from the palette and set the size with the slider. The "+" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. Your last choice is remembered next time you visit.</p>
 
     <h3 data-i18n="h_brushfeel">BRUSH FEEL</h3>
     <ul>
@@ -529,7 +545,7 @@
     </ul>
 
     <h3 data-i18n="h_coloring">COLORING PAGE</h3>
-    <p data-i18n="p_coloring">Open CHOOSE A PAGE and pick one of 34 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick "✕" to go back to a blank canvas.</p>
+    <p data-i18n="p_coloring">Open CHOOSE A PAGE and pick one of 37 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick "✕" to go back to a blank canvas.</p>
 
     <h3 data-i18n="h_tools">TOOLS</h3>
     <ul>
@@ -703,6 +719,7 @@
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   let brushColor = '#ffcc00';
+  let rainbowOn = false;           // special rainbow brush: the hue flows along the stroke
   let brushSize = 10;
   let brushStyle = 'soft';
   let eraseMode = false;
@@ -770,6 +787,31 @@
     rainbow: { icon: '🌈', label: 'RAINBOW', speed: 0.5 }
   };
 
+  // --- RAINBOW BRUSH ---
+  // The hue depends on how far along the stroke you are (plus a start hue taken from the clock),
+  // so colors flow while you paint and a replay (ANIMATE / VIDEO / GIF) paints exactly the same colors.
+  const RAINBOW_DEG_PER_PX = 0.8;
+  let rbDist = 0;                  // length of the current stroke so far (px)
+  let stampHue = 0;                // hue used for text / emoji placed in rainbow mode
+  function hslCss(h) { return 'hsl(' + Math.round(((h % 360) + 360) % 360) + ',100%,60%)'; }
+  function hslHex(h) {
+    h = ((h % 360) + 360) % 360;
+    const k = n => (n + h / 30) % 12, a = 0.4;   // a = s * min(l, 1 - l) for s = 100 %, l = 60 %
+    const f = n => 0.6 - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return '#' + [f(0), f(8), f(4)].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  }
+  function rainbowHueNow() { return (performance.now() / 25) % 360; }
+  // Single color for things that need a plain hex (text, emoji, previews).
+  function solidColor() { return rainbowOn ? hslHex(stampHue) : brushColor; }
+  // Color for the sparkle particles right now.
+  function liveColor() {
+    if (rainbowOn && !eraseMode) {
+      const h = (currentStroke && typeof currentStroke.rainbow === 'number') ? currentStroke.rainbow + rbDist * RAINBOW_DEG_PER_PX : rainbowHueNow();
+      return hslCss(h);
+    }
+    return brushColor;
+  }
+
   // --- SAVED PREFERENCES ---
   function loadPrefs() {
     try {
@@ -781,6 +823,7 @@
       if (typeof p.color === 'string' && /^#[0-9a-f]{6}$/i.test(p.color)) brushColor = p.color;
       const savedSize = Number(p.size);
       if (isFinite(savedSize) && savedSize > 0) brushSize = Math.max(2, Math.min(44, Math.round(savedSize)));
+      if (typeof p.rainbow === 'boolean') rainbowOn = p.rainbow;
       if (typeof p.sparkle === 'boolean') sparkleOn = p.sparkle;
       if (typeof p.sound === 'boolean') soundOn = p.sound;
       if (typeof p.volume === 'number' && isFinite(p.volume)) soundVolume = Math.max(0, Math.min(1, p.volume));
@@ -789,7 +832,7 @@
     } catch (e) {}
   }
   function savePrefs() {
-    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, size: brushSize, sparkle: sparkleOn, sound: soundOn, volume: soundVolume, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
+    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, rainbow: rainbowOn, size: brushSize, sparkle: sparkleOn, sound: soundOn, volume: soundVolume, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
   }
   loadPrefs();
 
@@ -813,7 +856,7 @@
   // --- CANVAS: RESOLUTION SETUP (ACCOUNTING FOR DPR) ---
   function resizeAll(preserve) {
     const newDpr = Math.max(1, window.devicePixelRatio || 1);
-    const rect = stack.getBoundingClientRect();
+    const rect = drawCanvas.getBoundingClientRect();
     const w = Math.max(1, Math.round(rect.width));
     const h = Math.max(1, Math.round(rect.height));
     // Mobile browsers fire "resize" whenever the address bar slides in/out —
@@ -863,14 +906,16 @@
   PALETTE.forEach(hex => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'color-swatch' + (hex.toLowerCase() === brushColor.toLowerCase() ? ' active' : '');
+    b.className = 'color-swatch' + (hex.toLowerCase() === brushColor.toLowerCase() && !rainbowOn ? ' active' : '');
     b.style.background = hex;
     b.style.setProperty('--c', hex);
     b.setAttribute('aria-label', 'Color ' + hex);
     b.addEventListener('click', () => {
       brushColor = hex;
+      rainbowOn = false;
       eraseMode = false;
       document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      customSwatch.classList.remove('active');
       b.classList.add('active');
       document.getElementById('btn-eraser').classList.remove('active');
       savePrefs();
@@ -888,6 +933,7 @@
   customColorInput.value = brushColor;
   function selectCustomColor(hex) {
     brushColor = hex;
+    rainbowOn = false;
     eraseMode = false;
     document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
     document.getElementById('btn-eraser').classList.remove('active');
@@ -896,10 +942,29 @@
     savePrefs();
   }
   customColorInput.addEventListener('input', () => selectCustomColor(customColorInput.value));
-  if (!PALETTE.some(hex => hex.toLowerCase() === brushColor.toLowerCase())) {
+  if (!rainbowOn && !PALETTE.some(hex => hex.toLowerCase() === brushColor.toLowerCase())) {
     customSwatch.classList.add('active');
     customSwatch.style.setProperty('--c', brushColor);
   }
+
+  // --- RAINBOW SWATCH (animated; paints flowing rainbow colors) ---
+  const rainbowSwatch = document.createElement('button');
+  rainbowSwatch.type = 'button';
+  rainbowSwatch.id = 'btn-rainbow';
+  rainbowSwatch.className = 'color-swatch color-swatch-rainbow' + (rainbowOn ? ' active' : '');
+  rainbowSwatch.style.setProperty('--c', '#ff66cc');
+  rainbowSwatch.title = 'Rainbow brush';
+  rainbowSwatch.setAttribute('aria-label', 'Rainbow brush');
+  rainbowSwatch.addEventListener('click', () => {
+    rainbowOn = true;
+    eraseMode = false;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    customSwatch.classList.remove('active');
+    rainbowSwatch.classList.add('active');
+    document.getElementById('btn-eraser').classList.remove('active');
+    savePrefs();
+  });
+  paletteEl.appendChild(rainbowSwatch);
 
   // --- BRUSH SIZE ---
   const sizeSlider = document.getElementById('brush-size');
@@ -1320,6 +1385,9 @@
     ['mandala', 'Mandala'],
     ['lotus', 'Lotus mandala'],
     ['starmandala', 'Star mandala'],
+    ['sunmandala', 'Sun mandala'],
+    ['blossommandala', 'Blossom mandala'],
+    ['geomandala', 'Geometric mandala'],
     ['flower', 'Flower'],
     ['butterfly', 'Butterfly'],
     ['leaf', 'Leaf & ladybug'],
@@ -1440,6 +1508,103 @@
         A.petalRing(cx, cy, 12, 40, 116, 20, 0, { shape: 'pointy', inner: true });
         A.fcircle(cx, cy, 40);
         A.front(A.starP(cx, cy, 36, 16, 6, 0));
+      },
+
+      sunmandala(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        // corner suns
+        [[0, 0], [1000, 0], [0, 1000], [1000, 1000]].forEach(([x, y]) => {
+          A.circle(x, y, 146);
+          A.front(A.starP(x, y, 146, 112, 14, 0));
+          A.fcircle(x, y, 112);
+          A.petalRing(x, y, 10, 44, 106, 20, TAU / 20, { shape: 'pointy' });
+          A.fcircle(x, y, 46);
+          A.circle(x, y, 20);
+        });
+        A.fcircle(cx, cy, 482);
+        A.dotRing(cx, cy, 466, 72, 5);
+        A.fcircle(cx, cy, 448);
+        A.front(A.starP(cx, cy, 446, 372, 36, 0));          // spiky sun rim
+        A.fcircle(cx, cy, 372);
+        A.petalRing(cx, cy, 18, 236, 362, 40, TAU / 36, { shape: 'pointy', inner: true, tipDot: 7 });   // long rays
+        A.petalRing(cx, cy, 18, 236, 318, 38, 0, { shape: 'round', inner: true, dot: 6 });                // short rounded petals between
+        A.fcircle(cx, cy, 238);
+        A.front(A.scallopP(cx, cy, 196, 24, 11));
+        A.dotRing(cx, cy, 222, 24, 6, TAU / 48);
+        A.fcircle(cx, cy, 196);
+        A.petalRing(cx, cy, 12, 84, 188, 32, TAU / 24, { shape: 'pointy', inner: true });
+        A.petalRing(cx, cy, 12, 84, 160, 34, 0, { shape: 'lotus', inner: true, vein: true });
+        A.fcircle(cx, cy, 86);
+        A.dotRing(cx, cy, 70, 16, 6);
+        A.fcircle(cx, cy, 56);
+        A.front(A.softStarP(cx, cy, 54, 32, 12));
+        A.circle(cx, cy, 18);
+      },
+
+      blossommandala(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        // corner rosettes
+        [[0, 0], [1000, 0], [0, 1000], [1000, 1000]].forEach(([x, y]) => {
+          A.circle(x, y, 140);
+          A.petalRing(x, y, 12, 62, 136, 18, TAU / 24, { shape: 'round', front: false });
+          A.fcircle(x, y, 64);
+          A.petalRing(x, y, 8, 22, 60, 12, 0, { shape: 'pointy' });
+          A.fcircle(x, y, 22);
+        });
+        A.fcircle(cx, cy, 482);
+        A.front(A.scallopP(cx, cy, 452, 40, 11));
+        A.dotRing(cx, cy, 440, 40, 6, TAU / 80);
+        A.fcircle(cx, cy, 424);
+        // six big blossoms on a ring, leaves in between
+        for (let k = 0; k < 6; k++) {
+          const a = -Math.PI / 2 + k * TAU / 6;
+          const fx = cx + Math.cos(a) * 292, fy = cy + Math.sin(a) * 292;
+          A.petalRing(fx, fy, 8, 34, 128, 36, a, { shape: 'round', inner: true });
+          A.fcircle(fx, fy, 36);
+          A.dotRing(fx, fy, 22, 6, 4);
+          const b = a + TAU / 12;
+          A.leaf(cx + Math.cos(b) * 232, cy + Math.sin(b) * 232, cx + Math.cos(b) * 408, cy + Math.sin(b) * 408, 30, 3);
+        }
+        A.fcircle(cx, cy, 172);
+        A.petalRing(cx, cy, 12, 66, 166, 30, TAU / 24, { shape: 'pointy', inner: true });
+        A.petalRing(cx, cy, 12, 66, 138, 32, 0, { shape: 'round', inner: true, dot: 6 });
+        A.fcircle(cx, cy, 68);
+        A.petalRing(cx, cy, 8, 20, 64, 20, TAU / 16, { shape: 'round' });
+        A.fcircle(cx, cy, 24);
+        A.circle(cx, cy, 8);
+      },
+
+      geomandala(A) {
+        const cx = 500, cy = 500, TAU = A.TAU;
+        // corner diamonds
+        [[0, 0], [1000, 0], [0, 1000], [1000, 1000]].forEach(([x, y]) => {
+          A.circle(x, y, 150); A.circle(x, y, 108);
+          A.front(A.starP(x, y, 104, 56, 8, TAU / 16));
+          A.fcircle(x, y, 40);
+          A.dotRing(x, y, 128, 16, 5);
+        });
+        A.fcircle(cx, cy, 482);
+        A.dotRing(cx, cy, 466, 64, 5);
+        A.fcircle(cx, cy, 448);
+        // twelve-point star ring with a petal inside every point
+        A.front(A.starP(cx, cy, 446, 374, 12, -Math.PI / 2));
+        A.fcircle(cx, cy, 338);
+        A.petalRing(cx, cy, 12, 340, 438, 30, -Math.PI / 2, { shape: 'pointy', inner: true, inner2: true });
+        A.dotRing(cx, cy, 414, 12, 8, -Math.PI / 2 + Math.PI / 12);
+        // flower-of-life pattern inside the inner disc
+        A.clip(A.circleP(cx, cy, 336), () => {
+          A.circle(cx, cy, 112);
+          for (let k = 0; k < 6; k++) {
+            const a = k * TAU / 6;
+            A.circle(cx + Math.cos(a) * 112, cy + Math.sin(a) * 112, 112);
+            const b = a + TAU / 12;
+            A.circle(cx + Math.cos(b) * 194, cy + Math.sin(b) * 194, 112);
+            A.circle(cx + Math.cos(a) * 224, cy + Math.sin(a) * 224, 112);
+          }
+        });
+        A.fcircle(cx, cy, 60);
+        A.front(A.starP(cx, cy, 56, 28, 6, 0));
+        A.circle(cx, cy, 10);
       },
 
       flower(A) {
@@ -2806,7 +2971,14 @@
     octx.putImageData(id, 0, 0);
     octx.globalCompositeOperation = 'source-in';
     const glow = style === 'neon' ? 0.85 : (style === 'soft' ? 0.55 : 0);
-    if (glow) {
+    if (color === 'rainbow') {
+      // Rainbow fill: a diagonal rainbow across the area (shifted a little by where you tapped).
+      const g = octx.createLinearGradient(0, 0, bw, bh);
+      const shift = ((cx / Math.max(1, bw)) + (cy / Math.max(1, bh))) * 0.5;
+      const stops = ['#ff3b3b', '#ffb400', '#ffee33', '#3dff88', '#33d6ff', '#6a6bff', '#c15cff', '#ff4fd2'];
+      stops.forEach((c, i) => g.addColorStop(Math.min(1, Math.max(0, i / (stops.length - 1))), stops[(i + Math.round(shift * (stops.length - 1))) % stops.length]));
+      octx.fillStyle = g;
+    } else if (glow) {
       const base = hexToRgb(color), light = hexToRgb(shadeHex(color, 26));
       const maxD = Math.max(1, Math.hypot(Math.max(cx, bw - cx), Math.max(cy, bh - cy)));
       const g = octx.createRadialGradient(cx, cy, 0, cx, cy, maxD);
@@ -2859,10 +3031,11 @@
   function fillAt(x, y) {
     if (isAnimating || isLive) return;
     const p = { x, y };
-    const res = computeFill(p.x, p.y, brushColor, brushStyle);
+    const fillColor = rainbowOn ? 'rainbow' : brushColor;
+    const res = computeFill(p.x, p.y, fillColor, brushStyle);
     if (!res) return;
     pushUndo();
-    const st = { type: 'fill', spec: res.spec, bx: res.bx, by: res.by, bw: res.bw, bh: res.bh, color: brushColor, x: p.x, y: p.y, refW: cssW };
+    const st = { type: 'fill', spec: res.spec, bx: res.bx, by: res.by, bw: res.bw, bh: res.bh, color: fillColor, x: p.x, y: p.y, refW: cssW };
     drawFillStroke(st);
     strokes.push(st);
     if (sparkleOn) spawnParticles(p.x, p.y, 10);
@@ -3156,7 +3329,7 @@
     const padX = fontPx * 0.3, padY = fontPx * 0.35;
     const w = tw + padX * 2;
     const h = fontPx + padY * 2;
-    const stackRect = stack.getBoundingClientRect();
+    const stackRect = drawCanvas.getBoundingClientRect();
     const rx = Math.max(0, Math.min(x - w / 2, Math.max(0, stackRect.width - w)));
     const ry = Math.max(0, Math.min(y - h / 2, Math.max(0, stackRect.height - h)));
     return { x: rx, y: ry, w, h };
@@ -3166,7 +3339,7 @@
   // anchors above a rect, flipping below when there isn't room, and keeps the
   // whole panel clamped inside the canvas stack so it never clips off-screen.
   function positionNearRect(el, rect) {
-    const stackRect = stack.getBoundingClientRect();
+    const stackRect = drawCanvas.getBoundingClientRect();
     const tw = el.offsetWidth;
     const th = el.offsetHeight;
     const margin = 10;
@@ -3227,7 +3400,7 @@
       btn.type = 'button';
       btn.className = 'text-style-swatch';
       btn.textContent = meta.icon + ' ' + meta.label;
-      Object.assign(btn.style, meta.swatch(brushColor));
+      Object.assign(btn.style, meta.swatch(solidColor()));
       btn.addEventListener('click', () => commitTextPlacement(key));
       el.appendChild(btn);
     });
@@ -3250,8 +3423,9 @@
     const decorations = pendingDecorations ? Array.from(pendingDecorations) : [];
     removeTextStylePicker();
     pushUndo();
-    drawTextStamp(text, x, y, brushColor, fontPx, 'text', styleKey, decorations);
-    strokes.push({ type: 'stamp', kind: 'text', text, x, y, color: brushColor, fontPx, style: styleKey, decorations, refW: cssW });
+    const stampColor = solidColor();
+    drawTextStamp(text, x, y, stampColor, fontPx, 'text', styleKey, decorations);
+    strokes.push({ type: 'stamp', kind: 'text', text, x, y, color: stampColor, fontPx, style: styleKey, decorations, refW: cssW });
     if (sparkleOn) spawnParticles(x, y, 6);
     if (decorations.includes('sparkle')) {
       dctx.save(); dctx.font = stampFont('text', fontPx); const tw = dctx.measureText(text).width; dctx.restore();
@@ -3283,9 +3457,9 @@
     el.maxLength = 40;
     el.placeholder = 'Aa';
     el.autocomplete = 'off';
-    el.style.left = Math.min(Math.max(x, 60), Math.max(60, stack.getBoundingClientRect().width - 60)) + 'px';
-    el.style.top = Math.min(Math.max(y, 18), Math.max(18, stack.getBoundingClientRect().height - 18)) + 'px';
-    el.style.color = brushColor;
+    el.style.left = Math.min(Math.max(x, 60), Math.max(60, drawCanvas.getBoundingClientRect().width - 60)) + 'px';
+    el.style.top = Math.min(Math.max(y, 18), Math.max(18, drawCanvas.getBoundingClientRect().height - 18)) + 'px';
+    el.style.color = solidColor();
     stack.appendChild(el);
     textInputEl = el;
     requestAnimationFrame(() => el.focus());
@@ -3309,6 +3483,7 @@
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (textInputEl) { e.preventDefault(); textInputEl.blur(); return; } // commit the word being typed first
     const p = getPos(e);
+    stampHue = rainbowHueNow();
     showTextInput(p.x, p.y);
     e.preventDefault();
   }
@@ -3394,8 +3569,9 @@
     if (!emoji) return;
     pushUndo();
     const fontPx = Math.max(24, Math.round(brushSize * 4.5));
-    drawTextStamp(emoji, x, y, brushColor, fontPx, 'emoji');
-    strokes.push({ type: 'stamp', kind: 'emoji', text: emoji, x, y, color: brushColor, fontPx, refW: cssW });
+    const stampColor = solidColor();
+    drawTextStamp(emoji, x, y, stampColor, fontPx, 'emoji');
+    strokes.push({ type: 'stamp', kind: 'emoji', text: emoji, x, y, color: stampColor, fontPx, refW: cssW });
     if (sparkleOn) spawnParticles(x, y, 6);
     updateUndoBtn();
     updateAnimateBtns();
@@ -3405,6 +3581,7 @@
   function onEmojiPointerDown(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const p = getPos(e);
+    stampHue = rainbowHueNow();
     placeEmoji(selectedEmoji, p.x, p.y);
     e.preventDefault();
   }
@@ -3798,7 +3975,10 @@
   // --- DRAWING MECHANICS (TWO-LAYER NEON STROKE) ---
   function getPos(e) {
     const rect = drawCanvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    // cssW/cssH is the size the canvas was set up with; scale so the pointer lands exactly
+    // where the brush draws even when the displayed size differs by a fraction of a pixel.
+    const sx = rect.width ? cssW / rect.width : 1, sy = rect.height ? cssH / rect.height : 1;
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
   }
 
   function speedFactor(dx, dy, dt) {
@@ -3907,7 +4087,13 @@
   }
 
   function strokeSegment(x0, y0, x1, y1, sf) {
-    drawSegment(x0, y0, x1, y1, sf, brushColor, brushSize, eraseMode, brushStyle);
+    let color = brushColor;
+    if (currentStroke && typeof currentStroke.rainbow === 'number' && !eraseMode) {
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      color = hslCss(currentStroke.rainbow + (rbDist + len / 2) * RAINBOW_DEG_PER_PX);
+      rbDist += len;
+    }
+    drawSegment(x0, y0, x1, y1, sf, color, brushSize, eraseMode, brushStyle);
   }
 
   // --- PARTICLES (SPARKLE TRAIL) ---
@@ -3921,7 +4107,7 @@
         r: (1 + Math.random() * 2.2) * scale,
         life: 1,
         decay: 0.02 + Math.random() * 0.02,
-        color: brushColor
+        color: liveColor()
       });
     }
     if (particles.length > 220) particles.splice(0, particles.length - 220);
@@ -3995,7 +4181,9 @@
     pushUndo();
     drawing = true;
     lastX = p.x; lastY = p.y; lastT = performance.now();
+    rbDist = 0;
     currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, style: brushStyle, refW: cssW, points: [{ x: p.x, y: p.y, t: 0 }] };
+    if (rainbowOn && !eraseMode) currentStroke.rainbow = rainbowHueNow();   // start hue of this stroke
     strokeSegment(p.x, p.y, p.x + 0.5, p.y, 1);
     if (sparkleOn) spawnParticles(p.x, p.y, 4);
     startVoice(p.x, p.y, drawCanvas.getBoundingClientRect(), eraseMode);
@@ -4095,14 +4283,14 @@
     h_drawing: { en: "DRAWING", cz: "KRESLENÍ" },
     p_drawing: { en: "Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.", cz: "Stiskněte a táhněte myší nebo prstem a malujte. Jediné klepnutí zanechá tečku. Níže vyberte BRUSH FEEL a změňte tak vzhled svých tahů." },
     h_brush: { en: "BRUSH", cz: "ŠTĚTEC" },
-    p_brush: { en: "Pick a color from the palette and set the size with the slider. The \"+\" swatch opens a full custom color picker. Your last choice is remembered next time you visit.", cz: "Vyberte barvu z palety a velikost nastavte posuvníkem. Vzorek „+“ otevře plný výběr vlastní barvy. Vaše poslední volba se zapamatuje na příště." },
+    p_brush: { en: "Pick a color from the palette and set the size with the slider. The \"+\" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. Your last choice is remembered next time you visit.", cz: "Vyberte barvu z palety a velikost nastavte posuvníkem. Vzorek „+“ otevře plný výběr vlastní barvy a třpytivý duhový vzorek maluje plynule se měnícími duhovými barvami. Vaše poslední volba se zapamatuje na příště." },
     h_brushfeel: { en: "BRUSH FEEL", cz: "STYL ŠTĚTCE" },
     li_feel_1: { en: "🌤 SOFT — a gentle, diffused watercolor wash, lovely for slow relaxed painting", cz: "🌤 SOFT — jemný, rozostřený akvarelový nádech, skvělý pro pomalé uvolněné malování" },
     li_feel_2: { en: "🖋 INK — a tapered brush-pen stroke that deepens where lines overlap", cz: "🖋 INK — zúžený tah brush-pen štětce, který tmavne tam, kde se čáry překrývají" },
     li_feel_3: { en: "🌾 CHALK — a dry, grainy pastel texture", cz: "🌾 CHALK — suchá, zrnitá pastelová textura" },
     li_feel_4: { en: "✨ NEON — the original bright glowing light trail", cz: "✨ NEON — původní jasná zářící světelná stopa" },
     h_coloring: { en: "COLORING PAGE", cz: "OMALOVÁNKA" },
-    p_coloring: { en: "Open CHOOSE A PAGE and pick one of 34 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick \"✕\" to go back to a blank canvas.", cz: "Otevřete VYBRAT OMALOVÁNKU a vyberte si jednu z 34 detailních omalovánek — mandaly, zvířátka, přírodu a další. Automaticky se zapne 🪣 FILL: klepnutím na libovolnou plochu ji vyplníte barvou, tažením můžete volně malovat jakýmkoli štětcem. Barva vždy zůstane pod obrysem a CLEAR smaže jen vaši malbu, ne omalovánku. Výběrem nové omalovánky začnete načisto (↺ UNDO vám předchozí malbu vrátí). Volbou „✕“ se vrátíte k prázdnému plátnu." },
+    p_coloring: { en: "Open CHOOSE A PAGE and pick one of 37 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick \"✕\" to go back to a blank canvas.", cz: "Otevřete VYBRAT OMALOVÁNKU a vyberte si jednu z 37 detailních omalovánek — mandaly, zvířátka, přírodu a další. Automaticky se zapne 🪣 FILL: klepnutím na libovolnou plochu ji vyplníte barvou, tažením můžete volně malovat jakýmkoli štětcem. Barva vždy zůstane pod obrysem a CLEAR smaže jen vaši malbu, ne omalovánku. Výběrem nové omalovánky začnete načisto (↺ UNDO vám předchozí malbu vrátí). Volbou „✕“ se vrátíte k prázdnému plátnu." },
     lbl_volume: { en: "VOLUME", cz: "HLASITOST" },
     p_coloring_hint: { en: "Pick a page, then tap areas with 🪣 FILL or paint with any brush — your colors always stay under the lines.", cz: "Vyberte omalovánku a pak klepejte na plochy s 🪣 FILL, nebo malujte libovolným štětcem — barvy vždy zůstanou pod čarami." },
     li_tools_10: { en: "🪣 FILL — tap an area to fill it with the current color (dragging still paints with the brush). On a coloring page the outline keeps the color inside its lines; on a blank canvas it fills the shape you drew around the tap", cz: "🪣 FILL — klepnutím vyplníte plochu aktuální barvou (tažením se dál maluje štětcem). U omalovánky drží barvu uvnitř čar obrys; na prázdném plátně se vyplní tvar, který jste kolem místa klepnutí nakreslili" },
@@ -4228,20 +4416,29 @@
       }
       const pts = stroke.points;
       if (!pts || !pts.length) return;
+      const rbHue = (typeof stroke.rainbow === 'number' && !stroke.erase) ? stroke.rainbow : null;
+      let rbd = 0;
       if (pts.length < 2) {
         const p0 = pts[0];
-        timeline.push({ t: cum, draw: scaled(stroke, k => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, stroke.color, stroke.size, stroke.erase, stroke.style); if (sparkleOn) spawnParticles(p0.x * k, p0.y * k, 4); }) });
+        const dotColor = rbHue !== null ? hslCss(rbHue + 0.25 * RAINBOW_DEG_PER_PX) : stroke.color;
+        timeline.push({ t: cum, draw: scaled(stroke, k => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, dotColor, stroke.size, stroke.erase, stroke.style); if (sparkleOn) spawnParticles(p0.x * k, p0.y * k, 4); }) });
         cum += 60;
       } else {
         for (let i = 1; i < pts.length; i++) {
           const p0 = pts[i - 1], p1 = pts[i];
           const dt = Math.min(45, Math.max(6, p1.t - p0.t));
           cum += dt;
+          let segColor = stroke.color;
+          if (rbHue !== null) {
+            const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+            segColor = hslCss(rbHue + (0.5 + rbd + len / 2) * RAINBOW_DEG_PER_PX);   // 0.5 = the first dot
+            rbd += len;
+          }
           timeline.push({
             t: cum,
             draw: scaled(stroke, k => {
               const sf = speedFactor(p1.x - p0.x, p1.y - p0.y, dt);
-              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, stroke.color, stroke.size, stroke.erase, stroke.style);
+              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, segColor, stroke.size, stroke.erase, stroke.style);
               if (sparkleOn) spawnParticles(p1.x * k, p1.y * k, 2);
             })
           });
@@ -4617,7 +4814,7 @@
 
   function addPart(motionKey) {
     if (!selRect) return;
-    const stackRect = stack.getBoundingClientRect();
+    const stackRect = drawCanvas.getBoundingClientRect();
     const cssW = stackRect.width, cssH = stackRect.height;
     const fx = selRect.x / cssW, fy = selRect.y / cssH, fw = selRect.w / cssW, fh = selRect.h / cssH;
     const cx = cssW / 2, cy = cssH / 2;
@@ -4737,7 +4934,7 @@
     const bctx = liveBaseCanvas.getContext('2d');
     bctx.drawImage(liveSource, 0, 0);
 
-    const stackRect = stack.getBoundingClientRect();
+    const stackRect = drawCanvas.getBoundingClientRect();
     const cssW = stackRect.width, cssH = stackRect.height;
 
     livePartCanvases = livingParts.map(part => {
