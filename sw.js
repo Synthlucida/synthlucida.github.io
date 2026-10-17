@@ -70,9 +70,15 @@
 // celé uložení a ověřuje skladbu). Přehrávač dostává stejnou odpověď jako dřív;
 // vlastní MP3 ze stejného webu a servery z CORS_AUDIO_HOSTS se chovají beze změny.
 // Audio cache (synthlucida-audio-v1) se nemění, už stažené skladby zůstanou.
+// v43 - fotky pro WEATHER/NIGHT v playeru (player-bg-*.jpg v kořeni webu) se
+// stahují až při prvním zapnutí WEATHER: SUN / NIGHT. Nejsou v ASSETS_TO_CACHE
+// (aby se nestahovaly při instalaci), ale mají vlastní bílou listinu LAZY_ASSETS:
+// po prvním stažení se uloží do cache a fungují i offline. Pozor: názvy NESMÍ
+// začínat "weather" - to je v EXCLUDED_APPS (appka weather.html) a SW by je ignoroval.
+// Cache zvýšena na v1116.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1115';
+const APP_CACHE_NAME = 'synthlucida-app-v1116';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -163,6 +169,14 @@ function isAudioRequest(url) {
 const SHELL_PATHS = new Set(
   ASSETS_TO_CACHE.map((u) => new URL(u, self.registration.scope).pathname)
 );
+
+// Soubory, které se cachují až při prvním použití (ne při instalaci SW).
+const LAZY_ASSETS = [
+  './player-bg-moon.jpg',
+  './player-bg-sun-1.jpg', './player-bg-sun-2.jpg', './player-bg-sun-3.jpg', './player-bg-sun-4.jpg',
+  './player-bg-sun-5.jpg', './player-bg-sun-6.jpg', './player-bg-sun-7.jpg', './player-bg-sun-8.jpg'
+];
+LAZY_ASSETS.forEach((u) => SHELL_PATHS.add(new URL(u, self.registration.scope).pathname));
 
 function isShellAsset(url) {
   return url.origin === self.location.origin && SHELL_PATHS.has(url.pathname);
