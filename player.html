@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.9.5">
+<meta name="app-version" content="1.9.6">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -256,6 +256,18 @@
   @keyframes logoPulse {
     0%, 100% { filter: drop-shadow(0 0 8px var(--accent-color)); }
     50% { filter: drop-shadow(0 0 16px var(--accent-color)); }
+  }
+  /* Podsvícení hlavního okna přehrávače (4. pozice tlačítka ✨) - stejná barva a rytmus pulzu jako u loga */
+  body.window-glow .player-section {
+    border-color: var(--accent-color);
+    animation: windowGlowPulse 3.5s ease-in-out infinite;
+  }
+  @keyframes windowGlowPulse {
+    0%, 100% { box-shadow: 0 0 8px var(--accent-color), 0 0 16px var(--accent-color), inset 0 0 8px rgba(255,255,255,0.04); }
+    50% { box-shadow: 0 0 14px var(--accent-color), 0 0 28px var(--accent-color), inset 0 0 12px rgba(255,255,255,0.06); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.window-glow .player-section { animation: none; box-shadow: 0 0 12px var(--accent-color), 0 0 24px var(--accent-color); }
   }
 
   /* ============================================
@@ -1128,7 +1140,6 @@
   .mini-stat-label { font-size: 9px; letter-spacing: 0.5px; opacity: 0.55; color: #fff; text-transform: uppercase; user-select: none; white-space: nowrap; }
   /* LVL / XP: úroveň v barvě tématu s jemnou září, XP světlejší s lehkým stínem - velikost i rozestupy beze změny */
   #mini-level-label { color: var(--accent-color); opacity: 0.95; text-shadow: 0 0 6px var(--accent-color); }
-  #mini-xp-label { opacity: 0.8; text-shadow: 0 1px 2px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.25); }
 
   /* Focus mode toggle and screen-wake toggle - sit right under the LVL/XP indicator, on opposite sides */
   .focus-mode-row { display: flex; justify-content: space-between; align-items: center; margin-top: -4px; margin-bottom: 6px; gap: 6px; }
@@ -1969,7 +1980,8 @@
   .layer-group { transition: opacity 0.2s; }
   .layer-vol-label { font-size: 8px; line-height: 1.2; letter-spacing: 0.4px; text-align: center; padding-left: 0.4px; color: #fff; opacity: 0.6; text-transform: uppercase; user-select: none; flex: none; margin-right: -3px; }
   .layer-group.disabled { opacity: 0.3; pointer-events: none; }
-  .layer-hint[hidden] { display: none; }
+  /* Schovaný řádek dál zabírá místo (visibility, ne display:none), aby player při zapnutí vrstev neposkočil */
+  .layer-hint[hidden] { display: block; visibility: hidden; }
   .layer-knob-wrap { position: relative; width: 28px; height: 28px; flex: none; }
   .layer-knob {
     --p: 0.5; position: absolute; inset: 0; border-radius: 50%; cursor: ns-resize; touch-action: none; outline: none;
@@ -1986,7 +1998,7 @@
   .layer-knob-tip { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); font-size: 10px; line-height: 1;
     padding: 3px 5px; border-radius: 6px; background: rgba(0,0,0,0.8); color: #fff; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5; }
   .layer-knob-tip.show { opacity: 1; }
-  .layer-hint { text-align: center; font-size: 11px; color: var(--accent-color); margin: 0 0 6px; }
+  .layer-hint { text-align: center; font-size: 11px; color: var(--accent-color); margin: 0 0 6px; white-space: nowrap; overflow: hidden; }
   .playlist.layer-picking { outline: 1px dashed var(--accent-color); outline-offset: 2px; }
   .playlist li.layer-track { border-left: 2px dotted var(--accent-color); background: rgba(255,255,255,0.05); }
   .playlist li.layer-track::after { content: "2"; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--accent-color);
@@ -2238,7 +2250,7 @@
     <div class="progress-bar" id="progress-bar"></div>
   </div>
   
-  <div class="layer-hint" id="layer-hint" hidden>Tap a second ASMR track to play it together with the first</div>
+  <div class="layer-hint" id="layer-hint" hidden>Tap a second ASMR track to layer it.</div>
   <ul class="playlist" id="playlist"></ul>
 
   <div class="controls-row">
@@ -2258,7 +2270,6 @@
     </div>
     <div class="mini-stats">
       <span class="mini-stat-label" id="mini-level-label">LVL 1</span>
-      <span class="mini-stat-label" id="mini-xp-label">0 XP</span>
     </div>
   </div>
 
@@ -3247,11 +3258,12 @@
   applyLogoGlowUI();
 
   // ==========================================
-  // Druhé malé tlačítko ✨ na druhé straně názvu SYNTHLUCIDA - cykluje mezi 3 stavy
+  // Druhé malé tlačítko ✨ na druhé straně názvu SYNTHLUCIDA - cykluje mezi 4 stavy
   // (nezávisle na tlačítku 💡, které jen celé schovává/zobrazuje logo):
   // 0 = logo svítí (podsvícené/pulzující), nápis SYNTHLUCIDA nesvítí (výchozí stav)
   // 1 = logo nesvítí (zůstává vidět, jen bez záře/pulzování), místo něj svítí nápis
   // 2 = nesvítí vůbec nic (ani logo, ani nápis)
+  // 3 = podsvícené je hlavní okno přehrávače (logo ani nápis nesvítí)
   // ...a další klik se vrátí zpátky na stav 0. Ukládá se stejně jako tlačítko 💡
   // (vlastní localStorage klíč, ukládá se hned).
   // ==========================================
@@ -3264,17 +3276,18 @@
       const btn = document.getElementById('btn-logo-pulse');
       if (img) img.classList.toggle('pulse-off', sparkleState !== 0);
       if (brandName) brandName.classList.toggle('text-glow', sparkleState === 1);
+      document.body.classList.toggle('window-glow', sparkleState === 3);
       if (btn) {
           btn.classList.toggle('active', sparkleState === 0);
           // Popisek vždy říká, co udělá NÁSLEDUJÍCÍ klik (ne aktuální stav)
-          const nextActionTitles = ['Turn off logo glow', 'Turn off everything', 'Turn on logo glow'];
+          const nextActionTitles = ['Turn off logo glow', 'Turn off everything', 'Turn on window glow', 'Turn on logo glow'];
           btn.title = nextActionTitles[sparkleState];
           btn.setAttribute('aria-label', btn.title);
       }
   }
 
   window.toggleTextGlow = function() {
-      sparkleState = (sparkleState + 1) % 3;
+      sparkleState = (sparkleState + 1) % 4;
       try { localStorage.setItem(SPARKLE_STATE_KEY, String(sparkleState)); } catch (e) { /* ignore */ }
       applySparkleUI();
   };
@@ -3283,7 +3296,7 @@
       const savedSparkleState = localStorage.getItem(SPARKLE_STATE_KEY);
       if (savedSparkleState !== null) {
           const parsed = parseInt(savedSparkleState, 10);
-          if (parsed === 0 || parsed === 1 || parsed === 2) sparkleState = parsed;
+          if (parsed === 0 || parsed === 1 || parsed === 2 || parsed === 3) sparkleState = parsed;
       } else {
           // Zpětná kompatibilita s krátce nasazenou předchozí verzí (jednoduchý
           // přepínač jen pro podsvícení nápisu, bez logo záře)
@@ -5581,6 +5594,18 @@
   const layerKnob = document.getElementById('layer-knob');
   const layerKnobTip = document.getElementById('layer-knob-tip');
   const layerHint = document.getElementById('layer-hint');
+  // Text nápovědy vždy na jeden řádek: když se na úzkém displeji nevejde, písmo se zmenší
+  function fitLayerHint() {
+    if (!layerHint) return;
+    layerHint.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(layerHint).fontSize) || 11;
+    while (layerHint.scrollWidth > layerHint.clientWidth && size > 6) {
+      size -= 0.5;
+      layerHint.style.fontSize = size + 'px';
+    }
+  }
+  window.addEventListener('resize', fitLayerHint);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitLayerHint);
   let layerPickMode = false;
   let layerActive = false;
   let layerSrc = '';
@@ -5636,6 +5661,7 @@
     layerBtn.title = layerActive ? 'Stop the second ASMR track'
       : (layerPickMode ? 'Cancel' : 'Layer a second ASMR track on top of the first');
     layerHint.hidden = !(show && layerPickMode);
+    fitLayerHint();
     playlistEl.classList.toggle('layer-picking', show && layerPickMode);
     markLayerRow();
   }
@@ -7703,7 +7729,7 @@
     if (typeof xp !== 'number') xp = computeXP(stats);
     const info = xpLevelInfo(xp);
     if (lvlEl) lvlEl.textContent = `LVL ${info.level}`;
-    if (xpEl) xpEl.textContent = `${xp} XP`;
+    if (xpEl) { xpEl.textContent = `${xp}`; xpEl.setAttribute('aria-label', `${xp} XP`); }
   }
 
   // Vizuální ukazatel postupu k další úrovni + kolik skladeb v MY PLAYLIST je aktuálně odemčeno ke stažení.
