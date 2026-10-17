@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.9.9">
+<meta name="app-version" content="2.0.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1976,60 +1976,109 @@
   /* ---- ASMR layer: druhá stopa + knob hlasitosti ---- */
   /* Tlačítko i knob jsou v ovládání vidět VŽDY (mimo ASMR ztlumené a nefunkční),
      takže tlačítka při přepnutí playlistu ani zapnutí druhé stopy neposkakují. */
-  .layer-group { display: flex; align-items: center; gap: 8px; }
+  .layer-group { display: flex; align-items: center; gap: 10px; }
   /* Mimo playlist ASMR zůstávají vidět, ale jsou ztlumené a nereagují */
   .layer-group { transition: opacity 0.2s; }
-  .layer-vol-label { font-size: 8px; line-height: 1.2; letter-spacing: 0.4px; text-align: center; padding-left: 0.4px; color: #fff; opacity: 0.6; text-transform: uppercase; user-select: none; flex: none; margin-right: -3px; }
-  .layer-group.disabled { opacity: 0.3; pointer-events: none; }
+  .layer-vol-label { font-size: 8px; line-height: 1.2; letter-spacing: 0.4px; text-align: center; padding-left: 0.4px; color: #fff; opacity: 0.6; text-transform: uppercase; user-select: none; flex: none; margin-right: 0; }
+  .layer-group { position: relative; padding: 4px 7px; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px;
+    background: rgba(0,0,0,0.18); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
+  .layer-group > * { transition: opacity 0.2s; }
+  .layer-group.disabled { pointer-events: none; }
+  .layer-group.disabled > :not(.layer-badge) { opacity: 0.3; }
+  /* Nápis přes zablokované ovládání mimo ASMR - zmizí, jakmile se přepne na playlist ASMR */
+  .layer-badge { display: none; position: absolute; left: calc(50% + 14px); top: 0; transform: translate(-50%, -62%); z-index: 3;
+    font-size: 7px; letter-spacing: 0.4px; line-height: 1; white-space: nowrap; text-transform: uppercase;
+    color: var(--accent-color); background: rgba(0,0,0,0.6); border: 1px solid var(--accent-color); border-radius: 8px;
+    padding: 3px 5px; pointer-events: none; box-shadow: 0 0 8px rgba(0,0,0,0.6); }
+  .layer-group.disabled > .layer-badge { display: block; }
   /* Schovaný řádek dál zabírá místo (visibility, ne display:none), aby player při zapnutí vrstev neposkočil */
   .layer-hint[hidden] { display: block; visibility: hidden; }
-  .layer-knob-wrap { position: relative; width: 28px; height: 28px; flex: none; }
+  /* Knob: kovová čepička, oblouk hlasitosti se září (sílí s hlasitostí), značka středu (50 %),
+     plynulý pohyb, zvětšení při najetí/tažení a větší dotyková plocha. --p = 0..1 (nastavuje JS). */
+  @property --p { syntax: '<number>'; inherits: true; initial-value: 0.5; }
+  .layer-knob-wrap { --p: 0.5; position: relative; width: 28px; height: 28px; flex: none; cursor: grab; touch-action: none;
+    transition: --p 0.22s ease-out, transform 0.15s ease-out;
+    filter: drop-shadow(0 0 calc(1px + var(--p) * 5px) var(--accent-color)); }
+  .layer-knob-wrap::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+  .layer-knob-wrap:hover { transform: scale(1.1); }
+  .layer-knob-wrap.dragging { transition: transform 0.15s ease-out; transform: scale(1.18); cursor: grabbing; }
+  .layer-group.disabled .layer-knob-wrap { cursor: default; transform: none; }
   .layer-knob {
-    --p: 0.5; position: absolute; inset: 0; border-radius: 50%; cursor: ns-resize; touch-action: none; outline: none;
-    -webkit-tap-highlight-color: transparent;
-    background: conic-gradient(from -135deg, var(--accent-color) 0deg, var(--accent-color) calc(var(--p) * 270deg), rgba(255,255,255,0.18) calc(var(--p) * 270deg), rgba(255,255,255,0.18) 270deg, transparent 270deg);
+    position: absolute; inset: 0; border-radius: 50%; outline: none; -webkit-tap-highlight-color: transparent;
+    background:
+      conic-gradient(from -135deg, transparent 0deg 133deg, rgba(255,255,255,0.85) 133deg 137deg, transparent 137deg 360deg),
+      conic-gradient(from -135deg, var(--accent-color) 0deg, var(--accent-color) calc(var(--p) * 270deg), rgba(255,255,255,0.16) calc(var(--p) * 270deg), rgba(255,255,255,0.16) 270deg, transparent 270deg);
     -webkit-mask: radial-gradient(circle, #000 0 99%, transparent 100%); mask: radial-gradient(circle, #000 0 99%, transparent 100%);
   }
   .layer-knob::before { content: ""; position: absolute; inset: 3px; border-radius: 50%;
-    background: radial-gradient(circle at 50% 28%, #4a4a4a 0%, #0d0d0d 78%);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25); }
+    background:
+      radial-gradient(circle at 50% 18%, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0) 55%),
+      conic-gradient(from 20deg, #202020, #565656, #1b1b1b, #4b4b4b, #202020),
+      #0c0c0c;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 3px rgba(0,0,0,0.5); }
   .layer-knob::after { content: ""; position: absolute; left: calc(50% - 1px); top: 5px; width: 2px; height: 7px; border-radius: 1px;
-    background: #fff; transform-origin: 50% 9px; transform: rotate(calc(-135deg + var(--p) * 270deg)); box-shadow: 0 0 4px var(--accent-color); }
-  .layer-knob:focus-visible { box-shadow: 0 0 0 2px var(--accent-color); }
-  .layer-knob-tip { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); font-size: 10px; line-height: 1;
-    padding: 3px 5px; border-radius: 6px; background: rgba(0,0,0,0.8); color: #fff; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5; }
-  .layer-knob-tip.show { opacity: 1; }
+    background: #fff; transform-origin: 50% 9px; transform: rotate(calc(-135deg + var(--p) * 270deg)); box-shadow: 0 0 4px var(--accent-color), 0 0 2px #fff; }
+  .layer-knob-wrap:focus-within .layer-knob:focus-visible { box-shadow: 0 0 0 2px var(--accent-color); }
+  .layer-knob-tip { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); font-size: 10px; line-height: 1;
+    padding: 3px 6px; border-radius: 6px; background: rgba(0,0,0,0.85); color: #fff; border: 1px solid var(--accent-color); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5; }
+  .layer-knob-tip.show, .layer-knob-wrap:hover .layer-knob-tip, .layer-knob-wrap.dragging .layer-knob-tip { opacity: 1; }
+  .layer-group.disabled .layer-knob-tip { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) { .layer-knob-wrap { transition: none; } }
   .layer-hint { text-align: center; font-size: 11px; color: var(--accent-color); margin: 0 0 6px; white-space: nowrap; overflow: hidden; }
   .playlist.layer-picking { outline: 1px dashed var(--accent-color); outline-offset: 2px; }
   .playlist li.layer-track { border-left: 2px dotted var(--accent-color); background: rgba(255,255,255,0.05); }
   .playlist li.layer-track::after { content: "2"; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--accent-color);
     color: var(--accent-color); font-size: 9px; line-height: 12px; text-align: center; }
-  /* Rozložení řádku ovládání: LVL/XP je teď přímo v řádku (ne přes ovládání), takže se s ním
-     nikdy nepřekryje, ať je písmo nebo číslo XP jakkoli široké. Ovládání je na volném místě
-     vycentrované; když se nevejde, zarovná se vlevo a postupně se zmenšuje. */
+  /* Rozložení řádku ovládání: LVL je přímo v řádku (ne přes ovládání), takže se s ním nikdy nepřekryje.
+     Na počítači je ovládání vycentrované na volném místě; na telefonech (<=480 px) se volné místo
+     rovnoměrně rozdělí mezi tlačítka, aby nebyla namačkaná na sobě. */
   .controls-row .mini-stats { position: static; transform: none; flex: none; margin-left: 6px; }
   .controls-row .controls { min-width: 0; justify-content: flex-start; }
   .controls-row .controls > * { flex: none; }
-  .controls-row .controls > .layer-group { margin-left: auto; }
+  .controls-row .controls { gap: 12px; }
+  .controls-row .controls > .layer-group { margin-left: auto; margin-right: 6px; }
   .controls-row .controls > #btn-repeat { margin-right: auto; }
-  @media (max-width: 430px) {
-    .controls-row .controls { gap: 6px; }
+  @media (max-width: 480px) {
+    .controls-row .controls { justify-content: space-between; gap: 4px; }
+    .controls-row .controls > .layer-group, .controls-row .controls > #btn-repeat { margin: 0; }
+    .controls-row .controls .layer-group { gap: 10px; }
   }
-  @media (max-width: 410px) {
-    .controls-row .controls { gap: 5px; }
-    .controls-row .controls .layer-group { gap: 4px; }
+  @media (max-width: 430px) {
+    .controls-row .controls .layer-group { gap: 9px; }
     .controls-row .controls .layer-knob-wrap { width: 24px; height: 24px; }
     .controls-row .controls .btn-ctrl-sub { width: 28px; height: 28px; }
     .controls-row .controls .btn-ctrl { width: 40px; height: 40px; }
   }
-  @media (max-width: 355px) {
-    .controls-row .controls .layer-vol-label { display: none; }
+  @media (max-width: 375px) {
+    .controls-row .controls .layer-group { padding: 3px 5px; }
+    .controls-row .controls .layer-group { gap: 8px; }
     .controls-row .controls .layer-knob-wrap { width: 22px; height: 22px; }
     .controls-row .controls .btn-ctrl-sub { width: 26px; height: 26px; }
     .controls-row .controls .btn-ctrl { width: 36px; height: 36px; }
-    .controls-row .mini-stats { margin-left: 4px; }
-    .controls-row .mini-stat-label { font-size: 8px; letter-spacing: 0.2px; }
   }
+  @media (max-width: 340px) {
+    .controls-row .mini-stats { margin-left: 4px; }
+    .controls-row .mini-stats { width: 30px; }
+    .mini-lvl-word { font-size: 8px; letter-spacing: 0.2px; }
+  }
+  @media (max-width: 350px) {
+    .controls-row .controls .layer-vol-label { display: none; }
+    .layer-badge { font-size: 6px; letter-spacing: 0.2px; padding: 3px 4px; }
+  }
+
+  /* Ukazatel levelu vpravo: LVL nahoře, číslo pod ním, pevná šířka - vysoké číslo se zmenší, nikam nezasahuje */
+  .controls-row .mini-stats { width: 34px; align-items: center; }
+  #mini-level-label { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 2px; line-height: 1; text-align: center; overflow: hidden; }
+  .mini-lvl-word { font-size: 9px; letter-spacing: 0.5px; }
+  .mini-lvl-num { font-size: 15px; font-weight: 600; letter-spacing: 0; max-width: 100%; white-space: nowrap; }
+  .mini-lvl-num[data-len="3"] { font-size: 12px; }
+  .mini-lvl-num[data-len="4"] { font-size: 9.5px; }
+  .mini-lvl-num[data-len="5"] { font-size: 7.5px; }
+  .mini-lvl-num[data-len="6"] { font-size: 6.5px; }
+
+  /* Ikony play/pause (SVG) - stejná velikost a barva, aby pauza vypadala stejně jako play */
+  #btn-play .play-ico { width: 22px; height: 22px; display: block; pointer-events: none; }
+  #btn-play[data-state="play"] .play-ico { transform: translateX(1px); }
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
         async src="https://gc.zgo.at/count.js"></script>
@@ -2257,6 +2306,7 @@
   <div class="controls-row">
     <div class="controls">
       <div class="layer-group disabled" id="layer-group">
+        <span class="layer-badge" aria-hidden="true">ASMR MIX</span>
         <span class="layer-vol-label" aria-hidden="true">VOL<br>2</span>
         <div class="layer-knob-wrap" id="layer-knob-wrap">
           <div class="layer-knob" id="layer-knob" role="slider" tabindex="0" aria-label="Second ASMR track volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" title="Second track volume (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
@@ -2265,12 +2315,12 @@
         <button class="btn-ctrl-sub" id="btn-layer" type="button" aria-pressed="false" aria-label="Second ASMR track" title="Layer a second ASMR track on top of the first"><span class="ctrl-icon" aria-hidden="true"><svg class="ico-svg ico-sub" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l8.500 4.500-8.500 4.500-8.500-4.500z"/><path d="M3.500 12l8.500 4.500 8.500-4.500"/><path d="M3.500 16l8.500 4.500 8.500-4.500"/></svg></span></button>
       </div>
       <button class="btn-ctrl-sub" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle"><span class="ctrl-icon ctrl-icon-shuffle" aria-hidden="true"><svg class="ico-svg ico-sub" viewBox="0 0 24 24"><path d="M3 7h3.5c2 0 3.2 1 4.5 3l2 4c1.300 2 2.500 3 4.500 3H21"/><path d="M3 17h3.5c2 0 3.200-1 4.500-3"/><path d="M13 8c1.200-1.300 2.400-1 4.500-1H21"/><path d="M18.500 4.500L21 7l-2.500 2.500M18.500 14.500L21 17l-2.500 2.500"/></svg></span></button>
-      <button class="btn-ctrl" id="btn-play">▶</button>
+      <button class="btn-ctrl" id="btn-play" data-state="play" aria-label="Play"><svg class="play-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.500 4.500v15l12-7.500z" fill="currentColor"/></svg></button>
       <button class="btn-ctrl" id="btn-next"><span class="ctrl-icon ctrl-icon-next" aria-hidden="true"><svg class="ico-svg ico-next" viewBox="0 0 24 24"><path d="M6 5.500v13l9-6.500z" fill="currentColor"/><path d="M18 5.500v13"/></svg></span></button>
       <button class="btn-ctrl-sub" id="btn-repeat" onclick="toggleRepeat()" title="Repeat"><span class="ctrl-icon ctrl-icon-repeat" aria-hidden="true"><svg class="ico-svg ico-sub" viewBox="0 0 24 24"><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M17 3l3 3-3 3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/><path d="M7 21l-3-3 3-3"/></svg></span></button>
     </div>
     <div class="mini-stats">
-      <span class="mini-stat-label" id="mini-level-label">LVL 1</span>
+      <span class="mini-stat-label" id="mini-level-label" aria-label="LVL 1"><span class="mini-lvl-word">LVL</span><span class="mini-lvl-num" id="mini-level-num" data-len="1">1</span></span>
     </div>
   </div>
 
@@ -3132,10 +3182,30 @@
     if (nowPlayingNewFlag) nowPlayingNewFlag.classList.toggle('visible', !!isNew);
   }
   const playBtn = document.getElementById('btn-play');
+  // Ikony play/pause jsou SVG (ne textové znaky ▶/⏸) - na Androidu (Chrome, Edge) se ⏸ vykresluje jako
+  // barevné emoji a nevypadá jako ▶. Zbytek kódu dál nastavuje playBtn.innerText = "▶" / "⏸" -
+  // tenhle setter z toho vybere správnou SVG ikonu a uloží stav do data-state.
+  (function() {
+    const PLAY_SVG = '<svg class="play-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.500 4.500v15l12-7.500z" fill="currentColor"/></svg>';
+    const PAUSE_SVG = '<svg class="play-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.500" width="4.200" height="15" rx="1.200" fill="currentColor"/><rect x="13.800" y="4.500" width="4.200" height="15" rx="1.200" fill="currentColor"/></svg>';
+    try {
+      Object.defineProperty(playBtn, 'innerText', {
+        configurable: true,
+        get() { return this.getAttribute('data-state') === 'pause' ? '⏸' : '▶'; },
+        set(v) {
+          const pause = String(v).indexOf('⏸') !== -1;
+          if ((this.getAttribute('data-state') === 'pause') === pause && this.firstChild) return;
+          this.setAttribute('data-state', pause ? 'pause' : 'play');
+          this.setAttribute('aria-label', pause ? 'Pause' : 'Play');
+          this.innerHTML = pause ? PAUSE_SVG : PLAY_SVG;
+        }
+      });
+    } catch (e) { /* zůstane textový znak */ }
+  })();
   // Animace tlačítka play: třída .playing se drží podle toho, jestli tlačítko ukazuje ⏸ (hraje) nebo ▶.
   // Řeší se pozorováním změny textu, takže se nemusí upravovat všechna místa, kde se text mění.
   (function() {
-    const syncPlayBtnAnim = () => playBtn.classList.toggle('playing', (playBtn.textContent || '').indexOf('⏸') !== -1);
+    const syncPlayBtnAnim = () => playBtn.classList.toggle('playing', playBtn.getAttribute('data-state') === 'pause' || (playBtn.textContent || '').indexOf('⏸') !== -1);
     try { new MutationObserver(syncPlayBtnAnim).observe(playBtn, { childList: true, characterData: true, subtree: true }); } catch (e) { /* bez animace */ }
     syncPlayBtnAnim();
   })();
@@ -5767,7 +5837,7 @@
 
   function paintLayerKnob() {
     const pct = Math.round(layerKnobVal * 100);
-    layerKnob.style.setProperty('--p', layerKnobVal);
+    layerKnobWrap.style.setProperty('--p', layerKnobVal);
     layerKnob.setAttribute('aria-valuenow', String(pct));
     layerKnob.setAttribute('aria-valuetext', pct + '%');
     layerKnobTip.textContent = pct + '%';
@@ -5893,32 +5963,54 @@
     showToast('Could not load the second track', '⚠️');
   });
 
-  // Knob: tažení nahoru/dolů, kolečko myši, šipky na klávesnici, dvojklik = střed (50 %)
+  // Knob: tažení nahoru/dolů (Shift = jemně), magnetický střed 50 % s lehkou vibrací, kolečko myši,
+  // šipky na klávesnici (Shift = jemně), dvojklepnutí/dvojklik = střed (50 %).
   let layerDrag = null;
-  layerKnob.addEventListener('pointerdown', (e) => {
+  let layerLastTap = 0;
+  const layerBuzz = () => { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* ignore */ } };
+  layerKnobWrap.addEventListener('pointerdown', (e) => {
     if (!viewingAsmr()) return;
-    layerDrag = { y: e.clientY, v: layerKnobVal };
-    try { layerKnob.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    layerDrag = { lastY: e.clientY, raw: layerKnobVal, moved: 0 };
+    layerKnobWrap.classList.add('dragging');
+    try { layerKnobWrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     showLayerTip();
+    layerKnob.focus({ preventScroll: true });
     e.preventDefault();
   });
-  layerKnob.addEventListener('pointermove', (e) => {
+  layerKnobWrap.addEventListener('pointermove', (e) => {
     if (!layerDrag) return;
-    setLayerKnob(layerDrag.v + (layerDrag.y - e.clientY) / 120);
+    const dy = layerDrag.lastY - e.clientY;
+    layerDrag.lastY = e.clientY;
+    layerDrag.moved += Math.abs(dy);
+    layerDrag.raw = Math.min(1, Math.max(0, layerDrag.raw + dy * (e.shiftKey ? 1 / 500 : 1 / 130)));
+    let v = layerDrag.raw;
+    if (Math.abs(v - 0.5) < 0.03) v = 0.5; // magnetický střed
+    if (v === 0.5 && layerKnobVal !== 0.5) layerBuzz();
+    setLayerKnob(v);
   });
-  const endLayerDrag = () => { layerDrag = null; };
-  layerKnob.addEventListener('pointerup', endLayerDrag);
-  layerKnob.addEventListener('pointercancel', endLayerDrag);
-  layerKnob.addEventListener('wheel', (e) => {
+  const endLayerDrag = (e) => {
+    if (!layerDrag) return;
+    const wasTap = layerDrag.moved < 6;
+    layerDrag = null;
+    layerKnobWrap.classList.remove('dragging');
+    if (wasTap && e && e.type === 'pointerup') {
+      const now = Date.now();
+      if (now - layerLastTap < 350) { layerLastTap = 0; setLayerKnob(0.5); layerBuzz(); }
+      else layerLastTap = now;
+    }
+  };
+  layerKnobWrap.addEventListener('pointerup', endLayerDrag);
+  layerKnobWrap.addEventListener('pointercancel', endLayerDrag);
+  layerKnobWrap.addEventListener('wheel', (e) => {
     if (!viewingAsmr()) return;
     e.preventDefault();
-    setLayerKnob(layerKnobVal + (e.deltaY < 0 ? 0.05 : -0.05));
+    setLayerKnob(layerKnobVal + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
   }, { passive: false });
-  layerKnob.addEventListener('dblclick', () => { if (viewingAsmr()) setLayerKnob(0.5); });
   layerKnob.addEventListener('keydown', (e) => {
     if (!viewingAsmr()) return;
+    const fine = e.shiftKey ? 0.2 : 1;
     const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
-    if (step !== undefined) { e.preventDefault(); setLayerKnob(layerKnobVal + step); }
+    if (step !== undefined) { e.preventDefault(); setLayerKnob(layerKnobVal + step * fine); }
     else if (e.key === 'Home') { e.preventDefault(); setLayerKnob(0); }
     else if (e.key === 'End') { e.preventDefault(); setLayerKnob(1); }
   });
@@ -7873,7 +7965,13 @@
     if (!lvlEl && !xpEl) return;
     if (typeof xp !== 'number') xp = computeXP(stats);
     const info = xpLevelInfo(xp);
-    if (lvlEl) lvlEl.textContent = `LVL ${info.level}`;
+    if (lvlEl) {
+      // LVL nahoře, číslo pod ním; vyšší čísla se zmenšují (data-len), aby se vešla do pevné šířky
+      const numEl = document.getElementById('mini-level-num');
+      const lvlStr = String(info.level);
+      if (numEl) { numEl.textContent = lvlStr; numEl.setAttribute('data-len', String(Math.min(lvlStr.length, 6))); }
+      lvlEl.setAttribute('aria-label', `LVL ${lvlStr}`);
+    }
     if (xpEl) { xpEl.textContent = `${xp}`; xpEl.setAttribute('aria-label', `${xp} XP`); }
   }
 
