@@ -1170,6 +1170,9 @@
   /* Odznak se skutečným stavem připojení (OK / NOK) vedle rychlosti - viz JS "netStatus*" */
   .net-status-badge { font-size: 9px; letter-spacing: 0.05em; color: rgba(255,255,255,0.8); white-space: nowrap; user-select: none; pointer-events: none; display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex-shrink: 1; }
   .net-status-badge .net-status-dot { flex-shrink: 0; }
+  /* Zelená LED je jako jediná část odznaku klikatelná (skrytý přepínač čarodějnické atmosféry, 5x klik) */
+  .net-status-dot { position: relative; pointer-events: auto; cursor: default; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .net-status-dot::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; }
   .net-status-badge #net-status-text { overflow: hidden; text-overflow: ellipsis; }
   /* LED dioda: lesklá čočka (světlý odlesk nahoře), jemný tmavý okraj a zář kolem */
   .net-status-dot {
@@ -2940,6 +2943,7 @@
       { title: "SYNTHLUCIDA - Ocean Waves", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/ocean_waves.mp3" },
       { title: "SYNTHLUCIDA - Rain Melodies", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/melodies_of_rain.mp3", added: "2026-09-20" },
       { title: "SYNTHLUCIDA - Stones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/stones.mp3" },
+      { title: "SYNTHLUCIDA - Drone For ASMR", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/drone_for_asmr.mp3", added: "2026-10-17" },
     ],
     piano: [
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
@@ -3587,6 +3591,252 @@
               ctx.stroke();
               ctx.restore();
           }
+      }
+  }
+
+  // ==========================================
+  // ČARODĚJNICKÁ ATMOSFÉRA (Pálení čarodějnic, 30. 4.) — decentní: jiskry a žhavé uhlíky stoupající
+  // vzhůru, jemná teplá záře vzdálených ohňů u spodní hrany a občas (cca jednou za půl minuty)
+  // malá čarodějnice na koštěti, co pomalu přeletí přes obrazovku.
+  // Automaticky se zobrazuje týden před pálením a ještě 1. 5. (23. 4. – 1. 5.), od 2. 5. sama zmizí.
+  // Skrytý přepínač: 5x klik do 2 vteřin na ZELENOU LED (stav připojení) dole -
+  // automaticky (podle data) -> vynuceně ZAPNUTO -> vynuceně VYPNUTO -> automaticky ...
+  // ==========================================
+  let witchesOverride = null;
+  let witchesLedClicks = 0;
+  let witchesLedClickTimer = null;
+  let witchEmbers = [];
+  let witchFires = [];
+  let witchSparks = [];
+  let witchFlyer = null;
+  let witchNextFlight = 300; // snímků do příštího přeletu (první cca po 5 s)
+  let witchesFrame = 0;
+
+  function isWitchesSeason() {
+      const d = new Date();
+      const m = d.getMonth(), day = d.getDate();
+      return (m === 3 && day >= 23) || (m === 4 && day <= 1); // 23.–30. duben a 1. květen (od 2. 5. pryč)
+  }
+
+  function isWitchesActive() {
+      return witchesOverride === null ? isWitchesSeason() : witchesOverride;
+  }
+
+  try {
+      const savedWitches = localStorage.getItem('synthlucida_witches_override');
+      if (savedWitches === 'true') witchesOverride = true;
+      else if (savedWitches === 'false') witchesOverride = false;
+  } catch (e) { /* ignore */ }
+
+  window.handleWitchesLedClick = function() {
+      witchesLedClicks++;
+      if (witchesLedClickTimer) clearTimeout(witchesLedClickTimer);
+      witchesLedClickTimer = setTimeout(() => { witchesLedClicks = 0; }, 2000);
+
+      if (witchesLedClicks >= 5) {
+          witchesLedClicks = 0;
+          clearTimeout(witchesLedClickTimer);
+          if (witchesOverride === null) witchesOverride = true;
+          else if (witchesOverride === true) witchesOverride = false;
+          else witchesOverride = null;
+
+          try {
+              if (witchesOverride === null) localStorage.removeItem('synthlucida_witches_override');
+              else localStorage.setItem('synthlucida_witches_override', String(witchesOverride));
+          } catch (e) { /* ignore */ }
+
+          const label = witchesOverride === null ? 'AUTO (dle data)' : (witchesOverride ? 'VYNUCENĚ ZAPNUTO' : 'VYNUCENĚ VYPNUTO');
+          if (typeof showToast === 'function') showToast('🔥 Čarodějnická atmosféra: ' + label, '🔥');
+          updateCanvasState();
+      }
+  };
+  (function bindWitchesLed() {
+      const dot = document.querySelector('#net-status-badge .net-status-dot');
+      if (dot) dot.addEventListener('click', window.handleWitchesLedClick);
+  })();
+
+  function initWitches() {
+      const colors = ['#ffd27a', '#ffb347', '#ff8c1a', '#ff6a00'];
+      witchEmbers = [];
+      const count = Math.max(18, Math.min(40, Math.floor((canvas.width * canvas.height) / 26000)));
+      for (let i = 0; i < count; i++) {
+          witchEmbers.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              r: Math.random() * 1.3 + 0.8,
+              speed: Math.random() * 0.55 + 0.3,
+              sway: Math.random() * Math.PI * 2,
+              swaySpeed: Math.random() * 0.03 + 0.01,
+              phase: Math.random() * Math.PI * 2,
+              color: colors[i % colors.length],
+              alpha: Math.random() * 0.35 + 0.45
+          });
+      }
+      // Vzdálené ohně - velmi jemné teplé záře u spodní hrany
+      witchFires = [];
+      const fireCount = Math.max(4, Math.min(8, Math.floor(canvas.width / 160)));
+      for (let i = 0; i < fireCount; i++) {
+          witchFires.push({
+              x: (canvas.width / fireCount) * (i + 0.5) + (Math.random() * 40 - 20),
+              y: canvas.height + 4,
+              r: Math.random() * 40 + 55,
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.05 + 0.03
+          });
+      }
+      witchSparks = [];
+      witchFlyer = null;
+  }
+
+  // Nápis za čarodějnicí podle jazyka přehrávače (guideLang je definován až níže, proto try/catch)
+  function witchBannerText() {
+      let cz = false;
+      try { cz = (guideLang === 'cz'); } catch (e) { /* ještě neinicializováno */ }
+      return cz ? 'Vítáme léto · Pálení čarodějnic' : 'Welcome summer · Burning of the Witches';
+  }
+
+  function drawWitchSilhouette() {
+      // Postava míří doprava, koště vzadu (vlevo); při letu doleva se celé zrcadlí.
+      ctx.fillStyle = 'rgba(22, 10, 38, 0.92)';
+      ctx.strokeStyle = 'rgba(200, 160, 255, 0.6)';
+      ctx.lineWidth = 0.9;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      // koště
+      ctx.beginPath(); ctx.moveTo(-17, 3); ctx.lineTo(15, -1); ctx.stroke();
+      // oslí vlasy koštěte (pár stébel)
+      ctx.beginPath();
+      ctx.moveTo(-17, 3); ctx.lineTo(-25, 0);
+      ctx.moveTo(-17, 3); ctx.lineTo(-26, 3.5);
+      ctx.moveTo(-17, 3); ctx.lineTo(-24, 7);
+      ctx.stroke();
+      // tělo / plášť
+      ctx.beginPath();
+      ctx.moveTo(0, -7);
+      ctx.quadraticCurveTo(-8, -3, -10, 2.5);
+      ctx.lineTo(3, 1);
+      ctx.quadraticCurveTo(6, -3, 3.5, -7);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      // hlava
+      ctx.beginPath(); ctx.arc(2, -9.5, 2.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      // klobouk
+      ctx.beginPath();
+      ctx.moveTo(-3, -11.5); ctx.lineTo(8, -11.5);
+      ctx.moveTo(-0.8, -11.5); ctx.lineTo(4.5, -22); ctx.lineTo(6, -11.5);
+      ctx.fill(); ctx.stroke();
+      // nohy
+      ctx.beginPath(); ctx.moveTo(1, 1); ctx.lineTo(3, 7); ctx.moveTo(4, 0.5); ctx.lineTo(7, 5.5); ctx.stroke();
+  }
+
+  function drawWitchesOverlay() {
+      witchesFrame++;
+
+      // Teplá záře vzdálených ohňů u spodní hrany (kreslí se vždy, i při zapnutém WEATHER)
+      for (let i = 0; i < witchFires.length; i++) {
+          const f = witchFires[i];
+          f.phase += f.speed;
+          const fl = 0.5 + 0.5 * Math.sin(f.phase) * Math.sin(f.phase * 0.43 + i);
+          const r = f.r * (0.9 + fl * 0.22);
+          const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+          g.addColorStop(0, 'rgba(255, 150, 40, 0.55)');
+          g.addColorStop(0.45, 'rgba(255, 100, 10, 0.2)');
+          g.addColorStop(1, 'rgba(255, 70, 0, 0)');
+          ctx.save();
+          ctx.globalAlpha = 0.16 + fl * 0.22;
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+      }
+
+      // Uhlíky, jiskry a čarodějnice - jen pokud aktuální WEATHER nekreslí vlastní déšť/sníh
+      if (weatherMode !== 0) return;
+
+      for (let i = 0; i < witchEmbers.length; i++) {
+          const e = witchEmbers[i];
+          e.y -= e.speed;
+          e.sway += e.swaySpeed;
+          e.phase += 0.07;
+          e.x += Math.sin(e.sway) * 0.45;
+          if (e.y < -6) { e.y = canvas.height + 6 + Math.random() * 30; e.x = Math.random() * canvas.width; }
+          const heightFade = Math.min(1, Math.max(0, e.y / (canvas.height * 0.65))); // k vrcholu pomalu dohasíná
+          const a = e.alpha * heightFade * (0.7 + 0.3 * Math.sin(e.phase));
+          if (a <= 0.01) continue;
+          ctx.save();
+          ctx.fillStyle = e.color;
+          ctx.globalAlpha = a * 0.28;
+          ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 3, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = a;
+          ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+      }
+
+      // Čarodějnice na koštěti - občas pomalu přeletí přes obrazovku
+      if (!witchFlyer) {
+          if (--witchNextFlight <= 0) {
+              const dir = Math.random() < 0.5 ? 1 : -1;
+              witchFlyer = {
+                  dir: dir,
+                  x: dir === 1 ? -50 : canvas.width + 50,
+                  baseY: canvas.height * (0.1 + Math.random() * 0.22),
+                  speed: Math.max(0.7, canvas.width / 900) * (0.9 + Math.random() * 0.3),
+                  t: 0
+              };
+          }
+      } else {
+          const w = witchFlyer;
+          w.t += 0.025;
+          w.x += w.dir * w.speed;
+          const y = w.baseY + Math.sin(w.t) * 7;
+          // stopa z jisker za koštětem
+          if (witchesFrame % 3 === 0 && witchSparks.length < 40) {
+              witchSparks.push({
+                  x: w.x - w.dir * 24, y: y + 3,
+                  vx: -w.dir * (Math.random() * 0.3 + 0.1), vy: Math.random() * 0.4 - 0.1,
+                  life: 0, maxLife: 45 + Math.random() * 25,
+                  color: Math.random() < 0.5 ? '#d7b8ff' : '#ffd27a'
+              });
+          }
+          ctx.save();
+          ctx.translate(w.x, y);
+          ctx.scale(w.dir * 1.1, 1.1);
+          ctx.rotate(-0.1);
+          ctx.globalAlpha = 0.85;
+          drawWitchSilhouette();
+          ctx.restore();
+
+          // Malý nápis letí za koštětem (není zrcadlený, jen se řadí na opačnou stranu)
+          ctx.save();
+          ctx.font = '10px Orbitron, sans-serif';
+          ctx.textBaseline = 'middle';
+          const msg = witchBannerText();
+          w.tw = ctx.measureText(msg).width;
+          ctx.textAlign = w.dir === 1 ? 'right' : 'left';
+          ctx.shadowColor = 'rgba(255, 140, 40, 0.8)';
+          ctx.shadowBlur = 6;
+          ctx.fillStyle = 'rgba(255, 220, 170, 0.85)';
+          ctx.fillText(msg, w.x - w.dir * 42, y + 3);
+          ctx.restore();
+
+          // Konec přeletu až když zmizí i celý nápis
+          const tw = w.tw || 0;
+          if ((w.dir === 1 && w.x - 42 - tw > canvas.width + 20) || (w.dir === -1 && w.x + 42 + tw < -20)) {
+              witchFlyer = null;
+              witchNextFlight = 1800 + Math.floor(Math.random() * 1800); // dalších cca 30–60 s
+          }
+      }
+      for (let i = witchSparks.length - 1; i >= 0; i--) {
+          const sp = witchSparks[i];
+          sp.life++;
+          sp.x += sp.vx; sp.y += sp.vy;
+          if (sp.life >= sp.maxLife) { witchSparks.splice(i, 1); continue; }
+          ctx.save();
+          ctx.globalAlpha = (1 - sp.life / sp.maxLife) * 0.8;
+          ctx.fillStyle = sp.color;
+          ctx.beginPath(); ctx.arc(sp.x, sp.y, 1.1, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
       }
   }
   let breathingActive = false;
@@ -4353,6 +4603,7 @@
       initChristmasLights();
       initChristmasSnow();
       initAllSouls();
+      initWitches();
   }
   
   initEffects();
@@ -4360,7 +4611,7 @@
 
   function drawEffects() {
       // Pri dechovem cviceni se kresli jen WEATHER (SUNSET/NIGHT a vanoce zustavaji skryte jako dosud)
-      if(breathingActive ? weatherMode === 0 : (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive() && !isAllSoulsActive())) {
+      if(breathingActive ? weatherMode === 0 : (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive() && !isAllSoulsActive() && !isWitchesActive())) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -4374,6 +4625,10 @@
 
       if(!breathingActive && isAllSoulsActive()) {
           drawAllSoulsOverlay();
+      }
+
+      if(!breathingActive && isWitchesActive()) {
+          drawWitchesOverlay();
       }
 
       if(weatherMode === 1) {
@@ -4875,7 +5130,7 @@
   }
 
   function updateCanvasState() {
-      let active = breathingActive ? weatherMode !== 0 : (weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive() || isAllSoulsActive());
+      let active = breathingActive ? weatherMode !== 0 : (weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive() || isAllSoulsActive() || isWitchesActive());
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
       else if (!active) ctx.clearRect(0, 0, canvas.width, canvas.height);
