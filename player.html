@@ -2023,6 +2023,10 @@
     padding: 3px 6px; border-radius: 6px; background: rgba(0,0,0,0.85); color: #fff; border: 1px solid var(--accent-color); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5; }
   .layer-knob-tip.show, .layer-knob-wrap:hover .layer-knob-tip, .layer-knob-wrap.dragging .layer-knob-tip { opacity: 1; }
   .layer-group.disabled .layer-knob-tip { opacity: 0; }
+  /* Knob VOL 2 je ztlumený a nereaguje, dokud není vybraná druhá ASMR skladba */
+  .layer-group.knob-off .layer-knob-wrap, .layer-group.knob-off .layer-vol-label { opacity: 0.3; pointer-events: none; }
+  .layer-group.knob-off .layer-knob-wrap { cursor: default; transform: none; filter: none; }
+  .layer-group.knob-off .layer-knob-tip { opacity: 0; }
   @media (prefers-reduced-motion: reduce) { .layer-knob-wrap { transition: none; } }
   .layer-hint { text-align: center; font-size: 11px; color: var(--accent-color); margin: 0 0 6px; white-space: nowrap; overflow: hidden; }
   .playlist.layer-picking { outline: 1px dashed var(--accent-color); outline-offset: 2px; }
@@ -5869,8 +5873,10 @@
     const show = viewingAsmr();
     layerGroupEl.classList.toggle('disabled', !show);
     layerBtn.disabled = !show;
-    layerKnob.tabIndex = show ? 0 : -1;
-    layerKnob.setAttribute('aria-disabled', show ? 'false' : 'true');
+    const knobOn = show && layerActive; // knob jen když hraje druhá stopa
+    layerGroupEl.classList.toggle('knob-off', !knobOn);
+    layerKnob.tabIndex = knobOn ? 0 : -1;
+    layerKnob.setAttribute('aria-disabled', knobOn ? 'false' : 'true');
     layerBtn.classList.toggle('active', layerPickMode || layerActive);
     layerBtn.setAttribute('aria-pressed', (layerPickMode || layerActive) ? 'true' : 'false');
     layerBtn.title = layerActive ? 'Stop the second ASMR track'
@@ -5882,6 +5888,7 @@
   }
 
   function stopLayer() {
+    try { layerDrag = null; layerKnobWrap.classList.remove('dragging'); } catch (e) { /* ještě neinicializováno */ }
     layerPickMode = false;
     layerActive = false;
     layerSrc = '';
@@ -5969,7 +5976,7 @@
   let layerLastTap = 0;
   const layerBuzz = () => { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* ignore */ } };
   layerKnobWrap.addEventListener('pointerdown', (e) => {
-    if (!viewingAsmr()) return;
+    if (!viewingAsmr() || !layerActive) return;
     layerDrag = { lastY: e.clientY, raw: layerKnobVal, moved: 0 };
     layerKnobWrap.classList.add('dragging');
     try { layerKnobWrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -5978,7 +5985,7 @@
     e.preventDefault();
   });
   layerKnobWrap.addEventListener('pointermove', (e) => {
-    if (!layerDrag) return;
+    if (!layerDrag || !layerActive) return;
     const dy = layerDrag.lastY - e.clientY;
     layerDrag.lastY = e.clientY;
     layerDrag.moved += Math.abs(dy);
@@ -6002,12 +6009,12 @@
   layerKnobWrap.addEventListener('pointerup', endLayerDrag);
   layerKnobWrap.addEventListener('pointercancel', endLayerDrag);
   layerKnobWrap.addEventListener('wheel', (e) => {
-    if (!viewingAsmr()) return;
+    if (!viewingAsmr() || !layerActive) return;
     e.preventDefault();
     setLayerKnob(layerKnobVal + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
   }, { passive: false });
   layerKnob.addEventListener('keydown', (e) => {
-    if (!viewingAsmr()) return;
+    if (!viewingAsmr() || !layerActive) return;
     const fine = e.shiftKey ? 0.2 : 1;
     const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
     if (step !== undefined) { e.preventDefault(); setLayerKnob(layerKnobVal + step * fine); }
@@ -6526,7 +6533,7 @@
     h_playback: { en: "Playback", cz: "Přehrávání" },
     p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
-    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist (they are dimmed elsewhere), and the second track stops automatically when you leave ASMR. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) a BREATHE (vedené dechové cvičení). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR (jinde jsou ztlumené) a po odchodu z ASMR se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
+    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist (they are dimmed elsewhere), the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave ASMR. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) a BREATHE (vedené dechové cvičení). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR (jinde jsou ztlumené), knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z ASMR se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
@@ -7338,7 +7345,57 @@
     return `${d.getFullYear()}-${mo}-${dd}`;
   }
 
+  // Přepnutí z PIANO/CHILL (nebo My Playlist) do ASMR: hrající hudba se během ~4 s plynule ztiší
+  // a pak se pozastaví, takže uživatel může v klidu vybrat ASMR skladby. Fade se zruší, pokud
+  // uživatel mezitím vybere jinou skladbu, sáhne na hlasitost nebo se vrátí do jiného playlistu.
+  let asmrFadeTimer = null;
+  const ASMR_FADE_MS = 4000;
+  function cancelAsmrFade(restoreVolume) {
+    if (asmrFadeTimer) { clearInterval(asmrFadeTimer); asmrFadeTimer = null; }
+    if (restoreVolume) audio.volume = parseFloat(volumeSlider.value);
+  }
+  function fadeOutForAsmr() {
+    cancelAsmrFade(false);
+    if (!isPlaying || audio.paused) return;
+    cancelCrossfade();
+    const startVol = audio.volume;
+    const startSrc = audio.src;
+    if (startVol <= 0.01) { // prakticky ticho - jen pozastavit
+      audio.pause(); isPlaying = false; playBtn.innerText = "▶";
+      audio.volume = parseFloat(volumeSlider.value);
+      return;
+    }
+    const stepMs = 50;
+    const steps = ASMR_FADE_MS / stepMs;
+    let i = 0;
+    let expected = startVol;
+    asmrFadeTimer = setInterval(() => {
+      // Přerušení: jiná skladba, ruční změna hlasitosti, pauza, nebo návrat do jiného playlistu
+      if (audio.src !== startSrc || audio.paused || !isPlaying ||
+          Math.abs(audio.volume - expected) > 0.02) {
+        // iOS neumí měnit hlasitost - bez plynulého fade by to byl jen zpožděný stop, proto hned pauza
+        const volumeLocked = (i >= 1 && Math.abs(audio.volume - expected) > 0.02 && audio.volume === startVol);
+        cancelAsmrFade(false);
+        if (volumeLocked) { audio.pause(); isPlaying = false; playBtn.innerText = "▶"; }
+        return;
+      }
+      if (currentPlaylistKey !== 'asmr') { cancelAsmrFade(true); return; }
+      i++;
+      expected = Math.max(0, startVol * (1 - i / steps));
+      audio.volume = expected;
+      if (i >= steps) {
+        cancelAsmrFade(false);
+        audio.pause();
+        isPlaying = false;
+        playBtn.innerText = "▶";
+        audio.volume = parseFloat(volumeSlider.value); // další přehrání začne v běžné hlasitosti
+      }
+    }, stepMs);
+  }
+
   window.setPlaylist = function(key, btn) {
+    const wasViewingAsmr = (currentPlaylistKey === 'asmr' && !mainListShowsQueue);
+    if (key === 'asmr' && !wasViewingAsmr) fadeOutForAsmr();
     playlist = tracks[key];
     currentPlaylistKey = key;
     // Jen přepne PROHLÍŽENÝ seznam - pokud zrovna hraje fronta "My Playlist", necháme ji
