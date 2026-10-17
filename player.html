@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="1.9.6">
+<meta name="app-version" content="1.9.7">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -228,6 +228,7 @@
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent; color: transparent;
     filter: drop-shadow(0 0 6px var(--accent-glow, var(--accent-color)));
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
   }
   /* Podsvícený nápis SYNTHLUCIDA - náhrada za logo, když je logo tlačítkem 💡 zhasnuté */
   .brand-name.text-glow { animation: brandNamePulse 3.5s ease-in-out infinite; }
@@ -2096,7 +2097,7 @@
   <img src="logo.jpg" alt="SYNTHLUCIDA" id="logo-img" class="logo" onerror="this.style.display='none'" onclick="handleLogoClick()">
   <div class="brand-name-row">
     <button class="logo-glow-toggle-btn" id="btn-logo-pulse" onclick="toggleTextGlow()" title="Toggle SYNTHLUCIDA text glow" aria-label="Toggle SYNTHLUCIDA text glow"><svg class="ico-svg ico-tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3l1.8 5.700L17.500 10.500 11.800 12.300 10 18 8.200 12.300 2.500 10.500 8.200 8.700z"/><path d="M18.500 14l.8 2.200 2.200.8-2.200.8-.8 2.200-.8-2.200-2.200-.8 2.200-.8z"/></svg></button>
-    <div class="brand-name">SYNTHLUCIDA</div>
+    <div class="brand-name" onclick="handleBrandClick()">SYNTHLUCIDA</div>
     <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight"><svg class="ico-svg ico-tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.500 10.900c.6.5 1 1.200 1 2V16h5v-.1c0-.8.4-1.500 1-2A6 6 0 0 0 12 3z"/></svg></button>
   </div>
 </div>
@@ -3262,8 +3263,8 @@
   // (nezávisle na tlačítku 💡, které jen celé schovává/zobrazuje logo):
   // 0 = logo svítí (podsvícené/pulzující), nápis SYNTHLUCIDA nesvítí (výchozí stav)
   // 1 = logo nesvítí (zůstává vidět, jen bez záře/pulzování), místo něj svítí nápis
-  // 2 = nesvítí vůbec nic (ani logo, ani nápis)
-  // 3 = podsvícené je hlavní okno přehrávače (logo ani nápis nesvítí)
+  // 2 = podsvícené je hlavní okno přehrávače (logo ani nápis nesvítí)
+  // 3 = nesvítí vůbec nic (ani logo, ani nápis, ani okno)
   // ...a další klik se vrátí zpátky na stav 0. Ukládá se stejně jako tlačítko 💡
   // (vlastní localStorage klíč, ukládá se hned).
   // ==========================================
@@ -3276,11 +3277,11 @@
       const btn = document.getElementById('btn-logo-pulse');
       if (img) img.classList.toggle('pulse-off', sparkleState !== 0);
       if (brandName) brandName.classList.toggle('text-glow', sparkleState === 1);
-      document.body.classList.toggle('window-glow', sparkleState === 3);
+      document.body.classList.toggle('window-glow', sparkleState === 2);
       if (btn) {
           btn.classList.toggle('active', sparkleState === 0);
           // Popisek vždy říká, co udělá NÁSLEDUJÍCÍ klik (ne aktuální stav)
-          const nextActionTitles = ['Turn off logo glow', 'Turn off everything', 'Turn on window glow', 'Turn on logo glow'];
+          const nextActionTitles = ['Turn off logo glow', 'Turn on window glow', 'Turn off everything', 'Turn on logo glow'];
           btn.title = nextActionTitles[sparkleState];
           btn.setAttribute('aria-label', btn.title);
       }
@@ -3368,6 +3369,145 @@
               ctx.beginPath();
               ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
               ctx.fill();
+          }
+      }
+  }
+
+  // ==========================================
+  // DUŠIČKOVÁ ATMOSFÉRA — podzimní nálada (padající listí + tiše blikající svíčky u spodní hrany).
+  // Automaticky se zobrazuje jen týden před Dušičkami (26. 10. – 2. 11., tedy včetně Svátku
+  // zemřelých) a od 3. 11. sama zmizí. Ovládání stejné jako u vánoční atmosféry, jen skryté
+  // pod 5x klikem na NÁPIS SYNTHLUCIDA do 2 vteřin (logo je vánoční):
+  // automaticky (podle data) -> vynuceně ZAPNUTO -> vynuceně VYPNUTO -> automaticky ...
+  // ==========================================
+  let allSoulsOverride = null;
+  let allSoulsBrandClicks = 0;
+  let allSoulsBrandClickTimer = null;
+  let allSoulsLeaves = [];
+  let allSoulsCandles = [];
+  let allSoulsFrame = 0;
+
+  function isAllSoulsSeason() {
+      const d = new Date();
+      const m = d.getMonth(), day = d.getDate();
+      return (m === 9 && day >= 26) || (m === 10 && day <= 2); // 26.–31. říjen a 1.–2. listopad
+  }
+
+  function isAllSoulsActive() {
+      return allSoulsOverride === null ? isAllSoulsSeason() : allSoulsOverride;
+  }
+
+  try {
+      const savedAllSouls = localStorage.getItem('synthlucida_allsouls_override');
+      if (savedAllSouls === 'true') allSoulsOverride = true;
+      else if (savedAllSouls === 'false') allSoulsOverride = false;
+  } catch (e) { /* ignore */ }
+
+  window.handleBrandClick = function() {
+      allSoulsBrandClicks++;
+      if (allSoulsBrandClickTimer) clearTimeout(allSoulsBrandClickTimer);
+      allSoulsBrandClickTimer = setTimeout(() => { allSoulsBrandClicks = 0; }, 2000);
+
+      if (allSoulsBrandClicks >= 5) {
+          allSoulsBrandClicks = 0;
+          clearTimeout(allSoulsBrandClickTimer);
+          if (allSoulsOverride === null) allSoulsOverride = true;
+          else if (allSoulsOverride === true) allSoulsOverride = false;
+          else allSoulsOverride = null;
+
+          try {
+              if (allSoulsOverride === null) localStorage.removeItem('synthlucida_allsouls_override');
+              else localStorage.setItem('synthlucida_allsouls_override', String(allSoulsOverride));
+          } catch (e) { /* ignore */ }
+
+          const label = allSoulsOverride === null ? 'AUTO (dle data)' : (allSoulsOverride ? 'VYNUCENĚ ZAPNUTO' : 'VYNUCENĚ VYPNUTO');
+          if (typeof showToast === 'function') showToast('🕯️ Dušičková atmosféra: ' + label, '🕯️');
+          updateCanvasState();
+      }
+  };
+
+  function initAllSouls() {
+      const leafColors = ['#d9731a', '#b3471d', '#c9a227', '#8c4a1b', '#a02c1c', '#e0902b'];
+      allSoulsLeaves = [];
+      const leafCount = Math.max(14, Math.min(32, Math.floor((canvas.width * canvas.height) / 30000)));
+      for (let i = 0; i < leafCount; i++) {
+          allSoulsLeaves.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              size: Math.random() * 5 + 6,
+              speed: Math.random() * 0.45 + 0.25,
+              sway: Math.random() * Math.PI * 2,
+              swaySpeed: Math.random() * 0.02 + 0.008,
+              rot: Math.random() * Math.PI * 2,
+              rotSpeed: (Math.random() - 0.5) * 0.03,
+              color: leafColors[i % leafColors.length],
+              alpha: Math.random() * 0.3 + 0.35
+          });
+      }
+      // Tiše blikající plamínky svíček u spodní hrany obrazovky
+      allSoulsCandles = [];
+      const candleCount = Math.max(8, Math.min(18, Math.floor(canvas.width / 60)));
+      for (let i = 0; i < candleCount; i++) {
+          allSoulsCandles.push({
+              x: (canvas.width / candleCount) * (i + 0.5) + (Math.random() * 16 - 8),
+              y: canvas.height - 6 - Math.random() * 10,
+              r: Math.random() * 6 + 13,
+              phase: Math.random() * Math.PI * 2,
+              speed: Math.random() * 0.06 + 0.04
+          });
+      }
+  }
+
+  function drawAllSoulsOverlay() {
+      allSoulsFrame++;
+
+      // Svíčky - měkká teplá záře s jemným nepravidelným kmitáním
+      for (let i = 0; i < allSoulsCandles.length; i++) {
+          const c = allSoulsCandles[i];
+          c.phase += c.speed;
+          const fl = 0.5 + 0.5 * Math.sin(c.phase) * Math.sin(c.phase * 0.37 + i);
+          const r = c.r * (0.85 + fl * 0.3);
+          const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
+          g.addColorStop(0, 'rgba(255, 214, 120, 1)');
+          g.addColorStop(0.35, 'rgba(255, 140, 40, 0.6)');
+          g.addColorStop(1, 'rgba(255, 90, 0, 0)');
+          ctx.save();
+          ctx.globalAlpha = 0.3 + fl * 0.4;
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+      }
+
+      // Padající listí - pouze pokud aktuální WEATHER nekreslí vlastní déšť/sníh
+      if (weatherMode === 0) {
+          for (let i = 0; i < allSoulsLeaves.length; i++) {
+              const l = allSoulsLeaves[i];
+              l.y += l.speed;
+              l.sway += l.swaySpeed;
+              l.rot += l.rotSpeed;
+              l.x += Math.sin(l.sway) * 0.6;
+              if (l.y > canvas.height + 12) { l.y = -12; l.x = Math.random() * canvas.width; }
+              if (l.x < -12) l.x = canvas.width + 12;
+              else if (l.x > canvas.width + 12) l.x = -12;
+              ctx.save();
+              ctx.translate(l.x, l.y);
+              ctx.rotate(l.rot);
+              ctx.globalAlpha = l.alpha;
+              ctx.fillStyle = l.color;
+              ctx.beginPath();
+              ctx.moveTo(0, -l.size);
+              ctx.quadraticCurveTo(l.size * 0.85, -l.size * 0.1, 0, l.size);
+              ctx.quadraticCurveTo(-l.size * 0.85, -l.size * 0.1, 0, -l.size);
+              ctx.fill();
+              ctx.strokeStyle = 'rgba(60, 25, 5, 0.55)';
+              ctx.lineWidth = 0.8;
+              ctx.beginPath();
+              ctx.moveTo(0, -l.size);
+              ctx.lineTo(0, l.size + 2);
+              ctx.stroke();
+              ctx.restore();
           }
       }
   }
@@ -4134,6 +4274,7 @@
 
       initChristmasLights();
       initChristmasSnow();
+      initAllSouls();
   }
   
   initEffects();
@@ -4141,7 +4282,7 @@
 
   function drawEffects() {
       // Pri dechovem cviceni se kresli jen WEATHER (SUNSET/NIGHT a vanoce zustavaji skryte jako dosud)
-      if(breathingActive ? weatherMode === 0 : (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive())) {
+      if(breathingActive ? weatherMode === 0 : (weatherMode === 0 && sunsetMode === 0 && !isChristmasActive() && !isAllSoulsActive())) {
           canvasLoopActive = false;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           return;
@@ -4151,6 +4292,10 @@
 
       if(!breathingActive && isChristmasActive()) {
           drawChristmasOverlay();
+      }
+
+      if(!breathingActive && isAllSoulsActive()) {
+          drawAllSoulsOverlay();
       }
 
       if(weatherMode === 1) {
@@ -4652,7 +4797,7 @@
   }
 
   function updateCanvasState() {
-      let active = breathingActive ? weatherMode !== 0 : (weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive());
+      let active = breathingActive ? weatherMode !== 0 : (weatherMode !== 0 || sunsetMode !== 0 || isChristmasActive() || isAllSoulsActive());
       canvas.style.display = active ? 'block' : 'none';
       if (active && !canvasLoopActive) drawEffects();
       else if (!active) ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -8622,7 +8767,7 @@
             // kliknutí na 💡/✨ (vlastní klíče), ale SAVE tlačítko má tohle nastavení
             // ukládat/obnovovat taky - promítneme ho tedy i sem.
             if (typeof settings.logoGlowEnabled === 'boolean') logoGlowEnabled = settings.logoGlowEnabled;
-            if (typeof settings.sparkleState === 'number' && (settings.sparkleState === 0 || settings.sparkleState === 1 || settings.sparkleState === 2)) sparkleState = settings.sparkleState;
+            if (typeof settings.sparkleState === 'number' && (settings.sparkleState === 0 || settings.sparkleState === 1 || settings.sparkleState === 2 || settings.sparkleState === 3)) sparkleState = settings.sparkleState;
             if (typeof settings.motivationTexts === 'boolean') motivationTextsEnabled = settings.motivationTexts;
             if (settings.birdsEnabled === false) birdsEnabled = false;
             restoreLayerFromSave(settings.asmrLayer);
