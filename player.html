@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.3">
+<meta name="app-version" content="2.0.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -7729,9 +7729,17 @@
   // uživatel mezitím vybere jinou skladbu, sáhne na hlasitost nebo se vrátí do jiného playlistu.
   let asmrFadeTimer = null;
   const ASMR_FADE_MS = 4000;
+  // Ekvalizér a notičky se při ztišování uklidní (nehraje se skoro nic), po zrušení ztišení se vrátí
+  function quietEqIndicators() {
+    eqEl.classList.remove('playing');
+    if (myPlaylistEqEl) myPlaylistEqEl.classList.remove('playing');
+    if (myFilesEqEl) myFilesEqEl.classList.remove('playing');
+  }
   function cancelAsmrFade(restoreVolume) {
     if (asmrFadeTimer) { clearInterval(asmrFadeTimer); asmrFadeTimer = null; }
     if (restoreVolume) audio.volume = parseFloat(volumeSlider.value);
+    // přerušené ztišení (ruční hlasitost, jiná skladba...) - pokud se pořád hraje, ekvalizér se vrátí
+    if (!audio.paused && audio.getAttribute('src')) { eqEl.classList.add('playing'); updateSectionEqIndicators(); }
   }
   // Po dokončeném ztišení se ztišená skladba úplně "zahodí": přehrávač se vrátí do stavu SELECT TRACK
   // (bez načtené skladby), takže ▶ už ji nedopřehraje a spustí jen skladbu z právě otevřeného playlistu ASMR.
@@ -7744,6 +7752,8 @@
     customQueueActive = false;    // ztišená fronta My Playlist se taky nesmí dopřehrát
     try { audio.pause(); } catch (e) { /* ignore */ }
     try { audio.removeAttribute('src'); audio.load(); } catch (e) { /* ignore */ }
+    quietEqIndicators();          // pause událost může přijít později - ekvalizér a notičky vypnout hned
+    updateSectionEqIndicators();
     audio.volume = parseFloat(volumeSlider.value); // další přehrání začne v běžné hlasitosti
     playBtn.innerText = "▶";
     hideLoading();
@@ -7795,6 +7805,7 @@
       i++;
       expected = Math.max(0, startVol * (1 - i / steps));
       audio.volume = expected;
+      if (i >= steps * 0.6) quietEqIndicators(); // posledních ~40 % ztišení už je skoro ticho
       if (i >= steps) {
         discardFadedTrack();
       }
