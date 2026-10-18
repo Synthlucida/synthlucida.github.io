@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.0">
+<meta name="app-version" content="2.0.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -703,6 +703,13 @@
   .history-list li { font-size: 10px; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .history-list li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
   .history-list li.active { border-left: 2px solid var(--accent-color); background: rgba(255,255,255,0.06); }
+
+  /* Vyhledávání skladeb (EXPLORE > SEARCH) */
+  .search-input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 11px 14px; border-radius: 10px; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .search-input::placeholder { color: rgba(255,255,255,0.4); }
+  .search-results { list-style: none; padding: 0; margin: 10px 0 0; }
+  .search-results li { padding: 9px 4px; }
+  .search-results .search-play { margin-left: 2px; }
   .history-list .history-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; cursor: pointer; }
   .history-list .history-meta { font-size: 8px; opacity: 0.5; flex-shrink: 0; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
 
@@ -969,6 +976,11 @@
   /* Řádek s názvem skladby + ambientní ekvalizér, aby přehrávač nerostl do výšky */
   .now-playing-row { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
   .now-playing-row .track-title { flex: 1 1 auto; min-width: 0; }
+  /* Název skladby je přesně uprostřed (stejně jako čas pod ním): ekvalizér a notičky sedí
+     vpravo mimo tok, takže název neposouvají, a po obou stranách je stejná rezerva místa. */
+  .now-playing-row { padding: 0 38px; box-sizing: border-box; }
+  .now-playing-row > .eq { position: absolute; right: 18px; top: 50%; margin-top: -6.5px; }
+  .now-playing-row > .eq-notes { position: absolute; right: 0; top: 50%; margin-top: -6.5px; }
 
   /* NEW štítek u právě hrající skladby - viditelný, jen když je aktuální skladba označená jako nová */
   .now-playing-new-flag {
@@ -1028,7 +1040,31 @@
   }
 
   /* Řádek s časem + mini loading spinner (buffering / seek) */
-  .track-time-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 5px; }
+  /* Čas je přesně na středu (stejně jako název skladby nad ním), lupa a spinner načítání
+     sedí v pravém sloupci vedle něj a střed neposouvají. */
+  .track-time-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 8px; margin-bottom: 5px; }
+  .track-time-row .track-time { grid-column: 2; }
+  .track-time-side { grid-column: 3; justify-self: start; display: flex; align-items: center; gap: 6px; }
+  /* Lupa vedle času: skočí v hlavním okně na právě hrající skladbu (i do jiného playlistu) */
+  .track-locate-btn {
+    width: 22px; height: 22px; padding: 0; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--accent-color);
+    background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid rgba(255,255,255,0.26);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 6px rgba(255,255,255,0.04);
+    opacity: 0.9; transition: 0.25s; -webkit-tap-highlight-color: transparent;
+  }
+  .track-locate-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px var(--accent-color)); transition: transform 0.25s; }
+  .track-locate-btn:hover { opacity: 1; border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.22); }
+  .track-locate-btn:hover svg { transform: scale(1.12) rotate(-8deg); }
+  .track-locate-btn:active { transform: translateY(1px) scale(0.95); box-shadow: 0 0 5px var(--accent-color), inset 0 1px 3px rgba(0,0,0,0.4); }
+  .track-locate-btn:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 2px; }
+  .playlist li.locate-flash { animation: locateFlash 2s ease-out; }
+  @keyframes locateFlash {
+    0%, 35% { background: rgba(255,255,255,0.22); box-shadow: inset 0 0 0 1px var(--accent-color), 0 0 12px var(--accent-color); }
+    100% { box-shadow: inset 0 0 0 1px transparent, 0 0 0 transparent; }
+  }
 
   .mini-spinner {
     width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
@@ -2188,6 +2224,7 @@
     <button class="btn-atmos" onclick="location.href='draw.html'">DRAWING</button>
     <button class="btn-atmos" onclick="window.open('https://synthlucida.github.io/weather.html','_blank','noopener')">FORECAST</button>
     <button class="btn-atmos" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
+    <button class="btn-atmos" id="btn-search" onclick="toggleSearch()"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.4" y1="15.4" x2="20.5" y2="20.5"/></svg>SEARCH</button>
   </div>
 </div>
 <script>
@@ -2314,8 +2351,11 @@
   </div>
   <div class="track-time-row">
     <div class="track-time" id="track-time">00:00 / 00:00</div>
-    <div class="mini-spinner" id="mini-spinner" aria-hidden="true"></div>
-    <div class="mini-spinner-pct" id="mini-spinner-pct" aria-hidden="true"></div>
+    <div class="track-time-side">
+      <button class="track-locate-btn" id="btn-locate-track" type="button" onclick="locatePlayingTrack()" title="Show the playing track in the list" aria-label="Show the playing track in the list"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.6 8.6a3.4 3.4 0 0 1 2.2-1.6" stroke-width="1.5" opacity="0.8"/><line x1="15.4" y1="15.4" x2="20.5" y2="20.5" stroke-width="2.6"/></svg></button>
+      <div class="mini-spinner" id="mini-spinner" aria-hidden="true"></div>
+      <div class="mini-spinner-pct" id="mini-spinner-pct" aria-hidden="true"></div>
+    </div>
   </div>
   
   <div class="progress-container" id="progress-container">
@@ -2433,6 +2473,16 @@
   </div>
 </div>
 
+<div class="main-guide" id="search-panel">
+  <button class="main-guide-close" onclick="toggleSearch()" aria-label="Close search">✖</button>
+  <div class="main-guide-inner">
+    <h3>Search</h3>
+    <input type="search" class="myfiles-text-input search-input" id="search-input" placeholder="Search a track… / Hledat skladbu…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search tracks">
+    <p class="main-guide-note" id="search-hint">Type a word in English or Czech - e.g. rain, déšť, piano, noc, moře.</p>
+    <ul class="history-list search-results" id="search-results"></ul>
+  </div>
+</div>
+
 <div class="main-guide" id="queue-panel">
   <button class="main-guide-close" onclick="toggleCustomQueue()" aria-label="Close my playlist">✖</button>
   <div class="main-guide-inner">
@@ -2501,12 +2551,17 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_playback">Playback</h4>
-      <p data-i18n="p_playback">Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally.</p>
+      <p data-i18n="p_playback">Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment.</p>
     </div>
 
     <div class="main-guide-section">
       <h4 data-i18n="h_atmos">Atmospheres & playlists</h4>
-      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off.</p>
+      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_search">Search</h4>
+      <p data-i18n="p_search">Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.</p>
     </div>
 
     <div class="main-guide-section">
@@ -2955,6 +3010,7 @@
       { title: "SYNTHLUCIDA - Rain Melodies", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/melodies_of_rain.mp3", added: "2026-09-20" },
       { title: "SYNTHLUCIDA - Stones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/stones.mp3" },
       { title: "SYNTHLUCIDA - Drone For ASMR", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/drone_for_asmr.mp3", added: "2026-10-17" },
+      { title: "SYNTHLUCIDA - Drone For Asmr2.mp3", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/drone_for_asmr2.mp3", added: "2026-10-18" },
     ],
     piano: [
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
@@ -3109,6 +3165,7 @@
   let playlist = tracks['asmr'];
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
+  let playingRef = null; // { key, index } - odkud skladba, která právě hraje, pochází (prohlížený playlist se může lišit)
   let currentTrackTitle = null; // review 09/2026: název skladby, která opravdu hraje (pro uložení poslední skladby)
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
   let isPlaying = false;
@@ -6806,9 +6863,11 @@
     link_weather: { en: "WEATHER", cz: "POČASÍ" },
     link_privacy: { en: "PRIVACY POLICY", cz: "ZÁSADY OCHRANY SOUKROMÍ" },
     h_playback: { en: "Playback", cz: "Přehrávání" },
-    p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně." },
+    p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně. Prohlížíte jiný playlist, než ze kterého hraje skladba? Klepněte na 🔍 vedle času a hlavní okno skočí rovnou na právě hrající skladbu - přepne se do jejího playlistu (nebo do MY PLAYLIST), odroluje na ni a krátce ji rozsvítí." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
-    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) and BREATHE (a guided breathing session). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist (they are dimmed elsewhere), the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave ASMR. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) a BREATHE (vedené dechové cvičení). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR (jinde jsou ztlumené), knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z ASMR se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
+    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist (they are dimmed elsewhere), the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave ASMR. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR (jinde jsou ztlumené), knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z ASMR se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
+    h_search: { en: "Search", cz: "Vyhledávání" },
+    p_search: { en: "Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.", cz: "Klepněte na EXPLORE a poté na SEARCH - otevře se okno vyhledávání. Napište slovo česky nebo anglicky - například rain, déšť, piano, moře nebo noc - a skladby z ASMR, PIANO a CHILL, které sedí, se zobrazí už při psaní (na velikosti písmen ani diakritice nezáleží a česká slova se přiřazují k anglickým názvům skladeb). Klepnutím na skladbu se hlavní okno přepne rovnou do jejího playlistu, skladba se v seznamu odroluje na viditelné místo a krátce se rozsvítí; klepnutím na ▶ vedle ní ji hned přehrajete. Klávesa Enter otevře první výsledek. Pokud žádná skladba neobsahuje všechna vaše slova, zobrazí se nejbližší shody." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
@@ -7204,9 +7263,12 @@
     saveMyPlaylistsToStorage();
     const beforeLen = customQueue.length;
     customQueue = customQueue.filter(e => e.fileId !== fileId);
-    if (customQueue.length !== beforeLen) { saveCustomQueue(); renderCustomQueue(); updateQueueCountBadge(); refreshPlaylistHeartIcons(); }
+    if (customQueue.length !== beforeLen) { saveCustomQueue(); renderCustomQueue(); updateQueueCountBadge(); refreshPlaylistHeartIcons(); syncMainListWithQueue(); }
     await refreshMyFilesLibrary();
     renderMyFiles();
+    if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0 && currentPlaylistKey.indexOf('custom:file:') !== 0) {
+      syncMyPlaylistToMainWindow(currentPlaylistKey.slice('custom:'.length));
+    }
   };
 
   // Přehrát jeden vlastní soubor okamžitě (mimo playlisty)
@@ -7281,6 +7343,7 @@
     }
     saveMyPlaylistsToStorage();
     renderMyFiles();
+    syncMyPlaylistToMainWindow(playlistId);
   };
 
   window.removeFromMyPlaylist = function(playlistId, itemPos) {
@@ -7289,6 +7352,7 @@
     pl.items.splice(itemPos, 1);
     saveMyPlaylistsToStorage();
     renderMyFiles();
+    syncMyPlaylistToMainWindow(playlistId);
   };
 
   window.moveMyPlaylistItem = function(playlistId, itemPos, dir) {
@@ -7301,6 +7365,7 @@
     pl.items[newPos] = tmp;
     saveMyPlaylistsToStorage();
     renderMyFiles();
+    syncMyPlaylistToMainWindow(playlistId);
   };
 
   // Vyřeší položky playlistu (vlastní soubory i SYNTHLUCIDA skladby) na pole {title, src}
@@ -7317,6 +7382,42 @@
       }
     }
     return resolved;
+  }
+
+  // Když je playlist z panelu F právě načtený v hlavním okně, propíše do něj každou změnu
+  // (přesun, odebrání, přidání) hned - bez nutnosti znovu kliknout na PLAY. Přehrávaná
+  // skladba se nepřeruší, jen se znovu najde její pozice v novém pořadí, takže další
+  // skladba se vybere podle nového pořadí.
+  let myPlaylistSyncToken = 0;
+  async function syncMyPlaylistToMainWindow(playlistId) {
+    const key = 'custom:' + playlistId;
+    if (currentPlaylistKey !== key || mainListShowsQueue) return;
+    const pl = myPlaylists.find(p => p.id === playlistId);
+    if (!pl) return;
+    const token = ++myPlaylistSyncToken;
+    const resolved = await resolveMyPlaylistTracks(pl);
+    // mezitím se mohlo přepnout na jiný playlist / přijít novější změna
+    if (token !== myPlaylistSyncToken || currentPlaylistKey !== key || mainListShowsQueue) return;
+    if (!resolved.length) return; // prázdný seznam nechá hlavní okno beze změny (nic by se nedalo přehrát)
+
+    const oldIndex = currentTrackIndex;
+    let newIndex = -1;
+    if (!customQueueActive && oldIndex >= 0) {
+      // aktuálně hrající skladba (při duplicitách ta nejbližší původní pozici)
+      let best = -1;
+      resolved.forEach((t, i) => {
+        if (isCurrentAudioSrc(t.src) && (best === -1 || Math.abs(i - oldIndex) < Math.abs(best - oldIndex))) best = i;
+      });
+      // hrající skladba byla odebrána: ukazuj těsně před místo, kde byla, ať další bude ta, co po ní následovala
+      newIndex = best !== -1 ? best : Math.min(oldIndex, resolved.length) - 1;
+    }
+
+    const scrollTop = playlistEl.scrollTop;
+    tracks[key] = resolved;
+    playlist = tracks[key];
+    if (!customQueueActive) currentTrackIndex = newIndex;
+    updatePlaylistUI();
+    playlistEl.scrollTop = scrollTop;
   }
 
   // Spustí přehrávání vlastního playlistu přes standardní přehrávací engine
@@ -7718,6 +7819,278 @@
     try { localStorage.setItem('synthlucida_last_playlist', key); } catch (e) {}
   };
 
+  // ==========================================
+  // LUPA U ČASU - nalezení právě hrající skladby
+  // Uživatel může prohlížet jiný playlist (PIANO), než ze kterého hraje skladba (CHILL),
+  // nebo hraje fronta My Playlist. Lupa přepne hlavní okno na správný seznam, odroluje
+  // na hrající skladbu a krátce ji zvýrazní.
+  // ==========================================
+  function findPlayingTrackLocation() {
+    if (!audio.getAttribute('src')) return null; // nic není načtené
+    if (customQueueActive && customQueue[customQueueIndex]) {
+      return { kind: 'queue', pos: customQueueIndex };
+    }
+    // 1) zapamatovaný původ skladby, pokud pořád odpovídá tomu, co opravdu hraje
+    if (playingRef) {
+      const t = tracks[playingRef.key] && tracks[playingRef.key][playingRef.index];
+      if (t && isCurrentAudioSrc(t.src)) return { kind: 'list', key: playingRef.key, index: playingRef.index };
+    }
+    // 2) záloha: dohledání podle adresy (nejdřív v prohlíženém playlistu)
+    const keys = [currentPlaylistKey].concat(Object.keys(tracks).filter(k => k !== currentPlaylistKey));
+    for (const key of keys) {
+      const list = tracks[key];
+      if (!Array.isArray(list)) continue;
+      const idx = list.findIndex(t => t && isCurrentAudioSrc(t.src));
+      if (idx !== -1) return { kind: 'list', key, index: idx };
+    }
+    return null;
+  }
+
+  // Přepne hlavní okno na seznam, ve kterém skladba je (pokud tam ještě není), odroluje na ni
+  // a krátce ji zvýrazní. markPlaying = true jen když jde o skladbu, která právě hraje
+  // (lupa) - přehrávač si pak srovná pozici; u vyhledávání se přehrávání nijak neovlivní.
+  function revealTrackInMainList(loc, markPlaying) {
+    let switched = false;
+    if (loc.kind === 'queue') {
+      if (!mainListShowsQueue) {
+        mainListShowsQueue = true;
+        document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+        updatePlaylistUI();
+        switched = true;
+      }
+    } else {
+      if (mainListShowsQueue || currentPlaylistKey !== loc.key) {
+        const builtinBtn = loc.key.indexOf('custom:') === 0 ? null
+          : document.querySelector(`.btn-atmos[onclick*="'${loc.key}'"]`);
+        if (builtinBtn) {
+          setPlaylist(loc.key, builtinBtn);
+        } else {
+          // vlastní playlist z panelu F - stejné přepnutí jako v playMyPlaylist, ale bez spuštění přehrávání
+          playlist = tracks[loc.key];
+          currentPlaylistKey = loc.key;
+          mainListShowsQueue = false;
+          document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+          const downloadBtn = document.getElementById('btn-download');
+          if (downloadBtn) downloadBtn.style.display = 'none';
+          updatePlaylistUI();
+          try { localStorage.setItem('synthlucida_last_playlist', loc.key); } catch (e) { /* ignore */ }
+        }
+        switched = true;
+      }
+      // seznam i přehrávač se zase shodují na tom, která skladba hraje (další/předchozí navazuje správně)
+      if (markPlaying) currentTrackIndex = loc.index;
+    }
+
+    const rowIndex = loc.kind === 'queue' ? loc.pos : loc.index;
+    let tries = 0;
+    const scrollToRow = () => {
+      const row = playlistEl.children[rowIndex];
+      if (!row) { if (++tries < 5) setTimeout(scrollToRow, 80); return; }
+      const listRect = playlistEl.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const target = playlistEl.scrollTop + (rowRect.top - listRect.top) - (listRect.height - rowRect.height) / 2;
+      playlistEl.scrollTo({ top: Math.max(0, target), behavior: switched ? 'auto' : 'smooth' });
+      row.classList.remove('locate-flash');
+      void row.offsetWidth; // restart animace při opakovaném kliknutí
+      row.classList.add('locate-flash');
+      row.addEventListener('animationend', () => row.classList.remove('locate-flash'), { once: true });
+    };
+    requestAnimationFrame(scrollToRow);
+  }
+
+  window.locatePlayingTrack = function() {
+    const loc = findPlayingTrackLocation();
+    if (!loc) {
+      showToast(guideLang === 'cz' ? 'Nic právě nehraje' : 'Nothing is playing', '🔍');
+      return;
+    }
+    revealTrackInMainList(loc, true);
+  };
+
+  // ==========================================
+  // VYHLEDÁVÁNÍ SKLADEB (EXPLORE > SEARCH)
+  // Hledá se v ASMR / PIANO / CHILL podle názvu skladby a názvu playlistu, bez ohledu na
+  // velikost písmen a diakritiku. Česká slova se přes malý slovník převedou na anglické
+  // názvy (déšť -> rain, moře -> sea ...), protože skladby mají anglické názvy.
+  // Klepnutí na skladbu přepne hlavní okno do jejího playlistu a skladbu zvýrazní,
+  // tlačítko ▶ ji navíc rovnou přehraje.
+  // ==========================================
+  const SEARCH_LISTS = ['asmr', 'piano', 'chill'];
+  const SEARCH_STOP = ['a', 'i', 'u', 'v', 'k', 'o', 's', 'z', 'na', 'do', 've', 'se', 'je', 'pro', 'jako', 'the', 'of', 'and', 'in', 'to', 'for'];
+  // [regulární výraz celého slova bez diakritiky, anglická slova, která se přidají jako alternativa]
+  const SEARCH_CZ = [
+    [/^vod(a|y|u|e|ou|ni|nim)$/, 'water stream river lake waves ocean sea'],
+    [/^potok(a|u|em|y)?$/, 'stream'],
+    [/^rek(a|y|u|e|ou)$/, 'river'],
+    [/^jezer(o|a|u|e|em)$/, 'lake'],
+    [/^vln(a|y|u|ach|ami|ky|ek)$/, 'waves'],
+    [/^mor(e|i|em|sky|ska)$/, 'sea ocean seaside seagulls'],
+    [/^rac(ek|ci|ku|ka|ky)$/, 'seagulls'],
+    [/^dest/, 'rain raindrops'],
+    [/^kapk(a|y|u|ach|ami)$/, 'raindrops'],
+    [/^(boure|bourka|bourky|bourku|hrom|hromy|hrmeni|blesk|blesky)$/, 'thunderstorm'],
+    [/^(klavir|klavira|klaviru|klaviry|pianino)$/, 'piano'],
+    [/^let(o|a|e|u|em|ni|ny)$/, 'summer'],
+    [/^jar(o|a|u|em|ni)$/, 'spring'],
+    [/^zim(a|y|u|e|ni|ou)$/, 'winter'],
+    [/^noc(i|ni|nim|ou)?$/, 'night'],
+    [/^(rano|rani|ranni|rannim|jitro|jitra)$/, 'morning'],
+    [/^(mesto|mesta|mestske|mestsky|mestem)$/, 'city town'],
+    [/^(ptak|ptaci|ptaku|ptaka|ptaky|ptactvo)$/, 'birds'],
+    [/^(zaba|zaby|zab|zabi|zabu)$/, 'frogs'],
+    [/^(ohen|ohne|ohni|ohnem|taborak|taboraku)$/, 'campfire candle'],
+    [/^(svicka|svicky|svicku|svicen|svice)$/, 'candle'],
+    [/^(vlak|vlaku|vlaky|vlakem)$/, 'train'],
+    [/^(kamen|kameny|kamenu|kamenem|kameni)$/, 'stones rock'],
+    [/^(skala|skaly|skalu|skal)$/, 'rock'],
+    [/^limonad(a|y|u|e)$/, 'lemonade'],
+    [/^(sum|sumy|sumu|sumem|hluk|hluku)$/, 'noise'],
+    [/^(chuze|prochazka|prochazky|prochazku|prochazkou|pesky)$/, 'walk'],
+    [/^(slunce|slunci|slunecni|slunicko|slunickem)$/, 'sun sunlit sunset sunrider solar'],
+    [/^(zapad|zapadu|zapady|zapadem)$/, 'sunset'],
+    [/^(mesic|mesice|mesicni|mesicem)$/, 'moonlight'],
+    [/^(vesmir|vesmiru|vesmirny|kosmos|kosmicky|hvezdy|hvezda)$/, 'space nebula polaris'],
+    [/^(sen|sny|snu|snit|sneni|snech)$/, 'dreams dreaming'],
+    [/^(svoboda|svobody|svobodu|volnost|volny)$/, 'freedom free'],
+    [/^(kytara|kytary|kytaru|kytarou)$/, 'guitar'],
+    [/^saxofon\w*$/, 'saxophone'],
+    [/^(detsky|detske|deti)$/, 'childrens'],
+    [/^(ticho|tichy|tiche|tichou)$/, 'quiet'],
+    [/^(pomalu|pomaly|pomale)$/, 'slow'],
+    [/^(zlaty|zlate|zlato)$/, 'golden'],
+    [/^(modry|modre|modra|modrou)$/, 'blue'],
+    [/^(vitr|vetru|vanek|vanku|vetrik)$/, 'breeze'],
+    [/^(pribeh|pribehy|pohadka|pohadky)$/, 'tales'],
+    [/^(spanek|spani|spat|usinani|usnout|uspavanka)$/, 'sleeping dreaming'],
+    [/^(klid|klidny|klidna|klidne|klidu|uklidneni|relax|relaxace|uvolneni)$/, 'calm quiet gentle stress'],
+    [/^(stres|stresu)$/, 'stress'],
+    [/^(jemny|jemna|jemne|jemnou)$/, 'gentle'],
+    [/^(stastny|stastne|radost|vesely|vesela)$/, 'happy'],
+    [/^(plac|plakat|smutek|smutny|smutna|smutne)$/, 'crying emotional'],
+    [/^(vzpominka|vzpominky|vzpominek)$/, 'memories'],
+    [/^(melodie|melodii|melodiem)$/, 'melodies'],
+    [/^(dron|drony|bruceni)$/, 'drone'],
+    [/^(zivot|zivota|zivotu)$/, 'life'],
+    [/^(obloha|oblohy|nebe)$/, 'sky heaven'],
+    [/^(patek|patku)$/, 'friday']
+  ];
+
+  function searchNorm(str) {
+    return String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // Najde skladby pro zadaný text. Vrací { items, exact }: exact = true, když skladba obsahuje
+  // všechna zadaná slova; jinak se ukážou nejbližší shody (nejvíc zadaných slov).
+  function searchTracks(query) {
+    const tokens = searchNorm(query).split(' ').filter(t => t.length >= 2 && SEARCH_STOP.indexOf(t) === -1);
+    if (!tokens.length) return { items: [], exact: true, tokens };
+    const variants = tokens.map(tok => {
+      const words = [tok];
+      SEARCH_CZ.forEach(([re, en]) => { if (re.test(tok)) en.split(' ').forEach(w => { if (words.indexOf(w) === -1) words.push(w); }); });
+      return words;
+    });
+    const found = [];
+    SEARCH_LISTS.forEach((key, listOrder) => {
+      (tracks[key] || []).forEach((t, index) => {
+        if (!t || typeof t.title !== 'string') return;
+        const hay = ' ' + searchNorm(displayTrackTitle(t.title)) + ' ' + key + ' ';
+        let hits = 0, starts = 0;
+        variants.forEach(words => {
+          if (words.some(w => hay.indexOf(w) !== -1)) hits++;
+          if (words.some(w => hay.indexOf(' ' + w) !== -1)) starts++;
+        });
+        if (hits) found.push({ key, index, title: t.title, hits, starts, listOrder });
+      });
+    });
+    if (!found.length) return { items: [], exact: true, tokens };
+    const best = Math.max.apply(null, found.map(f => f.hits));
+    const items = found.filter(f => f.hits === best)
+      .sort((x, y) => (y.starts - x.starts) || (x.listOrder - y.listOrder) || (x.index - y.index));
+    return { items, exact: best === tokens.length, tokens };
+  }
+
+  function renderSearchResults() {
+    const input = document.getElementById('search-input');
+    const listEl = document.getElementById('search-results');
+    const hint = document.getElementById('search-hint');
+    if (!input || !listEl || !hint) return;
+    const cz = guideLang === 'cz';
+    listEl.innerHTML = '';
+    const q = input.value.trim();
+    if (!q) {
+      hint.textContent = cz ? 'Zadejte slovo česky nebo anglicky - např. rain, déšť, piano, noc, moře.'
+                            : 'Type a word in English or Czech - e.g. rain, déšť, piano, noc, moře.';
+      return;
+    }
+    const res = searchTracks(q);
+    if (!res.items.length) {
+      hint.textContent = cz ? 'Nic nenalezeno. Zkuste jiné slovo (česky nebo anglicky).'
+                            : 'Nothing found. Try another word (English or Czech).';
+      return;
+    }
+    const MAX = 60;
+    const shown = res.items.slice(0, MAX);
+    hint.textContent = (res.exact ? '' : (cz ? 'Nejbližší shody · ' : 'Closest matches · ')) +
+      (cz ? `Nalezeno: ${res.items.length}` : `Found: ${res.items.length}`) +
+      (res.items.length > MAX ? (cz ? ` (zobrazeno ${MAX})` : ` (showing ${MAX})`) : '');
+    shown.forEach(r => {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.className = 'history-name';
+      name.textContent = displayTrackTitle(r.title);
+      const meta = document.createElement('span');
+      meta.className = 'history-meta';
+      meta.textContent = r.key.toUpperCase();
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'icon-btn search-play';
+      playBtn.textContent = '▶';
+      playBtn.title = cz ? 'Přehrát' : 'Play';
+      playBtn.setAttribute('aria-label', (cz ? 'Přehrát: ' : 'Play: ') + displayTrackTitle(r.title));
+      playBtn.addEventListener('click', (e) => { e.stopPropagation(); openSearchResult(r.key, r.index, true); });
+      li.addEventListener('click', () => openSearchResult(r.key, r.index, false));
+      li.appendChild(name);
+      li.appendChild(meta);
+      li.appendChild(playBtn);
+      listEl.appendChild(li);
+    });
+  }
+
+  // Zavře okno vyhledávání, přepne hlavní okno do playlistu skladby a skladbu zvýrazní (a případně přehraje)
+  function openSearchResult(key, index, play) {
+    const panel = document.getElementById('search-panel');
+    if (panel) panel.classList.remove('visible');
+    if (!tracks[key] || !tracks[key][index]) return;
+    revealTrackInMainList({ kind: 'list', key, index }, false);
+    if (play) playTrack(index);
+  }
+
+  window.toggleSearch = function() {
+    const panel = document.getElementById('search-panel');
+    if (!panel) return;
+    const willShow = !panel.classList.contains('visible');
+    panel.classList.toggle('visible', willShow);
+    if (willShow) {
+      renderSearchResults();
+      const input = document.getElementById('search-input');
+      if (input) { setTimeout(() => { try { input.focus(); input.select(); } catch (e) { /* ignore */ } }, 50); }
+    }
+  };
+
+  (function initSearchInput() {
+    const input = document.getElementById('search-input');
+    if (!input) return;
+    input.addEventListener('input', renderSearchResults);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); toggleSearch(); }
+      else if (e.key === 'Enter') {
+        // Enter otevře první nalezenou skladbu (jen zobrazí, nepřehrává)
+        const first = document.querySelector('#search-results li');
+        if (first) first.click();
+      }
+    });
+  })();
+
   window.setVisualTheme = function(theme, btn) {
     currentVisualTheme = theme;
     // Nahrazujeme jen theme-* třídu, zbytek (např. is-fullscreen) necháme být
@@ -7880,6 +8253,7 @@
     cancelCrossfade();
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     currentTrackIndex = index;
+    playingRef = { key: currentPlaylistKey, index };
     const track = playlist[index];
     currentTrackTitle = track.title;
     showLoading();
@@ -8046,10 +8420,22 @@
 
     crossfadeAudio.pause();
 
+    // Pořadí se mohlo během prolnutí změnit (přesun / odebrání skladby) - cílovou skladbu proto
+    // najdeme znovu podle adresy (při duplicitách nejbližší původní pozici), ať index sedí.
+    {
+      const list = target.kind === 'queue' ? customQueue : playlist;
+      let best = -1;
+      list.forEach((e, i) => {
+        if (e && e.src === target.src && (best === -1 || Math.abs(i - target.pos) < Math.abs(best - target.pos))) best = i;
+      });
+      target.pos = best !== -1 ? best : Math.max(0, Math.min(target.pos, list.length - 1));
+    }
+
     if (target.kind === 'queue') {
       customQueueIndex = target.pos;
     } else {
       currentTrackIndex = target.pos;
+      playingRef = { key: currentPlaylistKey, index: target.pos };
       currentTrackTitle = target.title;
     }
 
@@ -8076,6 +8462,7 @@
     if (target.kind === 'queue') {
       addToHistory({ title: target.title }, target.playlist, target.index);
       renderCustomQueue();
+      syncMainListWithQueue(); // zvýraznění právě hrající skladby v hlavním okně
     } else {
       addToHistory({ title: target.title }, currentPlaylistKey, target.pos);
     }
@@ -8538,6 +8925,16 @@
     try { localStorage.setItem(QUEUE_KEY, JSON.stringify(customQueue)); } catch (e) { /* ignore */ }
   }
 
+  // Když hlavní okno právě zobrazuje frontu My Playlist, musí se seznam v něm překreslit
+  // hned po každé změně fronty (přesun ▲▼ / tažení, odebrání, smazání, import) - ne až po
+  // novém kliknutí na PLAY. Zachová se i pozice posunu seznamu.
+  function syncMainListWithQueue() {
+    if (!mainListShowsQueue || !playlistEl) return;
+    const scrollTop = playlistEl.scrollTop;
+    updatePlaylistUI();
+    playlistEl.scrollTop = scrollTop;
+  }
+
   function loadCustomQueue() {
     try {
       const saved = localStorage.getItem(QUEUE_KEY);
@@ -8594,6 +8991,7 @@
     renderCustomQueue();
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
+    syncMainListWithQueue();
     showToast(`Added to My Playlist: ${displayTrackTitle(track.title)}`, '✓');
   };
 
@@ -8646,6 +9044,7 @@
     renderCustomQueue();
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
+    syncMainListWithQueue();
     showToast(liked ? `Added to My Playlist: ${displayTrackTitle(tracks[playlistKey][index].title)}` : 'Removed from My Playlist', liked ? '♥' : '✓');
   };
 
@@ -8659,6 +9058,7 @@
     renderCustomQueue();
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
+    syncMainListWithQueue();
   };
 
   window.moveCustomQueueItem = function(pos, dir) {
@@ -8673,6 +9073,7 @@
     }
     saveCustomQueue();
     renderCustomQueue();
+    syncMainListWithQueue();
   };
 
   window.clearCustomQueue = function() {
@@ -8687,6 +9088,7 @@
     renderCustomQueue();
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
+    syncMainListWithQueue();
   };
 
   window.exportCustomQueue = function() {
@@ -8753,6 +9155,7 @@
         renderCustomQueue();
         updateQueueCountBadge();
         refreshPlaylistHeartIcons();
+        syncMainListWithQueue();
         showToast('Playlist imported', '📂');
       } catch (e) {
         alert('Could not read this playlist file.');
@@ -11376,6 +11779,7 @@
       }
       saveCustomQueue();
       renderCustomQueue();
+      syncMainListWithQueue();
     }
     window.moveCustomQueueItemTo = moveQueueItemTo;
 
@@ -11447,6 +11851,7 @@
       pl.items.splice(to, 0, item);
       saveMyPlaylistsToStorage();
       renderMyFiles();
+      syncMyPlaylistToMainWindow(plid);
     }
     function stop(cancelled) {
       document.removeEventListener('pointermove', onMove, true);
