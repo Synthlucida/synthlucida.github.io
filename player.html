@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.2">
+<meta name="app-version" content="2.0.3">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -972,6 +972,9 @@
     .now-playing-new-flag.visible { animation: none !important; }
   }
   .track-time { font-size: 11px; color: var(--accent-color); opacity: 0.8; margin-bottom: 0; text-shadow: 0 0 5px var(--accent-color); letter-spacing: 1px; }
+  /* Každá číslice má pevnou šířku (Orbitron má proporční číslice), takže se čas při změně sekund nehýbe */
+  .track-time { white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+  .track-time .tt-d { display: inline-block; width: 0.85em; text-align: center; letter-spacing: 0; }
 
   /* Řádek s názvem skladby + ambientní ekvalizér, aby přehrávač nerostl do výšky */
   .now-playing-row { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px; }
@@ -3010,7 +3013,7 @@
       { title: "SYNTHLUCIDA - Rain Melodies", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/melodies_of_rain.mp3", added: "2026-09-20" },
       { title: "SYNTHLUCIDA - Stones", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/stones.mp3" },
       { title: "SYNTHLUCIDA - Drone For ASMR", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/drone_for_asmr.mp3", added: "2026-10-17" },
-      { title: "SYNTHLUCIDA - Drone For Asmr2.mp3", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/drone_for_asmr2.mp3", added: "2026-10-18" },
+      { title: "SYNTHLUCIDA - Drone For ASMR2", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/drone_for_asmr2.mp3", added: "2026-10-18" },
     ],
     piano: [
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
@@ -7746,7 +7749,7 @@
     hideLoading();
     setTrackTitle('SELECT TRACK', false);
     const timeEl = document.getElementById('track-time');
-    if (timeEl) timeEl.innerText = "00:00 / 00:00";
+    setTrackTimeText("00:00 / 00:00");
     if (progressBar) progressBar.style.width = "0%";
     try { localStorage.removeItem('synthlucida_last_track'); } catch (e) { /* ignore */ }
     if ('mediaSession' in navigator) {
@@ -7828,6 +7831,13 @@
   function findPlayingTrackLocation() {
     if (!audio.getAttribute('src')) return null; // nic není načtené
     if (customQueueActive && customQueue[customQueueIndex]) {
+      // Skladba z ASMR / PIANO / CHILL: lupa skočí do jejího domovského playlistu (ne jen do My Playlist).
+      // Vlastní soubor (F) domů nemá, tam zůstává ukázání v My Playlist.
+      const qe = customQueue[customQueueIndex];
+      if (qe && !qe.fileId && Array.isArray(tracks[qe.playlist])) {
+        const homeIdx = findTrackIndexByRef(qe.playlist, qe.index, qe.title, qe.src, true);
+        if (homeIdx !== -1) return { kind: 'list', key: qe.playlist, index: homeIdx, fromQueue: true };
+      }
       return { kind: 'queue', pos: customQueueIndex };
     }
     // 1) zapamatovaný původ skladby, pokud pořád odpovídá tomu, co opravdu hraje
@@ -7862,7 +7872,18 @@
       if (mainListShowsQueue || currentPlaylistKey !== loc.key) {
         const builtinBtn = loc.key.indexOf('custom:') === 0 ? null
           : document.querySelector(`.btn-atmos[onclick*="'${loc.key}'"]`);
-        if (builtinBtn) {
+        if (builtinBtn && loc.fromQueue) {
+          // hraje fronta My Playlist: jen přepnout zobrazený seznam (setPlaylist by u ASMR hrající skladbu ztišil a zahodil)
+          playlist = tracks[loc.key];
+          currentPlaylistKey = loc.key;
+          mainListShowsQueue = false;
+          document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+          builtinBtn.classList.add('active');
+          const dlBtn = document.getElementById('btn-download');
+          if (dlBtn) dlBtn.style.display = '';
+          updatePlaylistUI();
+          try { localStorage.setItem('synthlucida_last_playlist', loc.key); } catch (e) { /* ignore */ }
+        } else if (builtinBtn) {
           setPlaylist(loc.key, builtinBtn);
         } else {
           // vlastní playlist z panelu F - stejné přepnutí jako v playMyPlaylist, ale bez spuštění přehrávání
@@ -7878,7 +7899,7 @@
         switched = true;
       }
       // seznam i přehrávač se zase shodují na tom, která skladba hraje (další/předchozí navazuje správně)
-      if (markPlaying) currentTrackIndex = loc.index;
+      if (markPlaying && !loc.fromQueue) currentTrackIndex = loc.index;
     }
 
     const rowIndex = loc.kind === 'queue' ? loc.pos : loc.index;
@@ -7890,6 +7911,10 @@
       const rowRect = row.getBoundingClientRect();
       const target = playlistEl.scrollTop + (rowRect.top - listRect.top) - (listRect.height - rowRect.height) / 2;
       playlistEl.scrollTo({ top: Math.max(0, target), behavior: switched ? 'auto' : 'smooth' });
+      if (loc.fromQueue) { // hraje fronta, ale skladba je z tohoto playlistu - nechat ji v seznamu trvale označenou
+        Array.prototype.forEach.call(playlistEl.children, (li) => li.classList.remove('active'));
+        row.classList.add('active');
+      }
       row.classList.remove('locate-flash');
       void row.offsetWidth; // restart animace při opakovaném kliknutí
       row.classList.add('locate-flash');
@@ -8101,6 +8126,26 @@
     updateCanvasState(); 
   };
 
+  // Vykreslí čas skladby tak, aby každá číslice měla stejnou šířku (nic neposkakuje při změně sekund)
+  let _trackTimeLast = null;
+  function setTrackTimeText(txt) {
+    if (txt === _trackTimeLast) return;
+    const el = document.getElementById('track-time');
+    if (!el) return;
+    _trackTimeLast = txt;
+    el.textContent = '';
+    for (const ch of txt) {
+      if (ch >= '0' && ch <= '9') {
+        const sp = document.createElement('span');
+        sp.className = 'tt-d';
+        sp.textContent = ch;
+        el.appendChild(sp);
+      } else {
+        el.appendChild(document.createTextNode(ch));
+      }
+    }
+  }
+
   function formatTime(secs) {
     if (isNaN(secs) || secs < 0) return "00:00";
     let m = Math.floor(secs / 60);
@@ -8125,12 +8170,12 @@
     const current = audio.currentTime;
     const duration = audio.duration;
     if (isNaN(duration)) {
-      document.getElementById('track-time').innerText = "00:00 / 00:00";
+      setTrackTimeText("00:00 / 00:00");
       progressBar.style.width = "0%";
       return;
     }
     const remaining = duration - current;
-    document.getElementById('track-time').innerText = `${formatTime(current)} / -${formatTime(remaining)}`;
+    setTrackTimeText(`${formatTime(current)} / -${formatTime(remaining)}`);
     const pct = (current / duration) * 100;
     progressBar.style.width = `${pct}%`;
 
@@ -8259,7 +8304,7 @@
     showLoading();
     audio.src = track.src;
     setTrackTitle(track.title, isTrackNew(track));
-    document.getElementById('track-time').innerText = "00:00 / 00:00";
+    setTrackTimeText("00:00 / 00:00");
     progressBar.style.width = "0%";
     
     audio.volume = parseFloat(volumeSlider.value);
@@ -8443,7 +8488,7 @@
       ? getTrackByRef(target.playlist, findTrackIndexByRef(target.playlist, target.index, target.title, target.src))
       : getTrackByRef(currentPlaylistKey, target.pos);
     setTrackTitle(target.title, isTrackNew(targetTrackRef));
-    document.getElementById('track-time').innerText = "00:00 / 00:00";
+    setTrackTimeText("00:00 / 00:00");
     progressBar.style.width = "0%";
     showLoading();
 
@@ -9178,7 +9223,7 @@
     showLoading();
     audio.src = entry.src;
     setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, findTrackIndexByRef(entry.playlist, entry.index, entry.title, entry.src))));
-    document.getElementById('track-time').innerText = "00:00 / 00:00";
+    setTrackTimeText("00:00 / 00:00");
     progressBar.style.width = "0%";
     audio.volume = parseFloat(volumeSlider.value);
 
