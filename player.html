@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.7">
+<meta name="app-version" content="2.0.8">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2118,6 +2118,7 @@
   @media (prefers-reduced-motion: reduce) { .layer-knob-wrap { transition: none; } }
   .layer-hint { text-align: center; font-size: 11px; color: var(--accent-color); margin: 0 0 6px; white-space: nowrap; overflow: hidden; }
   .playlist.layer-picking { outline: 1px dashed var(--accent-color); outline-offset: 2px; }
+  .playlist li.layer-dim { opacity: 0.35; }
   .playlist li.layer-track { border-left: 2px dotted var(--accent-color); background: rgba(255,255,255,0.05); }
   /* Odznak "2": přesně vycentrovaná číslice (flex) + jemná optická korekce dolů, protože písmo má nad číslicí víc místa */
   .playlist li.layer-track::after { content: "2"; flex: none; box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%;
@@ -6205,7 +6206,7 @@
   // současně s první (smyčka) a malým knobem měnit její hlasitost. 50 % knobu = stejně hlasitá
   // jako hlavní skladba (násobí se hlavním posuvníkem hlasitosti), 100 % = dvojnásobek (max. 100 %).
   // Druhá stopa následuje hlavní přehrávání (pauza/play/časovač spánku) a po odchodu z playlistu
-  // ASMR se zastaví.
+  // ASMR se zastaví. Stejně funguje i v MY PLAYLIST, pokud obsahuje ASMR skladbu (viz layerAvailable).
   // ==========================================
   const layerAudio = document.getElementById('audio-player-layer');
   const layerGroupEl = document.getElementById('layer-group');
@@ -6235,6 +6236,12 @@
 
   function viewingAsmr() { return currentPlaylistKey === 'asmr' && !mainListShowsQueue; }
 
+  // ASMR MIX jde použít i v MY PLAYLIST: jakmile fronta obsahuje alespoň jednu ASMR skladbu přidanou
+  // srdíčkem. V My Playlist se vrství jen skladby z ASMR (vlastní soubory F a PIANO/CHILL ne).
+  function queueEntryIsAsmr(e) { return !!(e && !e.fileId && e.playlist === 'asmr' && typeof e.src === 'string' && e.src); }
+  function queueHasAsmr() { return Array.isArray(customQueue) && customQueue.some(queueEntryIsAsmr); }
+  function layerAvailable() { return viewingAsmr() || (mainListShowsQueue && queueHasAsmr()); }
+
   // Hlasitost druhé stopy určuje JEN knob - hlavní posuvník hlasitosti ji neovlivňuje.
   function layerTargetVolume() {
     return Math.min(1, Math.max(0, layerKnobVal));
@@ -6263,15 +6270,19 @@
 
   function markLayerRow() {
     const rows = playlistEl.children;
-    const show = layerActive && viewingAsmr();
+    const show = layerActive && layerAvailable();
+    const inQueue = mainListShowsQueue;
+    const dimOthers = inQueue && layerPickMode && layerAvailable();
     for (let i = 0; i < rows.length; i++) {
-      const t = playlist[i];
-      rows[i].classList.toggle('layer-track', !!(show && t && t.src === layerSrc));
+      const t = inQueue ? customQueue[i] : playlist[i];
+      rows[i].classList.toggle('layer-track', !!(show && t && t.src === layerSrc && (!inQueue || queueEntryIsAsmr(t))));
+      // při výběru druhé stopy v My Playlist jsou ztlumené řádky, které nejsou z ASMR (nejdou vrstvit)
+      rows[i].classList.toggle('layer-dim', !!(dimOthers && !queueEntryIsAsmr(t)));
     }
   }
 
   function updateLayerUI() {
-    const show = viewingAsmr();
+    const show = layerAvailable();
     layerGroupEl.classList.toggle('disabled', !show);
     layerBtn.disabled = !show;
     const knobOn = show && layerActive; // knob jen když hraje druhá stopa
@@ -6298,8 +6309,12 @@
   }
 
   window.pickLayerTrack = function(index, silent) {
-    const t = playlist[index];
+    const t = mainListShowsQueue ? customQueue[index] : playlist[index];
     if (!t) return;
+    if (mainListShowsQueue && !queueEntryIsAsmr(t)) {
+      showToast('Only ASMR tracks can be layered', '🎧');
+      return;
+    }
     layerPendingSrc = '';
     layerPickMode = false;
     layerActive = true;
@@ -6317,7 +6332,7 @@
   };
 
   layerBtn.addEventListener('click', () => {
-    if (!viewingAsmr()) return;
+    if (!layerAvailable()) return;
     layerPendingSrc = '';
     if (layerActive) stopLayer();
     else { layerPickMode = !layerPickMode; updateLayerUI(); }
@@ -6326,10 +6341,14 @@
   // Druhá stopa následuje hlavní přehrávání a hlasitost (kontrola 2x za sekundu pokryje
   // pauzu tlačítkem, časovač spánku, zamykací obrazovku i změnu hlavního posuvníku).
   function applyPendingLayer() {
-    if (!layerPendingSrc || !viewingAsmr() || layerActive) return;
+    if (!layerPendingSrc || !layerAvailable() || layerActive) return;
     const src = layerPendingSrc;
+    const inQueue = mainListShowsQueue;
+    const idx = inQueue
+      ? customQueue.findIndex((t) => queueEntryIsAsmr(t) && t.src === src)
+      : playlist.findIndex((t) => t && t.src === src);
+    if (idx < 0 && inQueue) return; // v My Playlist stopa není - uložená stopa počká na playlist ASMR
     layerPendingSrc = ''; // jen jednou za spuštění
-    const idx = playlist.findIndex((t) => t && t.src === src);
     if (idx >= 0) pickLayerTrack(idx, true);
   }
 
@@ -6337,7 +6356,7 @@
   window.getLayerSaveState = function(prev) {
     let src = (prev && typeof prev.src === 'string') ? prev.src : '';
     if (layerActive) src = layerSrc;
-    else if (viewingAsmr() && !layerPendingSrc) src = '';
+    else if (layerAvailable() && !layerPendingSrc) src = '';
     else if (layerPendingSrc) src = layerPendingSrc;
     return { src: src, vol: layerKnobVal };
   };
@@ -6350,7 +6369,7 @@
 
   function layerTick() {
     applyPendingLayer();
-    if ((layerActive || layerPickMode) && !viewingAsmr()) stopLayer();
+    if ((layerActive || layerPickMode) && !layerAvailable()) stopLayer();
     else updateLayerUI();
     if (!layerActive) return;
     const v = layerTargetVolume();
@@ -6377,7 +6396,7 @@
   let layerLastTap = 0;
   const layerBuzz = () => { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* ignore */ } };
   layerKnobWrap.addEventListener('pointerdown', (e) => {
-    if (!viewingAsmr() || !layerActive) return;
+    if (!layerAvailable() || !layerActive) return;
     layerDrag = { lastY: e.clientY, raw: layerKnobVal, moved: 0 };
     layerKnobWrap.classList.add('dragging');
     try { layerKnobWrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -6410,12 +6429,12 @@
   layerKnobWrap.addEventListener('pointerup', endLayerDrag);
   layerKnobWrap.addEventListener('pointercancel', endLayerDrag);
   layerKnobWrap.addEventListener('wheel', (e) => {
-    if (!viewingAsmr() || !layerActive) return;
+    if (!layerAvailable() || !layerActive) return;
     e.preventDefault();
     setLayerKnob(layerKnobVal + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
   }, { passive: false });
   layerKnob.addEventListener('keydown', (e) => {
-    if (!viewingAsmr() || !layerActive) return;
+    if (!layerAvailable() || !layerActive) return;
     const fine = e.shiftKey ? 0.2 : 1;
     const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
     if (step !== undefined) { e.preventDefault(); setLayerKnob(layerKnobVal + step * fine); }
@@ -6532,7 +6551,7 @@
         setupHoverMarquee(nameSpan);
 
         li.appendChild(nameSpan);
-        li.onclick = () => { playCustomQueueAt(pos); };
+        li.onclick = () => { if (layerPickMode && layerAvailable()) pickLayerTrack(pos); else playCustomQueueAt(pos); };
         playlistEl.appendChild(li);
       });
       updateOfflineStatus();
@@ -6947,7 +6966,7 @@
     h_playback: { en: "Playback", cz: "Přehrávání" },
     p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně. Prohlížíte jiný playlist, než ze kterého hraje skladba? Klepněte na 🔍 vedle času a hlavní okno skočí rovnou na právě hrající skladbu - přepne se do jejího playlistu (nebo do MY PLAYLIST), odroluje na ni a krátce ji rozsvítí." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
-    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist (they are dimmed elsewhere), the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave ASMR. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR (jinde jsou ztlumené), knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z ASMR se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
+    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist and in MY PLAYLIST once it contains at least one ASMR track added with the ♥ (they are dimmed elsewhere; in MY PLAYLIST only the ASMR tracks of the list can be layered), the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave these lists. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR a v MY PLAYLIST, jakmile obsahuje alespoň jednu ASMR skladbu přidanou srdíčkem ♥ (jinde jsou ztlumené; v MY PLAYLIST jde vrstvit jen ASMR skladby ze seznamu), knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z těchto seznamů se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
     h_search: { en: "Search", cz: "Vyhledávání" },
     p_search: { en: "Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.", cz: "Klepněte na EXPLORE a poté na SEARCH - otevře se okno vyhledávání. Napište slovo česky nebo anglicky - například rain, déšť, piano, moře nebo noc - a skladby z ASMR, PIANO a CHILL, které sedí, se zobrazí už při psaní (na velikosti písmen ani diakritice nezáleží a česká slova se přiřazují k anglickým názvům skladeb). Klepnutím na skladbu se hlavní okno přepne rovnou do jejího playlistu, skladba se v seznamu odroluje na viditelné místo a krátce se rozsvítí; klepnutím na ▶ vedle ní ji hned přehrajete. Klávesa Enter otevře první výsledek. Pokud žádná skladba neobsahuje všechna vaše slova, zobrazí se nejbližší shody." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
@@ -7923,7 +7942,7 @@
     if (!audio.getAttribute('src')) return null; // nic není načtené
     if (customQueueActive && customQueue[customQueueIndex]) {
       // Skladba z ASMR / PIANO / CHILL: lupa skočí do jejího domovského playlistu (ne jen do My Playlist).
-      // Vlastní soubor (F) domů nemá, tam zůstává ukázání v My Playlist.
+      // Vlastní soubor (F) domů nemá - lupa pro něj otevře kartu F (viz locatePlayingTrack).
       const qe = customQueue[customQueueIndex];
       if (qe && !qe.fileId && Array.isArray(tracks[qe.playlist])) {
         const homeIdx = findTrackIndexByRef(qe.playlist, qe.index, qe.title, qe.src, true);
@@ -8087,6 +8106,15 @@
       showToast(guideLang === 'cz' ? 'Nic právě nehraje' : 'Nothing is playing', '🔍');
       return;
     }
+    // Hraje fronta My Playlist a aktuální skladba je vlastní soubor (F) -> otevřít kartu F (ne jen zvýraznit v My Playlist)
+    if (loc.kind === 'queue') {
+      const qe = customQueue[loc.pos];
+      if (qe && qe.fileId) {
+        const panel = document.getElementById('main-files');
+        if (panel && !panel.classList.contains('visible')) toggleMainFiles();
+        return;
+      }
+    }
     // Skladba hraje ze sekce F: vlastní soubor -> otevřít kartu F; skladba SYNTHLUCIDA -> její domovský playlist
     if (loc.kind === 'list' && typeof loc.key === 'string' && loc.key.indexOf('custom:') === 0) {
       const t = tracks[loc.key] && tracks[loc.key][loc.index];
@@ -8115,6 +8143,8 @@
   // Hledá se v ASMR / PIANO / CHILL podle názvu skladby a názvu playlistu, bez ohledu na
   // velikost písmen a diakritiku. Česká slova se přes malý slovník převedou na anglické
   // názvy (déšť -> rain, moře -> sea ...), protože skladby mají anglické názvy.
+  // Slovník SEARCH_CZ obsahuje i anglická synonyma (thunder -> thunderstorm, sleep -> sleeping ...) a
+  // vyhledávání zkouší i základní tvary slov (birds -> bird, raining -> rain).
   // Klepnutí na skladbu přepne hlavní okno do jejího playlistu a skladbu zvýrazní,
   // tlačítko ▶ ji navíc rovnou přehraje.
   // ==========================================
@@ -8175,7 +8205,152 @@
     [/^(dron|drony|bruceni)$/, 'drone'],
     [/^(zivot|zivota|zivotu)$/, 'life'],
     [/^(obloha|oblohy|nebe)$/, 'sky heaven'],
-    [/^(patek|patku)$/, 'friday']
+    [/^(patek|patku)$/, 'friday'],
+    // ---- rozšíření slovníku: čeština (slova bez diakritiky, různé tvary) ----
+    [/^(bublin\w*|bublan\w*|bublaj\w*|bubliny)$/, 'bubbles bubbling lemonade'],
+    [/^(potucek|potucku|potucky|potuckem|praminek|praminku|vodopad\w*|ricka|ricky|ricku|rickou)$/, 'stream water river'],
+    [/^(hladin\w*|pobrez\w*|plaz\w*|breh\w*|pristav\w*|namorn\w*|lod|lode|lodi|lodni)$/, 'sea seaside ocean waves seagulls'],
+    [/^(ocean|oceany|oceanu|oceanicky|oceanicka|oceanicke|oceanska|oceanske)$/, 'ocean oceanic waves sea'],
+    [/^(ostrov|ostrova|ostrovy|ostrovu|ostrovan\w*)$/, 'islanders'],
+    [/^(priroda|prirody|prirodu|prirodni|zvuk|zvuky|zvuku)$/, 'birds stream river rain frogs waves'],
+    [/^(zabk\w*|kunk\w*|kvakan\w*)$/, 'frogs'],
+    [/^(cvrcek|cvrcci|cvrcku|cvrckove|cvrkan\w*|hmyz|hmyzu)$/, 'summer night'],
+    [/^(ptacek|ptacci|ptacku|ptacky|ptacich|zpev|zpevu|zpivan\w*)$/, 'birds'],
+    [/^(bour\w*|hrmot\w*|hrmen\w*|vichr\w*)$/, 'thunderstorm storm'],
+    [/^(lijak\w*|prsi|prset|prska\w*|mrholen\w*|mrholit|mokro|mokry|mokra)$/, 'rain raindrops'],
+    [/^(plamen\w*|plamin\w*|krb|krbu|oheniste\w*|ohnik\w*|ohyn\w*|ohnisk\w*|ohnic\w*)$/, 'campfire candle'],
+    [/^(slunec\w*|sluneck\w*|slunk\w*|slunick\w*|slunn\w*)$/, 'sun sunlit solar'],
+    [/^(zeleznic\w*|kolej\w*|nadrazi|lokomotiv\w*|parn\w*)$/, 'train'],
+    [/^(prochazk\w*|pochod\w*|vylet\w*|putovan\w*|cesta|cesty|cestu|cestou|cestovan\w*|stezk\w*)$/, 'walk way'],
+    [/^(hodin\w*)$/, 'hours hour'],
+    [/^(chvil\w*|okamzik\w*|moment\w*)$/, 'moments'],
+    [/^(posledn\w*|konec|konce|konci|final\w*|zaverecn\w*|zaver)$/, 'last final'],
+    [/^(klavesy|klaves|klavesnic\w*|klavesov\w*)$/, 'keys piano'],
+    [/^(klavirn\w*|pianist\w*)$/, 'piano'],
+    [/^(sam|sama|samostatn\w*)$/, 'solo'],
+    [/^(horizont\w*|obzor\w*|dalka|dali)$/, 'horizons'],
+    [/^(duch|duchove|ducha|duchu|duchy|duse|dusi|dusevn\w*|duchovn\w*)$/, 'spirits soul'],
+    [/^(let|letet|letim|letan\w*|letajic\w*|letat|leti|plachtan\w*|plachtit|vznas\w*)$/, 'fly flying'],
+    [/^(pozdn\w*|pozde)$/, 'late'],
+    [/^(ozven\w*|echo|echa|echu|ecka)$/, 'echoes'],
+    [/^(kouzl\w*|magi\w*|kouzeln\w*|carovn\w*|carod\w*|tajemn\w*|zazrak\w*|mystick\w*)$/, 'magic'],
+    [/^(svet|sveta|svetu|svete|svetem|svetove|svetovy|svetova)$/, 'world'],
+    [/^(zeme|zemi|zemin\w*|planeta\w*)$/, 'earth'],
+    [/^(obracen\w*|inverzn\w*|opacn\w*)$/, 'inverse'],
+    [/^(svetl\w*|svetel\w*|jas|jasn\w*|zar|zare|zari|zablesk\w*)$/, 'light sunlit solar'],
+    [/^(pripraven\w*|pripravit|pripraveni)$/, 'ready'],
+    [/^(sepot\w*|septa\w*)$/, 'whisper whispers'],
+    [/^(ztrace\w*|ztrat\w*|zabludil\w*)$/, 'lost'],
+    [/^(kod|kody|kodu|kodem|kodov\w*|hesl\w*|sifr\w*)$/, 'codes'],
+    [/^(cizin\w*|navstev\w*|navsteva|host|hoste|hosta|neznam\w*|vetrelc\w*)$/, 'stranger visitors'],
+    [/^(ton|tony|tonu|tonem|tonech)$/, 'tones'],
+    [/^(zpet|zpatky|navrat\w*|vratit|vrat|vracen\w*)$/, 'back return'],
+    [/^(emoc\w*|citov\w*|citliv\w*|dojemn\w*|dojet\w*|romantick\w*|laska|lasku|lasce|lasky)$/, 'emotional'],
+    [/^(mysl|mysli|mysle|myslenk\w*|vedomi|mozek|mozku)$/, 'mind'],
+    [/^(stale|porad)$/, 'still'],
+    [/^(raj|raje|raji|rajsk\w*|nebesk\w*|nebes\w*)$/, 'heaven sky empyrean'],
+    [/^(andel|andele|andela|andelu|andelsk\w*)$/, 'angelic'],
+    [/^(muz|muze|muzi|muzem|clovek|cloveka|lidi)$/, 'man'],
+    [/^(jen|jenom|proste|pouze)$/, 'just'],
+    [/^(prazdn\w*|pust\w*|opusten\w*|samot\w*)$/, 'empty'],
+    [/^(misto|mista|mistu|mistem|mistech|prostor\w*)$/, 'place'],
+    [/^(unasen\w*|plynut\w*|plynout|plyne|plout|plove|snaseni)$/, 'drift flowing'],
+    [/^(bulvar\w*|trida|tridu|ulice|ulici|ulicich)$/, 'boulevard city town'],
+    [/^(chill\w*|odpocin\w*|pohoda|pohodu|pohodov\w*)$/, 'chill chillout calm'],
+    [/^(ambient\w*|atmosfer\w*|prostredi|nalad\w*)$/, 'ambient atmos'],
+    [/^(analog\w*)$/, 'analog'],
+    [/^(vitez\w*|vyhr\w*|uspech\w*|triumf\w*)$/, 'winning'],
+    [/^(euforie\w*|euforick\w*|harmoni\w*|souzvuk\w*|libozvuk\w*)$/, 'euphony'],
+    [/^(nekonecn\w*|vecn\w*|bezkonecn\w*|neustale)$/, 'endless'],
+    [/^(mix|mixy|mixu|remix\w*|verze|verzi|verzich)$/, 'mix version'],
+    [/^(vse|vsechno|vsechny|vsem)$/, 'everything'],
+    [/^(spinav\w*|zasprost\w*|drsn\w*)$/, 'dirty'],
+    [/^(prazdnin\w*|dovolen\w*|vedro|vedra|horko|horka)$/, 'summer'],
+    [/^(snih\w*|snez\w*|mraz\w*|vanoc\w*|studen\w*|chlad\w*)$/, 'winter'],
+    [/^(kvet\w*|kvetin\w*|kvetouc\w*)$/, 'spring bloom'],
+    [/^(svitani|usvit\w*|dopoledn\w*|vychod\w*)$/, 'morning sun'],
+    [/^(vecer\w*|podvecer\w*|soumrak\w*)$/, 'sunset blue hour night'],
+    [/^(tma|tme|tmu|tmav\w*|pulnoc\w*|nocn\w*)$/, 'night'],
+    [/^(galaxi\w*|vsemir\w*|planet\w*|hvezd\w*|astral\w*|kosm\w*|polarn\w*|polarka|polarky)$/, 'space nebula polaris'],
+    [/^(mlhovin\w*|mlha|mlhy)$/, 'nebula'],
+    [/^(dite|ditete|detem|detsk\w*|miminko|mimina|batole)$/, 'childrens dreams'],
+    [/^(uspa\w*|ukolebav\w*|nespavost\w*|nespani|dremot\w*|podriml\w*)$/, 'sleeping dreams dreaming'],
+    [/^(snit|sni|snim|snila|snil|snici|snove|snovy|snovani|fantazie|fantazii)$/, 'dreams dreaming'],
+    [/^(snivan\w*|reveri\w*|zasnen\w*)$/, 'reverie dreams'],
+    [/^(klid\w*|mir|miru|pokoj\w*|meditac\w*|soustred\w*|koncentrac\w*|ucen\w*|prace|pracovat|studi\w*|zen)$/, 'calm quiet gentle ambient'],
+    [/^(jemn\w*|nezn\w*|lehk\w*|mekk\w*)$/, 'gentle'],
+    [/^(vesel\w*|stast\w*|radost\w*|radostn\w*|zabav\w*|party|tanec|tance|tancit|energick\w*)$/, 'happy hype friday'],
+    [/^(smut\w*|plac\w*|slz\w*|melanchol\w*|truchl\w*)$/, 'crying emotional'],
+    [/^(vzpomin\w*|nostalgi\w*|pamet\w*|minulost\w*)$/, 'memories'],
+    [/^(svobod\w*|volnost\w*|osvobo\w*|zdarma|volne)$/, 'freedom free'],
+    [/^(prazdnot\w*|propast\w*)$/, 'void voidwalker'],
+    [/^(kytar\w*|akustick\w*|strun\w*)$/, 'guitar'],
+    [/^(sax|saxak\w*|dechov\w*)$/, 'saxophone'],
+    [/^(bil\w*|static\w*|nahodn\w*)$/, 'noise'],
+    [/^(dron\w*|bruc\w*|hucen\w*|pozadi)$/, 'drone'],
+    [/^(kamn\w*|oblazk\w*|valoun\w*|skal\w*)$/, 'stones rock'],
+    [/^(limon\w*|citron\w*|sodov\w*|soda|napoj\w*|sumivk\w*)$/, 'lemonade bubbles'],
+    // ---- rozšíření slovníku: angličtina (synonyma a příbuzná slova) ----
+    [/^(thunder\w*|storm\w*|lightning|tempest)$/, 'thunderstorm'],
+    [/^(raining|rainy|rainfall|drizzle|shower\w*|downpour|wet)$/, 'rain raindrops'],
+    [/^(water|watery|flowing|flow)$/, 'water stream river lake waves ocean sea'],
+    [/^(creek|brook|rapids|waterfall\w*)$/, 'stream'],
+    [/^(beach\w*|shore\w*|coast\w*|harbor|harbour|marine|nautical|ship\w*|boat\w*)$/, 'sea seaside ocean waves seagulls'],
+    [/^(sea|ocean)$/, 'sea ocean oceanic seaside seagulls waves'],
+    [/^(gull\w*)$/, 'seagulls'],
+    [/^(nature|natural|outdoor\w*|forest|woods|wildlife|jungle)$/, 'birds stream river rain frogs waves'],
+    [/^(birdsong|chirp\w*|tweet\w*|songbird\w*|sparrow\w*)$/, 'birds'],
+    [/^(toad\w*|croak\w*|pond\w*|swamp\w*)$/, 'frogs'],
+    [/^(cricket\w*|insect\w*|cicada\w*)$/, 'summer night'],
+    [/^(fire|fireplace|bonfire|flame\w*|camping|camp|crackl\w*|ember\w*)$/, 'campfire candle'],
+    [/^(railway|railroad|locomotive|trains|subway)$/, 'train'],
+    [/^(stone|pebble\w*|rocks|cliff\w*|gravel)$/, 'stones rock'],
+    [/^(fizz\w*|soda|drink\w*|lemon|bubbly)$/, 'lemonade bubbles bubbling'],
+    [/^(static|white|hiss\w*)$/, 'noise'],
+    [/^(hum|humming|buzz\w*|pad|pads|texture\w*)$/, 'drone'],
+    [/^(sleep\w*|bedtime|lullaby|insomnia|nap|napping|drowsy|doze)$/, 'sleeping dreams dreaming'],
+    [/^(relax\w*|chilling|calming|peaceful|peace|soothing|meditat\w*|zen|mindful\w*|serene|serenity|tranquil\w*|spa|yoga)$/, 'calm quiet gentle ambient'],
+    [/^(focus\w*|study\w*|work\w*|concentrat\w*|reading|homework)$/, 'ambient piano quiet calm'],
+    [/^(anxiety|anxious|stressed|tension|worry|relief)$/, 'stress calm gentle'],
+    [/^(sad|sadness|melanchol\w*|tears|cry|tear|sorrow|lonely|loneliness|grief)$/, 'crying emotional'],
+    [/^(joy|joyful|cheerful|upbeat|energetic|energy|party|dance|dancing|fun|positive|good)$/, 'happy hype friday balearic'],
+    [/^(love|romance|romantic|heart|feelings?|touching|moving)$/, 'emotional soul angelic'],
+    [/^(sax|sax\w*|woodwind\w*)$/, 'saxophone'],
+    [/^(acoustic|strings?|flamenco|spanish|ibiza)$/, 'guitar balearic'],
+    [/^(keyboard\w*|pianos|grand|ivory|ivories|keys)$/, 'piano keys'],
+    [/^(sunrise|dawn|daybreak|sunup)$/, 'morning sun sunlit'],
+    [/^(sunshine|sunny|daylight|solar|daytime|bright)$/, 'sun sunlit solar light'],
+    [/^(evening|dusk|twilight|sundown|nightfall)$/, 'sunset blue hour golden night'],
+    [/^(midnight|nighttime|dark|darkness|nocturnal|bedroom)$/, 'night'],
+    [/^(moon|lunar|moonlit|moonshine)$/, 'moonlight'],
+    [/^(stars?|starry|galaxy|cosmos|cosmic|universe|planet\w*|astral|astronomy|orbit|interstellar|stellar|void)$/, 'space nebula polaris void'],
+    [/^(wind|windy|gust\w*|air|airy)$/, 'breeze'],
+    [/^(spirit|ghost\w*|spiritual|soulful)$/, 'spirits soul'],
+    [/^(kid|kids|child|children|baby|babies|toddler\w*|nursery)$/, 'childrens dreams'],
+    [/^(angel|angels|divine|heavenly|celestial|holy|sacred)$/, 'angelic heaven empyrean'],
+    [/^(travel\w*|journey|road|stroll\w*|hike|hiking|walking|wander\w*|trip)$/, 'walk way flying fly last'],
+    [/^(airplane|flight|flying|float\w*|glide|gliding|soar\w*|wings?)$/, 'fly flying'],
+    [/^(island\w*|tropical|paradise|holiday|vacation|resort)$/, 'islanders seaside summer'],
+    [/^(urban|street\w*|downtown|metropolis|skyline)$/, 'city town boulevard'],
+    [/^(memory|memories|nostalgia|nostalgic|remember\w*|past)$/, 'memories'],
+    [/^(chillout|lounge|downtempo|ambience|atmosphere|atmospheric)$/, 'chill chillout ambient atmos'],
+    [/^(electronic|analogue|retro|vintage|synthwave|vaporwave)$/, 'analog'],
+    [/^(autumn|fall|cold|snow\w*|frost\w*|christmas|xmas|icy|ice)$/, 'winter'],
+    [/^(blossom\w*|flower\w*|bloom\w*|garden)$/, 'spring bloom'],
+    [/^(heat|hot|warm|vacation|beach|tan)$/, 'summer sun'],
+    [/^(mystery|mysterious|mystic\w*|fantasy|fairy\w*|wizard|enchant\w*)$/, 'magic tales'],
+    [/^(story|stories|fairytale|legend|narrative)$/, 'tales'],
+    [/^(final|ending|end|farewell|goodbye|finale)$/, 'final last moments'],
+    [/^(slowly|relaxed|unhurried|lazy|laid)$/, 'slow'],
+    [/^(silence|silent|hush|still|stillness|mute)$/, 'quiet still'],
+    [/^(win|winner|victory|success|triumph|champion)$/, 'winning'],
+    [/^(free|liberty|liberation|unbound|independent)$/, 'freedom free befree'],
+    [/^(lost|stray|wandering|mystery|code|codes|cyber|digital|hacker)$/, 'lost codes'],
+    [/^(alien|aliens|stranger|strangers|visitor|visitors|guest\w*|foreign)$/, 'stranger visitors'],
+    [/^(origin|beginning|start|roots)$/, 'everything'],
+    [/^(empty|void|blank|abandoned|solitude|alone)$/, 'empty place void'],
+    [/^(rainstorm|stormy)$/, 'thunderstorm rain'],
+    [/^(chilled|relaxing|lofi|lo-fi)$/, 'chill calm ambient']
   ];
 
   function searchNorm(str) {
@@ -8189,6 +8364,13 @@
     if (!tokens.length) return { items: [], exact: true, tokens };
     const variants = tokens.map(tok => {
       const words = [tok];
+      // anglické koncovky: birds -> bird, raining -> rain, rainy -> rain, dreamed -> dream
+      const addStem = (w) => { if (w.length >= 3 && words.indexOf(w) === -1) words.push(w); };
+      if (tok.length >= 4 && /s$/.test(tok)) addStem(tok.slice(0, -1));
+      if (tok.length >= 6 && /es$/.test(tok)) addStem(tok.slice(0, -2));
+      if (tok.length >= 6 && /ing$/.test(tok)) addStem(tok.slice(0, -3));
+      if (tok.length >= 6 && /ed$/.test(tok)) addStem(tok.slice(0, -2));
+      if (tok.length >= 5 && /y$/.test(tok)) addStem(tok.slice(0, -1));
       SEARCH_CZ.forEach(([re, en]) => { if (re.test(tok)) en.split(' ').forEach(w => { if (words.indexOf(w) === -1) words.push(w); }); });
       return words;
     });
@@ -8199,7 +8381,7 @@
         const hay = ' ' + searchNorm(displayTrackTitle(t.title)) + ' ' + key + ' ';
         let hits = 0, starts = 0;
         variants.forEach(words => {
-          if (words.some(w => hay.indexOf(w) !== -1)) hits++;
+          if (words.some(w => hay.indexOf(w.length <= 3 ? ' ' + w : w) !== -1)) hits++;
           if (words.some(w => hay.indexOf(' ' + w) !== -1)) starts++;
         });
         if (hits) found.push({ key, index, title: t.title, hits, starts, listOrder });
