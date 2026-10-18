@@ -2036,11 +2036,52 @@
   .bn-status { min-height: 26px; max-width: 280px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 9px; letter-spacing: 1.8px; line-height: 1.4; text-transform: uppercase; color: #fff; opacity: 0.6; transition: opacity 0.4s, color 0.4s; }
   .binaural-overlay.bn-on .bn-status { opacity: 1; color: var(--accent-color); text-shadow: 0 0 10px var(--accent-color); }
   .bn-modes { display: flex; flex-wrap: nowrap; justify-content: center; gap: 6px; margin-top: 10px; width: 100%; }
-  .bn-modes .btn-breath-tech { padding: 8px 14px; font-size: 9px; }
-  .bn-knob-group { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
+  /* Tlačítka vln OFF / DELTA / THETA / ALPHA - rozměry (padding, písmo) zůstávají, mění se jen vzhled */
+  .bn-modes .bn-mode {
+    position: relative; isolation: isolate; overflow: hidden;
+    padding: 8px 14px; font-size: 9px;
+    border-radius: 999px; border: 1px solid rgba(255,255,255,0.2);
+    background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 100%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.16);
+    opacity: 0.65; touch-action: manipulation;
+    transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, transform 0.15s ease;
+  }
+  /* jemný barevný závoj v barvě motivu - funguje s jakoukoli hodnotou --accent-color */
+  .bn-modes .bn-mode::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--accent-color); opacity: 0; transition: opacity 0.3s ease; }
+  /* tenká zářící linka pod aktivním tlačítkem */
+  .bn-modes .bn-mode::after { content: ''; position: absolute; left: 24%; right: 24%; bottom: 3px; height: 1px; border-radius: 1px; background: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); opacity: 0; transition: opacity 0.3s ease; }
+  .bn-modes .bn-mode:hover { opacity: 0.95; border-color: var(--accent-color); }
+  .bn-modes .bn-mode:active { transform: translateY(1px) scale(0.98); }
+  .bn-modes .bn-mode:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  .bn-modes .bn-mode.active {
+    opacity: 1; color: #fff; border-color: var(--accent-color);
+    text-shadow: 0 0 8px var(--accent-color);
+    box-shadow: 0 0 14px var(--accent-color), inset 0 0 10px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  .bn-modes .bn-mode.active::before { opacity: 0.2; }
+  .bn-modes .bn-mode.active::after { opacity: 0.9; }
+  /* OFF je klidnější než aktivní vlny */
+  .bn-modes .bn-mode[data-bn-mode="0"].active { box-shadow: 0 0 8px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .bn-modes .bn-mode[data-bn-mode="0"].active::before { opacity: 0.12; }
+  /* Úzké telefony: všechna čtyři tlačítka zůstanou v jedné řadě, zmenší se jen odsazení */
+  @media (max-width: 380px) {
+    .bn-main { padding: 0 8px; }
+    .bn-modes { gap: 4px; }
+    .bn-modes .bn-mode { padding: 8px 10px; letter-spacing: 0.6px; }
+    .bn-knobs { gap: 26px; }
+  }
+  @media (max-width: 330px) {
+    .bn-modes .bn-mode { padding: 8px 7px; letter-spacing: 0.3px; }
+    .bn-knobs { gap: 20px; }
+    .bn-status { max-width: 240px; }
+  }
+  .bn-knobs { display: flex; justify-content: center; align-items: flex-start; gap: 34px; margin-top: 20px; }
+  .bn-knob-group { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .bn-timer { margin: 16px 0 0; }
+  #bn-timer-display { font-size: 10px; color: var(--accent-color); margin-right: 5px; display: inline-block; width: 55px; text-align: left; }
   .bn-vol-label, .bn-vol-val { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1.5px; color: #fff; opacity: 0.65; text-transform: uppercase; user-select: none; min-width: 34px; }
-  .bn-vol-label { text-align: right; }
-  .bn-vol-val { text-align: left; font-variant-numeric: tabular-nums; }
+  .bn-vol-label { text-align: center; }
+  .bn-vol-val { text-align: center; font-variant-numeric: tabular-nums; }
   /* stejný knob jako VOL 2 u ASMR MIX, jen větší (vnitřek se přepočítá na střed 56px kolečka) */
   .bn-knob-group .layer-knob-wrap { width: 56px; height: 56px; }
   .bn-knob-group .layer-knob::before { inset: 6px; }
@@ -2052,10 +2093,24 @@
     .bn-orb-wrap { width: 112px; height: 112px; margin: 2px 0 4px; }
     .bn-orb { width: 64px; height: 64px; }
     .bn-orb-ring { inset: 16px; }
-    .bn-knob-group { margin-top: 12px; }
+    .bn-knobs { margin-top: 12px; }
+    .bn-timer { margin-top: 10px; }
     .bn-hint { margin-top: 10px; }
   }
   @media (max-height: 560px) { .bn-hint { display: none; } }
+  /* Telefon na šířku: úvod a koule vlevo, ovládání vpravo, aby se nemuselo rolovat */
+  @media (orientation: landscape) and (max-height: 480px) {
+    .bn-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 20px; align-items: center; max-width: 600px; }
+    .bn-title { grid-column: 1; grid-row: 1; justify-self: center; margin: 0; }
+    .bn-orb-wrap { grid-column: 1; grid-row: 2; justify-self: center; width: 96px; height: 96px; margin: 2px 0; }
+    .bn-orb { width: 56px; height: 56px; }
+    .bn-orb-ring { inset: 14px; }
+    .bn-status { grid-column: 1; grid-row: 3; justify-self: center; }
+    .bn-modes { grid-column: 2; grid-row: 1; margin-top: 0; }
+    .bn-knobs { grid-column: 2; grid-row: 2; margin-top: 0; }
+    .bn-timer { grid-column: 2; grid-row: 3; margin: 0; justify-self: center; }
+    .bn-hint { display: none; }
+  }
   .binaural-icon path { animation: binauralWave 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   .binaural-icon path:nth-child(2) { animation-delay: -1.3s; }
   @keyframes binauralWave { 0%,100% { transform: translateY(-1px) scaleX(1); opacity: .55; } 50% { transform: translateY(1px) scaleX(1.06); opacity: 1; } }
@@ -2867,7 +2922,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_atmos">Atmospheres & playlists</h4>
-      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off.</p>
+      <p data-i18n="p_atmos">Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session), BINAURAL (calming binaural beats - see Binaural beats below) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off.</p>
     </div>
 
     <div class="main-guide-section">
@@ -2897,12 +2952,12 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_binaural">Binaural beats</h4>
-      <p data-i18n="p_binaural">Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats. Put on stereo headphones - the effect needs a slightly different tone in each ear - and pick DELTA (2 Hz, deep rest), THETA (5 Hz, meditation) or ALPHA (9 Hz, relaxation). The VOL knob sets how loud the tones are: drag it up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. The tones fade out when you leave the page or when the sleep timer ends.</p>
+      <p data-i18n="p_binaural">Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats - two slightly different pure tones, one in each ear, that your brain blends into a slow, gentle pulse. Put on stereo headphones (on speakers or in mono the effect disappears) and pick a wave: DELTA (2 Hz, deep rest and sleep), THETA (5 Hz, meditation) or ALPHA (9 Hz, calm relaxation); OFF turns the tones off. There are two volume knobs: TONES sets only the binaural tones (default 5 %) and MUSIC sets the music from the mini player (the same volume as in the main window). Keep the tones quieter than the music and raise them slowly. Drag a knob up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. Under the knobs you can set the sleep timer (15, 30 or 60 minutes, ✖ cancels it) - it is the same timer as in the main window, and when it ends the tones fade away and the music stops. The ⓘ icon on the page opens a detailed guide. The tones also fade out when you leave the page with ✖. Binaural beats are a relaxation aid, not a treatment: do not use them while driving or when you must stay alert, and consult a doctor first if you have epilepsy, a heart condition, a pacemaker, a mental-health condition or are pregnant.</p>
     </div>
 
     <div class="main-guide-section">
       <h4 data-i18n="h_timer">Sleep timer</h4>
-      <p data-i18n="p_timer">Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.</p>
+      <p data-i18n="p_timer">Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖. The same timer also works on the BINAURAL and BREATHE pages and fades out the binaural tones.</p>
     </div>
 
     <div class="main-guide-section">
@@ -3342,6 +3397,7 @@
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g2_t"></h4><p data-i18n="binaural_g2_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g3_t"></h4><p data-i18n="binaural_g3_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g4_t"></h4><p data-i18n="binaural_g4_p"></p></div>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g6_t"></h4><p data-i18n="binaural_g6_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g5_t"></h4><p data-i18n="binaural_g5_p"></p></div>
       <p class="breath-guide-note" data-i18n="binaural_guide_note"></p>
     </div>
@@ -3356,13 +3412,30 @@
       <button type="button" class="btn-breath-tech bn-mode" data-bn-mode="2" aria-pressed="false">THETA</button>
       <button type="button" class="btn-breath-tech bn-mode" data-bn-mode="3" aria-pressed="false">ALPHA</button>
     </div>
-    <div class="bn-knob-group">
-      <span class="bn-vol-label" aria-hidden="true">VOL</span>
-      <div class="layer-knob-wrap" id="bn-knob-wrap">
-        <div class="layer-knob" id="bn-knob" role="slider" tabindex="0" aria-label="Binaural volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5" title="Binaural volume (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
-        <span class="layer-knob-tip" id="bn-knob-tip" aria-hidden="true"></span>
+    <div class="bn-knobs">
+      <div class="bn-knob-group">
+        <span class="bn-vol-label" aria-hidden="true">TONES</span>
+        <div class="layer-knob-wrap" id="bn-knob-wrap">
+          <div class="layer-knob" id="bn-knob" role="slider" tabindex="0" aria-label="Binaural tones volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5" title="Binaural tones volume (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
+          <span class="layer-knob-tip" id="bn-knob-tip" aria-hidden="true"></span>
+        </div>
+        <span class="bn-vol-val" id="bn-vol-val" aria-hidden="true">5%</span>
       </div>
-      <span class="bn-vol-val" id="bn-vol-val" aria-hidden="true">5%</span>
+      <div class="bn-knob-group">
+        <span class="bn-vol-label" aria-hidden="true">MUSIC</span>
+        <div class="layer-knob-wrap" id="bn-mknob-wrap">
+          <div class="layer-knob" id="bn-mknob" role="slider" tabindex="0" aria-label="Music volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30" title="Music volume (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
+          <span class="layer-knob-tip" id="bn-mknob-tip" aria-hidden="true"></span>
+        </div>
+        <span class="bn-vol-val" id="bn-mvol-val" aria-hidden="true">30%</span>
+      </div>
+    </div>
+    <div class="timer-section bn-timer">
+      <span id="bn-timer-display">⏱ Off</span>
+      <button class="btn-timer" data-timer-min="15" onclick="setTimer(15)">15m</button>
+      <button class="btn-timer" data-timer-min="30" onclick="setTimer(30)">30m</button>
+      <button class="btn-timer" data-timer-min="60" onclick="setTimer(60)">60m</button>
+      <button class="btn-timer" onclick="cancelTimer()" aria-label="Cancel timer">✖</button>
     </div>
     <p class="bn-hint" data-i18n="binaural_hint">Best with stereo headphones. The tones stop when you leave this page.</p>
   </div>
@@ -7459,7 +7532,7 @@
     h_playback: { en: "Playback", cz: "Přehrávání" },
     p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně. Prohlížíte jiný playlist, než ze kterého hraje skladba? Klepněte na 🔍 vedle času a hlavní okno skočí rovnou na právě hrající skladbu - přepne se do jejího playlistu (nebo do MY PLAYLIST), odroluje na ni a krátce ji rozsvítí." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
-    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist, in MY PLAYLIST once it contains at least one ASMR track added with the ♥, and in your own playlists from the F section (SYNTHLUCIDA tracks mixed with your own files) once they contain at least one ASMR track (they are dimmed elsewhere; outside the ASMR playlist only the ASMR tracks of the list can be layered and the other rows are dimmed). A file you upload yourself in F counts as an ASMR track when the word 'asmr' is in its name, so you can layer your own recordings too, the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave these lists. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR, v MY PLAYLIST, jakmile obsahuje alespoň jednu ASMR skladbu přidanou srdíčkem ♥, a ve vlastních playlistech ze sekce F (skladby SYNTHLUCIDA smíchané s vlastními soubory), jakmile obsahují alespoň jednu ASMR skladbu (jinde jsou ztlumené; mimo playlist ASMR jde vrstvit jen ASMR skladby ze seznamu a ostatní řádky jsou ztlumené). Soubor, který si v sekci F sám nahraješ, se bere jako ASMR skladba, když má v názvu slovo 'asmr', takže můžeš vrstvit i vlastní nahrávky, knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z těchto seznamů se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
+    p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session), BINAURAL (calming binaural beats - see Binaural beats below) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist, in MY PLAYLIST once it contains at least one ASMR track added with the ♥, and in your own playlists from the F section (SYNTHLUCIDA tracks mixed with your own files) once they contain at least one ASMR track (they are dimmed elsewhere; outside the ASMR playlist only the ASMR tracks of the list can be layered and the other rows are dimmed). A file you upload yourself in F counts as an ASMR track when the word 'asmr' is in its name, so you can layer your own recordings too, the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave these lists. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení), BINAURAL (uklidňující binaurální tóny - viz Binaurální tóny níže) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR, v MY PLAYLIST, jakmile obsahuje alespoň jednu ASMR skladbu přidanou srdíčkem ♥, a ve vlastních playlistech ze sekce F (skladby SYNTHLUCIDA smíchané s vlastními soubory), jakmile obsahují alespoň jednu ASMR skladbu (jinde jsou ztlumené; mimo playlist ASMR jde vrstvit jen ASMR skladby ze seznamu a ostatní řádky jsou ztlumené). Soubor, který si v sekci F sám nahraješ, se bere jako ASMR skladba, když má v názvu slovo 'asmr', takže můžeš vrstvit i vlastní nahrávky, knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z těchto seznamů se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
     h_search: { en: "Search", cz: "Vyhledávání" },
     p_search: { en: "Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.", cz: "Klepněte na EXPLORE a poté na SEARCH - otevře se okno vyhledávání. Napište slovo česky nebo anglicky - například rain, déšť, piano, moře nebo noc - a skladby z ASMR, PIANO a CHILL, které sedí, se zobrazí už při psaní (na velikosti písmen ani diakritice nezáleží a česká slova se přiřazují k anglickým názvům skladeb). Klepnutím na skladbu se hlavní okno přepne rovnou do jejího playlistu, skladba se v seznamu odroluje na viditelné místo a krátce se rozsvítí; klepnutím na ▶ vedle ní ji hned přehrajete. Klávesa Enter otevře první výsledek. Pokud žádná skladba neobsahuje všechna vaše slova, zobrazí se nejbližší shody." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
@@ -7471,7 +7544,7 @@
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh. Tlačítko WEATHER pod tlačítky START a STOP na dechové obrazovce zapne stejné scény počasí a fotky jako v playeru." },
     h_binaural: { en: "Binaural beats", cz: "Binaurální tóny" },
-    p_binaural: { en: "Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats. Put on stereo headphones - the effect needs a slightly different tone in each ear - and pick DELTA (2 Hz, deep rest), THETA (5 Hz, meditation) or ALPHA (9 Hz, relaxation). The VOL knob sets how loud the tones are: drag it up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. The tones fade out when you leave the page or when the sleep timer ends.", cz: "Klepněte na EXPLORE a potom na BINAURAL - otevře se klidná celoobrazovková stránka pro binaurální tóny. Nasaďte si stereo sluchátka (efekt potřebuje v každém uchu trochu jiný tón) a vyberte DELTA (2 Hz, hluboký odpočinek), THETA (5 Hz, meditace) nebo ALPHA (9 Hz, uvolnění). Knob VOL nastavuje hlasitost tónů: tahejte jím nahoru a dolů, točte kolečkem myši nebo použijte šipky a dvojitým klepnutím ho vrátíte na výchozí hodnotu. Mini přehrávač dole funguje stejně jako v BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST i vlastní soubory), takže můžete hudbu vrstvit přes tóny. Tóny se ztiší, když stránku opustíte nebo když skončí časovač spánku." },
+    p_binaural: { en: "Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats - two slightly different pure tones, one in each ear, that your brain blends into a slow, gentle pulse. Put on stereo headphones (on speakers or in mono the effect disappears) and pick a wave: DELTA (2 Hz, deep rest and sleep), THETA (5 Hz, meditation) or ALPHA (9 Hz, calm relaxation); OFF turns the tones off. There are two volume knobs: TONES sets only the binaural tones (default 5 %) and MUSIC sets the music from the mini player (the same volume as in the main window). Keep the tones quieter than the music and raise them slowly. Drag a knob up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. Under the knobs you can set the sleep timer (15, 30 or 60 minutes, ✖ cancels it) - it is the same timer as in the main window, and when it ends the tones fade away and the music stops. The ⓘ icon on the page opens a detailed guide. The tones also fade out when you leave the page with ✖. Binaural beats are a relaxation aid, not a treatment: do not use them while driving or when you must stay alert, and consult a doctor first if you have epilepsy, a heart condition, a pacemaker, a mental-health condition or are pregnant.", cz: "Klepněte na EXPLORE a potom na BINAURAL - otevře se klidná celoobrazovková stránka pro binaurální tóny, tedy dva mírně odlišné čisté tóny, jeden v každém uchu, které mozek sloučí do pomalého, jemného pulzu. Nasaďte si stereo sluchátka (na reproduktorech nebo v mono se efekt ztratí) a vyberte vlnu: DELTA (2 Hz, hluboký odpočinek a spánek), THETA (5 Hz, meditace) nebo ALPHA (9 Hz, klidná relaxace); OFF tóny vypne. K dispozici jsou dva knoby hlasitosti: TONES nastavuje jen binaurální tóny (výchozí 5 %) a MUSIC hudbu z mini přehrávače (stejná hlasitost jako v hlavním okně). Tóny držte tišší než hudbu a zvyšujte je pomalu. Knobem táhněte nahoru a dolů, točte kolečkem myši nebo použijte šipky; dvojitým klepnutím ho vrátíte na výchozí hodnotu. Mini přehrávač dole funguje stejně jako v BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST i vlastní soubory), takže můžete hudbu vrstvit přes tóny. Pod knoby nastavíte časovač spánku (15, 30 nebo 60 minut, ✖ ho zruší) - je to stejný časovač jako v hlavním okně a po jeho doběhnutí se tóny ztiší a hudba se zastaví. Ikona ⓘ na stránce otevře podrobného průvodce. Tóny se ztiší i při odchodu ze stránky tlačítkem ✖. Binaurální tóny jsou pomůcka k relaxaci, ne léčba: nepoužívejte je při řízení ani tam, kde musíte být ve střehu, a při epilepsii, srdečním onemocnění, kardiostimulátoru, duševním onemocnění nebo v těhotenství se nejdřív poraďte s lékařem." },
     binaural_guide_title: { en: "Binaural beats", cz: "Binaurální tóny" },
     binaural_guide_intro: { en: "Two slightly different pure tones - one in each ear - that your brain blends into a slow, gentle pulse. Used here as a calm background for rest, focus or meditation.", cz: "Dva mírně odlišné čisté tóny - jeden v každém uchu - které mozek sloučí do pomalého, jemného pulzu. Zde slouží jako klidné pozadí pro odpočinek, soustředění nebo meditaci." },
     binaural_g1_t: { en: "How it works", cz: "Jak to funguje" },
@@ -7480,14 +7553,16 @@
     binaural_g2_p: { en: "Each ear must hear only its own tone. On speakers or in mono the effect disappears.", cz: "Každé ucho musí slyšet jen svůj tón. Na reproduktorech nebo v mono se efekt ztratí." },
     binaural_g3_t: { en: "The three waves", cz: "Tři vlny" },
     binaural_g3_p: { en: "DELTA 2 Hz - deep rest and sleep. THETA 5 Hz - meditation, drifting. ALPHA 9 Hz - calm relaxation.", cz: "DELTA 2 Hz - hluboký odpočinek a spánek. THETA 5 Hz - meditace, snění. ALPHA 9 Hz - klidná relaxace." },
-    binaural_g4_t: { en: "Volume and music", cz: "Hlasitost a hudba" },
-    binaural_g4_p: { en: "The VOL knob sets the tones (default 5%). Keep them quiet - especially when layering music from the mini player - to protect your hearing.", cz: "Knob VOL nastavuje hlasitost tónů (výchozí 5 %). Držte ji nízko - zvláště když přes tóny vrstvíte hudbu z mini přehrávače - kvůli ochraně sluchu." },
+    binaural_g4_t: { en: "Two volume knobs", cz: "Dva knoby hlasitosti" },
+    binaural_g4_p: { en: "TONES sets only the binaural tones (default 5%). MUSIC sets the music from the mini player below - it is the same volume as in the main window, so the change stays after you leave. Keep the tones quieter than the music, start low and raise slowly to protect your hearing. Drag a knob up/down, scroll over it or use the arrow keys; double-tap resets it.", cz: "TONES nastavuje jen binaurální tóny (výchozí 5 %). MUSIC nastavuje hudbu z mini přehrávače dole - je to stejná hlasitost jako v hlavním okně, takže změna zůstane i po odchodu. Tóny držte tišší než hudbu, začínejte potichu a zvyšujte pomalu kvůli ochraně sluchu. Knobem táhněte nahoru/dolů, točte kolečkem myši nebo použijte šipky; dvojitým klepnutím ho vrátíte na výchozí hodnotu." },
+    binaural_g6_t: { en: "Sleep timer", cz: "Časovač spánku" },
+    binaural_g6_p: { en: "Pick 15, 30 or 60 minutes under the knobs; ✖ cancels it. It is the same timer as in the main window. When it runs out, the tones fade away and the music stops - handy for falling asleep.", cz: "Pod knoby zvolte 15, 30 nebo 60 minut; ✖ ho zruší. Je to stejný časovač jako v hlavním okně. Až doběhne, tóny se ztiší a hudba se zastaví - vhodné k usínání." },
     binaural_g5_t: { en: "Be careful", cz: "Na co si dát pozor" },
     binaural_g5_p: { en: "Do not use while driving, operating machinery or whenever you must stay alert. People with epilepsy or a seizure history, heart conditions, a pacemaker, or mental-health conditions, and pregnant women, should consult a doctor first. Stop if you feel dizzy, uncomfortable or get a headache. Tones stop when you leave the page or the sleep timer ends.", cz: "Nepoužívejte při řízení, obsluze strojů ani tam, kde musíte být ve střehu. Lidé s epilepsií či záchvaty v anamnéze, srdečním onemocněním, kardiostimulátorem nebo duševním onemocněním a těhotné ženy by se měli nejdřív poradit s lékařem. Při závrati, nepohodě nebo bolesti hlavy přestaňte. Tóny se vypnou po opuštění stránky nebo po skončení časovače spánku." },
     binaural_guide_note: { en: "Not medical advice. Listen responsibly.", cz: "Nejde o lékařskou radu. Poslouchejte zodpovědně." },
     binaural_hint: { en: "Best with stereo headphones. The tones stop when you leave this page.", cz: "Nejlépe se stereo sluchátky. Tóny se po opuštění stránky vypnou." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
-    p_timer: { en: "Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.", cz: "Pomocí tlačítek časovače nastavte automatické zastavení přehrávání po 15, 30 nebo 60 minutách, nebo aktivní časovač kdykoli zrušte tlačítkem ✖." },
+    p_timer: { en: "Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖. The same timer also works on the BINAURAL and BREATHE pages and fades out the binaural tones.", cz: "Pomocí tlačítek časovače nastavte automatické zastavení přehrávání po 15, 30 nebo 60 minutách, nebo aktivní časovač kdykoli zrušte tlačítkem ✖. Stejný časovač funguje i na stránce BINAURAL a ztiší také binaurální tóny." },
     h_crossfade: { en: "Crossfade", cz: "Prolínání (Crossfade)" },
     p_crossfade: { en: "Choose 3, 6, 8, 10 or 15 seconds under CROSSFADE to smoothly blend the end of one track into the start of the next, or leave it OFF for a hard cut.", cz: "V nabídce CROSSFADE zvolte 3, 6, 8, 10 nebo 15 sekund pro plynulé prolnutí konce jedné skladby se začátkem další, nebo nechte OFF pro tvrdý přechod." },
     h_history: { en: "History", cz: "Historie" },
@@ -10793,70 +10868,86 @@
     modeBtns.forEach((b) => b.addEventListener('click', () => setMode(Number(b.getAttribute('data-bn-mode')))));
 
     // --- knob hlasitosti (stejné ovládání jako knob druhé vrstvy ASMR MIX) ---
-    let tipTimer = null, knobDrag = null, lastTap = 0;
-    function paintKnob() {
-      const pct = Math.round(vol * 100);
-      knobWrap.style.setProperty('--p', vol);
-      knob.setAttribute('aria-valuenow', String(pct));
-      knob.setAttribute('aria-valuetext', pct + '%');
-      knobTip.textContent = pct + '%';
-      volVal.textContent = pct + '%';
+    // Společná továrna na knob: get/set = čtení a zápis hodnoty 0..1, def = výchozí poloha (dvojité klepnutí)
+    function makeKnob(o) {
+      let tipTimer = null, knobDrag = null, lastTap = 0;
+      function paint() {
+        const v = o.get(), pct = Math.round(v * 100);
+        o.wrap.style.setProperty('--p', v);
+        o.knob.setAttribute('aria-valuenow', String(pct));
+        o.knob.setAttribute('aria-valuetext', pct + '%');
+        o.tip.textContent = pct + '%';
+        o.val.textContent = pct + '%';
+      }
+      function showTip() {
+        o.tip.classList.add('show');
+        clearTimeout(tipTimer);
+        tipTimer = setTimeout(() => o.tip.classList.remove('show'), 900);
+      }
+      function change(v) { o.set(Math.min(1, Math.max(0, v))); paint(); showTip(); }
+      o.wrap.addEventListener('pointerdown', (e) => {
+        knobDrag = { lastY: e.clientY, raw: o.get(), moved: 0 };
+        o.wrap.classList.add('dragging');
+        try { o.wrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        showTip();
+        o.knob.focus({ preventScroll: true });
+        e.preventDefault();
+      });
+      o.wrap.addEventListener('pointermove', (e) => {
+        if (!knobDrag) return;
+        const dy = knobDrag.lastY - e.clientY;
+        knobDrag.lastY = e.clientY;
+        knobDrag.moved += Math.abs(dy);
+        knobDrag.raw = Math.min(1, Math.max(0, knobDrag.raw + dy * (e.shiftKey ? 1 / 500 : 1 / 130)));
+        change(knobDrag.raw);
+      });
+      const endDrag = (e) => {
+        if (!knobDrag) return;
+        const wasTap = knobDrag.moved < 6;
+        knobDrag = null;
+        o.wrap.classList.remove('dragging');
+        if (wasTap && e && e.type === 'pointerup') {
+          const now = Date.now();
+          if (now - lastTap < 350) { lastTap = 0; change(o.def); } // dvojité klepnutí = výchozí hlasitost
+          else lastTap = now;
+        }
+      };
+      o.wrap.addEventListener('pointerup', endDrag);
+      o.wrap.addEventListener('pointercancel', endDrag);
+      o.wrap.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        change(o.get() + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
+      }, { passive: false });
+      o.knob.addEventListener('keydown', (e) => {
+        const fine = e.shiftKey ? 0.2 : 1;
+        const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
+        if (step !== undefined) { e.preventDefault(); change(o.get() + step * fine); }
+        else if (e.key === 'Home') { e.preventDefault(); change(0); }
+        else if (e.key === 'End') { e.preventDefault(); change(1); }
+      });
+      return paint;
     }
-    function showTip() {
-      knobTip.classList.add('show');
-      clearTimeout(tipTimer);
-      tipTimer = setTimeout(() => knobTip.classList.remove('show'), 900);
-    }
+    // Hlasitost binaurálních tónů
     function setVol(v, save) {
       vol = Math.min(1, Math.max(0, v));
-      paintKnob(); showTip();
       if (ctx && modeIdx !== 0) {
         const now = ctx.currentTime;
         gainL.gain.setTargetAtTime(level(), now, 0.3); gainR.gain.setTargetAtTime(level(), now, 0.3);
       }
       if (save !== false) { try { localStorage.setItem(VOL_KEY, String(vol)); } catch (e) { /* ignore */ } }
     }
-    knobWrap.addEventListener('pointerdown', (e) => {
-      knobDrag = { lastY: e.clientY, raw: vol, moved: 0 };
-      knobWrap.classList.add('dragging');
-      try { knobWrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      showTip();
-      knob.focus({ preventScroll: true });
-      e.preventDefault();
+    const paintKnob = makeKnob({ wrap: knobWrap, knob: knob, tip: knobTip, val: volVal, def: DEFAULT_VOL, get: () => vol, set: setVol });
+    // Hlasitost hudby = hlavní posuvník hlasitosti přehrávače (společný s hlavním oknem, ukládá se stejně)
+    const mainVol = document.getElementById('volume-slider');
+    const paintMusicKnob = makeKnob({
+      wrap: document.getElementById('bn-mknob-wrap'), knob: document.getElementById('bn-mknob'),
+      tip: document.getElementById('bn-mknob-tip'), val: document.getElementById('bn-mvol-val'), def: 0.3,
+      get: () => { const v = parseFloat(mainVol && mainVol.value); return isFinite(v) ? v : 0.3; },
+      set: (v) => { if (!mainVol) return; mainVol.value = v.toFixed(2); mainVol.dispatchEvent(new Event('input')); }
     });
-    knobWrap.addEventListener('pointermove', (e) => {
-      if (!knobDrag) return;
-      const dy = knobDrag.lastY - e.clientY;
-      knobDrag.lastY = e.clientY;
-      knobDrag.moved += Math.abs(dy);
-      knobDrag.raw = Math.min(1, Math.max(0, knobDrag.raw + dy * (e.shiftKey ? 1 / 500 : 1 / 130)));
-      setVol(knobDrag.raw);
-    });
-    const endDrag = (e) => {
-      if (!knobDrag) return;
-      const wasTap = knobDrag.moved < 6;
-      knobDrag = null;
-      knobWrap.classList.remove('dragging');
-      if (wasTap && e && e.type === 'pointerup') {
-        const now = Date.now();
-        if (now - lastTap < 350) { lastTap = 0; setVol(DEFAULT_VOL); } // dvojité klepnutí = výchozí hlasitost
-        else lastTap = now;
-      }
-    };
-    knobWrap.addEventListener('pointerup', endDrag);
-    knobWrap.addEventListener('pointercancel', endDrag);
-    knobWrap.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      setVol(vol + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
-    }, { passive: false });
-    knob.addEventListener('keydown', (e) => {
-      const fine = e.shiftKey ? 0.2 : 1;
-      const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
-      if (step !== undefined) { e.preventDefault(); setVol(vol + step * fine); }
-      else if (e.key === 'Home') { e.preventDefault(); setVol(0); }
-      else if (e.key === 'End') { e.preventDefault(); setVol(1); }
-    });
+    if (mainVol) mainVol.addEventListener('input', paintMusicKnob);
     paintKnob();
+    paintMusicKnob();
     paintModes();
 
     // --- otevření / zavření stránky ---
@@ -10864,7 +10955,7 @@
       if (binauralActive) return;
       binauralActive = true;
       document.body.classList.add('binaural-active'); // vše ostatní se schová, hudba klidně hraje dál
-      paintModes();
+      paintModes(); paintMusicKnob();
     };
     window.stopBinaural = function() {
       if (!binauralActive) return;
@@ -10986,6 +11077,7 @@
     timerEndsAt = 0;
     timeRemaining = 0;
     document.getElementById('timer-display').innerText = "⏱ Off";
+    const bnT = document.getElementById('bn-timer-display'); if (bnT) bnT.innerText = "⏱ Off";
     highlightActiveTimer(0);
   };
 
@@ -10993,7 +11085,9 @@
     if (timeRemaining > 0) {
       let m = Math.floor(timeRemaining / 60);
       let s = timeRemaining % 60;
-      document.getElementById('timer-display').innerText = `⏱ ${m}:${s < 10 ? '0' : ''}${s}`;
+      const txt = `⏱ ${m}:${s < 10 ? '0' : ''}${s}`;
+      document.getElementById('timer-display').innerText = txt;
+      const bt = document.getElementById('bn-timer-display'); if (bt) bt.innerText = txt;
     }
   }
 
