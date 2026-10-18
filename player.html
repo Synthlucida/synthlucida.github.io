@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.5">
+<meta name="app-version" content="2.0.6">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -608,6 +608,8 @@
     -webkit-tap-highlight-color: transparent;
   }
   .atmos-toggle:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.4); }
+  /* MUSIC svítí, dokud hraje skladba z ASMR / PIANO / CHILL (ne z My Playlist ani z F) */
+  .atmos-toggle.music-playing { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color), 0 3px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.28); }
   .atmos-toggle.open, .atmos-dice.active { box-shadow: 0 0 12px var(--accent-color), 0 3px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.28); }
   .ico-dice { width: 10px; height: 10px; display: block; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
   /* Malé kostkové tlačítko vlevo od MUSIC: náhodná skladba z PIANO/CHILL + zapnutý shuffle */
@@ -3342,11 +3344,21 @@
   const myPlaylistEqEl = document.getElementById('myplaylist-eq');
   const myFilesEqEl = document.getElementById('myfiles-eq');
 
+  // Tlačítko MUSIC svítí, jen když opravdu hraje skladba z jednoho ze 3 playlistů (asmr / piano / chill)
+  function syncMusicPlayingGlow() {
+    const btn = document.getElementById('atmos-toggle-music');
+    if (!btn) return;
+    const on = !audio.paused && !customQueueActive && ['asmr', 'piano', 'chill'].indexOf(currentPlaylistKey) !== -1 && currentTrackIndex >= 0;
+    btn.classList.toggle('music-playing', on);
+  }
+  ['play', 'playing', 'pause', 'ended', 'emptied'].forEach(ev => audio.addEventListener(ev, syncMusicPlayingGlow));
+
   // Ekvalizér u nadpisů "My Playlist" a "My Files & Playlists" - rozsvítí se, jen když
   // se opravdu přehrává obsah dané sekce (MY PLAYLIST fronta / vlastní playlist z F panelu)
   // A zároveň je uživatel stále v daném panelu (ten je "visible" - neodešel zpět do hlavní nabídky).
   function updateSectionEqIndicators() {
     const playing = !audio.paused;
+    syncMusicPlayingGlow();
     const queuePanel = document.getElementById('queue-panel');
     const filesPanel = document.getElementById('main-files');
     const queuePanelOpen = !!queuePanel && queuePanel.classList.contains('visible');
@@ -7990,30 +8002,42 @@
   function queueIsPlaying() {
     return !!(customQueueActive && customQueue[customQueueIndex]);
   }
+  // Hraje se ze sekce F (vlastní soubor / playlist ze souborů)? Vrací umístění skladby, jinak null.
+  function findPlayingFilesLocation() {
+    if (queueIsPlaying()) return null;
+    const loc = findPlayingTrackLocation();
+    return (loc && loc.kind === 'list' && typeof loc.key === 'string' && loc.key.indexOf('custom:') === 0) ? loc : null;
+  }
   function syncQueueBackBtn() {
     const btn = document.getElementById('btn-back-queue');
-    if (!btn) return;
     const on = queueIsPlaying();
-    btn.disabled = !on;
-    btn.classList.toggle('queue-playing', on && !audio.paused);
+    const filesLoc = findPlayingFilesLocation();
+    const fromFiles = !!filesLoc;
+    if (btn) {
+      // Nota vrací do aktivního zdroje: MY PLAYLIST, nebo sekce F (jakmile z ní hraje skladba)
+      btn.disabled = !(on || fromFiles);
+      btn.classList.toggle('queue-playing', (on || fromFiles) && !audio.paused);
+      const label = fromFiles ? 'Back to the playing playlist from F' : 'Back to the playing MY PLAYLIST';
+      btn.title = label; btn.setAttribute('aria-label', label);
+    }
     // Horní tlačítko MY PLAYLIST svítí, dokud je fronta aktivní zdroj přehrávání (stejně jako nota)
     const top = document.getElementById('btn-my-playlist');
     if (top) top.classList.toggle('active', on);
     // Tlačítko F svítí, když zdrojem přehrávání je sekce My Files (vlastní soubor / playlist ze souborů)
     const fBtn = document.querySelector('.main-files-btn');
     if (fBtn) {
-      let fromFiles = false;
-      if (!on) {
-        const loc = findPlayingTrackLocation();
-        fromFiles = !!(loc && loc.kind === 'list' && typeof loc.key === 'string' && loc.key.indexOf('custom:') === 0);
-      }
       fBtn.classList.toggle('files-active', fromFiles);
       fBtn.classList.toggle('files-playing', fromFiles && !audio.paused);
     }
   }
   window.backToMyPlaylist = function() {
-    if (!queueIsPlaying()) { syncQueueBackBtn(); return; }
-    revealTrackInMainList({ kind: 'queue', pos: customQueueIndex }, true);
+    if (queueIsPlaying()) {
+      revealTrackInMainList({ kind: 'queue', pos: customQueueIndex }, true);
+    } else {
+      // sekce F: vrátit hlavní okno na hrající playlist/soubor z F a odrolovat na skladbu
+      const loc = findPlayingFilesLocation();
+      if (loc) revealTrackInMainList(loc, true);
+    }
     syncQueueBackBtn();
   };
   ['play', 'pause', 'playing', 'emptied', 'loadstart', 'ended'].forEach(ev => audio.addEventListener(ev, syncQueueBackBtn));
@@ -8391,9 +8415,16 @@
     }
   });
 
+  // Kostka (🎲) patří jen k náhodnému výběru z PIANO/CHILL: při přehrávání z My Playlist nebo ze sekce F
+  // se sama vypne (přestane svítit a točit se). Shuffle (🔀) se nemění - když ho uživatel má zapnutý, dál funguje.
+  function releaseDice() {
+    const dice = document.getElementById('btn-random-mix');
+    if (dice && dice.dataset.used === '1') { dice.dataset.used = '0'; syncRandomMixBtn(); }
+  }
   function playTrack(index) {
     cancelCrossfade();
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
+    if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0) releaseDice();
     currentTrackIndex = index;
     playingRef = { key: currentPlaylistKey, index };
     const track = playlist[index];
@@ -9312,6 +9343,7 @@
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
+    releaseDice();
     // Hlavní okno přehrávače (a zvýraznění nahoře) má teď ukazovat "My Playlist", ne ASMR/PIANO/CHILL
     mainListShowsQueue = true;
     document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
