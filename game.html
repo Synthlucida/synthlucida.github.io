@@ -775,8 +775,17 @@
     audio.play().catch(() => { setPlayingUI(false); console.log("Interakce nutná."); });
   }
 
-  window.toggleShuffle = function() { shuffleEnabled = !shuffleEnabled; document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled); };
-  window.toggleRepeat = function() { repeatEnabled = !repeatEnabled; document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled); };
+  // Shuffle a repeat se vylučují: zapnutí jednoho vypne druhé
+  window.toggleShuffle = function() {
+    shuffleEnabled = !shuffleEnabled;
+    document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled);
+    if (shuffleEnabled && repeatEnabled) { repeatEnabled = false; document.getElementById('btn-repeat').classList.remove('active'); }
+  };
+  window.toggleRepeat = function() {
+    repeatEnabled = !repeatEnabled;
+    document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled);
+    if (repeatEnabled && shuffleEnabled) { shuffleEnabled = false; document.getElementById('btn-shuffle').classList.remove('active'); }
+  };
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) { audio.pause(); setPlayingUI(false); }

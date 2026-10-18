@@ -6361,6 +6361,11 @@
   window.toggleShuffle = function() {
       shuffleEnabled = !shuffleEnabled;
       document.getElementById('btn-shuffle').classList.toggle('active', shuffleEnabled);
+      // Shuffle a repeat se vylučují: zapnutí náhodného přehrávání vypne opakování jedné skladby
+      if (shuffleEnabled && repeatEnabled) {
+        repeatEnabled = false;
+        document.getElementById('btn-repeat').classList.remove('active');
+      }
       const dice = document.getElementById('btn-random-mix');
       if (dice && !shuffleEnabled) dice.dataset.used = '0';
       syncRandomMixBtn();
@@ -6404,6 +6409,14 @@
   window.toggleRepeat = function() {
       repeatEnabled = !repeatEnabled;
       document.getElementById('btn-repeat').classList.toggle('active', repeatEnabled);
+      // Shuffle a repeat se vylučují: zapnutí opakování vypne náhodné přehrávání (i kostku)
+      if (repeatEnabled && shuffleEnabled) {
+        shuffleEnabled = false;
+        document.getElementById('btn-shuffle').classList.remove('active');
+        const dice = document.getElementById('btn-random-mix');
+        if (dice) dice.dataset.used = '0';
+        syncRandomMixBtn();
+      }
   };
 
   const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // musí odpovídat hodnotě v sw.js
