@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.1.1">
+<meta name="app-version" content="2.1.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1978,6 +1978,69 @@
      Vše má předponu together-/tg- a nesahá do stávajících stylů přehrávače.
      ============================================ */
   .breath-weather-row { gap: 8px; flex-wrap: wrap; }
+
+  /* ============================================
+     MINI PŘEHRÁVAČ v dechovém cvičení (předpona bm- = breath mini)
+     Rychlé ovládání hudby, aby uživatel nemusel zpět do hlavního okna.
+     ============================================ */
+  /* Panel je přichycený u spodního okraje a má pevnou výšku, takže nic neposkakuje (název skladby je vždy
+     jen jeden řádek) a nezasahuje do časovače nahoře - obsah dechu má dole vyhrazené místo (.bm-open). */
+  .breathing-overlay { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 58px); transition: padding-bottom 0.25s ease; }
+  .breathing-overlay.bm-open { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 142px); }
+  .breath-mini {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    width: min(340px, calc(100vw - 16px)); box-sizing: border-box; z-index: 3;
+    padding: 6px 8px 8px; border-radius: 16px; display: flex; flex-direction: column; gap: 6px;
+    background: rgba(0,0,0,0.38); border: 1px solid rgba(255,255,255,0.12);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .breath-mini button, .breath-mini select { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .bm-top { display: flex; align-items: center; gap: 6px; height: 28px; }
+  .bm-now { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; }
+  .bm-pl { flex: 0 1 auto; max-width: 45%; overflow: hidden; text-overflow: ellipsis; font-size: 8px; letter-spacing: 1.2px; color: var(--accent-color); }
+  .bm-track { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: rgba(255,255,255,0.9); }
+  .bm-toggle {
+    flex: none; width: 28px; height: 28px; border-radius: 50%; padding: 0; cursor: pointer; color: rgba(255,255,255,0.8);
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); font-size: 12px; line-height: 1; transition: 0.2s;
+  }
+  .bm-toggle:hover, .bm-toggle:focus-visible { color: var(--accent-color); border-color: var(--accent-color); outline: none; }
+  .bm-caret { display: inline-block; transition: transform 0.25s; }
+  .breath-mini.collapsed .bm-caret { transform: rotate(180deg); }
+  .bm-body { display: flex; flex-direction: column; gap: 6px; }
+  .breath-mini.collapsed .bm-body { display: none; }
+  .bm-transport, .bm-lists { display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; gap: 6px; }
+  .bm-lists { gap: 5px; }
+  .btn-breath-ctrl.bm-ico {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 36px; padding: 0; border-radius: 11px;
+    transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .btn-breath-ctrl.bm-ico.bm-main { width: 52px; height: 38px; border-radius: 19px; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .bm-ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .bm-main svg { width: 21px; height: 21px; }
+  .btn-breath-ctrl.bm-ico:active, .bm-lists .btn-breath-ctrl:active { transform: scale(0.94); }
+  .bm-lists .btn-breath-ctrl { flex: 0 1 auto; min-width: 0; min-height: 32px; padding: 6px 9px; font-size: 8px; letter-spacing: 0.8px; border-radius: 16px; transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s; }
+  .bm-lists .btn-breath-ctrl.active { border-color: var(--accent-color); color: var(--accent-color); }
+  .bm-lists .btn-breath-ctrl:disabled { opacity: 0.35; }
+  /* Playlisty z My Files: kulaté tlačítko F jako na hlavní stránce; průhledný select přes něj otevře nativní výběr */
+  .bm-files-wrap {
+    position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(255,255,255,0.22); color: #fff; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 12px; font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14); transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .bm-files-wrap:active { transform: scale(0.94); }
+  .bm-files-wrap.active { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .bm-files-wrap.disabled { opacity: 0.35; }
+  .bm-files-wrap:focus-within { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  .bm-select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; font-size: 16px; -webkit-appearance: none; appearance: none; }
+  .bm-select:disabled { cursor: default; }
+  .breath-mini .btn-breath-ctrl:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  .bm-select option { background: #111; color: #fff; }
+  @media (max-width: 350px) {
+    .btn-breath-ctrl.bm-ico { width: 35px; height: 34px; }
+    .btn-breath-ctrl.bm-ico.bm-main { width: 46px; }
+    .bm-lists .btn-breath-ctrl { padding: 6px 6px; font-size: 7px; letter-spacing: 0.4px; }
+  }
   #breath-together-btn { display: inline-flex; align-items: center; gap: 5px; min-width: 100px; justify-content: center; }
   #breath-together-btn .tg-ico { width: 11px; height: 11px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   #breath-together-btn.live { border-color: var(--accent-color); animation: togetherLivePulse 2.4s ease-in-out infinite; }
@@ -3121,6 +3184,31 @@
     <button class="btn-breath-ctrl" id="breath-shape-btn" type="button" onclick="toggleBreathShape()">SHAPE: ORB</button>
     <button class="btn-breath-ctrl" id="breath-quick-btn" type="button" onclick="toggleBreathQuick()" data-i18n="bq_btn">STRETCH</button>
     <button class="btn-breath-ctrl" id="breath-together-btn" onclick="if(window.openTogether)openTogether()"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14.2c2.4 0 4.2 1.8 4.2 4.3"/></svg><span data-tg="entryBtn">TOGETHER</span><span class="tg-entry-count" id="breath-together-count" hidden><span class="together-live-dot"></span><span class="tg-entry-count-text"></span></span></button>
+  </div>
+
+  <!-- Mini přehrávač: stejné funkce jako hlavní přehrávač (play/pause, STOP, předchozí/další, shuffle, repeat, výběr playlistu) -->
+  <div class="breath-mini" id="breath-mini" role="group" aria-label="Music controls">
+    <div class="bm-top">
+      <div class="bm-now"><span class="bm-pl" id="bm-pl">ASMR</span><span class="bm-track" id="bm-track">—</span></div>
+      <button type="button" class="bm-toggle" id="bm-toggle" aria-expanded="true" aria-controls="bm-body" aria-label="Show or hide music controls" title="Show / hide"><span class="bm-caret" aria-hidden="true">▾</span></button>
+    </div>
+    <div class="bm-body" id="bm-body">
+      <div class="bm-transport">
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bm-shuffle" aria-label="Shuffle" aria-pressed="false" title="Shuffle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h3.5c2 0 3.2 1 4.5 3l2 4c1.3 2 2.5 3 4.5 3H21"/><path d="M3 17h3.5c2 0 3.2-1 4.5-3"/><path d="M13 8c1.2-1.2 2.5-2 4.5-2H21"/><path d="M18 3l3 3-3 3"/><path d="M18 15l3 3-3 3"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bm-prev" aria-label="Previous track" title="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5.5v13l-9-6.5z" fill="currentColor"/><path d="M6 5.5v13"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico bm-main" id="bm-play" aria-label="Play" title="Play / Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bm-stop" aria-label="Stop" title="Stop"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bm-next" aria-label="Next track" title="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5.5v13l9-6.5z" fill="currentColor"/><path d="M18 5.5v13"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bm-repeat" aria-label="Repeat" aria-pressed="false" title="Repeat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M17 3l3 3-3 3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/><path d="M7 21l-3-3 3-3"/></svg></button>
+      </div>
+      <div class="bm-lists" role="group" aria-label="Playlists">
+        <button type="button" class="btn-breath-ctrl" data-bm-key="asmr">ASMR</button>
+        <button type="button" class="btn-breath-ctrl" data-bm-key="piano">PIANO</button>
+        <button type="button" class="btn-breath-ctrl" data-bm-key="chill">CHILL</button>
+        <button type="button" class="btn-breath-ctrl" data-bm-key="queue" id="bm-pl-queue">MY PLAYLIST</button>
+        <span class="bm-files-wrap" id="bm-files-wrap"><span class="bm-files-f" aria-hidden="true">F</span><select class="bm-select" id="bm-files" aria-label="My Files playlists" title="My Files playlists"></select></span>
+      </div>
+    </div>
   </div>
 
   <div class="breath-hint">tap ✖ to exit</div>
@@ -10142,6 +10230,169 @@
     } catch (e) { /* bez animace */ }
     playNextTrack();
   });
+
+  // ==========================================
+  // MINI PŘEHRÁVAČ V DECHOVÉM CVIČENÍ
+  // Hlavní okno je při dechu schované, proto je přímo v overlayi malý ovladač hudby: play/pause, STOP,
+  // předchozí/další, shuffle, repeat, název playlistu + hrající skladby a přepínání ASMR / PIANO / CHILL /
+  // MY PLAYLIST / FILES. Nemá vlastní přehrávací logiku - volá úplně stejné funkce jako hlavní přehrávač
+  // a jen zobrazuje jeho stav (poslouchá události audia a změny v hlavních tlačítkách).
+  // ==========================================
+  (function() {
+    const root = document.getElementById('breath-mini');
+    if (!root) return;
+    const $ = (id) => document.getElementById(id);
+    const elPl = $('bm-pl');
+    const elTrack = $('bm-track');
+    const bPlay = $('bm-play');
+    const bShuffle = $('bm-shuffle');
+    const bRepeat = $('bm-repeat');
+    const bQueue = $('bm-pl-queue');
+    const selFiles = $('bm-files');
+    const head = $('bm-toggle');
+    const chips = Array.from(root.querySelectorAll('[data-bm-key]'));
+    const PLAY_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg>';
+    const PAUSE_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.5" width="4.2" height="15" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.2" fill="currentColor" stroke="none"/></svg>';
+    let shownPlayState = null;
+    let filesSig = null;
+
+    const isShownPlaying = () => playBtn.getAttribute('data-state') === 'pause';
+
+    // Odkud hraje to, co je slyšet (ne nutně to, co zrovna prohlíží hlavní okno)
+    function activeKey() {
+      if (customQueueActive) return 'queue';
+      if (audio.getAttribute('src') && playingRef && playingRef.key) return playingRef.key;
+      return mainListShowsQueue ? 'queue' : currentPlaylistKey;
+    }
+
+    function listLabel(key) {
+      if (key === 'queue') return 'MY PLAYLIST';
+      if (typeof key === 'string' && key.indexOf('custom:') === 0) {
+        const id = key.slice(7);
+        const pl = (myPlaylists || []).find((p) => String(p.id) === id);
+        return pl && pl.name ? String(pl.name).toUpperCase() : 'FILES';
+      }
+      return String(key || '').toUpperCase();
+    }
+
+    function syncFilesSelect(key) {
+      const list = Array.isArray(myPlaylists) ? myPlaylists : [];
+      // volby se přestaví jen při změně seznamu playlistů (jinak by se otevřená nabídka zavřela)
+      const sig = list.map((p) => p.id + '\u0001' + p.name).join('\u0002');
+      if (sig !== filesSig) {
+        filesSig = sig;
+        selFiles.textContent = '';
+        const ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = 'MY FILES';
+        selFiles.appendChild(ph);
+        list.forEach((p) => {
+          const o = document.createElement('option');
+          o.value = String(p.id);
+          o.textContent = p.name || 'Playlist';
+          selFiles.appendChild(o);
+        });
+      }
+      selFiles.disabled = !list.length;
+      const isFile = typeof key === 'string' && key.indexOf('custom:') === 0;
+      selFiles.value = isFile ? key.slice(7) : '';
+      if (selFiles.selectedIndex < 0) selFiles.value = '';
+      selFiles.classList.toggle('active', isFile);
+      const wrap = selFiles.parentNode;
+      if (wrap && wrap.classList) { wrap.classList.toggle('active', isFile); wrap.classList.toggle('disabled', !list.length); }
+    }
+
+    function sync() {
+      if (!breathingActive) return;
+      const key = activeKey();
+      elPl.textContent = listLabel(key);
+
+      let t = null;
+      if (customQueueActive && customQueue[customQueueIndex]) t = customQueue[customQueueIndex].title;
+      else if (audio.getAttribute('src') && currentTrackTitle) t = currentTrackTitle;
+      elTrack.textContent = t ? displayTrackTitle(t) : '—';
+      elTrack.title = elTrack.textContent;
+
+      const playing = isShownPlaying();
+      if (shownPlayState !== playing) {
+        shownPlayState = playing;
+        bPlay.innerHTML = playing ? PAUSE_ICO : PLAY_ICO;
+        bPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      }
+      bShuffle.classList.toggle('active', !!shuffleEnabled);
+      bShuffle.setAttribute('aria-pressed', shuffleEnabled ? 'true' : 'false');
+      bRepeat.classList.toggle('active', !!repeatEnabled);
+      bRepeat.setAttribute('aria-pressed', repeatEnabled ? 'true' : 'false');
+
+      chips.forEach((b) => b.classList.toggle('active', b.getAttribute('data-bm-key') === key));
+      bQueue.disabled = !customQueue.length;
+      syncFilesSelect(key);
+    }
+
+    // --- přehrávání (stejné funkce jako hlavní přehrávač) ---
+    bPlay.addEventListener('click', () => { playBtn.click(); sync(); });
+    $('bm-stop').addEventListener('click', () => { if (typeof window.stopPlayback === 'function') window.stopPlayback(); sync(); });
+    $('bm-prev').addEventListener('click', () => { playPrevTrack(); sync(); });
+    $('bm-next').addEventListener('click', () => { playNextTrack(); sync(); });
+    bShuffle.addEventListener('click', () => { window.toggleShuffle(); sync(); });
+    bRepeat.addEventListener('click', () => { window.toggleRepeat(); sync(); });
+
+    // --- přepínání playlistů ---
+    // Hlavní seznam skladeb tu není vidět, takže výběr playlistu rovnou spustí jeho první skladbu
+    // (při zapnutém shuffle náhodnou). Když už z daného playlistu hraje, jen se případně obnoví přehrávání.
+    function resumeIfPaused() { if (!isShownPlaying()) playBtn.click(); }
+    function randomOrFirst(len) { return shuffleEnabled ? Math.floor(Math.random() * len) : 0; }
+
+    function handleChip(b) {
+      const key = b.getAttribute('data-bm-key');
+      if (key === 'queue') {
+        if (!customQueue.length) return;
+        if (customQueueActive) { resumeIfPaused(); return; }
+        playCustomQueueAt(randomOrFirst(customQueue.length));
+        return;
+      }
+      if (activeKey() === key) { resumeIfPaused(); return; }
+      const mainBtn = document.querySelector('#atmos-panel-music .btn-atmos[onclick*="\'' + key + '\'"]');
+      if (!mainBtn) return;
+      setPlaylist(key, mainBtn);
+      if (Array.isArray(playlist) && playlist.length) playTrack(randomOrFirst(playlist.length));
+    }
+    chips.forEach((b) => b.addEventListener('click', () => { handleChip(b); sync(); }));
+
+    selFiles.addEventListener('change', () => {
+      const id = selFiles.value;
+      if (!id) return;
+      const pl = (myPlaylists || []).find((p) => String(p.id) === id);
+      if (!pl) return;
+      if (!customQueueActive && activeKey() === 'custom:' + id) { resumeIfPaused(); sync(); return; }
+      Promise.resolve(window.playMyPlaylist(pl.id)).then(sync, sync);
+    });
+
+    // --- zobrazení stavu: události audia + změny hlavních prvků přehrávače ---
+    const schedule = () => { if (breathingActive) sync(); };
+    ['play', 'pause', 'playing', 'emptied', 'loadstart', 'loadedmetadata', 'ended'].forEach((ev) => audio.addEventListener(ev, schedule));
+    try {
+      new MutationObserver(schedule).observe(titleDiv, { childList: true, characterData: true, subtree: true });
+      new MutationObserver(schedule).observe(playBtn, { attributes: true, attributeFilter: ['data-state'] });
+      [$('btn-shuffle'), $('btn-repeat')].forEach((b) => { if (b) new MutationObserver(schedule).observe(b, { attributes: true, attributeFilter: ['class'] }); });
+      // po otevření dechového cvičení (class na <body>) se stav hned načte
+      new MutationObserver(schedule).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    } catch (e) { /* bez živé aktualizace - stav se aspoň obnoví po kliknutí */ }
+
+    // --- sbalení / rozbalení panelu (pamatuje se) ---
+    function applyCollapsed(c) {
+      root.classList.toggle('collapsed', c);
+      const ov = document.getElementById('breathing-overlay');
+      if (ov) ov.classList.toggle('bm-open', !c);
+      head.setAttribute('aria-expanded', c ? 'false' : 'true');
+    }
+    try { applyCollapsed(localStorage.getItem('synthlucida_breath_mini') === 'collapsed'); } catch (e) { /* ignore */ }
+    head.addEventListener('click', () => {
+      const c = !root.classList.contains('collapsed');
+      applyCollapsed(c);
+      try { localStorage.setItem('synthlucida_breath_mini', c ? 'collapsed' : 'open'); } catch (e) { /* ignore */ }
+    });
+  })();
 
   // Malé rozhraní pro ovládání přehrávání zvenčí (např. z player-tarot.html přes skrytý
   // iframe) - umožňuje spustit/pozastavit hudbu a zjistit stav, aniž by muselo
