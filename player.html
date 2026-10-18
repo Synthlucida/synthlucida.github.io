@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.6">
+<meta name="app-version" content="2.0.7">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3223,6 +3223,7 @@
   let playlist = tracks['asmr'];
   let currentPlaylistKey = 'asmr'; // pro MediaSession album a pro ukládání poslední pozice
   let currentTrackIndex = -1;
+  let filesContinuation = null; // { key, index } - F playlist, do kterého se přehrávání vrátí po lupě (viz locatePlayingTrack)
   let playingRef = null; // { key, index } - odkud skladba, která právě hraje, pochází (prohlížený playlist se může lišit)
   let currentTrackTitle = null; // review 09/2026: název skladby, která opravdu hraje (pro uložení poslední skladby)
   let consecutiveTrackErrors = 0; // ochrana proti nekonečné smyčce, kdyby byl celý playlist nedostupný
@@ -7891,6 +7892,7 @@
   }
 
   window.setPlaylist = function(key, btn) {
+    filesContinuation = null;
     const wasViewingAsmr = (currentPlaylistKey === 'asmr' && !mainListShowsQueue);
     if (key === 'asmr' && !wasViewingAsmr && loadedTrackIsForeignToAsmr()) {
       // hraje cizí skladba -> plynule se ztiší a zahodí; je jen pozastavená -> zahodí se hned
@@ -8059,11 +8061,51 @@
   syncQueueBackBtn();
   setInterval(syncQueueBackBtn, 1000); // pojistka: fronta se může změnit i bez události přehrávače (smazání poslední skladby...)
 
+  // Hraje se z playlistu ze sekce F, ale hlavní okno ukazuje jiný seznam (lupa ho přepnula na domovský playlist
+  // SYNTHLUCIDA skladby). Po dohrání skladby se přehrávání vrátí do F playlistu, ze kterého se hrálo.
+  function restoreFilesContinuation() {
+    const fc = filesContinuation;
+    if (!fc) return;
+    filesContinuation = null;
+    if (customQueueActive) return;
+    const list = tracks[fc.key];
+    const t = list && list[fc.index];
+    if (!t || !isCurrentAudioSrc(t.src)) return; // mezitím se přehrává něco jiného
+    playlist = list;
+    currentPlaylistKey = fc.key;
+    currentTrackIndex = fc.index;
+    mainListShowsQueue = false;
+    document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+    const dlBtn = document.getElementById('btn-download');
+    if (dlBtn) dlBtn.style.display = 'none';
+    updatePlaylistUI();
+  }
+
   window.locatePlayingTrack = function() {
     const loc = findPlayingTrackLocation();
     if (!loc) {
       showToast(guideLang === 'cz' ? 'Nic právě nehraje' : 'Nothing is playing', '🔍');
       return;
+    }
+    // Skladba hraje ze sekce F: vlastní soubor -> otevřít kartu F; skladba SYNTHLUCIDA -> její domovský playlist
+    if (loc.kind === 'list' && typeof loc.key === 'string' && loc.key.indexOf('custom:') === 0) {
+      const t = tracks[loc.key] && tracks[loc.key][loc.index];
+      const isOwnFile = loc.key.indexOf('custom:file:') === 0 || !!(t && t.fileId);
+      if (isOwnFile) {
+        const panel = document.getElementById('main-files');
+        if (panel && !panel.classList.contains('visible')) toggleMainFiles();
+        return;
+      }
+      const homeKeys = ['asmr', 'piano', 'chill'];
+      for (let k = 0; k < homeKeys.length; k++) {
+        const hl = tracks[homeKeys[k]];
+        const hi = Array.isArray(hl) ? hl.findIndex(x => x && isCurrentAudioSrc(x.src)) : -1;
+        if (hi !== -1) {
+          revealTrackInMainList({ kind: 'list', key: homeKeys[k], index: hi }, true);
+          filesContinuation = { key: loc.key, index: loc.index };
+          return;
+        }
+      }
     }
     revealTrackInMainList(loc, true);
   };
@@ -8438,6 +8480,7 @@
   }
   function playTrack(index) {
     cancelCrossfade();
+    filesContinuation = null;
     customQueueActive = false; // přímý výběr z playlistu ukončí přehrávání vlastní fronty
     if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0) releaseDice();
     currentTrackIndex = index;
@@ -8491,6 +8534,7 @@
   }
 
   function playNextTrack() {
+    restoreFilesContinuation();
     if (customQueueActive) {
       if (!customQueue.length) { customQueueActive = false; return; }
       let nextPos;
@@ -8515,6 +8559,7 @@
   // Předchozí skladba - není v UI vlastní tlačítko, ale používá ji MediaSession
   // (ovládání ⏮ na zamykací obrazovce / v notifikaci / na sluchátkách)
   function playPrevTrack() {
+    restoreFilesContinuation();
     if (customQueueActive) {
       if (!customQueue.length) { customQueueActive = false; return; }
       let prevPos;
@@ -8550,6 +8595,7 @@
 
   // Zjistí, co se má přehrát jako další, ať už jde o normální playlist, nebo vlastní frontu
   function getNextCrossfadeTarget() {
+    restoreFilesContinuation();
     if (customQueueActive) {
       if (!customQueue.length) return null;
       let pos;
@@ -9420,6 +9466,7 @@
   function playCustomQueueAt(pos) {
     if (pos < 0 || pos >= customQueue.length) return;
     cancelCrossfade();
+    filesContinuation = null;
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
