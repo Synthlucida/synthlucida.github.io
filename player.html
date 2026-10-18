@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.0.2">
+<meta name="app-version" content="2.0.3">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -339,6 +339,11 @@
   .main-files-btn:hover, .main-files-btn:active {
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
+  /* Hraje hudba ze sekce F (vlastní soubor nebo playlist ze souborů): tlačítko svítí, při přehrávání jemně pulzuje */
+  .main-files-btn.files-active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); background: rgba(255,255,255,0.12); box-shadow: 0 0 10px var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+  .main-files-btn.files-playing { animation: filesBtnPulse 2.4s ease-in-out infinite; }
+  @keyframes filesBtnPulse { 0%, 100% { box-shadow: 0 0 6px var(--accent-color); } 50% { box-shadow: 0 0 16px var(--accent-color), 0 0 4px var(--accent-color); } }
+  @media (prefers-reduced-motion: reduce) { .main-files-btn.files-playing { animation: none; } }
   .main-files-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
 
 
@@ -1047,6 +1052,7 @@
      sedí v pravém sloupci vedle něj a střed neposouvají. */
   .track-time-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 8px; margin-bottom: 5px; }
   .track-time-row .track-time { grid-column: 2; }
+  .track-time-side-left { grid-column: 1; justify-self: end; display: flex; align-items: center; }
   .track-time-side { grid-column: 3; justify-self: start; display: flex; align-items: center; gap: 6px; }
   /* Lupa vedle času: skočí v hlavním okně na právě hrající skladbu (i do jiného playlistu) */
   .track-locate-btn {
@@ -1060,6 +1066,12 @@
   }
   .track-locate-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px var(--accent-color)); transition: transform 0.25s; }
   .track-locate-btn:hover { opacity: 1; border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.22); }
+  /* Zpět do MY PLAYLIST: aktivní jen když hraje fronta, nota se při přehrávání otáčí */
+  .track-queue-btn:disabled { opacity: 0.3; cursor: default; box-shadow: none; pointer-events: none; }
+  .track-queue-btn svg { transform-origin: 50% 50%; }
+  .track-queue-btn.queue-playing svg { animation: queueNoteTurn 2.6s linear infinite; }
+  @keyframes queueNoteTurn { from { transform: perspective(60px) rotateY(0deg); } to { transform: perspective(60px) rotateY(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .track-queue-btn.queue-playing svg { animation: none; } }
   .track-locate-btn:hover svg { transform: scale(1.12) rotate(-8deg); }
   .track-locate-btn:active { transform: translateY(1px) scale(0.95); box-shadow: 0 0 5px var(--accent-color), inset 0 1px 3px rgba(0,0,0,0.4); }
   .track-locate-btn:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 2px; }
@@ -1368,6 +1380,9 @@
 
   /* Odkazy (Explore website / Privacy / News) - nyní uvnitř sekce ⓘ */
   .web-link { text-decoration: none; color: #fff; font-size: 8px; border: 1px solid rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 20px; transition: 0.3s; white-space: nowrap; }
+  /* Odkazy v průvodci: pevná mřížka 2x2, takže se při přepnutí CZ/EN nic nepřeskládá ani nezalamuje */
+  .guide-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .guide-links .web-link { display: block; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 6px 6px; min-width: 0; }
   .web-link:hover { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px rgba(255,255,255,0.1); }
 
   .ambient-blobs,
@@ -2353,6 +2368,9 @@
     <div class="eq-notes" aria-hidden="true"><span class="eq-note">♪</span><span class="eq-note">♫</span></div>
   </div>
   <div class="track-time-row">
+    <div class="track-time-side-left">
+      <button class="track-locate-btn track-queue-btn" id="btn-back-queue" type="button" onclick="backToMyPlaylist()" disabled title="Back to the playing MY PLAYLIST" aria-label="Back to the playing MY PLAYLIST"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg></button>
+    </div>
     <div class="track-time" id="track-time">00:00 / 00:00</div>
     <div class="track-time-side">
       <button class="track-locate-btn" id="btn-locate-track" type="button" onclick="locatePlayingTrack()" title="Show the playing track in the list" aria-label="Show the playing track in the list"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.6 8.6a3.4 3.4 0 0 1 2.2-1.6" stroke-width="1.5" opacity="0.8"/><line x1="15.4" y1="15.4" x2="20.5" y2="20.5" stroke-width="2.6"/></svg></button>
@@ -2540,11 +2558,12 @@
   <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
   <div class="main-guide-inner">
     <h3 data-i18n="guide_title">SYNTHLUCIDA — User Guide</h3>
+    <p class="main-guide-note" id="app-version-top" style="margin: -6px 0 14px;"></p>
     <p class="main-guide-intro" data-i18n="guide_intro">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.</p>
 
     <div class="main-guide-section">
       <h4 data-i18n="h_links">Links</h4>
-      <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+      <div class="guide-links">
         <a href="https://synthlucida.github.io/" class="web-link" target="_blank" data-i18n="link_explore">EXPLORE FULL WEBSITE</a>
         <a href="https://relaxplayer.eu" class="web-link" target="_blank" data-i18n="link_home">HOME WEBSITE</a>
         <a href="https://synthlucida.github.io/privacy_policy.html" class="web-link" target="_blank" data-i18n="link_privacy">PRIVACY POLICY</a>
@@ -2647,7 +2666,9 @@
         try {
           var m = document.querySelector('meta[name="app-version"]');
           var el = document.getElementById('app-version-note');
+          var topEl = document.getElementById('app-version-top');
           if (m && el) el.textContent = 'v' + m.getAttribute('content');
+          if (m && topEl) topEl.textContent = 'RelaxPlayer v' + m.getAttribute('content');
         } catch (e) { /* verze je jen informativni, nesmi nic rozbit */ }
       })();
     </script>
@@ -7946,6 +7967,41 @@
     };
     requestAnimationFrame(scrollToRow);
   }
+
+  // Zpět do MY PLAYLIST: po odchodu jinam (lupa, jiný playlist...) vrátí do hlavního okna tracklist
+  // právě hrající fronty a odroluje na hrající skladbu - bez nového spuštění přehrávání.
+  function queueIsPlaying() {
+    return !!(customQueueActive && customQueue[customQueueIndex]);
+  }
+  function syncQueueBackBtn() {
+    const btn = document.getElementById('btn-back-queue');
+    if (!btn) return;
+    const on = queueIsPlaying();
+    btn.disabled = !on;
+    btn.classList.toggle('queue-playing', on && !audio.paused);
+    // Horní tlačítko MY PLAYLIST svítí, dokud je fronta aktivní zdroj přehrávání (stejně jako nota)
+    const top = document.getElementById('btn-my-playlist');
+    if (top) top.classList.toggle('active', on);
+    // Tlačítko F svítí, když zdrojem přehrávání je sekce My Files (vlastní soubor / playlist ze souborů)
+    const fBtn = document.querySelector('.main-files-btn');
+    if (fBtn) {
+      let fromFiles = false;
+      if (!on) {
+        const loc = findPlayingTrackLocation();
+        fromFiles = !!(loc && loc.kind === 'list' && typeof loc.key === 'string' && loc.key.indexOf('custom:') === 0);
+      }
+      fBtn.classList.toggle('files-active', fromFiles);
+      fBtn.classList.toggle('files-playing', fromFiles && !audio.paused);
+    }
+  }
+  window.backToMyPlaylist = function() {
+    if (!queueIsPlaying()) { syncQueueBackBtn(); return; }
+    revealTrackInMainList({ kind: 'queue', pos: customQueueIndex }, true);
+    syncQueueBackBtn();
+  };
+  ['play', 'pause', 'playing', 'emptied', 'loadstart', 'ended'].forEach(ev => audio.addEventListener(ev, syncQueueBackBtn));
+  syncQueueBackBtn();
+  setInterval(syncQueueBackBtn, 1000); // pojistka: fronta se může změnit i bez události přehrávače (smazání poslední skladby...)
 
   window.locatePlayingTrack = function() {
     const loc = findPlayingTrackLocation();
