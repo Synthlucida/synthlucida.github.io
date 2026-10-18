@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.1.2">
+<meta name="app-version" content="2.1.3">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2005,6 +2005,61 @@
   @media (max-height: 600px) {
     .breathing-overlay .breath-stage { transform: scale(0.7); margin: -27px 0; }
   }
+
+  /* ============================================
+     BINAURAL (EXPLORE > BINAURAL)
+     ============================================ */
+  .binaural-overlay {
+    position: fixed; inset: 0; z-index: 9999; box-sizing: border-box;
+    display: none; flex-direction: column; align-items: center; justify-content: center; justify-content: safe center;
+    overflow-x: hidden; overflow-y: auto;
+    background: radial-gradient(circle at 50% 45%, var(--bg-color-1), var(--bg-color-2) 65%, #000000);
+    padding: calc(env(safe-area-inset-top, 0px) + 60px) env(safe-area-inset-right, 0px) calc(env(safe-area-inset-bottom, 0px) + 58px) env(safe-area-inset-left, 0px);
+    transition: background 0.4s linear, padding-bottom 0.25s ease;
+  }
+  .binaural-overlay.bm-open { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 142px); }
+  body.binaural-active { overflow: hidden; }
+  body.binaural-active .binaural-overlay { display: flex; }
+  body.binaural-active > *:not(.binaural-overlay):not(#rain-canvas) { display: none !important; }
+  .bn-main { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 360px; box-sizing: border-box; padding: 0 12px; margin: auto 0; }
+  .bn-title { margin: 0 0 6px; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; color: var(--accent-color); text-shadow: 0 0 12px var(--accent-color); }
+  .bn-orb-wrap { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; margin: 6px 0 10px; flex: none; }
+  .bn-orb { width: 84px; height: 84px; border-radius: 50%; opacity: 0.25; transform: scale(0.9); transition: opacity 0.8s ease;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.55), var(--accent-color) 45%, rgba(0,0,0,0.15) 100%); box-shadow: 0 0 26px var(--accent-color); }
+  .bn-orb-ring { position: absolute; inset: 22px; border-radius: 50%; border: 1px solid var(--accent-color); opacity: 0; pointer-events: none; }
+  /* Pomalý, nezávislý pohyb (ne v rytmu tónu) - rychlé blikání by mohlo vadit citlivým lidem */
+  .binaural-overlay.bn-on .bn-orb { opacity: 0.85; animation: bnPulse 6s ease-in-out infinite alternate; }
+  .binaural-overlay.bn-on .bn-orb-ring { animation: bnRing 6s ease-out infinite; }
+  @keyframes bnPulse { from { transform: scale(0.84); } to { transform: scale(1.04); } }
+  @keyframes bnRing { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.7); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .binaural-overlay.bn-on .bn-orb, .binaural-overlay.bn-on .bn-orb-ring { animation: none; } }
+  .bn-status { min-height: 26px; max-width: 280px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 9px; letter-spacing: 1.8px; line-height: 1.4; text-transform: uppercase; color: #fff; opacity: 0.6; transition: opacity 0.4s, color 0.4s; }
+  .binaural-overlay.bn-on .bn-status { opacity: 1; color: var(--accent-color); text-shadow: 0 0 10px var(--accent-color); }
+  .bn-modes { display: flex; flex-wrap: nowrap; justify-content: center; gap: 6px; margin-top: 10px; width: 100%; }
+  .bn-modes .btn-breath-tech { padding: 8px 14px; font-size: 9px; }
+  .bn-knob-group { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
+  .bn-vol-label, .bn-vol-val { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1.5px; color: #fff; opacity: 0.65; text-transform: uppercase; user-select: none; min-width: 34px; }
+  .bn-vol-label { text-align: right; }
+  .bn-vol-val { text-align: left; font-variant-numeric: tabular-nums; }
+  /* stejný knob jako VOL 2 u ASMR MIX, jen větší (vnitřek se přepočítá na střed 56px kolečka) */
+  .bn-knob-group .layer-knob-wrap { width: 56px; height: 56px; }
+  .bn-knob-group .layer-knob::before { inset: 6px; }
+  .bn-knob-group .layer-knob::after { top: 10px; width: 3px; height: 14px; left: calc(50% - 1.5px); transform-origin: 50% 18px; }
+  .bn-knob-group .layer-knob-tip { font-size: 11px; padding: 4px 8px; }
+  .bn-hint { margin: 16px 0 0; max-width: 260px; text-align: center; font-size: 8px; line-height: 1.6; letter-spacing: 1px; text-transform: uppercase; opacity: 0.35; }
+  @media (max-height: 640px) {
+    .binaural-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 56px); }
+    .bn-orb-wrap { width: 112px; height: 112px; margin: 2px 0 4px; }
+    .bn-orb { width: 64px; height: 64px; }
+    .bn-orb-ring { inset: 16px; }
+    .bn-knob-group { margin-top: 12px; }
+    .bn-hint { margin-top: 10px; }
+  }
+  @media (max-height: 560px) { .bn-hint { display: none; } }
+  .binaural-icon path { animation: binauralWave 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .binaural-icon path:nth-child(2) { animation-delay: -1.3s; }
+  @keyframes binauralWave { 0%,100% { transform: translateY(-1px) scaleX(1); opacity: .55; } 50% { transform: translateY(1px) scaleX(1.06); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .binaural-icon path { animation: none; } }
   .breath-mini {
     position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
     width: min(340px, calc(100vw - 16px)); box-sizing: border-box; z-index: 3;
@@ -2380,9 +2435,9 @@
   .btn-mute.on .mute-x { display: inline; }
   .vol-percent.is-muted { color: #ff6b6b; text-decoration: line-through; }
   .extra-features.is-muted #volume-slider { opacity: 0.4; }
-  /* MUTE sedí úplně vpravo na řádku hlasitosti; VOL, − / ＋ a posuvník zůstávají vycentrované. Nápis se nemění
-     (stav ukazuje barva a přeškrtnutý reproduktor), takže je tlačítko malé a pevné a nikdy nezasáhne do VOL. */
-  .extra-features { position: relative; }
+  /* MUTE sedí úplně vpravo na řádku hlasitosti; VOL, − / ＋ a posuvník zůstávají vycentrované. Nápis se nemění
+     (stav ukazuje barva a přeškrtnutý reproduktor), takže je tlačítko malé a pevné a nikdy nezasáhne do VOL. */
+  .extra-features { position: relative; }
   .extra-features .btn-mute { position: absolute; right: 0; top: 13px; width: 58px; padding: 0; gap: 4px; }
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
@@ -2474,6 +2529,7 @@
     <button class="btn-atmos" onclick="location.href='draw.html'">DRAWING</button>
     <button class="btn-atmos" onclick="window.open('https://synthlucida.github.io/weather.html','_blank','noopener')">FORECAST</button>
     <button class="btn-atmos" id="btn-breathe" onclick="startBreathing()"><span class="breathe-icon" aria-hidden="true">○</span>BREATHE</button>
+    <button class="btn-atmos" id="btn-binaural" onclick="startBinaural()"><svg class="ico-inline binaural-icon"viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9c2.500-5 5-5 7.500 0s5 5 7.500 0 3-3 5-1"/><path d="M2 16c2.500-5 5-5 7.500 0s5 5 7.500 0 3-3 5-1"/></svg>BINAURAL</button>
     <button class="btn-atmos" id="btn-search" onclick="toggleSearch()"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.4" y1="15.4" x2="20.5" y2="20.5"/></svg>SEARCH</button>
   </div>
 </div>
@@ -2837,6 +2893,11 @@
     <div class="main-guide-section">
       <h4 data-i18n="h_breath">Breathing exercise</h4>
       <p data-i18n="p_breath">Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_binaural">Binaural beats</h4>
+      <p data-i18n="p_binaural">Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats. Put on stereo headphones - the effect needs a slightly different tone in each ear - and pick DELTA (2 Hz, deep rest), THETA (5 Hz, meditation) or ALPHA (9 Hz, relaxation). The VOL knob sets how loud the tones are: drag it up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. The tones fade out when you leave the page or when the sleep timer ends.</p>
     </div>
 
     <div class="main-guide-section">
@@ -3258,6 +3319,79 @@
   </div>
 
   <div class="breath-hint">tap ✖ to exit</div>
+</div>
+
+<!-- ============================================
+     BINAURAL (EXPLORE > BINAURAL) - celoobrazovková stránka s binaurálními tóny, knobem hlasitosti
+     a mini přehrávačem (stejným jako v dechu), aby šla hudba vrstvit přes tóny
+     ============================================ -->
+<div class="binaural-overlay" id="binaural-overlay" role="dialog" aria-modal="true" aria-labelledby="bn-title">
+  <div class="breath-ambient" aria-hidden="true">
+    <div class="breath-blob b1"></div>
+    <div class="breath-blob b2"></div>
+  </div>
+  <button class="breathing-close" onclick="stopBinaural()" aria-label="Close binaural">✖</button>
+  <button class="breathing-info" onclick="toggleBinauralGuide()" aria-label="Binaural guide">ⓘ</button>
+  <div class="breath-guide" id="binaural-guide">
+    <div class="breath-guide-inner">
+      <button class="breath-guide-close" onclick="toggleBinauralGuide()" aria-label="Close guide">✖</button>
+      <button class="lang-toggle-btn" onclick="toggleGuideLanguage()">CZ</button>
+      <h3 data-i18n="binaural_guide_title">Binaural beats</h3>
+      <p class="breath-guide-intro" data-i18n="binaural_guide_intro"></p>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g1_t"></h4><p data-i18n="binaural_g1_p"></p></div>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g2_t"></h4><p data-i18n="binaural_g2_p"></p></div>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g3_t"></h4><p data-i18n="binaural_g3_p"></p></div>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g4_t"></h4><p data-i18n="binaural_g4_p"></p></div>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g5_t"></h4><p data-i18n="binaural_g5_p"></p></div>
+      <p class="breath-guide-note" data-i18n="binaural_guide_note"></p>
+    </div>
+  </div>
+  <div class="bn-main">
+    <h2 class="bn-title" id="bn-title">BINAURAL</h2>
+    <div class="bn-orb-wrap" aria-hidden="true"><div class="bn-orb"></div><div class="bn-orb-ring"></div></div>
+    <div class="bn-status" id="bn-status" aria-live="polite">SELECT A WAVE</div>
+    <div class="bn-modes" role="group" aria-label="Binaural wave">
+      <button type="button" class="btn-breath-tech bn-mode active" data-bn-mode="0" aria-pressed="true">OFF</button>
+      <button type="button" class="btn-breath-tech bn-mode" data-bn-mode="1" aria-pressed="false">DELTA</button>
+      <button type="button" class="btn-breath-tech bn-mode" data-bn-mode="2" aria-pressed="false">THETA</button>
+      <button type="button" class="btn-breath-tech bn-mode" data-bn-mode="3" aria-pressed="false">ALPHA</button>
+    </div>
+    <div class="bn-knob-group">
+      <span class="bn-vol-label" aria-hidden="true">VOL</span>
+      <div class="layer-knob-wrap" id="bn-knob-wrap">
+        <div class="layer-knob" id="bn-knob" role="slider" tabindex="0" aria-label="Binaural volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5" title="Binaural volume (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
+        <span class="layer-knob-tip" id="bn-knob-tip" aria-hidden="true"></span>
+      </div>
+      <span class="bn-vol-val" id="bn-vol-val" aria-hidden="true">5%</span>
+    </div>
+    <p class="bn-hint" data-i18n="binaural_hint">Best with stereo headphones. The tones stop when you leave this page.</p>
+  </div>
+
+  <!-- Mini přehrávač: stejné funkce jako hlavní přehrávač (play/pause, STOP, předchozí/další, shuffle, repeat, výběr playlistu) -->
+  <div class="breath-mini" id="bn-mini" role="group" aria-label="Music controls">
+    <div class="bm-top">
+      <div class="bm-now"><span class="bm-pl" id="bn-pl">ASMR</span><span class="bm-track" id="bn-track">—</span></div>
+      <button type="button" class="bm-toggle" id="bn-toggle" aria-expanded="true" aria-controls="bn-body" aria-label="Show or hide music controls" title="Show / hide"><span class="bm-caret" aria-hidden="true">▾</span></button>
+    </div>
+    <div class="bm-body" id="bn-body">
+      <div class="bm-transport">
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bn-shuffle" aria-label="Shuffle" aria-pressed="false" title="Shuffle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h3.5c2 0 3.2 1 4.5 3l2 4c1.3 2 2.5 3 4.5 3H21"/><path d="M3 17h3.5c2 0 3.2-1 4.5-3"/><path d="M13 8c1.2-1.2 2.5-2 4.5-2H21"/><path d="M18 3l3 3-3 3"/><path d="M18 15l3 3-3 3"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bn-prev" aria-label="Previous track" title="Previous track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5.5v13l-9-6.5z" fill="currentColor"/><path d="M6 5.5v13"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico bm-main" id="bn-play" aria-label="Play" title="Play / Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bn-stop" aria-label="Stop" title="Stop"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bn-next" aria-label="Next track" title="Next track"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5.5v13l9-6.5z" fill="currentColor"/><path d="M18 5.5v13"/></svg></button>
+        <button type="button" class="btn-breath-ctrl bm-ico" id="bn-repeat" aria-label="Repeat" aria-pressed="false" title="Repeat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M17 3l3 3-3 3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/><path d="M7 21l-3-3 3-3"/></svg></button>
+      </div>
+      <div class="bm-lists" role="group" aria-label="Playlists">
+        <button type="button" class="btn-breath-ctrl" data-bm-key="asmr">ASMR</button>
+        <button type="button" class="btn-breath-ctrl" data-bm-key="piano">PIANO</button>
+        <button type="button" class="btn-breath-ctrl" data-bm-key="chill">CHILL</button>
+        <button type="button" class="btn-breath-ctrl" data-bm-key="queue" id="bn-pl-queue">MY PLAYLIST</button>
+        <span class="bm-files-wrap" id="bn-files-wrap" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-label="My Files playlists" title="My Files playlists"><span class="bm-files-f" aria-hidden="true">F</span><select class="bm-select" id="bn-files" aria-hidden="true" tabindex="-1"></select></span>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ============================================
@@ -7336,6 +7470,22 @@
     p_together: { en: "In BREATHE, the TOGETHER button opens a shared room where everyone who is there breathes 4-7-8 in the same second. You see how many people are breathing with you, can send a heart (SEND CALM) and invite a friend. Every evening at 21:00 (Prague time) there is a shared 10-minute session — you can download a calendar reminder.", cz: "V sekci BREATHE otevře tlačítko SPOLEČNĚ sdílenou místnost, kde všichni přítomní dýchají 4-7-8 ve stejnou vteřinu. Vidíte, kolik lidí dýchá s vámi, můžete poslat srdíčko (POSLAT KLID) a pozvat přítele. Každý večer ve 21:00 (pražského času) probíhá společné desetiminutové sezení — můžete si stáhnout připomínku do kalendáře." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh. Tlačítko WEATHER pod tlačítky START a STOP na dechové obrazovce zapne stejné scény počasí a fotky jako v playeru." },
+    h_binaural: { en: "Binaural beats", cz: "Binaurální tóny" },
+    p_binaural: { en: "Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats. Put on stereo headphones - the effect needs a slightly different tone in each ear - and pick DELTA (2 Hz, deep rest), THETA (5 Hz, meditation) or ALPHA (9 Hz, relaxation). The VOL knob sets how loud the tones are: drag it up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. The tones fade out when you leave the page or when the sleep timer ends.", cz: "Klepněte na EXPLORE a potom na BINAURAL - otevře se klidná celoobrazovková stránka pro binaurální tóny. Nasaďte si stereo sluchátka (efekt potřebuje v každém uchu trochu jiný tón) a vyberte DELTA (2 Hz, hluboký odpočinek), THETA (5 Hz, meditace) nebo ALPHA (9 Hz, uvolnění). Knob VOL nastavuje hlasitost tónů: tahejte jím nahoru a dolů, točte kolečkem myši nebo použijte šipky a dvojitým klepnutím ho vrátíte na výchozí hodnotu. Mini přehrávač dole funguje stejně jako v BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST i vlastní soubory), takže můžete hudbu vrstvit přes tóny. Tóny se ztiší, když stránku opustíte nebo když skončí časovač spánku." },
+    binaural_guide_title: { en: "Binaural beats", cz: "Binaurální tóny" },
+    binaural_guide_intro: { en: "Two slightly different pure tones - one in each ear - that your brain blends into a slow, gentle pulse. Used here as a calm background for rest, focus or meditation.", cz: "Dva mírně odlišné čisté tóny - jeden v každém uchu - které mozek sloučí do pomalého, jemného pulzu. Zde slouží jako klidné pozadí pro odpočinek, soustředění nebo meditaci." },
+    binaural_g1_t: { en: "How it works", cz: "Jak to funguje" },
+    binaural_g1_p: { en: "The left ear gets a base tone, the right ear the same tone plus the beat frequency (e.g. +5 Hz). The brain perceives the difference as a slow pulse. The effect is subjective and scientific evidence is mixed - treat it as a relaxation aid, not a treatment.", cz: "Levé ucho dostane základní tón, pravé stejný tón navýšený o frekvenci pulzu (např. +5 Hz). Mozek vnímá rozdíl jako pomalý pulz. Účinek je subjektivní a vědecké důkazy jsou nejednoznačné - berte to jako pomůcku k relaxaci, ne jako léčbu." },
+    binaural_g2_t: { en: "Use stereo headphones", cz: "Používejte stereo sluchátka" },
+    binaural_g2_p: { en: "Each ear must hear only its own tone. On speakers or in mono the effect disappears.", cz: "Každé ucho musí slyšet jen svůj tón. Na reproduktorech nebo v mono se efekt ztratí." },
+    binaural_g3_t: { en: "The three waves", cz: "Tři vlny" },
+    binaural_g3_p: { en: "DELTA 2 Hz - deep rest and sleep. THETA 5 Hz - meditation, drifting. ALPHA 9 Hz - calm relaxation.", cz: "DELTA 2 Hz - hluboký odpočinek a spánek. THETA 5 Hz - meditace, snění. ALPHA 9 Hz - klidná relaxace." },
+    binaural_g4_t: { en: "Volume and music", cz: "Hlasitost a hudba" },
+    binaural_g4_p: { en: "The VOL knob sets the tones (default 5%). Keep them quiet - especially when layering music from the mini player - to protect your hearing.", cz: "Knob VOL nastavuje hlasitost tónů (výchozí 5 %). Držte ji nízko - zvláště když přes tóny vrstvíte hudbu z mini přehrávače - kvůli ochraně sluchu." },
+    binaural_g5_t: { en: "Be careful", cz: "Na co si dát pozor" },
+    binaural_g5_p: { en: "Do not use while driving, operating machinery or whenever you must stay alert. People with epilepsy or a seizure history, heart conditions, a pacemaker, or mental-health conditions, and pregnant women, should consult a doctor first. Stop if you feel dizzy, uncomfortable or get a headache. Tones stop when you leave the page or the sleep timer ends.", cz: "Nepoužívejte při řízení, obsluze strojů ani tam, kde musíte být ve střehu. Lidé s epilepsií či záchvaty v anamnéze, srdečním onemocněním, kardiostimulátorem nebo duševním onemocněním a těhotné ženy by se měli nejdřív poradit s lékařem. Při závrati, nepohodě nebo bolesti hlavy přestaňte. Tóny se vypnou po opuštění stránky nebo po skončení časovače spánku." },
+    binaural_guide_note: { en: "Not medical advice. Listen responsibly.", cz: "Nejde o lékařskou radu. Poslouchejte zodpovědně." },
+    binaural_hint: { en: "Best with stereo headphones. The tones stop when you leave this page.", cz: "Nejlépe se stereo sluchátky. Tóny se po opuštění stránky vypnou." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
     p_timer: { en: "Set playback to stop automatically after 15, 30 or 60 minutes using the timer buttons, or cancel an active timer at any time with ✖.", cz: "Pomocí tlačítek časovače nastavte automatické zastavení přehrávání po 15, 30 nebo 60 minutách, nebo aktivní časovač kdykoli zrušte tlačítkem ✖." },
     h_crossfade: { en: "Crossfade", cz: "Prolínání (Crossfade)" },
@@ -10284,18 +10434,20 @@
   // MY PLAYLIST / FILES. Nemá vlastní přehrávací logiku - volá úplně stejné funkce jako hlavní přehrávač
   // a jen zobrazuje jeho stav (poslouchá události audia a změny v hlavních tlačítkách).
   // ==========================================
-  (function() {
-    const root = document.getElementById('breath-mini');
+  function initMiniPlayer(cfg) {
+    const root = document.getElementById(cfg.rootId);
     if (!root) return;
     const $ = (id) => document.getElementById(id);
-    const elPl = $('bm-pl');
-    const elTrack = $('bm-track');
-    const bPlay = $('bm-play');
-    const bShuffle = $('bm-shuffle');
-    const bRepeat = $('bm-repeat');
-    const bQueue = $('bm-pl-queue');
-    const selFiles = $('bm-files');
-    const head = $('bm-toggle');
+    const $p = (id) => document.getElementById(cfg.pref + id);
+    const isActive = cfg.isActive;
+    const elPl = $p('pl');
+    const elTrack = $p('track');
+    const bPlay = $p('play');
+    const bShuffle = $p('shuffle');
+    const bRepeat = $p('repeat');
+    const bQueue = $p('pl-queue');
+    const selFiles = $p('files');
+    const head = $p('toggle');
     const chips = Array.from(root.querySelectorAll('[data-bm-key]'));
     const PLAY_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg>';
     const PAUSE_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.5" width="4.2" height="15" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.2" fill="currentColor" stroke="none"/></svg>';
@@ -10349,7 +10501,7 @@
     }
 
     function sync() {
-      if (!breathingActive) return;
+      if (!isActive()) return;
       const key = activeKey();
       elPl.textContent = listLabel(key);
 
@@ -10377,9 +10529,9 @@
 
     // --- přehrávání (stejné funkce jako hlavní přehrávač) ---
     bPlay.addEventListener('click', () => { playBtn.click(); sync(); });
-    $('bm-stop').addEventListener('click', () => { if (typeof window.stopPlayback === 'function') window.stopPlayback(); sync(); });
-    $('bm-prev').addEventListener('click', () => { playPrevTrack(); sync(); });
-    $('bm-next').addEventListener('click', () => { playNextTrack(); sync(); });
+    $p('stop').addEventListener('click', () => { if (typeof window.stopPlayback === 'function') window.stopPlayback(); sync(); });
+    $p('prev').addEventListener('click', () => { playPrevTrack(); sync(); });
+    $p('next').addEventListener('click', () => { playNextTrack(); sync(); });
     bShuffle.addEventListener('click', () => { window.toggleShuffle(); sync(); });
     bRepeat.addEventListener('click', () => { window.toggleRepeat(); sync(); });
 
@@ -10416,8 +10568,8 @@
 
     // --- vlastní nabídka playlistů u tlačítka F (nativní seznam prohlížeče nejde ostylovat) ---
     // <select> zůstává skrytý jako nosič stavu; nabídka se staví z jeho položek a výběr vyvolá stejnou událost 'change'.
-    const wrapF = $('bm-files-wrap');
-    const overlayEl = $('breathing-overlay');
+    const wrapF = $p('files-wrap');
+    const overlayEl = $(cfg.overlayId);
     let filesMenu = null;
 
     function closeFilesMenu() {
@@ -10507,7 +10659,7 @@
     }
 
     // --- zobrazení stavu: události audia + změny hlavních prvků přehrávače ---
-    const schedule = () => { if (breathingActive) sync(); else closeFilesMenu(); };
+    const schedule = () => { if (isActive()) sync(); else closeFilesMenu(); };
     ['play', 'pause', 'playing', 'emptied', 'loadstart', 'loadedmetadata', 'ended'].forEach((ev) => audio.addEventListener(ev, schedule));
     try {
       new MutationObserver(schedule).observe(titleDiv, { childList: true, characterData: true, subtree: true });
@@ -10520,15 +10672,227 @@
     // --- sbalení / rozbalení panelu (pamatuje se) ---
     function applyCollapsed(c) {
       root.classList.toggle('collapsed', c);
-      const ov = document.getElementById('breathing-overlay');
+      const ov = $(cfg.overlayId);
       if (ov) ov.classList.toggle('bm-open', !c);
       head.setAttribute('aria-expanded', c ? 'false' : 'true');
     }
-    try { applyCollapsed(localStorage.getItem('synthlucida_breath_mini') === 'collapsed'); } catch (e) { /* ignore */ }
+    try { applyCollapsed(localStorage.getItem(cfg.storeKey) === 'collapsed'); } catch (e) { /* ignore */ }
     head.addEventListener('click', () => {
       const c = !root.classList.contains('collapsed');
       applyCollapsed(c);
-      try { localStorage.setItem('synthlucida_breath_mini', c ? 'collapsed' : 'open'); } catch (e) { /* ignore */ }
+      try { localStorage.setItem(cfg.storeKey, c ? 'collapsed' : 'open'); } catch (e) { /* ignore */ }
+    });
+  }
+  let binauralActive = false; // stránka BINAURAL (EXPLORE) je otevřená
+  initMiniPlayer({ rootId: 'breath-mini', pref: 'bm-', overlayId: 'breathing-overlay', storeKey: 'synthlucida_breath_mini', isActive: () => breathingActive });
+  initMiniPlayer({ rootId: 'bn-mini', pref: 'bn-', overlayId: 'binaural-overlay', storeKey: 'synthlucida_binaural_mini', isActive: () => binauralActive });
+
+  // ==========================================
+  // BINAURAL (EXPLORE > BINAURAL)
+  // Dva čisté sinusové tóny, každý do jednoho ucha, s rozdílem frekvencí = vlnový rytmus (DELTA 2 Hz, THETA 5 Hz,
+  // ALPHA 9 Hz - stejné hodnoty jako v relax.html). Vlastní AudioContext, takže hudbu z přehrávače nijak neovlivňuje;
+  // hlasitost tónů určuje knob (stejný ovladač jako VOL 2 u ASMR MIX). Po opuštění stránky se tóny ztiší a vypnou.
+  // ==========================================
+  (function() {
+    const overlay = document.getElementById('binaural-overlay');
+    if (!overlay) return;
+    const MODES = [
+      { name: 'SELECT A WAVE', base: 0, beat: 0 },
+      { name: 'DELTA WAVES (2Hz) - DEEP REST', base: 136.1, beat: 2 },
+      { name: 'THETA WAVES (5Hz) - MEDITATION', base: 174.0, beat: 5 },
+      { name: 'ALPHA WAVES (9Hz) - RELAXATION', base: 256.0, beat: 9 }
+    ];
+    const MAX_GAIN = 0.15;          // stejný strop jako v relax.html
+    const DEFAULT_VOL = 0.05;       // tichý start (5 %)
+    const VOL_KEY = 'synthlucida_binaural_vol_v2'; // v2: nový tichý start 5 %
+    const statusEl = document.getElementById('bn-status');
+    const modeBtns = Array.from(overlay.querySelectorAll('.bn-mode'));
+    const knobWrap = document.getElementById('bn-knob-wrap');
+    const knob = document.getElementById('bn-knob');
+    const knobTip = document.getElementById('bn-knob-tip');
+    const volVal = document.getElementById('bn-vol-val');
+
+    let ctx = null, gainL = null, gainR = null, oscL = null, oscR = null, stopTimer = null;
+    let modeIdx = 0;
+    let vol = DEFAULT_VOL;
+    try { const v = parseFloat(localStorage.getItem(VOL_KEY)); if (isFinite(v)) vol = Math.min(1, Math.max(0, v)); } catch (e) { /* výchozí */ }
+    const level = () => vol * MAX_GAIN;
+
+    function ensureCtx() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        ctx = new AC({ latencyHint: 'playback' });
+        const merger = ctx.createChannelMerger(2);
+        gainL = ctx.createGain(); gainR = ctx.createGain();
+        gainL.gain.value = 0; gainR.gain.value = 0;
+        gainL.connect(merger, 0, 0); gainR.connect(merger, 0, 1);
+        merger.connect(ctx.destination);
+      }
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      return true;
+    }
+
+    function playTone(base, beat) {
+      clearTimeout(stopTimer); // odložené vypnutí z stopTone() nesmí zabít nový tón
+      const now = ctx.currentTime;
+      let startAt = now, fadeIn = 2.5;
+      if (oscL || oscR) {
+        // přepnutí vlny: krátký útlum, výměna oscilátorů v tichu a rychlý návrat (bez cvaknutí)
+        const wasAudible = gainL.gain.value > level() * 0.3;
+        gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
+        gainL.gain.setValueAtTime(gainL.gain.value, now); gainR.gain.setValueAtTime(gainR.gain.value, now);
+        gainL.gain.linearRampToValueAtTime(0, now + 0.12); gainR.gain.linearRampToValueAtTime(0, now + 0.12);
+        [oscL, oscR].forEach((o) => { if (!o) return; try { o.stop(now + 0.14); } catch (e) {} o.onended = () => { try { o.disconnect(); } catch (e) {} }; });
+        startAt = now + 0.13;
+        if (wasAudible) fadeIn = 0.35;
+      }
+      oscL = ctx.createOscillator(); oscR = ctx.createOscillator();
+      oscL.type = 'sine'; oscR.type = 'sine';
+      oscL.frequency.value = base; oscR.frequency.value = base + beat;
+      oscL.connect(gainL); oscR.connect(gainR);
+      oscL.start(startAt); oscR.start(startAt);
+      if (startAt === now) { gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now); }
+      gainL.gain.setTargetAtTime(level(), startAt, fadeIn); gainR.gain.setTargetAtTime(level(), startAt, fadeIn);
+    }
+
+    // tau = rychlost útlumu, ms = za jak dlouho se oscilátory opravdu vypnou (a kontext uspí, ať nežere baterii)
+    function stopTone(tau, ms) {
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      gainL.gain.cancelScheduledValues(now); gainR.gain.cancelScheduledValues(now);
+      gainL.gain.setTargetAtTime(0, now, tau); gainR.gain.setTargetAtTime(0, now, tau);
+      clearTimeout(stopTimer);
+      stopTimer = setTimeout(() => {
+        const l = oscL, r = oscR; oscL = oscR = null;
+        [l, r].forEach((o) => { if (!o) return; try { o.stop(); } catch (e) {} try { o.disconnect(); } catch (e) {} });
+        try { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); } catch (e) {}
+      }, ms);
+    }
+
+    function paintModes() {
+      modeBtns.forEach((b) => {
+        const on = Number(b.getAttribute('data-bn-mode')) === modeIdx;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      statusEl.textContent = MODES[modeIdx].name;
+      overlay.classList.toggle('bn-on', modeIdx !== 0);
+    }
+
+    function setMode(i) {
+      if (i === modeIdx && i !== 0) return;
+      if (i === 0) {
+        modeIdx = 0; paintModes(); stopTone(1.0, 5000);
+        return;
+      }
+      if (!ensureCtx()) { statusEl.textContent = 'AUDIO NOT SUPPORTED'; return; }
+      modeIdx = i; paintModes();
+      playTone(MODES[i].base, MODES[i].beat);
+    }
+    modeBtns.forEach((b) => b.addEventListener('click', () => setMode(Number(b.getAttribute('data-bn-mode')))));
+
+    // --- knob hlasitosti (stejné ovládání jako knob druhé vrstvy ASMR MIX) ---
+    let tipTimer = null, knobDrag = null, lastTap = 0;
+    function paintKnob() {
+      const pct = Math.round(vol * 100);
+      knobWrap.style.setProperty('--p', vol);
+      knob.setAttribute('aria-valuenow', String(pct));
+      knob.setAttribute('aria-valuetext', pct + '%');
+      knobTip.textContent = pct + '%';
+      volVal.textContent = pct + '%';
+    }
+    function showTip() {
+      knobTip.classList.add('show');
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => knobTip.classList.remove('show'), 900);
+    }
+    function setVol(v, save) {
+      vol = Math.min(1, Math.max(0, v));
+      paintKnob(); showTip();
+      if (ctx && modeIdx !== 0) {
+        const now = ctx.currentTime;
+        gainL.gain.setTargetAtTime(level(), now, 0.3); gainR.gain.setTargetAtTime(level(), now, 0.3);
+      }
+      if (save !== false) { try { localStorage.setItem(VOL_KEY, String(vol)); } catch (e) { /* ignore */ } }
+    }
+    knobWrap.addEventListener('pointerdown', (e) => {
+      knobDrag = { lastY: e.clientY, raw: vol, moved: 0 };
+      knobWrap.classList.add('dragging');
+      try { knobWrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      showTip();
+      knob.focus({ preventScroll: true });
+      e.preventDefault();
+    });
+    knobWrap.addEventListener('pointermove', (e) => {
+      if (!knobDrag) return;
+      const dy = knobDrag.lastY - e.clientY;
+      knobDrag.lastY = e.clientY;
+      knobDrag.moved += Math.abs(dy);
+      knobDrag.raw = Math.min(1, Math.max(0, knobDrag.raw + dy * (e.shiftKey ? 1 / 500 : 1 / 130)));
+      setVol(knobDrag.raw);
+    });
+    const endDrag = (e) => {
+      if (!knobDrag) return;
+      const wasTap = knobDrag.moved < 6;
+      knobDrag = null;
+      knobWrap.classList.remove('dragging');
+      if (wasTap && e && e.type === 'pointerup') {
+        const now = Date.now();
+        if (now - lastTap < 350) { lastTap = 0; setVol(DEFAULT_VOL); } // dvojité klepnutí = výchozí hlasitost
+        else lastTap = now;
+      }
+    };
+    knobWrap.addEventListener('pointerup', endDrag);
+    knobWrap.addEventListener('pointercancel', endDrag);
+    knobWrap.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      setVol(vol + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
+    }, { passive: false });
+    knob.addEventListener('keydown', (e) => {
+      const fine = e.shiftKey ? 0.2 : 1;
+      const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
+      if (step !== undefined) { e.preventDefault(); setVol(vol + step * fine); }
+      else if (e.key === 'Home') { e.preventDefault(); setVol(0); }
+      else if (e.key === 'End') { e.preventDefault(); setVol(1); }
+    });
+    paintKnob();
+    paintModes();
+
+    // --- otevření / zavření stránky ---
+    window.startBinaural = function() {
+      if (binauralActive) return;
+      binauralActive = true;
+      document.body.classList.add('binaural-active'); // vše ostatní se schová, hudba klidně hraje dál
+      paintModes();
+    };
+    window.stopBinaural = function() {
+      if (!binauralActive) return;
+      binauralActive = false;
+      modeIdx = 0; paintModes();
+      stopTone(0.3, 1800);
+      document.body.classList.remove('binaural-active');
+      const bg = document.getElementById('binaural-guide');
+      if (bg) bg.classList.remove('visible');
+    };
+    window.toggleBinauralGuide = function() {
+      const g = document.getElementById('binaural-guide');
+      if (g) g.classList.toggle('visible');
+    };
+    // Esc nejdřív zavře průvodce, až potom celou stránku
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !binauralActive) return;
+      const g = document.getElementById('binaural-guide');
+      if (g && g.classList.contains('visible')) {
+        g.classList.remove('visible');
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+    // Časovač spánku: když vyprší, ztiší se i tóny (stránka zůstane otevřená)
+    window.binauralOnSleepTimer = function() { if (modeIdx !== 0) setMode(0); };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && binauralActive && !e.defaultPrevented) window.stopBinaural();
     });
   })();
 
@@ -10607,6 +10971,7 @@
     updateTimerDisplay();
     if (timeRemaining <= 0) {
       cancelTimer();
+      if (typeof window.binauralOnSleepTimer === 'function') window.binauralOnSleepTimer(); // ztiší i binaurální tóny
       if (isPlaying) {
         cancelCrossfade(); // review 09/2026: časovač musí zastavit i právě prolínanou další skladbu
         audio.pause();
