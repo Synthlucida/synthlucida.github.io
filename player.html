@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.1.3">
+<meta name="app-version" content="2.1.4">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1335,6 +1335,14 @@
     background: transparent; cursor: pointer;
     --vol: 0.3; /* 0–1, nastavuje JS podle hlasitosti */
   }
+  /* Značka středu (50 %) posuvníku hlavní hlasitosti: drobné rysky nad a pod dráhou, střed dráhy zůstává čistý */
+  .vol-slider-wrap { position: relative; flex: none; width: 90px; height: 16px; }
+  .vol-slider-wrap::before, .vol-slider-wrap::after {
+    content: ""; position: absolute; left: 50%; width: 2px; height: 3px; margin-left: -1px; border-radius: 1px;
+    background: rgba(255,255,255,0.55); pointer-events: none;
+  }
+  .vol-slider-wrap::before { top: 0; }
+  .vol-slider-wrap::after { bottom: 0; }
   #volume-slider:focus { outline: none; }
   #volume-slider::-webkit-slider-runnable-track {
     height: 6px; border-radius: 3px;
@@ -2026,7 +2034,25 @@
   body.binaural-active .binaural-overlay { display: flex; }
   body.binaural-active > *:not(.binaural-overlay):not(#rain-canvas) { display: none !important; }
   .bn-main { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 360px; box-sizing: border-box; padding: 0 12px; margin: auto 0; }
-  .bn-title { margin: 0 0 6px; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; color: var(--accent-color); text-shadow: 0 0 12px var(--accent-color); }
+  .bn-title {
+    margin: 0 0 6px; display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 19px; font-weight: 700; letter-spacing: 7px; text-indent: 7px;
+    text-transform: uppercase; line-height: 1.1; white-space: nowrap; color: var(--accent-color);
+    background: linear-gradient(180deg, #fff 0%, var(--accent-color) 62%, var(--accent-color) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px var(--accent-color)) drop-shadow(0 1px 1px rgba(0,0,0,0.6));
+  }
+  /* Jemné linky po stranách nápisu, vlnka = symbol binaurálních tónů */
+  .bn-title::before, .bn-title::after {
+    content: ""; flex: none; width: 26px; height: 2px; border-radius: 2px; -webkit-text-fill-color: initial;
+    background: linear-gradient(90deg, transparent, var(--accent-color));
+  }
+  .bn-title::after { background: linear-gradient(270deg, transparent, var(--accent-color)); }
+  @media (prefers-reduced-motion: no-preference) { .bn-title { animation: bnTitleGlow 4.5s ease-in-out infinite; } }
+  @keyframes bnTitleGlow {
+    0%, 100% { filter: drop-shadow(0 0 5px var(--accent-color)) drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+    50% { filter: drop-shadow(0 0 12px var(--accent-color)) drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+  }
   .bn-orb-wrap { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; margin: 6px 0 10px; flex: none; }
   .bn-orb { width: 84px; height: 84px; border-radius: 50%; opacity: 0.25; transform: scale(0.9); transition: opacity 0.8s ease;
     background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.55), var(--accent-color) 45%, rgba(0,0,0,0.15) 100%); box-shadow: 0 0 26px var(--accent-color); }
@@ -2146,7 +2172,15 @@
     flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 36px; padding: 0; border-radius: 11px;
     transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s;
   }
-  .btn-breath-ctrl.bm-ico.bm-main { width: 52px; height: 38px; border-radius: 19px; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .btn-breath-ctrl.bm-ico.bm-main { width: 52px; height: 38px; border-radius: 19px; }
+  /* PLAY svítí (a pulzuje jako na hlavním přehrávači) jen při přehrávání - v klidu / po pauze nebo STOP je neutrální */
+  .btn-breath-ctrl.bm-ico.active { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .btn-breath-ctrl.bm-ico.bm-main.playing { border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  @keyframes bmPlayPulse {
+    0%, 100% { box-shadow: 0 0 4px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50% { box-shadow: 0 0 18px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+  @media (prefers-reduced-motion: no-preference) { .btn-breath-ctrl.bm-ico.bm-main.playing { animation: bmPlayPulse 2s ease-in-out infinite; } }
   .bm-ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   .bm-main svg { width: 21px; height: 21px; }
   .btn-breath-ctrl.bm-ico:active, .bm-lists .btn-breath-ctrl:active { transform: scale(0.94); }
@@ -2812,7 +2846,9 @@
       <span class="vol-percent" id="vol-percent" aria-live="off" title="Volume">30%</span>
       <button type="button" class="btn-mute" id="btn-mute" onclick="toggleMute()" aria-pressed="false" aria-label="Mute all sound" title="Mute all sound"><svg class="ico-svg ico-mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><g class="mute-waves"><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></g><path class="mute-x" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg><span class="mute-txt">MUTE</span></button>
     </div>
-    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.3">
+    <div class="vol-slider-wrap">
+      <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.3">
+    </div>
   </div>
 
   <div class="timer-section">
@@ -8726,7 +8762,8 @@
   };
   ['play', 'pause', 'playing', 'emptied', 'loadstart', 'ended'].forEach(ev => audio.addEventListener(ev, syncQueueBackBtn));
   syncQueueBackBtn();
-  setInterval(syncQueueBackBtn, 1000); // pojistka: fronta se může změnit i bez události přehrávače (smazání poslední skladby...)
+  setInterval(() => { syncQueueBackBtn(); try { updateQueueCountBadge(); } catch (e) { /* ignore */ } }, 1000); // pojistka: fronta se může změnit i bez události přehrávače (smazání poslední skladby...); zároveň drží číslo na tlačítku MY PLAYLIST aktuální
+  document.addEventListener('visibilitychange', () => { try { updateQueueCountBadge(); } catch (e) { /* ignore */ } });
 
   // Hraje se z playlistu ze sekce F, ale hlavní okno ukazuje jiný seznam (lupa ho přepnula na domovský playlist
   // SYNTHLUCIDA skladby). Po dohrání skladby se přehrávání vrátí do F playlistu, ze kterého se hrálo.
@@ -10018,8 +10055,16 @@
   }
 
   function updateQueueCountBadge() {
-    const badge = document.getElementById('queue-count-badge');
-    if (badge) badge.innerText = customQueue.length ? `(${customQueue.length})` : '';
+    const btn = document.getElementById('btn-my-playlist');
+    let badge = document.getElementById('queue-count-badge');
+    // pojistka: kdyby někdo přepsal obsah tlačítka a číslo z něj zmizelo, vytvoří se znovu
+    if (btn && (!badge || !btn.contains(badge))) {
+      badge = document.createElement('span');
+      badge.id = 'queue-count-badge';
+      btn.appendChild(badge);
+    }
+    const txt = customQueue.length ? `(${customQueue.length})` : '';
+    if (badge && badge.textContent !== txt) badge.textContent = txt;
   }
 
   // Blob URL vlastních souborů (URL.createObjectURL) platí jen po dobu běhu appky/stránky
@@ -10114,7 +10159,8 @@
     const track = tracks[playlistKey][index];
     customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index, fileId: fileIdForQueueEntry(playlistKey, track) });
     saveCustomQueue();
-    renderCustomQueue();
+    updateQueueCountBadge(); // číslo na tlačítku hned, ještě před překreslením seznamů
+    try { renderCustomQueue(); } catch (e) { console.error(e); }
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
     syncMainListWithQueue();
@@ -10168,7 +10214,8 @@
       liked = true;
     }
     saveCustomQueue();
-    renderCustomQueue();
+    updateQueueCountBadge(); // číslo na tlačítku hned, ještě před překreslením seznamů
+    try { renderCustomQueue(); } catch (e) { console.error(e); }
     updateQueueCountBadge();
     refreshPlaylistHeartIcons();
     syncMainListWithQueue();
@@ -10484,13 +10531,23 @@
   // STOP - okamžitě zastaví přehrávání a vrátí skladbu na začátek (na rozdíl od pauzy
   // tlačítkem ⏸, které jen pozastaví na aktuální pozici). Použito u tlačítek STOP
   // v sekcích My Playlist a My Files & Playlists (F).
+  // STOP vrací skladbu na začátek (na rozdíl od pauzy). Některá zařízení po pause() nastavení času ignorují,
+  // proto se "zastaveno" pamatuje i příznakem a PLAY pak skladbu před spuštěním vždy znovu přetočí na 0:00.
+  let stoppedSrc = '';
+  let playbackStopped = false; // STOP je "označené" (v mini přehrávačích), dokud uživatel znovu nespustí přehrávání
+  window.isPlaybackStopped = () => playbackStopped;
   window.stopPlayback = function() {
     cancelCrossfade();
+    playbackStopped = true;
     audio.pause();
     try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+    stoppedSrc = audio.getAttribute('src') || '';
+    try { if (typeof layerAudio !== 'undefined' && layerAudio.getAttribute('src')) layerAudio.currentTime = 0; } catch (e) { /* ignore */ }
     isPlaying = false;
     playBtn.innerText = "▶";
   };
+  audio.addEventListener('loadstart', () => { stoppedSrc = ''; });
+  audio.addEventListener('play', () => { playbackStopped = false; });
 
   playBtn.addEventListener('click', () => {
     if (isPlaying) {
@@ -10510,6 +10567,10 @@
         else playNextTrack();
       } else {
         audio.volume = parseFloat(volumeSlider.value);
+        if (stoppedSrc && stoppedSrc === (audio.getAttribute('src') || '')) {
+          try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+          stoppedSrc = '';
+        }
         const resumePromise = audio.play();
         if (resumePromise !== undefined) resumePromise.catch(() => {});
         isPlaying = true;
@@ -10621,6 +10682,13 @@
         shownPlayState = playing;
         bPlay.innerHTML = playing ? PAUSE_ICO : PLAY_ICO;
         bPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      }
+      bPlay.classList.toggle('playing', playing);
+      const bStop = $p('stop');
+      if (bStop) {
+        const stopped = !playing && typeof window.isPlaybackStopped === 'function' && window.isPlaybackStopped();
+        bStop.classList.toggle('active', stopped);
+        bStop.setAttribute('aria-pressed', stopped ? 'true' : 'false');
       }
       bShuffle.classList.toggle('active', !!shuffleEnabled);
       bShuffle.setAttribute('aria-pressed', shuffleEnabled ? 'true' : 'false');
