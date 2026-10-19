@@ -384,6 +384,40 @@
   #brush-size { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
   #sound-volume { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; height: 3px; }
 
+  /* Vzhled posuvníku hlasitosti převzatý z playeru (jen grafika): lesklá kulička se září a vyplněná dráha */
+  #sound-volume {
+    -webkit-appearance: none; appearance: none;
+    height: 16px; margin: 0; padding: 0; background: transparent;
+    --vol: 0.4; /* 0-1, nastavuje JS podle hlasitosti */
+  }
+  #sound-volume:focus { outline: none; }
+  #sound-volume::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(to right,
+      var(--accent-color) 0, var(--accent-color) calc(7px + (100% - 14px) * var(--vol)),
+      rgba(255,255,255,0.14) calc(7px + (100% - 14px) * var(--vol)), rgba(255,255,255,0.14) 100%);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  #sound-volume::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; margin-top: -4px; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%;
+    background: var(--accent-color); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent-color) 88%, #fff) 0%, color-mix(in srgb, var(--accent-color) 78%, #000) 40%, color-mix(in srgb, var(--accent-color) 35%, #000) 100%);
+    box-shadow: 0 0 8px var(--accent-color), 0 1px 3px rgba(0,0,0,0.5);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  #sound-volume:hover::-webkit-slider-thumb, #sound-volume:focus-visible::-webkit-slider-thumb { transform: scale(1.12); box-shadow: 0 0 12px var(--accent-color), 0 1px 3px rgba(0,0,0,0.5); }
+  #sound-volume:active::-webkit-slider-thumb { transform: scale(1.22); }
+  #sound-volume::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.14); box-shadow: inset 0 1px 2px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08); }
+  #sound-volume::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent-color); }
+  #sound-volume::-moz-range-thumb {
+    width: 12px; height: 12px; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%;
+    background: var(--accent-color); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent-color) 88%, #fff) 0%, color-mix(in srgb, var(--accent-color) 78%, #000) 40%, color-mix(in srgb, var(--accent-color) 35%, #000) 100%);
+    box-shadow: 0 0 8px var(--accent-color), 0 1px 3px rgba(0,0,0,0.5);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  #sound-volume:hover::-moz-range-thumb, #sound-volume:focus-visible::-moz-range-thumb { transform: scale(1.12); box-shadow: 0 0 12px var(--accent-color), 0 1px 3px rgba(0,0,0,0.5); }
+  #sound-volume:active::-moz-range-thumb { transform: scale(1.22); }
+
   .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0; transition: 0.2s; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
@@ -3852,9 +3886,11 @@
   const soundVolumeSlider = document.getElementById('sound-volume');
   const soundVolumeValue = document.getElementById('sound-volume-value');
   soundVolumeSlider.value = Math.round(soundVolume * 100);
+  soundVolumeSlider.style.setProperty('--vol', soundVolume);
   soundVolumeValue.textContent = Math.round(soundVolume * 100) + '%';
   soundVolumeSlider.addEventListener('input', () => {
     soundVolume = parseInt(soundVolumeSlider.value, 10) / 100;
+    soundVolumeSlider.style.setProperty('--vol', soundVolume);
     soundVolumeValue.textContent = Math.round(soundVolume * 100) + '%';
     if (masterGain && audioCtx) masterGain.gain.setTargetAtTime(effectiveVolume(soundVolume), audioCtx.currentTime, 0.05);
     savePrefs();
