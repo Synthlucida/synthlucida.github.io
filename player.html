@@ -2765,27 +2765,31 @@
   /* Přepínač FADER / KNOB: svislá kapsle uprostřed prázdného místa mezi VU metrem a ovládáním hlasitosti (VOL), nahoře fader, dole knob.
      Pozici dopočítává JS (placeModeBtn) podle skutečných rozměrů, ale vždy podle FADER rozložení, takže se při přepnutí nehýbe. */
   .btn-vol-mode {
-    position: absolute; left: 28px; top: 3px; z-index: 2;
-    width: 20px; height: 40px; padding: 0; box-sizing: border-box; overflow: hidden;
+    position: absolute; left: 28px; top: 2px; z-index: 2;
+    width: 22px; height: 42px; padding: 0; box-sizing: border-box; overflow: hidden;
     display: grid; grid-template-rows: 1fr 1fr; align-items: center; justify-items: center;
     border-radius: 999px; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent;
-    color: rgba(255,255,255,0.5);
-    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.16);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.4);
+    /* zapuštěná dráha ve stejném stylu jako rámeček VU metru */
+    background: linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(255,255,255,0.05) 100%);
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 0 rgba(255,255,255,0.06);
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
   }
-  /* jezdec ukazuje aktivní režim: nahoře FADER, dole KNOB */
+  /* jezdec ukazuje aktivní režim: nahoře FADER, dole KNOB; vypouklý "skleněný" vzhled s lehkým přesahem při přejetí */
   .vm-thumb {
-    position: absolute; left: 1px; right: 1px; top: 1px; height: calc(50% - 1px); border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-color) 24%, rgba(255,255,255,0.08));
-    border: 1px solid color-mix(in srgb, var(--accent-color) 55%, transparent);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--accent-color) 28%, transparent), inset 0 1px 0 rgba(255,255,255,0.18);
-    transition: transform 0.24s cubic-bezier(.3,.8,.3,1);
+    position: absolute; left: 2px; right: 2px; top: 2px; height: calc(50% - 2px); border-radius: 999px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 38%, rgba(255,255,255,0.22)) 0%, color-mix(in srgb, var(--accent-color) 16%, rgba(255,255,255,0.04)) 100%);
+    border: 1px solid color-mix(in srgb, var(--accent-color) 60%, transparent);
+    box-shadow: 0 0 9px color-mix(in srgb, var(--accent-color) 30%, transparent), 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.35);
+    transition: transform 0.28s cubic-bezier(.34,1.4,.5,1);
   }
-  .btn-vol-mode[aria-pressed="true"] .vm-thumb { transform: translateY(calc(100% + 1px)); }
-  .vm-ico { position: relative; z-index: 1; width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; transition: color 0.2s ease; }
-  .btn-vol-mode:not([aria-pressed="true"]) .vm-ico-fader, .btn-vol-mode[aria-pressed="true"] .vm-ico-knob { color: #fff; }
-  .btn-vol-mode:hover, .btn-vol-mode:focus-visible { border-color: color-mix(in srgb, var(--accent-color) 55%, rgba(255,255,255,0.2)); }
+  .btn-vol-mode[aria-pressed="true"] .vm-thumb { transform: translateY(100%); }
+  .vm-ico { position: relative; z-index: 1; width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; transition: color 0.2s ease, filter 0.2s ease; }
+  .vm-ico .vm-track { stroke-width: 1.4; opacity: 0.6; }
+  .btn-vol-mode:not([aria-pressed="true"]) .vm-ico-fader, .btn-vol-mode[aria-pressed="true"] .vm-ico-knob { color: #fff; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
+  .btn-vol-mode:hover { color: rgba(255,255,255,0.65); border-color: color-mix(in srgb, var(--accent-color) 45%, rgba(255,255,255,0.18)); }
+  .btn-vol-mode:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
   .btn-vol-mode:active .vm-thumb { filter: brightness(1.25); }
   @media (prefers-reduced-motion: reduce) { .vm-thumb { transition: none; } }
   /* Větší knob = stejný knob jako v BINAURAL, jen menší; v KNOB režimu nahradí fader i tlačítka − / ＋ */
@@ -2798,9 +2802,16 @@
   .vol-knob-wrap .layer-knob::after { top: 7px; width: 2.5px; height: 10px; left: calc(50% - 1.25px); transform-origin: 50% 12px; }
   .vol-knob-wrap .layer-knob-tip { font-size: 10px; }
   /* VU metr (dva sloupce L / R: zelená - oranžová - červená) vlevo v bloku hlasitosti. Výška = výška bloku, nic se neposouvá. */
-  .vu-meter { position: absolute; left: 14px; top: 1px; width: 29px; height: 44px; pointer-events: none; }
-  .extra-features.is-muted .vu-meter { opacity: 0.45; }
-  @media (max-width: 340px) { .vu-meter { display: none; } .btn-vol-mode { left: 14px; } }
+  .vu-box {
+    position: absolute; left: 12px; top: 0; width: 40px; height: 46px; box-sizing: border-box; padding: 4px 5px;
+    border-radius: 10px; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.38) 100%);
+    border: 1px solid rgba(255,255,255,0.13);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .vu-meter { display: block; width: 100%; height: 100%; }
+  .extra-features.is-muted .vu-box { opacity: 0.45; }
+  @media (max-width: 340px) { .vu-box { display: none; } .btn-vol-mode { left: 14px; } }
   /* MUTE sedí úplně vpravo na řádku hlasitosti; VOL, − / ＋ a posuvník zůstávají vycentrované. Nápis se nemění
      (stav ukazuje barva a přeškrtnutý reproduktor), takže je tlačítko malé a pevné a nikdy nezasáhne do VOL. */
   .extra-features { position: relative; }
@@ -3112,7 +3123,7 @@
   </div>
 
   <div class="extra-features" data-vol-mode="fader">
-    <canvas class="vu-meter" id="vu-meter" role="img" aria-label="Volume level meter" title="Level"></canvas>
+    <div class="vu-box" id="vu-box"><canvas class="vu-meter" id="vu-meter" role="img" aria-label="Volume level meter" title="Level"></canvas></div>
     <div class="volume-controls-row">
       <span class="vol-icon" title="Volume">VOL🔉</span>
       <button type="button" class="btn-vol-adj" id="btn-vol-down" onclick="adjustVolume(-0.05)" aria-label="Volume down" title="Volume down"><svg class="ico-svg ico-vol" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
@@ -3129,7 +3140,7 @@
         <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.3">
       </div>
     </div>
-    <button type="button" class="btn-vol-mode" id="btn-vol-mode" aria-pressed="false" aria-label="Switch volume control to knob" title="Fader / knob"><span class="vm-thumb" aria-hidden="true"></span><svg class="vm-ico vm-ico-fader" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 12h17"/><circle cx="14.500" cy="12" r="3.200"/></svg><svg class="vm-ico vm-ico-knob" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 12V7.500"/></svg></button>
+    <button type="button" class="btn-vol-mode" id="btn-vol-mode" aria-pressed="false" aria-label="Switch volume control to knob" title="Fader / knob"><span class="vm-thumb" aria-hidden="true"></span><svg class="vm-ico vm-ico-fader" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 12h17" class="vm-track"/><rect x="9.500" y="7.500" width="5.500" height="9" rx="1.800"/></svg><svg class="vm-ico vm-ico-knob" viewBox="0 0 24 24" aria-hidden="true"><path class="vm-track" d="M5.600 18.400A9 9 0 1 1 18.400 18.400"/><circle cx="12" cy="12.500" r="5"/><path d="M12 12.500V8.800"/></svg></button>
   </div>
 
   <div class="timer-section">
@@ -7218,7 +7229,7 @@
     function placeModeBtn() {
       const bx = row.getBoundingClientRect(); if (!bx.width) return;
       const ctrl = row.querySelector('.volume-controls-row'); if (!ctrl) return;
-      const vu = document.getElementById('vu-meter');
+      const vu = document.getElementById('vu-box');
       const cur = row.getAttribute('data-vol-mode');
       if (cur !== 'fader') row.setAttribute('data-vol-mode', 'fader');
       const rowLeft = ctrl.getBoundingClientRect().left - bx.left;
@@ -7262,12 +7273,21 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     function colorIdx(i) { return i <= GREEN_END ? 0 : (i <= ORANGE_END ? 1 : 2); }
+    const COL_OFF = ['rgba(46,230,107,0.11)', 'rgba(255,176,46,0.11)', 'rgba(255,59,59,0.12)'];
+    const COL_GLOW = ['rgba(46,230,107,0.55)', 'rgba(255,176,46,0.55)', 'rgba(255,59,59,0.65)'];
+    function rr(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+    }
     function draw() {
       if (!W || !H) resize();
       if (!W || !H) return;
       ctx.clearRect(0, 0, W, H);
-      const colW = 11, gapX = 7, x0 = (W - (colW * 2 + gapX)) / 2;
-      const gap = 1.3, segH = (H - (SEG - 1) * gap) / SEG;
+      const colW = Math.min(12, (W - 4) / 2), gapX = Math.max(3, W - colW * 2 - 2), x0 = (W - (colW * 2 + gapX)) / 2;
+      const gap = 1.1, segH = (H - (SEG - 1) * gap) / SEG, r = Math.min(0.9, segH / 2);
       for (let c = 0; c < 2; c++) {
         const x = x0 + c * (colW + gapX);
         const lit = Math.round(lvl[c] * SEG);
@@ -7275,13 +7295,22 @@
         for (let i = 0; i < SEG; i++) {
           const y = H - (i + 1) * segH - i * gap;
           const k = colorIdx(i);
-          if (i < lit) { ctx.fillStyle = COL_ON[k]; ctx.globalAlpha = 1; }
-          else if (i === pk && pk >= lit) { ctx.fillStyle = COL_PEAK[k]; ctx.globalAlpha = 0.9; }
-          else { ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.07; }
-          ctx.fillRect(x, y, colW, segH);
+          if (i < lit) {
+            // zapnutý segment: jemná záře + světlý horní okraj (dojem LED)
+            ctx.shadowColor = COL_GLOW[k]; ctx.shadowBlur = 3;
+            ctx.fillStyle = COL_ON[k]; rr(x, y, colW, segH, r); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(x + 1, y, colW - 2, Math.min(0.7, segH / 3));
+          } else if (i === pk && pk >= lit) {
+            ctx.shadowColor = COL_GLOW[k]; ctx.shadowBlur = 3;
+            ctx.fillStyle = COL_PEAK[k]; rr(x, y, colW, segH, r); ctx.fill();
+            ctx.shadowBlur = 0;
+          } else {
+            ctx.fillStyle = COL_OFF[k]; rr(x, y, colW, segH, r); ctx.fill();
+          }
         }
       }
-      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
     }
     function frame(t) {
       running = false;
