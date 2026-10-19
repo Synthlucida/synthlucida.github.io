@@ -927,6 +927,83 @@
   .tm-menu-item span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tm-menu-item:hover, .tm-menu-item:focus-visible { background: rgba(255,255,255,0.09); outline: none; }
   .tm-menu-item.selected { color: var(--gold-hi); }
+
+  /* =====================================================================
+     MINI PŘEHRÁVAČ - vzhled jako v hlavním přehrávači (vypouklá, skleněná tlačítka
+     se světlou horní hranou, stínem a vmáčknutím při stisku), ale ve zlatě a fialové tarotu.
+     Jen grafika - rozměry, rozložení a ovládání zůstávají.
+     ===================================================================== */
+  .tm-mini {
+    background: linear-gradient(180deg, rgba(34,16,66,0.82) 0%, rgba(10,4,24,0.88) 100%);
+    border: 1px solid rgba(212,175,55,0.38);
+    box-shadow: 0 12px 32px -10px rgba(0,0,0,0.95), 0 0 18px -6px rgba(139,47,224,0.55), inset 0 1px 0 rgba(245,220,126,0.22), inset 0 -1px 0 rgba(0,0,0,0.5);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* tenká zlatá linka pod horním řádkem (jen když je panel rozbalený) */
+  .tm-mini:not(.collapsed) .tm-top { position: relative; }
+  .tm-mini:not(.collapsed) .tm-top::after {
+    content: ''; position: absolute; left: 6px; right: 6px; bottom: -4px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.55) 30%, rgba(245,220,126,0.8) 50%, rgba(212,175,55,0.55) 70%, transparent);
+  }
+  .tm-pl { text-shadow: 0 0 8px rgba(212,175,55,0.45); }
+
+  /* vypouklá tlačítka přehrávače (jako .btn-ctrl v hlavním přehrávači) */
+  .tm-btn, .tm-toggle {
+    background: radial-gradient(circle at 50% 24%, rgba(245,220,126,0.22) 0%, rgba(40,18,80,0.55) 48%, rgba(5,1,15,0.85) 100%);
+    border: 1px solid rgba(255,255,255,0.22); color: rgba(255,255,255,0.88);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.4);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tm-btn:hover, .tm-toggle:hover, .tm-toggle:focus-visible { border-color: var(--gold-hi); box-shadow: 0 4px 8px rgba(0,0,0,0.5), 0 0 10px rgba(212,175,55,0.4), inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -3px 5px rgba(0,0,0,0.4); }
+  .tm-btn:active, .tm-toggle:active { transform: translateY(2px) scale(0.97); box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 3px 6px rgba(0,0,0,0.55); }
+  .tm-btn.tm-main { border-width: 1.5px; border-color: var(--accent-color); box-shadow: 0 5px 10px rgba(0,0,0,0.55), 0 0 8px rgba(212,175,55,0.3), inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -3px 6px rgba(0,0,0,0.45); }
+  .tm-toggle { width: 28px; height: 28px; }
+  .tm-toggle:active { transform: translateY(1px); }
+  .tm-btn svg { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.55)); }
+
+  /* zapnuté (SHUFFLE / REPEAT / STOP) a hrající (PLAY): stejně jako v hlavním přehrávači zůstane tlačítko tmavé,
+     rámeček a ikona se zbarví do barvy motivu (zlatá) a kolem tlačítka svítí záře */
+  .tm-btn.active, .tm-btn.playing {
+    border-color: var(--accent-color); color: var(--accent-color);
+    background: radial-gradient(circle at 50% 24%, rgba(245,220,126,0.22) 0%, rgba(40,18,80,0.55) 48%, rgba(5,1,15,0.85) 100%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.45), 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.35);
+  }
+  .tm-btn.active:active, .tm-btn.playing:active { box-shadow: 0 1px 3px rgba(0,0,0,0.45), 0 0 8px var(--accent-color), inset 0 3px 6px rgba(0,0,0,0.5); }
+  /* animace přesně jako v hlavním přehrávači: PLAY pulzuje září, SHUFFLE se kýve, REPEAT se otáčí */
+  @keyframes tmPlayPulse {
+    0%, 100% { box-shadow: 0 4px 8px rgba(0,0,0,0.45), 0 0 4px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.35); }
+    50% { box-shadow: 0 4px 8px rgba(0,0,0,0.45), 0 0 20px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.35); }
+  }
+  @keyframes tmShuffleWobble {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-14deg) scale(1.18); }
+    75% { transform: rotate(14deg) scale(1.18); }
+  }
+  @keyframes tmRepeatSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .tm-btn svg { transform-origin: 50% 50%; }
+  @media (prefers-reduced-motion: no-preference) {
+    .tm-btn.tm-main.playing, .tm-btn.tm-top-play.playing { animation: tmPlayPulse 2s ease-in-out infinite; }
+    #tm-shuffle.active svg { animation: tmShuffleWobble 1.6s ease-in-out infinite; }
+    #tm-repeat.active svg { animation: tmRepeatSpin 2.6s linear infinite; }
+  }
+
+  /* playlisty (ASMR / PIANO / CHILL / MY PLAYLIST / F) - skleněné pilulky */
+  .tm-chip {
+    background: linear-gradient(180deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(212,175,55,0.28);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.16);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tm-chip:hover { border-color: var(--accent-color); background: linear-gradient(180deg, rgba(255,255,255,0.17) 0%, rgba(255,255,255,0.05) 100%); }
+  .tm-chip:active { transform: translateY(1px) scale(0.96); box-shadow: 0 1px 2px rgba(0,0,0,0.35), inset 0 1px 3px rgba(0,0,0,0.4); }
+  .tm-chip.active {
+    border-color: var(--accent-color); color: var(--accent-color); text-shadow: 0 0 8px rgba(212,175,55,0.5);
+    background: linear-gradient(180deg, rgba(212,175,55,0.26) 0%, rgba(212,175,55,0.07) 100%);
+    box-shadow: 0 0 10px rgba(212,175,55,0.5), inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  /* tlačítko F je kulaté jako na hlavní stránce přehrávače */
+  .tm-chip-f { width: 34px; min-height: 34px; padding: 0; border-radius: 50%; font-weight: 600; }
 </style>
 <script>
 /* ===== Orbitron CZ — česká písmena pro Orbitron =====

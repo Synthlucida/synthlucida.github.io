@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.1.5">
+<meta name="app-version" content="2.1.6">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2064,7 +2064,7 @@
     0%, 100% { filter: drop-shadow(0 0 5px var(--accent-color)) drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
     50% { filter: drop-shadow(0 0 12px var(--accent-color)) drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
   }
-  .bn-orb-wrap { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; margin: 6px 0 10px; flex: none; }
+  .bn-orb-wrap { position: relative; width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; margin: 6px 0 10px; flex: none; }
   .bn-orb { width: 84px; height: 84px; border-radius: 50%; opacity: 0.25; transform: scale(0.9); transition: opacity 0.8s ease;
     background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.55), var(--accent-color) 45%, rgba(0,0,0,0.15) 100%); box-shadow: 0 0 26px var(--accent-color); }
   .bn-orb-ring { position: absolute; inset: 22px; border-radius: 50%; border: 1px solid var(--accent-color); opacity: 0; pointer-events: none; }
@@ -2073,7 +2073,20 @@
   .binaural-overlay.bn-on .bn-orb-ring { animation: bnRing 6s ease-out infinite; }
   @keyframes bnPulse { from { transform: scale(0.84); } to { transform: scale(1.04); } }
   @keyframes bnRing { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.7); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .binaural-overlay.bn-on .bn-orb, .binaural-overlay.bn-on .bn-orb-ring { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .binaural-overlay.bn-on .bn-orb, .binaural-overlay.bn-on .bn-orb-ring, .binaural-overlay.bn-on .bn-orb-ring::before, .binaural-overlay.bn-on .bn-orb-ring::after { animation: none; } }
+  /* Vizualizace (canvas): L / R vlna a jejich součet. Koule je teď jen měkké světlo pod vlnami, kroužek se nepoužívá */
+  .bn-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  .bn-orb { width: 118px; height: 118px; box-shadow: none;
+    background: radial-gradient(circle at 38% 33%, rgba(255,255,255,0.55) 0, rgba(255,255,255,0) 36%),
+                radial-gradient(closest-side, var(--accent-color) 0%, var(--accent-color) 38%, transparent 100%); }
+  .binaural-overlay.bn-on .bn-orb { opacity: 0.5; }
+  /* Slabé kruhy kolem koule - při zapnuté vlně pomalu a jemně rostou a mizí (bez rychlého blikání) */
+  .bn-orb-ring { display: block; inset: 0; margin: auto; width: 118px; height: 118px; box-sizing: border-box; border: 0; opacity: 1; }
+  .bn-orb-ring::before, .bn-orb-ring::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--accent-color); opacity: 0; }
+  .binaural-overlay.bn-on .bn-orb-ring { animation: none; }
+  .binaural-overlay.bn-on .bn-orb-ring::before { animation: bnRingSoft 7s ease-out infinite; }
+  .binaural-overlay.bn-on .bn-orb-ring::after { animation: bnRingSoft 7s ease-out -3.5s infinite; }
+  @keyframes bnRingSoft { 0% { transform: scale(0.9); opacity: 0.32; } 100% { transform: scale(1.6); opacity: 0; } }
   .bn-status { min-height: 26px; max-width: 280px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 9px; letter-spacing: 1.8px; line-height: 1.4; text-transform: uppercase; color: #fff; opacity: 0.6; transition: opacity 0.4s, color 0.4s; }
   .binaural-overlay.bn-on .bn-status { opacity: 1; color: var(--accent-color); text-shadow: 0 0 10px var(--accent-color); }
   .bn-modes { display: flex; flex-wrap: nowrap; justify-content: center; gap: 6px; margin-top: 10px; width: 100%; }
@@ -2131,9 +2144,9 @@
   .bn-hint { margin: 16px 0 0; max-width: 260px; text-align: center; font-size: 8px; line-height: 1.6; letter-spacing: 1px; text-transform: uppercase; opacity: 0.35; }
   @media (max-height: 640px) {
     .binaural-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 56px); }
-    .bn-orb-wrap { width: 112px; height: 112px; margin: 2px 0 4px; }
+    .bn-orb-wrap { width: 100%; height: 112px; margin: 2px 0 4px; }
     .bn-orb { width: 64px; height: 64px; }
-    .bn-orb-ring { inset: 16px; }
+    .bn-orb-ring { width: 64px; height: 64px; }
     .bn-knobs { margin-top: 12px; }
     .bn-timer { margin-top: 10px; }
     .bn-hint { margin-top: 10px; }
@@ -2143,9 +2156,9 @@
   @media (orientation: landscape) and (max-height: 480px) {
     .bn-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 20px; align-items: center; max-width: 600px; }
     .bn-title { grid-column: 1; grid-row: 1; justify-self: center; margin: 0; }
-    .bn-orb-wrap { grid-column: 1; grid-row: 2; justify-self: center; width: 96px; height: 96px; margin: 2px 0; }
+    .bn-orb-wrap { grid-column: 1; grid-row: 2; justify-self: stretch; width: 100%; height: 96px; margin: 2px 0; }
     .bn-orb { width: 56px; height: 56px; }
-    .bn-orb-ring { inset: 14px; }
+    .bn-orb-ring { width: 56px; height: 56px; }
     .bn-status { grid-column: 1; grid-row: 3; justify-self: center; }
     .bn-modes { grid-column: 2; grid-row: 1; margin-top: 0; }
     .bn-knobs { grid-column: 2; grid-row: 2; margin-top: 0; }
@@ -3523,7 +3536,7 @@
   </div>
   <div class="bn-main">
     <h2 class="bn-title" id="bn-title">BINAURAL</h2>
-    <div class="bn-orb-wrap" aria-hidden="true"><div class="bn-orb"></div><div class="bn-orb-ring"></div></div>
+    <div class="bn-orb-wrap" aria-hidden="true"><div class="bn-orb"></div><div class="bn-orb-ring"></div><canvas class="bn-canvas" id="bn-canvas"></canvas></div>
     <div class="bn-status" id="bn-status" aria-live="polite">SELECT A WAVE</div>
     <div class="bn-modes" role="group" aria-label="Binaural wave">
       <button type="button" class="btn-breath-tech bn-mode active" data-bn-mode="0" aria-pressed="true">OFF</button>
@@ -11096,6 +11109,127 @@
       }, ms);
     }
 
+    // --- Vizualizace: levé ucho (L), pravé ucho (R) a jejich součet = "pulz", který mozek vnímá ---
+    // Počet laloků součtu přes šířku = rozdíl frekvencí (DELTA 2, THETA 5, ALPHA 9). Je to jen schéma:
+    // skutečné tóny mají stovky Hz, takže se kreslí zpomaleně. Pohyb je velmi pomalý (desetiny Hz) a NEJDE v rytmu
+    // tónu - rychlé blikání by mohlo vadit citlivým lidem. Při "snížený pohyb" v systému se nic nehýbe.
+    const viz = (function() {
+      const cv = document.getElementById('bn-canvas');
+      if (!cv || !cv.getContext) return { kick: function() {} };
+      const g = cv.getContext('2d');
+      const reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+      const CYC = 26;      // počet period nosné přes šířku (jen vizuální)
+      const SPEED = 0.4;   // cyklů za sekundu v jednom bodě - pomalu a klidně
+      let raf = 0, last = 0, W = 0, H = 0, dpr = 1;
+      let amp = 0, shown = 0, phL = 0, phR = 0;
+      const cssVar = (n, fb) => { try { return (getComputedStyle(overlay).getPropertyValue(n) || '').trim() || fb; } catch (e) { return fb; } };
+
+      function fit() {
+        const w = cv.clientWidth, h = cv.clientHeight, d = Math.min(window.devicePixelRatio || 1, 2);
+        if (!w || !h) return false;
+        if (w !== W || h !== H || d !== dpr) { W = w; H = h; dpr = d; cv.width = Math.round(w * d); cv.height = Math.round(h * d); }
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return true;
+      }
+
+      function draw() {
+        if (!fit()) return;
+        const accent = cssVar('--accent-color', '#00f0ff'), glow = cssVar('--accent-glow', '#ff00ff');
+        const md = MODES[shown] || MODES[1];
+        const beat = md.beat, kL = CYC, kR = CYC + beat;
+        const TAU = Math.PI * 2;
+        const yL = H * 0.17, yS = H * 0.5, yR = H * 0.83, u = H * 0.075;
+        const STEP = 2, N = Math.ceil(W / STEP);
+        g.clearRect(0, 0, W, H);
+        g.lineJoin = 'round'; g.lineCap = 'round';
+
+        // obálka součtu (laloky = jednotlivé pulzy)
+        const envAt = (s) => 2 * Math.abs(Math.cos(Math.PI * (beat * s - (phR - phL))));
+        g.beginPath();
+        for (let i = 0; i <= N; i++) { const x = Math.min(W, i * STEP); const y = yS - u * amp * envAt(x / W); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+        for (let i = N; i >= 0; i--) { const x = Math.min(W, i * STEP); g.lineTo(x, yS + u * amp * envAt(x / W)); }
+        g.closePath();
+        g.fillStyle = accent; g.globalAlpha = 0.14 * amp; g.fill();
+        g.lineWidth = 0.8; g.strokeStyle = accent; g.globalAlpha = 0.35 * amp; g.stroke();
+
+        // součet L + R (zářící)
+        g.beginPath();
+        for (let i = 0; i <= N; i++) {
+          const x = Math.min(W, i * STEP), s = x / W;
+          const v = Math.sin(TAU * (kL * s - phL)) + Math.sin(TAU * (kR * s - phR));
+          const y = yS - u * amp * v;
+          i ? g.lineTo(x, y) : g.moveTo(x, y);
+        }
+        g.lineWidth = 1.5; g.strokeStyle = '#ffffff'; g.globalAlpha = 0.25 + 0.7 * amp;
+        g.shadowColor = accent; g.shadowBlur = 8 * amp;
+        g.stroke();
+        g.shadowBlur = 0;
+
+        // L a R vlna
+        const lane = (y0, k, ph, col) => {
+          g.beginPath();
+          for (let i = 0; i <= N; i++) {
+            const x = Math.min(W, i * STEP);
+            const y = y0 - u * amp * Math.sin(TAU * (k * (x / W) - ph));
+            i ? g.lineTo(x, y) : g.moveTo(x, y);
+          }
+          g.lineWidth = 1.3; g.strokeStyle = col; g.globalAlpha = 0.25 + 0.6 * amp; g.stroke();
+        };
+        lane(yL, kL, phL, accent);
+        lane(yR, kR, phR, glow);
+
+        // okraje se vytratí
+        g.globalAlpha = 1; g.globalCompositeOperation = 'destination-out';
+        const m = g.createLinearGradient(0, 0, W, 0);
+        m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.15, 'rgba(0,0,0,0)');
+        m.addColorStop(0.85, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)');
+        g.fillStyle = m; g.fillRect(0, 0, W, H);
+        g.globalCompositeOperation = 'source-over';
+
+        // popisky: frekvence v levém a pravém uchu a rozdíl = rytmus
+        const fs = Math.max(6.5, Math.min(8.5, H * 0.056));
+        g.font = fs + "px 'Orbitron', 'Orbitron CZ', sans-serif"; g.textBaseline = 'alphabetic';
+        if ('letterSpacing' in g) g.letterSpacing = '1px';
+        const withHz = amp > 0.15;
+        g.globalAlpha = 0.35 + 0.55 * amp;
+        g.fillStyle = accent; g.textAlign = 'left';
+        g.fillText(withHz ? 'L  ' + md.base.toFixed(1) + ' Hz' : 'L', 3, Math.max(fs, yL - u - 3));
+        g.fillStyle = glow; g.textAlign = 'right';
+        g.fillText(withHz ? 'R  ' + (md.base + beat).toFixed(1) + ' Hz' : 'R', W - 3, Math.min(H - 2, yR + u + fs + 1));
+        if (withHz) {
+          g.globalAlpha = 0.9 * amp; g.fillStyle = '#ffffff'; g.textAlign = 'center';
+          g.fillText('= ' + beat + ' Hz', W / 2, (yL + yS - u) / 2 + fs * 0.4);
+        }
+        g.globalAlpha = 1;
+      }
+
+      function frame(now) {
+        raf = 0;
+        if (!document.body.classList.contains('binaural-active')) return; // stránka je zavřená - nic nekreslíme
+        if (now - last < 30) { raf = requestAnimationFrame(frame); return; } // cca 30 fps stačí a šetří baterii
+        const dt = Math.min(0.1, (now - last) / 1000); last = now;
+        const reduce = !!(reduceMq && reduceMq.matches);
+        const want = modeIdx;
+        let target = want ? 1 : 0;
+        // při přepnutí vlny se obraz nejdřív klidně vytratí a až pak se změní tvar (žádné rychlé "přeskočení")
+        if (want && want !== shown) { target = 0; if (amp < 0.04) { shown = want; target = 1; } }
+        const rate = target > amp ? 1.6 : 3;
+        amp += (target - amp) * Math.min(1, dt * rate);
+        if (Math.abs(target - amp) < 0.004) amp = target;
+        if (!reduce) {
+          phL = (phL + SPEED * dt) % 1;
+          phR = (phR + SPEED * ((CYC + (MODES[shown] || MODES[1]).beat) / CYC) * dt) % 1;
+        }
+        draw();
+        const pending = want !== 0 && want !== shown;
+        if (pending || amp !== target || (!reduce && target === 1)) raf = requestAnimationFrame(frame);
+      }
+
+      function kick() { if (!raf) { last = performance.now() - 100; raf = requestAnimationFrame(frame); } }
+      window.addEventListener('resize', kick);
+      return { kick: kick };
+    })();
+
     function paintModes() {
       modeBtns.forEach((b) => {
         const on = Number(b.getAttribute('data-bn-mode')) === modeIdx;
@@ -11104,6 +11238,7 @@
       });
       statusEl.textContent = MODES[modeIdx].name;
       overlay.classList.toggle('bn-on', modeIdx !== 0);
+      viz.kick();
     }
 
     function setMode(i) {
@@ -11239,6 +11374,10 @@
         e.stopImmediatePropagation();
       }
     }, true);
+    // Systém (hlavně iOS) může AudioContext přerušit, např. při hovoru - po návratu na stránku tóny znovu rozběhneme
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && ctx && modeIdx !== 0 && ctx.state !== 'running') ctx.resume().catch(() => {});
+    });
     // Časovač spánku: když vyprší, ztiší se i tóny (stránka zůstane otevřená)
     window.binauralOnSleepTimer = function() { if (modeIdx !== 0) setMode(0); };
     document.addEventListener('keydown', (e) => {
