@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.1.8">
+<meta name="app-version" content="2.1.9">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2269,6 +2269,26 @@
     .bn-knobs { gap: 20px; }
     .bn-status { max-width: 240px; }
   }
+  /* VU metr (poměr hlasitosti TONES a MUSIC) - přepínač pod nadpisem, meter nahradí kouli */
+  .bn-head { display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .bn-vu-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 2px; padding: 6px 8px; background: none; border: 0; cursor: pointer; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #fff; opacity: 0.7; -webkit-tap-highlight-color: transparent; }
+  .bn-vu-toggle:hover, .bn-vu-toggle[aria-checked="true"] { opacity: 1; }
+  .bn-vu-toggle:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 2px; border-radius: 6px; }
+  .bn-vu-sw { position: relative; flex: none; width: 28px; height: 14px; border-radius: 8px; border: 1px solid var(--accent-color); background: rgba(0,0,0,0.35); transition: background 0.2s; }
+  .bn-vu-sw::after { content: ""; position: absolute; top: 1px; left: 1px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color); opacity: 0.6; transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s; }
+  .bn-vu-toggle[aria-checked="true"] .bn-vu-sw { background: rgba(255,255,255,0.08); }
+  .bn-vu-toggle[aria-checked="true"] .bn-vu-sw::after { transform: translateX(14px); opacity: 1; box-shadow: 0 0 8px var(--accent-color); }
+  .bn-vu { display: none; position: relative; width: 100%; height: 150px; margin: 6px 0 10px; flex: none; align-items: center; justify-content: center; }
+  .binaural-overlay.bn-vu-on .bn-orb-wrap { display: none; }
+  .binaural-overlay.bn-vu-on .bn-vu { display: flex; }
+  .bn-vu-svg { height: 100%; width: auto; max-width: 100%; display: block; }
+  .vu-face { fill: rgba(0,0,0,0.38); stroke: var(--accent-color); stroke-opacity: 0.35; stroke-width: 1; }
+  .vu-cap, .vu-lbl, .vu-read { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; fill: #fff; user-select: none; }
+  .vu-cap { font-size: 7px; letter-spacing: 2px; opacity: 0.6; }
+  .vu-lbl { font-size: 6.5px; opacity: 0.7; }
+  .vu-read { font-size: 8px; letter-spacing: 1.5px; fill: var(--accent-color); }
+  .vu-needle { stroke: #fff; stroke-width: 1.6; stroke-linecap: round; filter: drop-shadow(0 0 3px var(--accent-color)); }
+  .vu-hub { fill: var(--accent-color); }
   .bn-knobs { display: flex; justify-content: center; align-items: flex-start; gap: 34px; margin-top: 20px; }
   .bn-knob-group { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
   .bn-timer { margin: 16px 0 0; }
@@ -2285,6 +2305,7 @@
   @media (max-height: 640px) {
     .binaural-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 56px); }
     .bn-orb-wrap { width: 100%; height: 112px; margin: 2px 0 4px; }
+    .bn-vu { height: 112px; margin: 2px 0 4px; }
     .bn-orb { width: 64px; height: 64px; }
     .bn-orb-ring { width: 64px; height: 64px; }
     .bn-knobs { margin-top: 12px; }
@@ -2295,7 +2316,9 @@
   /* Telefon na šířku: úvod a koule vlevo, ovládání vpravo, aby se nemuselo rolovat */
   @media (orientation: landscape) and (max-height: 480px) {
     .bn-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 20px; align-items: center; max-width: 600px; }
+    .bn-head { grid-column: 1; grid-row: 1; justify-self: center; }
     .bn-title { grid-column: 1; grid-row: 1; justify-self: center; margin: 0; }
+    .bn-vu { grid-column: 1; grid-row: 2; justify-self: stretch; width: 100%; height: 96px; margin: 2px 0; }
     .bn-orb-wrap { grid-column: 1; grid-row: 2; justify-self: stretch; width: 100%; height: 96px; margin: 2px 0; }
     .bn-orb { width: 56px; height: 56px; }
     .bn-orb-ring { width: 56px; height: 56px; }
@@ -3285,7 +3308,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_binaural">Binaural beats</h4>
-      <p data-i18n="p_binaural">Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats - two slightly different pure tones, one in each ear, that your brain blends into a slow, gentle pulse. Put on stereo headphones (on speakers or in mono the effect disappears) and pick a wave: DELTA (2 Hz, deep rest and sleep), THETA (5 Hz, meditation) or ALPHA (9 Hz, calm relaxation); OFF turns the tones off. There are two volume knobs: TONES sets only the binaural tones (default 5 %) and MUSIC sets the music from the mini player (the same volume as in the main window). Keep the tones quieter than the music and raise them slowly. Drag a knob up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. Under the knobs you can set the sleep timer (15, 30 or 60 minutes, ✖ cancels it) - it is the same timer as in the main window, and when it ends the tones fade away and the music stops. The ⓘ icon on the page opens a detailed guide. The tones also fade out when you leave the page with ✖. Binaural beats are a relaxation aid, not a treatment: do not use them while driving or when you must stay alert, and consult a doctor first if you have epilepsy, a heart condition, a pacemaker, a mental-health condition or are pregnant.</p>
+      <p data-i18n="p_binaural">Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats - two slightly different pure tones, one in each ear, that your brain blends into a slow, gentle pulse. Put on stereo headphones (on speakers or in mono the effect disappears) and pick a wave: DELTA (2 Hz, deep rest and sleep), THETA (5 Hz, meditation) or ALPHA (9 Hz, calm relaxation); OFF turns the tones off. There are three knobs: TONES sets only the binaural tones (default 5 %), GAIN sets how loud TONES gets at 100 % (0 to +15 dB, default +12 dB) and MUSIC sets the music from the mini player (the same volume as in the main window). Keep the tones quieter than the music and raise them slowly. Drag a knob up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. Under the knobs you can set the sleep timer (15, 30 or 60 minutes, ✖ cancels it) - it is the same timer as in the main window, and when it ends the tones fade away and the music stops. The VU METER switch under the title replaces the orb with an analog meter that shows the level ratio of the tones to the music (needle to the left = music is louder, to the right = tones are louder). The ⓘ icon on the page opens a detailed guide. The tones also fade out when you leave the page with ✖. Binaural beats are a relaxation aid, not a treatment: do not use them while driving or when you must stay alert, and consult a doctor first if you have epilepsy, a heart condition, a pacemaker, a mental-health condition or are pregnant.</p>
     </div>
 
     <div class="main-guide-section">
@@ -3735,14 +3758,28 @@
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g2_t"></h4><p data-i18n="binaural_g2_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g3_t"></h4><p data-i18n="binaural_g3_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g4_t"></h4><p data-i18n="binaural_g4_p"></p></div>
+      <div class="breath-guide-tech"><h4 data-i18n="binaural_g7_t"></h4><p data-i18n="binaural_g7_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g6_t"></h4><p data-i18n="binaural_g6_p"></p></div>
       <div class="breath-guide-tech"><h4 data-i18n="binaural_g5_t"></h4><p data-i18n="binaural_g5_p"></p></div>
       <p class="breath-guide-note" data-i18n="binaural_guide_note"></p>
     </div>
   </div>
   <div class="bn-main">
-    <h2 class="bn-title" id="bn-title">BINAURAL</h2>
+    <div class="bn-head">
+      <h2 class="bn-title" id="bn-title">BINAURAL</h2>
+      <button type="button" class="bn-vu-toggle" id="bn-vu-toggle" role="switch" aria-checked="false" title="Analog VU meter: level ratio of TONES to MUSIC"><span class="bn-vu-sw" aria-hidden="true"></span><span>VU METER</span></button>
+    </div>
     <div class="bn-orb-wrap" aria-hidden="true"><div class="bn-orb"></div><div class="bn-orb-ring"></div><canvas class="bn-canvas" id="bn-canvas"></canvas></div>
+    <div class="bn-vu" id="bn-vu">
+      <svg class="bn-vu-svg" viewBox="0 0 240 140" preserveAspectRatio="xMidYMid meet" role="img" aria-label="VU meter: level of the binaural tones compared to the music">
+        <rect class="vu-face" x="2" y="2" width="236" height="136" rx="12"/>
+        <text class="vu-cap" x="120" y="17" text-anchor="middle">TONES vs MUSIC</text>
+        <g id="bn-vu-scale"></g>
+        <g id="bn-vu-needle"><line class="vu-needle" x1="120" y1="122" x2="120" y2="38"/></g>
+        <circle class="vu-hub" cx="120" cy="122" r="6"/>
+        <text class="vu-read" id="bn-vu-read" x="120" y="136" text-anchor="middle">—</text>
+      </svg>
+    </div>
     <div class="bn-status" id="bn-status" aria-live="polite">SELECT A WAVE</div>
     <div class="bn-modes" role="group" aria-label="Binaural wave">
       <button type="button" class="btn-breath-tech bn-mode active" data-bn-mode="0" aria-pressed="true">OFF</button>
@@ -3758,6 +3795,14 @@
           <span class="layer-knob-tip" id="bn-knob-tip" aria-hidden="true"></span>
         </div>
         <span class="bn-vol-val" id="bn-vol-val" aria-hidden="true">5%</span>
+      </div>
+      <div class="bn-knob-group">
+        <span class="bn-vol-label" aria-hidden="true">GAIN</span>
+        <div class="layer-knob-wrap" id="bn-gknob-wrap">
+          <div class="layer-knob" id="bn-gknob" role="slider" tabindex="0" aria-label="Binaural tones gain (maximum loudness of the TONES knob)" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80" title="Gain = how loud the TONES knob gets at 100% (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
+          <span class="layer-knob-tip" id="bn-gknob-tip" aria-hidden="true"></span>
+        </div>
+        <span class="bn-vol-val" id="bn-gvol-val" aria-hidden="true">+12 dB</span>
       </div>
       <div class="bn-knob-group">
         <span class="bn-vol-label" aria-hidden="true">MUSIC</span>
@@ -8167,7 +8212,7 @@
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
     p_breath: { en: "Tap EXPLORE and then BREATHE to open a full-screen guided breathing session with a slowly pulsing orb. Inside that screen, its own ⓘ icon opens a dedicated guide explaining each breathing technique — 4-7-8, Box, Coherent, Calm and Sigh — in detail. The WEATHER button below the START and STOP buttons on the breathing screen switches on the same weather scenes and photos as in the player.", cz: "Klepnutím na EXPLORE a potom na BREATHE otevřete celoobrazovkové vedené dechové cvičení s pomalu pulzující koulí. Uvnitř této obrazovky otevře vlastní ikona ⓘ podrobného průvodce, který vysvětluje jednotlivé dechové techniky — 4-7-8, Box, Coherent, Calm a Sigh. Tlačítko WEATHER pod tlačítky START a STOP na dechové obrazovce zapne stejné scény počasí a fotky jako v playeru." },
     h_binaural: { en: "Binaural beats", cz: "Binaurální tóny" },
-    p_binaural: { en: "Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats - two slightly different pure tones, one in each ear, that your brain blends into a slow, gentle pulse. Put on stereo headphones (on speakers or in mono the effect disappears) and pick a wave: DELTA (2 Hz, deep rest and sleep), THETA (5 Hz, meditation) or ALPHA (9 Hz, calm relaxation); OFF turns the tones off. There are two volume knobs: TONES sets only the binaural tones (default 5 %) and MUSIC sets the music from the mini player (the same volume as in the main window). Keep the tones quieter than the music and raise them slowly. Drag a knob up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. Under the knobs you can set the sleep timer (15, 30 or 60 minutes, ✖ cancels it) - it is the same timer as in the main window, and when it ends the tones fade away and the music stops. The ⓘ icon on the page opens a detailed guide. The tones also fade out when you leave the page with ✖. Binaural beats are a relaxation aid, not a treatment: do not use them while driving or when you must stay alert, and consult a doctor first if you have epilepsy, a heart condition, a pacemaker, a mental-health condition or are pregnant.", cz: "Klepněte na EXPLORE a potom na BINAURAL - otevře se klidná celoobrazovková stránka pro binaurální tóny, tedy dva mírně odlišné čisté tóny, jeden v každém uchu, které mozek sloučí do pomalého, jemného pulzu. Nasaďte si stereo sluchátka (na reproduktorech nebo v mono se efekt ztratí) a vyberte vlnu: DELTA (2 Hz, hluboký odpočinek a spánek), THETA (5 Hz, meditace) nebo ALPHA (9 Hz, klidná relaxace); OFF tóny vypne. K dispozici jsou dva knoby hlasitosti: TONES nastavuje jen binaurální tóny (výchozí 5 %) a MUSIC hudbu z mini přehrávače (stejná hlasitost jako v hlavním okně). Tóny držte tišší než hudbu a zvyšujte je pomalu. Knobem táhněte nahoru a dolů, točte kolečkem myši nebo použijte šipky; dvojitým klepnutím ho vrátíte na výchozí hodnotu. Mini přehrávač dole funguje stejně jako v BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST i vlastní soubory), takže můžete hudbu vrstvit přes tóny. Pod knoby nastavíte časovač spánku (15, 30 nebo 60 minut, ✖ ho zruší) - je to stejný časovač jako v hlavním okně a po jeho doběhnutí se tóny ztiší a hudba se zastaví. Ikona ⓘ na stránce otevře podrobného průvodce. Tóny se ztiší i při odchodu ze stránky tlačítkem ✖. Binaurální tóny jsou pomůcka k relaxaci, ne léčba: nepoužívejte je při řízení ani tam, kde musíte být ve střehu, a při epilepsii, srdečním onemocnění, kardiostimulátoru, duševním onemocnění nebo v těhotenství se nejdřív poraďte s lékařem." },
+    p_binaural: { en: "Tap EXPLORE and then BINAURAL to open a calm full-screen page for binaural beats - two slightly different pure tones, one in each ear, that your brain blends into a slow, gentle pulse. Put on stereo headphones (on speakers or in mono the effect disappears) and pick a wave: DELTA (2 Hz, deep rest and sleep), THETA (5 Hz, meditation) or ALPHA (9 Hz, calm relaxation); OFF turns the tones off. There are three knobs: TONES sets only the binaural tones (default 5 %), GAIN sets how loud TONES gets at 100 % (0 to +15 dB, default +12 dB) and MUSIC sets the music from the mini player (the same volume as in the main window). Keep the tones quieter than the music and raise them slowly. Drag a knob up or down, scroll over it or use the arrow keys, and double-tap to reset it. The mini player at the bottom works just like the one in BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST and your own files), so you can layer music over the tones. Under the knobs you can set the sleep timer (15, 30 or 60 minutes, ✖ cancels it) - it is the same timer as in the main window, and when it ends the tones fade away and the music stops. The VU METER switch under the title replaces the orb with an analog meter that shows the level ratio of the tones to the music (needle to the left = music is louder, to the right = tones are louder). The ⓘ icon on the page opens a detailed guide. The tones also fade out when you leave the page with ✖. Binaural beats are a relaxation aid, not a treatment: do not use them while driving or when you must stay alert, and consult a doctor first if you have epilepsy, a heart condition, a pacemaker, a mental-health condition or are pregnant.", cz: "Klepněte na EXPLORE a potom na BINAURAL - otevře se klidná celoobrazovková stránka pro binaurální tóny, tedy dva mírně odlišné čisté tóny, jeden v každém uchu, které mozek sloučí do pomalého, jemného pulzu. Nasaďte si stereo sluchátka (na reproduktorech nebo v mono se efekt ztratí) a vyberte vlnu: DELTA (2 Hz, hluboký odpočinek a spánek), THETA (5 Hz, meditace) nebo ALPHA (9 Hz, klidná relaxace); OFF tóny vypne. K dispozici jsou tři knoby: TONES nastavuje jen binaurální tóny (výchozí 5 %), GAIN určuje, jak hlasitě TONES zní na 100 % (0 až +15 dB, výchozí +12 dB) a MUSIC hudbu z mini přehrávače (stejná hlasitost jako v hlavním okně). Tóny držte tišší než hudbu a zvyšujte je pomalu. Knobem táhněte nahoru a dolů, točte kolečkem myši nebo použijte šipky; dvojitým klepnutím ho vrátíte na výchozí hodnotu. Mini přehrávač dole funguje stejně jako v BREATHE (ASMR, PIANO, CHILL, MY PLAYLIST i vlastní soubory), takže můžete hudbu vrstvit přes tóny. Pod knoby nastavíte časovač spánku (15, 30 nebo 60 minut, ✖ ho zruší) - je to stejný časovač jako v hlavním okně a po jeho doběhnutí se tóny ztiší a hudba se zastaví. Přepínač VU METER pod nadpisem nahradí kouli analogovým měřidlem, které ukazuje poměr hlasitosti tónů a hudby (ručička vlevo = hudba je hlasitější, vpravo = hlasitější jsou tóny). Ikona ⓘ na stránce otevře podrobného průvodce. Tóny se ztiší i při odchodu ze stránky tlačítkem ✖. Binaurální tóny jsou pomůcka k relaxaci, ne léčba: nepoužívejte je při řízení ani tam, kde musíte být ve střehu, a při epilepsii, srdečním onemocnění, kardiostimulátoru, duševním onemocnění nebo v těhotenství se nejdřív poraďte s lékařem." },
     binaural_guide_title: { en: "Binaural beats", cz: "Binaurální tóny" },
     binaural_guide_intro: { en: "Two slightly different pure tones - one in each ear - that your brain blends into a slow, gentle pulse. Used here as a calm background for rest, focus or meditation.", cz: "Dva mírně odlišné čisté tóny - jeden v každém uchu - které mozek sloučí do pomalého, jemného pulzu. Zde slouží jako klidné pozadí pro odpočinek, soustředění nebo meditaci." },
     binaural_g1_t: { en: "How it works", cz: "Jak to funguje" },
@@ -8176,12 +8221,14 @@
     binaural_g2_p: { en: "Each ear must hear only its own tone. On speakers or in mono the effect disappears.", cz: "Každé ucho musí slyšet jen svůj tón. Na reproduktorech nebo v mono se efekt ztratí." },
     binaural_g3_t: { en: "The three waves", cz: "Tři vlny" },
     binaural_g3_p: { en: "DELTA 2 Hz - deep rest and sleep. THETA 5 Hz - meditation, drifting. ALPHA 9 Hz - calm relaxation.", cz: "DELTA 2 Hz - hluboký odpočinek a spánek. THETA 5 Hz - meditace, snění. ALPHA 9 Hz - klidná relaxace." },
-    binaural_g4_t: { en: "Two volume knobs", cz: "Dva knoby hlasitosti" },
-    binaural_g4_p: { en: "TONES sets only the binaural tones (default 5%). MUSIC sets the music from the mini player below - it is the same volume as in the main window, so the change stays after you leave. Keep the tones quieter than the music, start low and raise slowly to protect your hearing. Drag a knob up/down, scroll over it or use the arrow keys; double-tap resets it.", cz: "TONES nastavuje jen binaurální tóny (výchozí 5 %). MUSIC nastavuje hudbu z mini přehrávače dole - je to stejná hlasitost jako v hlavním okně, takže změna zůstane i po odchodu. Tóny držte tišší než hudbu, začínejte potichu a zvyšujte pomalu kvůli ochraně sluchu. Knobem táhněte nahoru/dolů, točte kolečkem myši nebo použijte šipky; dvojitým klepnutím ho vrátíte na výchozí hodnotu." },
+    binaural_g4_t: { en: "Three knobs", cz: "Tři knoby" },
+    binaural_g4_p: { en: "TONES sets only the binaural tones (default 5%). GAIN sets how loud TONES gets at 100% (0 to +15 dB, default +12 dB) - if the tones are too quiet even at the top, raise GAIN; a built-in limiter still protects against overload. MUSIC sets the music from the mini player below - it is the same volume as in the main window, so the change stays after you leave. Keep the tones quieter than the music, start low and raise slowly to protect your hearing. Drag a knob up/down, scroll over it or use the arrow keys; double-tap resets it.", cz: "TONES nastavuje jen binaurální tóny (výchozí 5 %). GAIN určuje, jak hlasitě TONES zní na 100 % (0 až +15 dB, výchozí +12 dB) - když jsou tóny i na maximu tiché, přidejte GAIN; vestavěný limiter pořád chrání před přebuzením. MUSIC nastavuje hudbu z mini přehrávače dole - je to stejná hlasitost jako v hlavním okně, takže změna zůstane i po odchodu. Tóny držte tišší než hudbu, začínejte potichu a zvyšujte pomalu kvůli ochraně sluchu. Knobem táhněte nahoru/dolů, točte kolečkem myši nebo použijte šipky; dvojitým klepnutím ho vrátíte na výchozí hodnotu." },
     binaural_g6_t: { en: "Sleep timer", cz: "Časovač spánku" },
     binaural_g6_p: { en: "Pick 15, 30 or 60 minutes under the knobs; ✖ cancels it. It is the same timer as in the main window. When it runs out, the tones fade away and the music stops - handy for falling asleep.", cz: "Pod knoby zvolte 15, 30 nebo 60 minut; ✖ ho zruší. Je to stejný časovač jako v hlavním okně. Až doběhne, tóny se ztiší a hudba se zastaví - vhodné k usínání." },
     binaural_g5_t: { en: "Be careful", cz: "Na co si dát pozor" },
     binaural_g5_p: { en: "Do not use while driving, operating machinery or whenever you must stay alert. People with epilepsy or a seizure history, heart conditions, a pacemaker, or mental-health conditions, and pregnant women, should consult a doctor first. Stop if you feel dizzy, uncomfortable or get a headache. Tones stop when you leave the page or the sleep timer ends.", cz: "Nepoužívejte při řízení, obsluze strojů ani tam, kde musíte být ve střehu. Lidé s epilepsií či záchvaty v anamnéze, srdečním onemocněním, kardiostimulátorem nebo duševním onemocněním a těhotné ženy by se měli nejdřív poradit s lékařem. Při závrati, nepohodě nebo bolesti hlavy přestaňte. Tóny se vypnou po opuštění stránky nebo po skončení časovače spánku." },
+    binaural_g7_t: { en: "VU meter", cz: "VU metr" },
+    binaural_g7_p: { en: "Switch it on under the title. The needle shows how loud the tones are compared to the music, in dB: 0 means equal, to the left the music is louder (green), to the right the tones are louder (red). Keep the needle in the green. It compares the playback levels (your knobs and fades), not how loud the track itself is, and it is the same whatever your device volume.", cz: "Zapněte ho pod nadpisem. Ručička ukazuje v dB, o kolik jsou tóny hlasitější než hudba: 0 znamená stejně, vlevo je hlasitější hudba (zelená), vpravo hlasitější tóny (červená). Držte ručičku v zelené. Porovnává úrovně přehrávání (vaše knoby a prolínání), ne hlasitost samotné skladby, a je stejný při jakékoli hlasitosti zařízení." },
     binaural_guide_note: { en: "Not medical advice. Listen responsibly.", cz: "Nejde o lékařskou radu. Poslouchejte zodpovědně." },
     binaural_hint: { en: "Best with stereo headphones. The tones stop when you leave this page.", cz: "Nejlépe se stereo sluchátky. Tóny se po opuštění stránky vypnou." },
     h_timer: { en: "Sleep timer", cz: "Časovač spánku" },
@@ -11457,7 +11504,10 @@
       { name: 'THETA WAVES (5Hz) - MEDITATION', base: 174.0, beat: 5 },
       { name: 'ALPHA WAVES (9Hz) - RELAXATION', base: 256.0, beat: 9 }
     ];
-    const MAX_GAIN = 0.15;          // stejný strop jako v relax.html
+    const MAX_GAIN = 0.15;          // dolní polovina knobu (0-50 %) - beze změny, stejný zvuk jako dřív
+    const GAIN_MAX_DB = 15;         // knob GAIN: 0 .. +15 dB nad základní strop MAX_GAIN (kolik zvuku dá TONES na 100 %)
+    const DEFAULT_GAIN = 0.8;       // 0.8 * 15 = +12 dB = 4x (strop 0.6), stejně jako dřív
+    const GAIN_KEY = 'synthlucida_binaural_gain_v1';
     const DEFAULT_VOL = 0.05;       // tichý start (5 %)
     const VOL_KEY = 'synthlucida_binaural_vol_v2'; // v2: nový tichý start 5 %
     const statusEl = document.getElementById('bn-status');
@@ -11470,8 +11520,17 @@
     let ctx = null, gainL = null, gainR = null, oscL = null, oscR = null, stopTimer = null;
     let modeIdx = 0;
     let vol = DEFAULT_VOL;
+    let gainPos = DEFAULT_GAIN;
     try { const v = parseFloat(localStorage.getItem(VOL_KEY)); if (isFinite(v)) vol = Math.min(1, Math.max(0, v)); } catch (e) { /* výchozí */ }
-    const level = () => vol * MAX_GAIN;
+    try { const g = parseFloat(localStorage.getItem(GAIN_KEY)); if (isFinite(g)) gainPos = Math.min(1, Math.max(0, g)); } catch (e) { /* výchozí */ }
+    // 0-50 % knobu: lineárně jako dřív (50 % = 0.075). 50-100 %: geometrický (po dB plynulý) nárůst; strop při 100 % určuje knob GAIN (0..+15 dB nad MAX_GAIN)
+    const gainDb = () => gainPos * GAIN_MAX_DB;
+    const level = () => {
+      const half = 0.5 * MAX_GAIN;
+      if (vol <= 0.5) return vol * MAX_GAIN;
+      const top = MAX_GAIN * Math.pow(10, gainDb() / 20);
+      return half * Math.pow(top / half, (vol - 0.5) / 0.5);
+    };
 
     function ensureCtx() {
       if (!ctx) {
@@ -11482,7 +11541,11 @@
         gainL = ctx.createGain(); gainR = ctx.createGain();
         gainL.gain.value = 0; gainR.gain.value = 0;
         gainL.connect(merger, 0, 0); gainR.connect(merger, 0, 1);
-        merger.connect(ctx.destination);
+        // Limiter: pojistka proti přetažení - drží výstup pod cca -6 dBFS (rychlý nástup, tvrdé koleno, vysoký poměr)
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 20;
+        limiter.attack.value = 0.002; limiter.release.value = 0.25;
+        merger.connect(limiter); limiter.connect(ctx.destination);
       }
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       return true;
@@ -11677,9 +11740,10 @@
         const v = o.get(), pct = Math.round(v * 100);
         o.wrap.style.setProperty('--p', v);
         o.knob.setAttribute('aria-valuenow', String(pct));
-        o.knob.setAttribute('aria-valuetext', pct + '%');
-        o.tip.textContent = pct + '%';
-        o.val.textContent = pct + '%';
+        o.knob.setAttribute('aria-valuetext', o.fmt ? o.fmt(v) : pct + '%');
+        const txt = o.fmt ? o.fmt(v) : pct + '%';
+        o.tip.textContent = txt;
+        o.val.textContent = txt;
       }
       function showTip() {
         o.tip.classList.add('show');
@@ -11690,10 +11754,10 @@
       const buzz = () => { try { if (navigator.vibrate) navigator.vibrate(6); } catch (err) { /* ignore */ } };
       function change(v, snap) {
         v = Math.min(1, Math.max(0, v));
-        if (snap && Math.abs(v - 0.5) < 0.03) v = 0.5; // magnetický střed jen při tažení
+        if (snap && !o.nomid && Math.abs(v - 0.5) < 0.03) v = 0.5; // magnetický střed jen při tažení
         const wasMid = o.get() === 0.5;
         o.set(v); paint(); showTip();
-        if (v === 0.5 && !wasMid) buzz();
+        if (v === 0.5 && !wasMid && !o.nomid) buzz();
       }
       o.wrap.addEventListener('pointerdown', (e) => {
         knobDrag = { lastY: e.clientY, raw: o.get(), moved: 0 };
@@ -11747,6 +11811,21 @@
       if (save !== false) { try { localStorage.setItem(VOL_KEY, String(vol)); } catch (e) { /* ignore */ } }
     }
     const paintKnob = makeKnob({ wrap: knobWrap, knob: knob, tip: knobTip, val: volVal, def: DEFAULT_VOL, get: () => vol, set: setVol });
+    // GAIN: nastavuje, jak hlasitě zní TONES na 100 % (0..+15 dB nad základ). Limiter dál hlídá strop.
+    function setGain(v, save) {
+      gainPos = Math.min(1, Math.max(0, v));
+      if (ctx && modeIdx !== 0) {
+        const now = ctx.currentTime;
+        gainL.gain.setTargetAtTime(level(), now, 0.3); gainR.gain.setTargetAtTime(level(), now, 0.3);
+      }
+      if (save !== false) { try { localStorage.setItem(GAIN_KEY, String(gainPos)); } catch (e) { /* ignore */ } }
+    }
+    const paintGainKnob = makeKnob({
+      wrap: document.getElementById('bn-gknob-wrap'), knob: document.getElementById('bn-gknob'),
+      tip: document.getElementById('bn-gknob-tip'), val: document.getElementById('bn-gvol-val'),
+      def: DEFAULT_GAIN, nomid: true, get: () => gainPos, set: setGain,
+      fmt: (v) => '+' + Math.round(v * GAIN_MAX_DB) + ' dB'
+    });
     // Hlasitost hudby = hlavní posuvník hlasitosti přehrávače (společný s hlavním oknem, ukládá se stejně)
     const mainVol = document.getElementById('volume-slider');
     const paintMusicKnob = makeKnob({
@@ -11757,15 +11836,90 @@
     });
     if (mainVol) mainVol.addEventListener('input', paintMusicKnob);
     paintKnob();
+    paintGainKnob();
     paintMusicKnob();
     paintModes();
+
+    // --- VU metr: analogová ručička = poměr hlasitosti TONES : MUSIC v dB (vlevo víc hudby, vpravo víc tónů) ---
+    // Měří se skutečné úrovně přehrávání: živý gain tónů (včetně náběhu/útlumu) a hlasitost <audio> prvků hudby.
+    // Hudba se nedá změřit ze signálu (zdroje jsou cross-origin bez CORS a analyzátor by ji ztlumil), proto se
+    // porovnávají úrovně, ne obsah skladby. Systémová hlasitost zařízení platí pro obojí stejně, poměr nemění.
+    const VU_KEY = 'synthlucida_binaural_vu';
+    const VU_MIN = -45, VU_MAX = 15, VU_A0 = -50, VU_A1 = 50, VU_CX = 120, VU_CY = 122, VU_R = 92;
+    const vuBtn = document.getElementById('bn-vu-toggle');
+    const vuNeedle = document.getElementById('bn-vu-needle');
+    const vuRead = document.getElementById('bn-vu-read');
+    const vuScale = document.getElementById('bn-vu-scale');
+    const vuReduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    let vuOn = false, vuRaf = 0, vuLast = 0, vuAng = VU_A0, vuTxt = '';
+    try { vuOn = localStorage.getItem(VU_KEY) === '1'; } catch (e) { /* výchozí: vypnuto */ }
+    const vuAngle = (db) => VU_A0 + (VU_A1 - VU_A0) * (Math.min(VU_MAX, Math.max(VU_MIN, db)) - VU_MIN) / (VU_MAX - VU_MIN);
+
+    (function buildScale() {
+      if (!vuScale) return;
+      const NS = 'http://www.w3.org/2000/svg';
+      const mk = (n, attrs, txt) => { const e = document.createElementNS(NS, n); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
+      const pt = (db, r) => { const a = vuAngle(db) * Math.PI / 180; return [VU_CX + r * Math.sin(a), VU_CY - r * Math.cos(a)]; };
+      [[-45, -10, '#3ddc97'], [-10, 0, '#ffd24a'], [0, 15, '#ff4d6d']].forEach((z) => {
+        const a = pt(z[0], VU_R), b = pt(z[1], VU_R);
+        vuScale.appendChild(mk('path', { d: 'M' + a[0].toFixed(2) + ' ' + a[1].toFixed(2) + ' A' + VU_R + ' ' + VU_R + ' 0 0 1 ' + b[0].toFixed(2) + ' ' + b[1].toFixed(2), fill: 'none', stroke: z[2], 'stroke-width': 3, opacity: 0.85 }));
+      });
+      for (let db = VU_MIN; db <= VU_MAX; db += 5) {
+        const major = db % 10 === 0, a = pt(db, VU_R - 3), b = pt(db, VU_R - (major ? 10 : 6));
+        vuScale.appendChild(mk('line', { x1: a[0].toFixed(2), y1: a[1].toFixed(2), x2: b[0].toFixed(2), y2: b[1].toFixed(2), stroke: '#fff', 'stroke-width': major ? 1.2 : 0.7, opacity: major ? 0.7 : 0.4 }));
+        if (major) {
+          const t = pt(db, VU_R - 18);
+          vuScale.appendChild(mk('text', { x: t[0].toFixed(2), y: t[1].toFixed(2), 'text-anchor': 'middle', 'dominant-baseline': 'central', 'class': 'vu-lbl' }, db > 0 ? '+' + db : String(db)));
+        }
+      }
+    })();
+
+    function toneLevel() { return (ctx && gainL && gainR && modeIdx !== 0) ? (gainL.gain.value + gainR.gain.value) / 2 : 0; }
+    function musicLevel() {
+      let m = 0;
+      ['audio-player', 'audio-player-crossfade'].forEach((id) => {
+        const a = document.getElementById(id);
+        if (a && !a.paused && !a.muted) m = Math.max(m, a.volume);
+      });
+      const l = document.getElementById('audio-player-layer'); // druhá ASMR stopa je taky hudba
+      if (l && !l.paused && !l.muted) m = Math.sqrt(m * m + l.volume * l.volume);
+      return m;
+    }
+
+    function vuFrame(now) {
+      vuRaf = 0;
+      if (!vuOn || !binauralActive) return;
+      if (now - vuLast < 30) { vuRaf = requestAnimationFrame(vuFrame); return; } // cca 30 fps stačí
+      const dt = Math.min(0.1, (now - vuLast) / 1000); vuLast = now;
+      const t = toneLevel(), m = musicLevel();
+      let target, txt;
+      if (t < 1e-4) { target = VU_A0; txt = m < 1e-4 ? '—' : 'TONES OFF'; }
+      else if (m < 1e-4) { target = VU_A1; txt = 'MUSIC OFF'; }
+      else { const db = 20 * Math.log10(t / m); target = vuAngle(db); txt = (db >= 0 ? '+' : '-') + Math.abs(db).toFixed(0) + ' dB'; }
+      // VU balistika: ručička dobíhá pomalu (cca 0,3 s), při \"snížený pohyb\" skáče rovnou
+      vuAng = (vuReduceMq && vuReduceMq.matches) ? target : vuAng + (target - vuAng) * (1 - Math.exp(-dt / 0.12));
+      if (vuNeedle) vuNeedle.setAttribute('transform', 'rotate(' + vuAng.toFixed(2) + ' ' + VU_CX + ' ' + VU_CY + ')');
+      if (vuRead && txt !== vuTxt) { vuTxt = txt; vuRead.textContent = txt; }
+      vuRaf = requestAnimationFrame(vuFrame);
+    }
+    function vuKick() { if (vuOn && binauralActive && !vuRaf) { vuLast = performance.now() - 100; vuRaf = requestAnimationFrame(vuFrame); } }
+    function setVu(on, save) {
+      vuOn = !!on;
+      overlay.classList.toggle('bn-vu-on', vuOn);
+      if (vuBtn) vuBtn.setAttribute('aria-checked', vuOn ? 'true' : 'false');
+      if (save !== false) { try { localStorage.setItem(VU_KEY, vuOn ? '1' : '0'); } catch (e) { /* ignore */ } }
+      if (vuOn) vuKick(); else if (vuRaf) { cancelAnimationFrame(vuRaf); vuRaf = 0; }
+      viz.kick(); // vizualizace pod kouli se po skrytí/zobrazení znovu přizpůsobí velikosti
+    }
+    if (vuBtn) vuBtn.addEventListener('click', () => setVu(!vuOn));
+    setVu(vuOn, false);
 
     // --- otevření / zavření stránky ---
     window.startBinaural = function() {
       if (binauralActive) return;
       binauralActive = true;
       document.body.classList.add('binaural-active'); // vše ostatní se schová, hudba klidně hraje dál
-      paintModes(); paintMusicKnob();
+      paintModes(); paintMusicKnob(); vuKick();
     };
     window.stopBinaural = function() {
       if (!binauralActive) return;
