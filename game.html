@@ -149,8 +149,11 @@
   }
   .btn-atmos.active { border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color); color: var(--accent-color); }
 
-  .themes-container { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; padding: 0 10px; }
-  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.2s; padding: 2px; }
+  .themes-container { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 0 10px; max-width: 100%; box-sizing: border-box; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .themes-container::-webkit-scrollbar { display: none; }
+  .themes-container > .btn-theme:first-child { margin-left: auto; }
+  .themes-container > .btn-theme:last-child { margin-right: auto; }
+  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.2s; padding: 2px; flex-shrink: 0; white-space: nowrap; }
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 6px var(--accent-color); }
 
   .main-layout {
@@ -428,6 +431,7 @@
     .mobile-controls { display: flex; }
     .hint-text { display: none; }
     .header { padding: 10px 10px 2px; }
+    .btn-theme { font-size: 9px; padding: 6px 4px; }
   }
 </style>
 <script data-goatcounter="https://gameblocks.goatcounter.com/count"
@@ -1196,8 +1200,13 @@
   window.setVisualTheme = function(theme, btn) {
     savedState.theme = theme; body.className = body.className.replace(/theme-\S+/g, '').trim().concat(' theme-' + theme);
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active')); if(btn) btn.classList.add('active');
+    if (btn && btn.parentNode) { const c = btn.parentNode; c.scrollLeft = btn.offsetLeft - (c.clientWidth - btn.offsetWidth) / 2; }
     persistState();
   };
+  window.addEventListener('load', function () {
+    const b = document.querySelector('.btn-theme.active');
+    if (b && b.parentNode) { const c = b.parentNode; c.scrollLeft = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2; }
+  });
 
   // --- MOBILNÍ DOTYKOVÉ OVLÁDÁNÍ ---
   const setupMobileControls = () => {
