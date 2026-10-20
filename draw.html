@@ -171,8 +171,11 @@
   }
   .info-hub-link:hover { background: var(--accent-color); color: #000; box-shadow: 0 0 8px var(--accent-color); }
 
-  .themes-container { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; padding: 0 10px; }
-  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.2s; padding: 2px; }
+  .themes-container { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 0 10px; max-width: 100%; box-sizing: border-box; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .themes-container::-webkit-scrollbar { display: none; }
+  .themes-container > .btn-theme:first-child { margin-left: auto; }
+  .themes-container > .btn-theme:last-child { margin-right: auto; }
+  .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', sans-serif; font-size: 8px; cursor: pointer; transition: 0.2s; padding: 2px; flex-shrink: 0; white-space: nowrap; }
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 6px var(--accent-color); }
 
   .main-layout {
@@ -271,6 +274,18 @@
     background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0) 62%);
   }
   @keyframes rbSpin { to { --rb-a: 360deg; } }
+  /* Living-light swatch: a glowing orb whose whole color slowly changes by itself. */
+  @property --lh { syntax: '<number>'; inherits: false; initial-value: 40; }
+  .color-swatch-light {
+    --lh: 40;
+    --c: hsl(var(--lh) 100% 62%);
+    position: relative;
+    background: radial-gradient(circle at 36% 30%, hsl(var(--lh) 100% 95%) 0%, hsl(var(--lh) 100% 66%) 42%, hsl(calc(var(--lh) + 55) 100% 52%) 100%);
+    box-shadow: 0 0 9px hsl(var(--lh) 100% 60% / 0.75), 0 0 2px hsl(var(--lh) 100% 85%);
+    animation: lightShift 6s linear infinite;
+  }
+  @keyframes lightShift { to { --lh: 400; } }
+  @media (prefers-reduced-motion: reduce) { .color-swatch-light { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .color-swatch-rainbow { animation: none; } }
 
   .color-swatch-custom {
@@ -568,7 +583,7 @@
     <p data-i18n="p_drawing">Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.</p>
 
     <h3 data-i18n="h_brush">BRUSH</h3>
-    <p data-i18n="p_brush">Pick a color from the palette and set the size with the slider. The "+" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. Your last choice is remembered next time you visit.</p>
+    <p data-i18n="p_brush">Pick a color from the palette and set the size with the slider. The "+" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. The glowing light swatch next to it paints with living light that changes its color all by itself. Your last choice is remembered next time you visit.</p>
 
     <h3 data-i18n="h_brushfeel">BRUSH FEEL</h3>
     <ul>
@@ -754,6 +769,7 @@
 
   let brushColor = '#ffcc00';
   let rainbowOn = false;           // special rainbow brush: the hue flows along the stroke
+  let lightOn = false;             // special living-light brush: the hue changes with time, painted as glowing light
   let brushSize = 10;
   let brushStyle = 'soft';
   let eraseMode = false;
@@ -835,10 +851,15 @@
     return '#' + [f(0), f(8), f(4)].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
   }
   function rainbowHueNow() { return (performance.now() / 25) % 360; }
+  // Living light: the color slowly shifts by itself (one full turn every 6 s), whatever you do.
+  const LIGHT_DEG_PER_MS = 0.06;
+  function lightHueNow() { return (performance.now() * LIGHT_DEG_PER_MS) % 360; }
+  function hslL(h, l) { return 'hsl(' + Math.round(((h % 360) + 360) % 360) + ',100%,' + l + '%)'; }
   // Single color for things that need a plain hex (text, emoji, previews).
-  function solidColor() { return rainbowOn ? hslHex(stampHue) : brushColor; }
+  function solidColor() { return (rainbowOn || lightOn) ? hslHex(stampHue) : brushColor; }
   // Color for the sparkle particles right now.
   function liveColor() {
+    if (lightOn && !eraseMode) return hslL(lightHueNow(), 68);
     if (rainbowOn && !eraseMode) {
       const h = (currentStroke && typeof currentStroke.rainbow === 'number') ? currentStroke.rainbow + rbDist * RAINBOW_DEG_PER_PX : rainbowHueNow();
       return hslCss(h);
@@ -858,6 +879,7 @@
       const savedSize = Number(p.size);
       if (isFinite(savedSize) && savedSize > 0) brushSize = Math.max(2, Math.min(44, Math.round(savedSize)));
       if (typeof p.rainbow === 'boolean') rainbowOn = p.rainbow;
+      if (typeof p.light === 'boolean') lightOn = p.light && !rainbowOn;
       if (typeof p.sparkle === 'boolean') sparkleOn = p.sparkle;
       if (typeof p.sound === 'boolean') soundOn = p.sound;
       if (typeof p.volume === 'number' && isFinite(p.volume)) soundVolume = Math.max(0, Math.min(1, p.volume));
@@ -866,7 +888,7 @@
     } catch (e) {}
   }
   function savePrefs() {
-    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, rainbow: rainbowOn, size: brushSize, sparkle: sparkleOn, sound: soundOn, volume: soundVolume, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
+    try { localStorage.setItem('synthlucida_canvas_prefs', JSON.stringify({ color: brushColor, rainbow: rainbowOn, light: lightOn, size: brushSize, sparkle: sparkleOn, sound: soundOn, volume: soundVolume, brushStyle: brushStyle, template: activeTemplate })); } catch (e) {}
   }
   loadPrefs();
 
@@ -876,6 +898,7 @@
     document.querySelectorAll('.btn-theme').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
     if (btn) { btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true'); }
     try { localStorage.setItem('synthlucida_canvas_theme', theme); } catch (e) {}
+    if (btn && btn.parentNode) { const c = btn.parentNode; c.scrollLeft = btn.offsetLeft - (c.clientWidth - btn.offsetWidth) / 2; }
   };
   (function restoreTheme() {
     try {
@@ -886,6 +909,11 @@
       }
     } catch (e) {}
   })();
+
+  window.addEventListener('load', function () {
+    const b = document.querySelector('.btn-theme.active');
+    if (b && b.parentNode) { const c = b.parentNode; c.scrollLeft = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2; }
+  });
 
   // --- CANVAS: RESOLUTION SETUP (ACCOUNTING FOR DPR) ---
   function resizeAll(preserve) {
@@ -940,13 +968,13 @@
   PALETTE.forEach(hex => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'color-swatch' + (hex.toLowerCase() === brushColor.toLowerCase() && !rainbowOn ? ' active' : '');
+    b.className = 'color-swatch' + (hex.toLowerCase() === brushColor.toLowerCase() && !rainbowOn && !lightOn ? ' active' : '');
     b.style.background = hex;
     b.style.setProperty('--c', hex);
     b.setAttribute('aria-label', 'Color ' + hex);
     b.addEventListener('click', () => {
       brushColor = hex;
-      rainbowOn = false;
+      rainbowOn = false; lightOn = false;
       eraseMode = false;
       document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
       customSwatch.classList.remove('active');
@@ -967,7 +995,7 @@
   customColorInput.value = brushColor;
   function selectCustomColor(hex) {
     brushColor = hex;
-    rainbowOn = false;
+    rainbowOn = false; lightOn = false;
     eraseMode = false;
     document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
     document.getElementById('btn-eraser').classList.remove('active');
@@ -976,7 +1004,7 @@
     savePrefs();
   }
   customColorInput.addEventListener('input', () => selectCustomColor(customColorInput.value));
-  if (!rainbowOn && !PALETTE.some(hex => hex.toLowerCase() === brushColor.toLowerCase())) {
+  if (!rainbowOn && !lightOn && !PALETTE.some(hex => hex.toLowerCase() === brushColor.toLowerCase())) {
     customSwatch.classList.add('active');
     customSwatch.style.setProperty('--c', brushColor);
   }
@@ -990,7 +1018,7 @@
   rainbowSwatch.title = 'Rainbow brush';
   rainbowSwatch.setAttribute('aria-label', 'Rainbow brush');
   rainbowSwatch.addEventListener('click', () => {
-    rainbowOn = true;
+    rainbowOn = true; lightOn = false;
     eraseMode = false;
     document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
     customSwatch.classList.remove('active');
@@ -999,6 +1027,24 @@
     savePrefs();
   });
   paletteEl.appendChild(rainbowSwatch);
+
+  // --- LIVING LIGHT SWATCH (glowing, recolors itself over time) ---
+  const lightSwatch = document.createElement('button');
+  lightSwatch.type = 'button';
+  lightSwatch.id = 'btn-light';
+  lightSwatch.className = 'color-swatch color-swatch-light' + (lightOn ? ' active' : '');
+  lightSwatch.title = 'Living light (changes color by itself)';
+  lightSwatch.setAttribute('aria-label', 'Living light brush, changes color by itself');
+  lightSwatch.addEventListener('click', () => {
+    lightOn = true; rainbowOn = false;
+    eraseMode = false;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    customSwatch.classList.remove('active');
+    lightSwatch.classList.add('active');
+    document.getElementById('btn-eraser').classList.remove('active');
+    savePrefs();
+  });
+  paletteEl.appendChild(lightSwatch);
 
   // --- BRUSH SIZE ---
   const sizeSlider = document.getElementById('brush-size');
@@ -3012,6 +3058,13 @@
       const stops = ['#ff3b3b', '#ffb400', '#ffee33', '#3dff88', '#33d6ff', '#6a6bff', '#c15cff', '#ff4fd2'];
       stops.forEach((c, i) => g.addColorStop(Math.min(1, Math.max(0, i / (stops.length - 1))), stops[(i + Math.round(shift * (stops.length - 1))) % stops.length]));
       octx.fillStyle = g;
+    } else if (typeof color === 'string' && color.indexOf('light:') === 0) {
+      // Living-light fill: a glowing pool of light that is whitest at the tap point and drifts in hue outwards.
+      const h = parseFloat(color.slice(6)) || 0;
+      const maxD = Math.max(1, Math.hypot(Math.max(cx, bw - cx), Math.max(cy, bh - cy)));
+      const g = octx.createRadialGradient(cx, cy, 0, cx, cy, maxD);
+      g.addColorStop(0, hslL(h, 94)); g.addColorStop(0.2, hslL(h, 72)); g.addColorStop(0.6, hslL(h + 50, 60)); g.addColorStop(1, hslL(h + 110, 52));
+      octx.fillStyle = g;
     } else if (glow) {
       const base = hexToRgb(color), light = hexToRgb(shadeHex(color, 26));
       const maxD = Math.max(1, Math.hypot(Math.max(cx, bw - cx), Math.max(cy, bh - cy)));
@@ -3065,7 +3118,7 @@
   function fillAt(x, y) {
     if (isAnimating || isLive) return;
     const p = { x, y };
-    const fillColor = rainbowOn ? 'rainbow' : brushColor;
+    const fillColor = rainbowOn ? 'rainbow' : (lightOn ? 'light:' + Math.round(lightHueNow()) : brushColor);
     const res = computeFill(p.x, p.y, fillColor, brushStyle);
     if (!res) return;
     pushUndo();
@@ -4024,7 +4077,7 @@
     return 1.3 - t * 0.7;
   }
 
-  function drawSegment(x0, y0, x1, y1, sf, color, size, erase, style) {
+  function drawSegmentBase(x0, y0, x1, y1, sf, color, size, erase, style) {
     style = style || 'soft';
     const w = Math.max(1.5, size * sf);
 
@@ -4122,14 +4175,42 @@
     }
   }
 
+  // Brush feel as chosen, plus (living-light color only) a glowing aura and a white-hot core on top,
+  // so the stroke looks like it is made of light.
+  function drawSegment(x0, y0, x1, y1, sf, color, size, erase, style, glowHue) {
+    drawSegmentBase(x0, y0, x1, y1, sf, color, size, erase, style);
+    if (typeof glowHue !== 'number' || erase) return;
+    const w = Math.max(1.5, size * sf);
+    const k = style === 'neon' ? 0.55 : 1;          // NEON already glows on its own
+    dctx.save();
+    dctx.lineCap = 'round'; dctx.lineJoin = 'round';
+    dctx.globalCompositeOperation = 'source-over';
+    dctx.strokeStyle = hslL(glowHue, 62);
+    dctx.globalAlpha = 0.10 * k; dctx.lineWidth = w * 3.6;
+    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+    dctx.globalAlpha = 0.17 * k; dctx.lineWidth = w * 2.3;
+    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+    dctx.shadowColor = hslL(glowHue, 60); dctx.shadowBlur = w * 1.8;
+    dctx.strokeStyle = hslL(glowHue, 93);
+    dctx.globalAlpha = 0.95; dctx.lineWidth = Math.max(1.2, w * 0.5);
+    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+    dctx.restore();
+  }
+
   function strokeSegment(x0, y0, x1, y1, sf) {
-    let color = brushColor;
+    let color = brushColor, glowHue;
+    if (currentStroke && typeof currentStroke.light === 'number' && !eraseMode) {
+      const pts = currentStroke.points, lastPt = pts[pts.length - 1];
+      const tEnd = lastPt.t + Math.max(0, performance.now() - lastT);   // same clock the recording uses
+      glowHue = currentStroke.light + tEnd * LIGHT_DEG_PER_MS;
+      color = hslL(glowHue, 62);
+    }
     if (currentStroke && typeof currentStroke.rainbow === 'number' && !eraseMode) {
       const len = Math.hypot(x1 - x0, y1 - y0);
       color = hslCss(currentStroke.rainbow + (rbDist + len / 2) * RAINBOW_DEG_PER_PX);
       rbDist += len;
     }
-    drawSegment(x0, y0, x1, y1, sf, color, brushSize, eraseMode, brushStyle);
+    drawSegment(x0, y0, x1, y1, sf, color, brushSize, eraseMode, brushStyle, glowHue);
   }
 
   // --- PARTICLES (SPARKLE TRAIL) ---
@@ -4220,6 +4301,7 @@
     rbDist = 0;
     currentStroke = { color: brushColor, size: brushSize, erase: eraseMode, style: brushStyle, refW: cssW, points: [{ x: p.x, y: p.y, t: 0 }] };
     if (rainbowOn && !eraseMode) currentStroke.rainbow = rainbowHueNow();   // start hue of this stroke
+    else if (lightOn && !eraseMode) currentStroke.light = lightHueNow();
     strokeSegment(p.x, p.y, p.x + 0.5, p.y, 1);
     if (sparkleOn) spawnParticles(p.x, p.y, 4);
     startVoice(p.x, p.y, drawCanvas.getBoundingClientRect(), eraseMode);
@@ -4319,7 +4401,7 @@
     h_drawing: { en: "DRAWING", cz: "KRESLENÍ" },
     p_drawing: { en: "Press and drag with your mouse or finger to paint. A single tap leaves a dot. Pick a BRUSH FEEL below to change how your strokes look.", cz: "Stiskněte a táhněte myší nebo prstem a malujte. Jediné klepnutí zanechá tečku. Níže vyberte BRUSH FEEL a změňte tak vzhled svých tahů." },
     h_brush: { en: "BRUSH", cz: "ŠTĚTEC" },
-    p_brush: { en: "Pick a color from the palette and set the size with the slider. The \"+\" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. Your last choice is remembered next time you visit.", cz: "Vyberte barvu z palety a velikost nastavte posuvníkem. Vzorek „+“ otevře plný výběr vlastní barvy a třpytivý duhový vzorek maluje plynule se měnícími duhovými barvami. Vaše poslední volba se zapamatuje na příště." },
+    p_brush: { en: "Pick a color from the palette and set the size with the slider. The \"+\" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. The glowing light swatch next to it paints with living light that changes its color all by itself. Your last choice is remembered next time you visit.", cz: "Vyberte barvu z palety a velikost nastavte posuvníkem. Vzorek „+“ otevře plný výběr vlastní barvy a třpytivý duhový vzorek maluje plynule se měnícími duhovými barvami. Zářící světelný vzorek vedle něj maluje živým světlem, které samo mění barvu. Vaše poslední volba se zapamatuje na příště." },
     h_brushfeel: { en: "BRUSH FEEL", cz: "STYL ŠTĚTCE" },
     li_feel_1: { en: "🌤 SOFT — a gentle, diffused watercolor wash, lovely for slow relaxed painting", cz: "🌤 SOFT — jemný, rozostřený akvarelový nádech, skvělý pro pomalé uvolněné malování" },
     li_feel_2: { en: "🖋 INK — a tapered brush-pen stroke that deepens where lines overlap", cz: "🖋 INK — zúžený tah brush-pen štětce, který tmavne tam, kde se čáry překrývají" },
@@ -4453,19 +4535,23 @@
       const pts = stroke.points;
       if (!pts || !pts.length) return;
       const rbHue = (typeof stroke.rainbow === 'number' && !stroke.erase) ? stroke.rainbow : null;
+      const lgHue = (typeof stroke.light === 'number' && !stroke.erase) ? stroke.light : null;
       let rbd = 0;
       if (pts.length < 2) {
         const p0 = pts[0];
-        const dotColor = rbHue !== null ? hslCss(rbHue + 0.25 * RAINBOW_DEG_PER_PX) : stroke.color;
-        timeline.push({ t: cum, draw: scaled(stroke, k => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, dotColor, stroke.size, stroke.erase, stroke.style); if (sparkleOn) spawnParticles(p0.x * k, p0.y * k, 4); }) });
+        const dotColor = rbHue !== null ? hslCss(rbHue + 0.25 * RAINBOW_DEG_PER_PX) : (lgHue !== null ? hslL(lgHue, 62) : stroke.color);
+        timeline.push({ t: cum, draw: scaled(stroke, k => { drawSegment(p0.x, p0.y, p0.x + 0.5, p0.y, 1, dotColor, stroke.size, stroke.erase, stroke.style, lgHue !== null ? lgHue : undefined); if (sparkleOn) spawnParticles(p0.x * k, p0.y * k, 4); }) });
         cum += 60;
       } else {
         for (let i = 1; i < pts.length; i++) {
           const p0 = pts[i - 1], p1 = pts[i];
           const dt = Math.min(45, Math.max(6, p1.t - p0.t));
           cum += dt;
-          let segColor = stroke.color;
-          if (rbHue !== null) {
+          let segColor = stroke.color, segGlow;
+          if (lgHue !== null) {
+            segGlow = lgHue + p1.t * LIGHT_DEG_PER_MS;      // the recorded time of this point -> same color as when painted
+            segColor = hslL(segGlow, 62);
+          } else if (rbHue !== null) {
             const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
             segColor = hslCss(rbHue + (0.5 + rbd + len / 2) * RAINBOW_DEG_PER_PX);   // 0.5 = the first dot
             rbd += len;
@@ -4474,7 +4560,7 @@
             t: cum,
             draw: scaled(stroke, k => {
               const sf = speedFactor(p1.x - p0.x, p1.y - p0.y, dt);
-              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, segColor, stroke.size, stroke.erase, stroke.style);
+              drawSegment(p0.x, p0.y, p1.x, p1.y, sf, segColor, stroke.size, stroke.erase, stroke.style, segGlow);
               if (sparkleOn) spawnParticles(p1.x * k, p1.y * k, 2);
             })
           });
