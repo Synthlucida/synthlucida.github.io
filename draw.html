@@ -49,7 +49,7 @@
     "priceCurrency": "USD"
   },
   "featureList": [
-    "Glowing neon, ink, chalk and soft brush styles",
+    "Glowing neon, ink, chalk, soft and watercolor brush styles",
     "Ambient sound that follows the brush",
     "39 detailed coloring pages (mandalas, animals, nature scenes) with one-tap fill",
     "Text and emoji stamps with graphic styles",
@@ -440,6 +440,7 @@
   .btn-ctrl-sub { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; flex-shrink: 0; transition: 0.2s; }
   .btn-ctrl-sub.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
   .btn-ctrl-sub:hover { opacity: 0.9; }
+  .btn-ctrl-sub:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
 
   .game-actions-container { display: flex; flex-direction: column; gap: 6px; }
   .actions-row { display: flex; gap: 6px; width: 100%; }
@@ -621,14 +622,15 @@
 
     <h3 data-i18n="h_brushfeel">BRUSH FEEL</h3>
     <ul>
-      <li data-i18n="li_feel_1">🌤 SOFT — a gentle, diffused watercolor wash, lovely for slow relaxed painting</li>
+      <li data-i18n="li_feel_1">🌤 SOFT — a gentle, diffused haze, lovely for slow relaxed painting</li>
       <li data-i18n="li_feel_2">🖋 INK — a tapered brush-pen stroke that deepens where lines overlap</li>
       <li data-i18n="li_feel_3">🌾 CHALK — a dry, grainy pastel texture</li>
       <li data-i18n="li_feel_4">✨ NEON — the original bright glowing light trail</li>
+      <li data-i18n="li_feel_5">💧 WATERCOLOR — translucent washes that build up, with pigment pooling at the edges and a grainy paper feel</li>
     </ul>
 
     <h3 data-i18n="h_coloring">COLORING PAGE</h3>
-    <p data-i18n="p_coloring">Open CHOOSE A PAGE and pick one of 39 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick "✕" to go back to a blank canvas.</p>
+    <p data-i18n="p_coloring">Open CHOOSE A PAGE and pick one of 39 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick "✕" to hide the outline — your painting stays on the canvas as your own picture.</p>
 
     <h3 data-i18n="h_tools">TOOLS</h3>
     <ul>
@@ -702,7 +704,7 @@
         <span id="template-toggle-icon">✕</span> <span data-i18n="btn_choose_outline">CHOOSE A PAGE</span> <span class="template-toggle-caret" id="template-toggle-caret">▾</span>
       </button>
       <div class="template-gallery" id="template-gallery">
-        <button class="btn-template active" data-template="none" type="button" title="Blank canvas" aria-label="Blank canvas">✕</button>
+        <button class="btn-template active" data-template="none" type="button" title="No outline (your painting stays)" aria-label="No outline, keep my painting">✕</button>
       </div>
     </div>
 
@@ -716,6 +718,7 @@
         <button class="btn-brush-style" data-style="ink" type="button">🖋 INK</button>
         <button class="btn-brush-style" data-style="chalk" type="button">🌾 CHALK</button>
         <button class="btn-brush-style" data-style="neon" type="button">✨ NEON</button>
+        <button class="btn-brush-style" data-style="watercolor" type="button">💧 WATERCOLOR</button>
       </div>
 
       <div class="vol-row">
@@ -728,6 +731,7 @@
         <button class="btn-ctrl-sub" id="btn-eraser" title="Eraser" aria-label="Eraser">🧹</button>
         <button class="btn-ctrl-sub" id="btn-sparkle" title="Sparkle trail" aria-label="Sparkle trail">✨</button>
         <button class="btn-ctrl-sub" id="btn-sound" title="Ambient sound" aria-label="Ambient sound">🔊</button>
+        <button class="btn-ctrl-sub" id="btn-outline" title="Show / hide the coloring outline (your painting stays)" aria-label="Show or hide the coloring outline, painting stays" aria-pressed="false" disabled>🖼️</button>
       </div>
 
       <div class="vol-row vol-row-sound">
@@ -811,6 +815,7 @@
   let soundOn = true;
   let soundVolume = 0.4;
   let activeTemplate = 'none';
+  let lastOutline = 'none';        // the last coloring page that was shown (so the outline can be brought back)
   let fillMode = false;
   let templateLineCanvas = null;   // line art of the current coloring page (device px)
   let templateBarrier = null;      // cached fill-boundary map for that page
@@ -917,7 +922,7 @@
       if (typeof p.sparkle === 'boolean') sparkleOn = p.sparkle;
       if (typeof p.sound === 'boolean') soundOn = p.sound;
       if (typeof p.volume === 'number' && isFinite(p.volume)) soundVolume = Math.max(0, Math.min(1, p.volume));
-      if (['soft', 'neon', 'chalk', 'ink'].indexOf(p.brushStyle) !== -1) brushStyle = p.brushStyle;
+      if (['soft', 'neon', 'chalk', 'ink', 'watercolor'].indexOf(p.brushStyle) !== -1) brushStyle = p.brushStyle;
       if (typeof p.template === 'string') activeTemplate = p.template;
     } catch (e) {}
   }
@@ -2958,6 +2963,7 @@
   function drawTemplateOutline(key, skipSave) {
     if (key !== 'none' && !Object.prototype.hasOwnProperty.call(TEMPLATE_ART, key)) key = 'none';
     activeTemplate = key;
+    if (key !== 'none') lastOutline = key;
     templateLineCanvas = null;
     templateBarrier = null;
     tctx.save();
@@ -2990,6 +2996,13 @@
   const templateGallery = document.getElementById('template-gallery');
   const templateToggleBtn = document.getElementById('btn-template-toggle');
   const templateToggleIcon = document.getElementById('template-toggle-icon');
+  const btnOutline = document.getElementById('btn-outline');
+  function updateOutlineBtn() {
+    const shown = activeTemplate !== 'none';
+    btnOutline.disabled = !shown && lastOutline === 'none';
+    btnOutline.classList.toggle('active', shown);
+    btnOutline.setAttribute('aria-pressed', shown ? 'true' : 'false');
+  }
   TEMPLATE_META.forEach(([key, title]) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -3014,6 +3027,7 @@
     })();
   }
   function refreshTemplateButtons() {
+    updateOutlineBtn();
     templateGallery.querySelectorAll('.btn-template').forEach(x => x.classList.toggle('active', x.dataset.template === activeTemplate));
     templateToggleIcon.textContent = '';
     if (activeTemplate === 'none') { templateToggleIcon.textContent = '✕'; return; }
@@ -3038,7 +3052,7 @@
     dctx.restore();
   }
 
-  // Picking a page starts it fresh; the previous page + painting stay one UNDO away.
+  // Picking a page starts it fresh (previous page + painting stay one UNDO away); ✕ keeps the painting and just hides the outline.
   function selectTemplate(key) {
     if (isAnimating) { showToast('STOP THE ANIMATION FIRST'); return false; }
     if (isLive) stopLive();
@@ -3046,8 +3060,11 @@
     removeToolbar();
     const hadPaint = strokes.length > 0;
     if (key === activeTemplate && !hadPaint) { if (key !== 'none') setFillMode(true); return true; }
+    // ✕ only hides the outline: whatever you painted stays on the canvas as your picture.
+    if (key === 'none' && activeTemplate === 'none') { setFillMode(false); return true; }
+    const keepPaint = key === 'none';
     pushUndo({ parts: livingParts.slice() });
-    if (hadPaint) {
+    if (hadPaint && !keepPaint) {
       clearDrawLayer();
       strokes = [];
       livingParts = [];
@@ -3057,7 +3074,7 @@
     refreshTemplateButtons();
     if (key === 'none') {
       setFillMode(false);
-      showToast(hadPaint ? 'BLANK CANVAS · ↺ UNDO BRINGS IT BACK' : 'BLANK CANVAS');
+      showToast(hadPaint ? 'OUTLINE OFF · YOUR PAINTING STAYS' : 'BLANK CANVAS');
     } else {
       setFillMode(true);
       showToast(hadPaint ? 'NEW PAGE · ↺ UNDO BRINGS BACK THE OLD ONE' : '🪣 TAP TO FILL · DRAG TO PAINT');
@@ -3071,6 +3088,22 @@
     if (!b) return;
     if (selectTemplate(b.dataset.template) !== false) setGalleryOpen(false);
   });
+
+  // Quick toggle next to the sound controls: hide the outline (painting stays) / bring it back on top of the painting.
+  btnOutline.addEventListener('click', () => {
+    if (isAnimating) { showToast('STOP THE ANIMATION FIRST'); return; }
+    if (isLive) stopLive();
+    if (addPartMode) exitAddPartMode();
+    if (activeTemplate !== 'none') { selectTemplate('none'); return; }
+    if (lastOutline === 'none') return;
+    removeToolbar();
+    pushUndo({ parts: livingParts.slice() });
+    drawTemplateOutline(lastOutline);
+    refreshTemplateButtons();
+    updateAnimateBtns();
+    showToast('OUTLINE ON · YOUR PAINTING STAYS');
+  });
+  updateOutlineBtn();
 
   // --- FILL (PAINT BUCKET) ---
   const btnFill = document.getElementById('btn-fill');
@@ -3243,7 +3276,7 @@
 
   // Region bitmap from a stored fill: the mask is written once, then color /
   // gradient / grain are composited by the GPU. SOFT/NEON get a gentle glow from
-  // the tap point, CHALK a light grain, INK stays flat.
+  // the tap point, CHALK a light grain, WATERCOLOR a mottled wash, INK stays flat.
   function renderFillImage(spec) {
     const { runs, w: bw, h: bh, cx, cy, color, style, r } = spec;
     const out = document.createElement('canvas');
@@ -3257,7 +3290,7 @@
     }
     octx.putImageData(id, 0, 0);
     octx.globalCompositeOperation = 'source-in';
-    const glow = style === 'neon' ? 0.85 : (style === 'soft' ? 0.55 : 0);
+    const glow = style === 'neon' ? 0.85 : (style === 'soft' ? 0.55 : (style === 'watercolor' ? 0.35 : 0));
     if (color === 'rainbow') {
       // Rainbow fill: a diagonal rainbow across the area (shifted a little by where you tapped).
       const g = octx.createLinearGradient(0, 0, bw, bh);
@@ -3289,6 +3322,11 @@
       octx.globalCompositeOperation = 'source-atop';
       octx.fillStyle = octx.createPattern(chalkGrain(), 'repeat');
       octx.fillRect(0, 0, bw, bh);
+    } else if (style === 'watercolor') {
+      // mottled pigment: soft lighter and darker blotches, like a wash drying unevenly
+      octx.globalCompositeOperation = 'source-atop';
+      octx.fillStyle = octx.createPattern(watercolorBlotch(), 'repeat');
+      octx.fillRect(0, 0, bw, bh);
     }
     // Grow the region a little so it tucks under the lines (no hairline gaps):
     // stamp it a few times at tiny offsets.
@@ -3299,6 +3337,27 @@
     if (r > 1) offs.push([-(r - 1), -(r - 1)], [r - 1, -(r - 1)], [-(r - 1), r - 1], [r - 1, r - 1]);
     offs.forEach(([dx, dy]) => fc.drawImage(out, r + dx, r + dy));
     return fin;
+  }
+
+  let watercolorBlotchCanvas = null;
+  function watercolorBlotch() {
+    if (watercolorBlotchCanvas) return watercolorBlotchCanvas;
+    const S = 192, cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const c = cv.getContext('2d');
+    let seed = 20261020;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    for (let i = 0; i < 34; i++) {
+      const x = rnd() * S, y = rnd() * S, r = 16 + rnd() * 40, dark = rnd() < 0.4, a = 0.05 + rnd() * 0.08;
+      const rgb = dark ? '0,0,0' : '255,255,255';
+      for (let ox = -S; ox <= S; ox += S) for (let oy = -S; oy <= S; oy += S) {
+        const g = c.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        g.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+        c.fillStyle = g; c.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+      }
+    }
+    watercolorBlotchCanvas = cv;
+    return cv;
   }
 
   let chalkGrainCanvas = null;
@@ -3914,6 +3973,9 @@
     // CHALK: matný trojúhelník + jemný šum (zrnitost), rychlejší náběh, výraznější chorus
     chalk: { cutoff: 1500, q: 0.2,  detune: 9, attack: 0.25, level: 0.058, noise: 0.05,
              osc: [{ t: 'triangle', m: 1, g: 1, d: -1 }, { t: 'triangle', m: 1, g: 1, d: 1 }] },
+    // WATERCOLOR: tichý, "vodnatý" tón – jemný sinus s pomalým náběhem a lehkým šumem jako štětec na mokrém papíru
+    watercolor: { cutoff: 800, q: 0.1, detune: 7, attack: 0.7, level: 0.055, noise: 0.012,
+             osc: [{ t: 'sine', m: 1, g: 1, d: -1 }, { t: 'sine', m: 1, g: 1, d: 1 }, { t: 'triangle', m: 0.5, g: 0.3, d: 0 }] },
     // NEON: jasný, zářivý tón s vyššími harmonickými (oktáva a kvinta nad), rychlý náběh
     neon:  { cutoff: 3200, q: 0.7,  detune: 3, attack: 0.12, level: 0.05, noise: 0,
              osc: [{ t: 'triangle', m: 1, g: 1, d: -1 }, { t: 'triangle', m: 1, g: 1, d: 1 }, { t: 'sine', m: 2, g: 0.45, d: 0 }, { t: 'sine', m: 3, g: 0.2, d: 0 }] }
@@ -4068,7 +4130,7 @@
     oscs.forEach(o => o.osc.start(now));
     lfo.start(now);
     if (noiseSrc) noiseSrc.start(now);
-    activeVoice = { oscs, lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain };
+    activeVoice = { oscs, lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain, t0: now, level: timbre.level, attack: timbre.attack };
   }
 
   function updateVoice(x, y, rect) {
@@ -4083,13 +4145,16 @@
 
   function stopVoice(release) {
     if (!activeVoice || !audioCtx) return;
-    const { oscs, lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain } = activeVoice;
+    const { oscs, lfo, lfoGain, gain, filter, panner, dryGain, wetGain, noiseSrc, noiseFilter, noiseGain, t0, level, attack } = activeVoice;
     const now = audioCtx.currentTime;
     const rel = typeof release === 'number' ? release : 1.2;
+    // Where the attack ramp is right now, computed by hand. Reading gain.gain.value after cancelScheduledValues()
+    // is unreliable mid-ramp (short strokes): in some browsers it jumps to the wrong level and the release clicks.
+    const cur = level * Math.max(0, Math.min(1, attack > 0 ? (now - t0) / attack : 1));
     gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(0, now + rel);
-    const endT = now + rel + 0.05;
+    gain.gain.setValueAtTime(cur, now);
+    gain.gain.linearRampToValueAtTime(0, now + Math.max(rel, 0.06));
+    const endT = now + Math.max(rel, 0.06) + 0.05;
     try { oscs.forEach(o => o.osc.stop(endT)); lfo.stop(endT); if (noiseSrc) noiseSrc.stop(endT); } catch (e) {}
     // Uzly se po doznění musí explicitně odpojit — jinak na slabších telefonech
     // postupně přibývají "tiché" uzly v audio grafu, které i tak zatěžují CPU
@@ -4380,6 +4445,63 @@
       dctx.lineWidth = Math.max(1, w * (0.55 + 0.9 * (sf > 1 ? 1 : sf)));
       dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
       dctx.restore();
+
+    } else if (style === 'watercolor') {
+      // Real watercolor: a thin translucent wash (flat butt-ended pieces, so it does not stack up in the middle),
+      // pigment pooling along both edges, a few paper-granulation specks and the odd soft wet bloom.
+      const TWO_PI = Math.PI * 2;
+      const dx = x1 - x0, dy = y1 - y0, dist = Math.hypot(dx, dy);
+      const ux = dist > 0.001 ? dx / dist : 1, uy = dist > 0.001 ? dy / dist : 0;
+      const nx = -uy, ny = ux;
+      const half = w * 0.8;
+      dctx.save();
+      dctx.lineJoin = 'round';
+      dctx.globalCompositeOperation = 'source-over';
+      dctx.strokeStyle = color; dctx.fillStyle = color;
+      if (dist < 1.5) {
+        // a tap: a soft little puddle (stacked faint discs, no hard rim)
+        [1, 0.85, 0.7, 0.55, 0.4].forEach(k => { dctx.globalAlpha = 0.045; dctx.beginPath(); dctx.arc(x0, y0, half * k, 0, TWO_PI); dctx.fill(); });
+      } else {
+        // 1) the wet body: one smooth translucent glaze (opacity scaled by segment length, so slow and fast
+        //    strokes get the same density), plus a fainter wide halo where the water bleeds out
+        dctx.lineCap = 'round';
+        const dens = Math.max(0.012, Math.min(0.2, 0.24 * dist / (w * 1.6)));
+        dctx.globalAlpha = dens; dctx.lineWidth = w * 1.6;
+        dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+        dctx.save();
+        dctx.shadowColor = color; dctx.shadowBlur = w * 1.2;
+        dctx.globalAlpha = dens * 0.35; dctx.lineWidth = w * 2.1;
+        dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+        dctx.restore();
+        // 2) pigment pooling along the edges
+        const edgeN = Math.max(1, Math.round(dist / 1.6));
+        for (let i = 0; i < edgeN; i++) {
+          const t = Math.random(), px = x0 + dx * t, py = y0 + dy * t;
+          for (let sd = -1; sd <= 1; sd += 2) {
+            const off = (half + (Math.random() - 0.5) * w * 0.2) * sd;
+            dctx.globalAlpha = 0.06 + Math.random() * 0.08;
+            dctx.beginPath(); dctx.arc(px + nx * off, py + ny * off, Math.max(0.5, Math.min(1.8, w * (0.035 + Math.random() * 0.035))), 0, TWO_PI); dctx.fill();
+          }
+        }
+        // 3) paper granulation: darker pigment grains and a few light paper-white specks
+        const grN = Math.max(1, Math.round(dist / 3));
+        for (let i = 0; i < grN; i++) {
+          const t = Math.random(), across = (Math.random() - 0.5) * 1.8 * half;
+          const px = x0 + dx * t + nx * across, py = y0 + dy * t + ny * across;
+          const light = Math.random() < 0.3;
+          dctx.fillStyle = light ? '#ffffff' : color;
+          dctx.globalAlpha = light ? 0.05 + Math.random() * 0.07 : 0.07 + Math.random() * 0.12;
+          dctx.beginPath(); dctx.arc(px, py, Math.max(0.4, w * 0.05 * (0.4 + Math.random())), 0, TWO_PI); dctx.fill();
+        }
+        // 4) now and then a soft wet bloom that bleeds a little beyond the stroke (stacked faint discs = soft edge)
+        if (Math.random() < Math.min(0.08, dist / 200)) {
+          const t = Math.random(), across = (Math.random() - 0.5) * w * 0.8;
+          const bx = x0 + dx * t + nx * across, by = y0 + dy * t + ny * across, br = w * (0.55 + Math.random() * 0.45);
+          dctx.fillStyle = color;
+          [1, 0.86, 0.72, 0.58, 0.44, 0.3].forEach(k => { dctx.globalAlpha = 0.007; dctx.beginPath(); dctx.arc(bx, by, br * k, 0, TWO_PI); dctx.fill(); });
+        }
+      }
+      dctx.restore();
     }
   }
 
@@ -4611,12 +4733,13 @@
     h_brush: { en: "BRUSH", cz: "ŠTĚTEC" },
     p_brush: { en: "Pick a color from the palette and set the size with the slider. The \"+\" swatch opens a full custom color picker, and the shimmering rainbow swatch paints in flowing rainbow colors. The glowing light swatch next to it paints with living light that changes its color all by itself. Your last choice is remembered next time you visit.", cz: "Vyberte barvu z palety a velikost nastavte posuvníkem. Vzorek „+“ otevře plný výběr vlastní barvy a třpytivý duhový vzorek maluje plynule se měnícími duhovými barvami. Zářící světelný vzorek vedle něj maluje živým světlem, které samo mění barvu. Vaše poslední volba se zapamatuje na příště." },
     h_brushfeel: { en: "BRUSH FEEL", cz: "STYL ŠTĚTCE" },
-    li_feel_1: { en: "🌤 SOFT — a gentle, diffused watercolor wash, lovely for slow relaxed painting", cz: "🌤 SOFT — jemný, rozostřený akvarelový nádech, skvělý pro pomalé uvolněné malování" },
+    li_feel_1: { en: "🌤 SOFT — a gentle, diffused haze, lovely for slow relaxed painting", cz: "🌤 SOFT — jemný, rozostřený závoj, skvělý pro pomalé uvolněné malování" },
     li_feel_2: { en: "🖋 INK — a tapered brush-pen stroke that deepens where lines overlap", cz: "🖋 INK — zúžený tah brush-pen štětce, který tmavne tam, kde se čáry překrývají" },
     li_feel_3: { en: "🌾 CHALK — a dry, grainy pastel texture", cz: "🌾 CHALK — suchá, zrnitá pastelová textura" },
     li_feel_4: { en: "✨ NEON — the original bright glowing light trail", cz: "✨ NEON — původní jasná zářící světelná stopa" },
+    li_feel_5: { en: "💧 WATERCOLOR — translucent washes that build up, with pigment pooling at the edges and a grainy paper feel", cz: "💧 WATERCOLOR — průsvitné vodové vrstvy, které se sytí, s nahromaděným pigmentem na okrajích a zrnitým papírem" },
     h_coloring: { en: "COLORING PAGE", cz: "OMALOVÁNKA" },
-    p_coloring: { en: "Open CHOOSE A PAGE and pick one of 39 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick \"✕\" to go back to a blank canvas.", cz: "Otevřete VYBRAT OMALOVÁNKU a vyberte si jednu z 39 detailních omalovánek — mandaly, zvířátka, přírodu a další. Automaticky se zapne 🪣 FILL: klepnutím na libovolnou plochu ji vyplníte barvou, tažením můžete volně malovat jakýmkoli štětcem. Barva vždy zůstane pod obrysem a CLEAR smaže jen vaši malbu, ne omalovánku. Výběrem nové omalovánky začnete načisto (↺ UNDO vám předchozí malbu vrátí). Volbou „✕“ se vrátíte k prázdnému plátnu." },
+    p_coloring: { en: "Open CHOOSE A PAGE and pick one of 39 detailed coloring pages — mandalas, animals, nature scenes and more. 🪣 FILL switches on automatically: tap any area to fill it with your color, or drag to paint freely with any brush. Your color always stays under the outline, and CLEAR only wipes your painting, not the page. Picking a new page starts fresh (↺ UNDO brings your painting back). Pick \"✕\" to hide the outline — your painting stays on the canvas as your own picture.", cz: "Otevřete VYBRAT OMALOVÁNKU a vyberte si jednu z 39 detailních omalovánek — mandaly, zvířátka, přírodu a další. Automaticky se zapne 🪣 FILL: klepnutím na libovolnou plochu ji vyplníte barvou, tažením můžete volně malovat jakýmkoli štětcem. Barva vždy zůstane pod obrysem a CLEAR smaže jen vaši malbu, ne omalovánku. Výběrem nové omalovánky začnete načisto (↺ UNDO vám předchozí malbu vrátí). Volbou „✕“ omalovánku skryjete a vaše malba na plátně zůstane jako samostatný obrázek." },
     lbl_volume: { en: "VOLUME", cz: "HLASITOST" },
     p_coloring_hint: { en: "Pick a page, then tap areas with 🪣 FILL or paint with any brush — your colors always stay under the lines.", cz: "Vyberte omalovánku a pak klepejte na plochy s 🪣 FILL, nebo malujte libovolným štětcem — barvy vždy zůstanou pod čarami." },
     li_tools_10: { en: "🪣 FILL — tap an area to fill it with the current color (dragging still paints with the brush). On a coloring page the outline keeps the color inside its lines; on a blank canvas it fills the shape you drew around the tap", cz: "🪣 FILL — klepnutím vyplníte plochu aktuální barvou (tažením se dál maluje štětcem). U omalovánky drží barvu uvnitř čar obrys; na prázdném plátně se vyplní tvar, který jste kolem místa klepnutí nakreslili" },
