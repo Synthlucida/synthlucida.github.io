@@ -3369,7 +3369,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_ambient">Ambient effects</h4>
-      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.</p>
+      <p data-i18n="p_ambient">WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. WEATHER and SUNSET don't mix freely: SUN (your photos) runs alone, so switching it on turns SUNSET/NIGHT off and the other way round; RAIN, WINTER and WINTER II can be combined only with NIGHT, never with SUNSET or SUNSET II. While RAIN or WINTER is on, the SUNSET button therefore skips straight to NIGHT, and while NIGHT is on, the WEATHER button skips SUN. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.</p>
     </div>
 
     <div class="main-guide-section">
@@ -5752,16 +5752,12 @@
       canvasLoopActive = true;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if(!breathingActive && isChristmasActive()) {
-          drawChristmasOverlay();
-      }
-
-      if(!breathingActive && isAllSoulsActive()) {
-          drawAllSoulsOverlay();
-      }
-
-      if(!breathingActive && isWitchesActive()) {
-          drawWitchesOverlay();
+      // Sezonni atmosfery (vanoce, dusicky, carodejnice) se kresli JEN kdyz je WEATHER i SUNSET/NIGHT vypnuty.
+      // Pri SUN / RAIN / WINTER / WINTER II i SUNSET / SUNSET II / NIGHT je na platne cisty efekt bez michani.
+      if(!breathingActive && weatherMode === 0 && sunsetMode === 0) {
+          if(isChristmasActive()) drawChristmasOverlay();
+          if(isAllSoulsActive()) drawAllSoulsOverlay();
+          if(isWitchesActive()) drawWitchesOverlay();
       }
 
       if(weatherMode === 1) {
@@ -5776,8 +5772,8 @@
           drawWinterAmbient2();
       }
 
-      if(breathingActive) {
-          // SUNSET/NIGHT se v dechovem cviceni nekresli
+      if(breathingActive || weatherMode === 1 || (weatherMode >= 2 && sunsetMode !== 3)) {
+          // SUNSET/NIGHT se v dechovem cviceni nekresli; pri WEATHER: SUN nikdy, pri RAIN/WINTER jen NIGHT
       } else if(sunsetMode === 1) {
           let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
           grad.addColorStop(0, 'rgba(255, 40, 100, 0.22)');
@@ -6275,6 +6271,12 @@
   };
 
   function applyWeatherUI() {
+      // WEATHER: SUN (fotky uzivatele) se nemicha s nicim ze SUNSET / SUNSET II / NIGHT - SUN je vypne.
+      // RAIN / WINTER / WINTER II jdou jen s NIGHT - SUNSET a SUNSET II se pri nich vypnou.
+      if (sunsetMode !== 0 && (weatherMode === 1 || (weatherMode >= 2 && sunsetMode !== 3))) {
+          sunsetMode = 0;
+          applySunsetUI();
+      }
       if (weatherMode === 1) loadSunPhotos();
       applyBirdsUI();
       let btn = document.getElementById('btn-weather');
@@ -6316,6 +6318,8 @@
   // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> WINTER II -> OFF (stejný princip jako u SUNSET)
   window.toggleWeather = function() {
       weatherMode = (weatherMode + 1) % 5;
+      // Pri aktivnim NIGHT se SUN preskakuje (SUN nejde s zadnym SUNSET/NIGHT), cyklus je OFF -> RAIN -> WINTER -> WINTER II
+      if (weatherMode === 1 && sunsetMode === 3) weatherMode = 2;
       applyWeatherUI();
   };
 
@@ -6349,6 +6353,13 @@
   // Tlačítko SUNSET nyní prochází cyklem OFF -> SUNSET -> SUNSET II -> NIGHT -> OFF
   window.toggleSunset = function() {
       sunsetMode = (sunsetMode + 1) % 4;
+      // Pri RAIN / WINTER / WINTER II se SUNSET a SUNSET II preskakuji (s pocasim jde jen NIGHT), cyklus je OFF -> NIGHT -> OFF
+      if (weatherMode >= 2 && (sunsetMode === 1 || sunsetMode === 2)) sunsetMode = 3;
+      // Zapnuti SUNSET / NIGHT vypne WEATHER: SUN (fotky)
+      if (sunsetMode !== 0 && weatherMode === 1) {
+          weatherMode = 0;
+          applyWeatherUI();
+      }
       applySunsetUI();
   };
 
@@ -8309,7 +8320,7 @@
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
-    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
+    p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. WEATHER and SUNSET don't mix freely: SUN (your photos) runs alone, so switching it on turns SUNSET/NIGHT off and the other way round; RAIN, WINTER and WINTER II can be combined only with NIGHT, never with SUNSET or SUNSET II. While RAIN or WINTER is on, the SUNSET button therefore skips straight to NIGHT, and while NIGHT is on, the WEATHER button skips SUN. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. WEATHER a SUNSET se ale nemíchají libovolně: SUN (vaše fotky) běží vždy samostatně, takže jeho zapnutím se SUNSET/NIGHT vypne a naopak; RAIN, WINTER a WINTER II lze kombinovat jen s NIGHT, nikdy se SUNSET ani SUNSET II. Při zapnutém RAIN nebo WINTER proto tlačítko SUNSET přeskočí rovnou na NIGHT a při zapnutém NIGHT tlačítko WEATHER přeskočí SUN. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
     h_together: { en: "Breathe together", cz: "Společné dýchání" },
     p_together: { en: "In BREATHE, the TOGETHER button opens a shared room where everyone who is there breathes 4-7-8 in the same second. You see how many people are breathing with you, can send a heart (SEND CALM) and invite a friend. Every evening at 21:00 (Prague time) there is a shared 10-minute session — you can download a calendar reminder.", cz: "V sekci BREATHE otevře tlačítko SPOLEČNĚ sdílenou místnost, kde všichni přítomní dýchají 4-7-8 ve stejnou vteřinu. Vidíte, kolik lidí dýchá s vámi, můžete poslat srdíčko (POSLAT KLID) a pozvat přítele. Každý večer ve 21:00 (pražského času) probíhá společné desetiminutové sezení — můžete si stáhnout připomínku do kalendáře." },
     h_breath: { en: "Breathing exercise", cz: "Dechové cvičení" },
@@ -12476,7 +12487,7 @@
         weatherMode = savedWeatherMode;
         applyWeatherUI();
     }
-    if (savedSunsetMode > 0) {
+    if (savedSunsetMode > 0 && !(weatherMode === 1 || (weatherMode >= 2 && savedSunsetMode !== 3))) {
         sunsetMode = savedSunsetMode;
         applySunsetUI();
     }
