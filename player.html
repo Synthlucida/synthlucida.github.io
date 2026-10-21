@@ -4384,6 +4384,7 @@
       logoGlowEnabled = !logoGlowEnabled;
       try { localStorage.setItem(LOGO_GLOW_KEY, logoGlowEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
       applyLogoGlowUI();
+      try { applySparkleUI(); } catch (e) { /* ještě neinicializováno */ } // popisek tlačítka ✨ závisí na tom, jestli je logo vidět
   };
 
   try {
@@ -4416,13 +4417,17 @@
           btn.classList.toggle('active', sparkleState === 0);
           // Popisek vždy říká, co udělá NÁSLEDUJÍCÍ klik (ne aktuální stav)
           const nextActionTitles = ['Turn off logo glow', 'Turn on window glow', 'Turn off everything', 'Turn on logo glow'];
-          btn.title = nextActionTitles[sparkleState];
+          // Při skrytém logu se stav 0 (záře loga) přeskakuje, takže po "vypnout vše" následuje záře nápisu
+          btn.title = (!logoGlowEnabled && (sparkleState === 3 || sparkleState === 0)) ? 'Turn on text glow' : nextActionTitles[sparkleState];
           btn.setAttribute('aria-label', btn.title);
       }
   }
 
   window.toggleTextGlow = function() {
       sparkleState = (sparkleState + 1) % 4;
+      // Logo je schované (tlačítko 💡): stav 0 = "svítí logo" by nic neukázal a vypadal by stejně jako stav 3 (nesvítí nic),
+      // takže se přeskočí rovnou na záři nápisu.
+      if (!logoGlowEnabled && sparkleState === 0) sparkleState = 1;
       try { localStorage.setItem(SPARKLE_STATE_KEY, String(sparkleState)); } catch (e) { /* ignore */ }
       applySparkleUI();
   };
