@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.0">
+<meta name="app-version" content="2.2.1">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -910,6 +910,34 @@
      takže nic neposkakuje (texty jsou jen jednořádkové a v buňce se vejdou i v češtině). */
   #queue-panel .queue-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: 360px; margin-left: auto; margin-right: auto; }
   #queue-panel .queue-actions .btn-feature { width: 100%; min-width: 0; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; padding-right: 4px; }
+
+  /* ---- MY PLAYLIST: sekce podle nálady ---- */
+  .mood-bar { max-width: 360px; margin: 0 auto 12px; }
+  .mood-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .mood-chip { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 10px; min-height: 28px; box-sizing: border-box; border-radius: 14px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.05); color: #fff; opacity: 0.75; cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: 0.2s; -webkit-tap-highlight-color: transparent; }
+  .mood-chip:hover { opacity: 1; border-color: var(--accent-color); }
+  .mood-chip[aria-pressed="true"] { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
+  .mood-chip.mood-add { border-style: dashed; }
+  .mood-edit { display: flex; gap: 6px; margin-top: 10px; align-items: stretch; }
+  .mood-edit input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: #fff; padding: 6px 8px; font-size: 16px; font-family: inherit; }
+  .mood-edit input:focus { outline: none; border-color: var(--accent-color); }
+  .mood-edit .btn-feature { flex: 0 0 auto; padding: 4px 12px; min-height: 32px; }
+  .mood-tools { display: flex; gap: 6px; margin-top: 8px; justify-content: center; flex-wrap: wrap; }
+  .mood-tools .btn-feature { padding: 6px 10px; }
+  .mood-bar .main-guide-note { margin: 8px 0 0; text-align: center; }
+  #queue-list .history-meta.mood-tag { color: var(--accent-color); opacity: 0.9; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #queue-list .icon-btn.mood-set { border-color: var(--accent-color); color: var(--accent-color); opacity: 1; }
+  .mood-picker { position: fixed; z-index: 100000; min-width: 170px; max-width: min(260px, calc(100vw - 16px)); max-height: 60vh; overflow: auto; box-sizing: border-box; background: rgba(12,14,26,0.97); border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,0.55); }
+  .mood-picker button { display: block; width: 100%; text-align: left; background: none; border: 0; color: #fff; font-size: 12px; padding: 10px; border-radius: 6px; cursor: pointer; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mood-picker button:hover, .mood-picker button:focus-visible { background: rgba(255,255,255,0.1); color: var(--accent-color); outline: none; }
+  .mood-picker .mood-picker-sep { height: 1px; background: rgba(255,255,255,0.14); margin: 4px 0; }
+  /* úzké displeje: kvůli tlačítku 📁 jsou řádky MY PLAYLIST hustší, ať zbyde místo na název skladby */
+  @media (max-width: 420px) {
+    #queue-list li { gap: 4px; }
+    #queue-list .icon-btn { width: 21px; height: 21px; font-size: 10px; }
+    #queue-list .history-meta { font-size: 7px; letter-spacing: 0.5px; }
+    #queue-list .history-meta.mood-tag { max-width: 58px; }
+  }
 
   /* Připomínky (lokální notifikace) */
   .interval-group {
@@ -3257,6 +3285,19 @@
       <button class="btn-feature" data-i18n="queue_btn_import" onclick="triggerImportCustomQueue()">📂 IMPORT PLAYLIST</button>
       <button class="btn-feature" data-i18n="queue_btn_clear" onclick="clearCustomQueue()">CLEAR</button>
     </div>
+    <div class="mood-bar" id="mood-bar" style="display:none;">
+      <div class="mood-chips" id="mood-chips" role="group" aria-label="Sections"></div>
+      <div class="mood-edit" id="mood-edit" style="display:none;">
+        <input type="text" id="mood-input" maxlength="24" autocomplete="off" autocapitalize="sentences" spellcheck="false">
+        <button type="button" class="btn-feature" id="mood-ok">OK</button>
+        <button type="button" class="btn-feature" id="mood-cancel" aria-label="Cancel">✕</button>
+      </div>
+      <div class="mood-tools" id="mood-tools" style="display:none;">
+        <button type="button" class="btn-feature" id="mood-rename-btn"></button>
+        <button type="button" class="btn-feature" id="mood-delete-btn"></button>
+      </div>
+      <p class="main-guide-note" id="mood-hint" style="display:none;"></p>
+    </div>
     <ul class="history-list" id="queue-list"></ul>
     <input type="file" id="queue-import-input" accept=".json,application/json" style="display:none;" onchange="importCustomQueueFile(event)">
   </div>
@@ -3404,7 +3445,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_myplaylist">My Playlist</h4>
-      <p data-i18n="p_myplaylist">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ (or drag them with the mouse) or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.</p>
+      <p data-i18n="p_myplaylist">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ (or drag them with the mouse) or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before. Want to sort tracks by mood? In the My Playlist panel tap ＋ SECTION, type a name such as Sleeping, Studying or Meditation, then tap the 📁 button on a track to move it into a section (up to 12 sections). Choose a section above the list and PLAY will play only that section; the other tracks stay in your playlist.</p>
     </div>
 
     <div class="main-guide-section">
@@ -4236,6 +4277,9 @@
   // (browsing) tohle mění, ale nezastavuje tím to, co doopravdy hraje na pozadí.
   let mainListShowsQueue = false;
   let customQueueIndex = -1;
+  let queueMoods = [];          // MY PLAYLIST: pořadí názvů sekcí podle nálady (např. Sleeping, Studying)
+  let queueMoodView = null;     // sekce zobrazená v panelu MY PLAYLIST (null = VŠE)
+  let customQueueMoodPlay = null; // přehrává se jen tato sekce (null = celý playlist)
   const titleDiv = document.getElementById('track-title');
   const nowPlayingNewFlag = document.getElementById('now-playing-new-flag');
 
@@ -7601,7 +7645,7 @@
     const inQueue = mainListShowsQueue;
     const dimOthers = !viewingAsmr() && layerPickMode && layerAvailable();
     for (let i = 0; i < rows.length; i++) {
-      const t = inQueue ? customQueue[i] : playlist[i];
+      const t = inQueue ? customQueue[rows[i].dataset.qpos !== undefined ? +rows[i].dataset.qpos : i] : playlist[i];
       rows[i].classList.toggle('layer-track', !!(show && t && t.src === layerSrc && layerEntryOk(t)));
       // při výběru druhé stopy v My Playlist / vlastním playlistu F jsou ztlumené řádky, které nejsou z ASMR (nejdou vrstvit)
       rows[i].classList.toggle('layer-dim', !!(dimOthers && !layerEntryOk(t)));
@@ -7869,8 +7913,11 @@
     // zobrazí JEJÍ obsah - jinak normálně naposledy vybraný ASMR/PIANO/CHILL playlist.
     if (mainListShowsQueue) {
       if (!customQueue.length) { updateOfflineStatus(); updateLayerUI(); return; }
+      const sectionOnly = activeMoodFilter(); // hraje se jen sekce nálady z My Playlist -> v seznamu jsou jen její skladby
       customQueue.forEach((entry, pos) => {
+        if (sectionOnly && !(entry && entry.mood === sectionOnly)) return;
         const li = document.createElement('li');
+        li.dataset.qpos = String(pos);
         if (pos === customQueueIndex) li.classList.add('active');
 
         const nameSpan = document.createElement('span');
@@ -8353,7 +8400,7 @@
     h_history: { en: "History", cz: "Historie" },
     p_history: { en: "🕘 HISTORY shows the tracks you've recently played, with the playlist and time. Tap a track name to play it again, use 📄 EXPORT TXT to save the list as a text file to your device, or CLEAR HISTORY to reset it.", cz: "🕘 HISTORY zobrazuje naposledy přehrané skladby spolu s playlistem a časem. Klepnutím na název skladby ji spustíte znovu, tlačítkem 📄 EXPORT TXT uložíte seznam jako textový soubor do zařízení a tlačítkem CLEAR HISTORY historii vymažete." },
     h_myplaylist: { en: "My Playlist", cz: "Můj playlist" },
-    p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ (or drag them with the mouse) or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ (nebo je přetáhnete myší) či je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist." },
+    p_myplaylist: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it to 🎵 MY PLAYLIST — tap the heart again to remove it, and your picks stay marked between visits. Reorder tracks with ▲▼ (or drag them with the mouse) or remove them with ✕, then hit PLAY to listen through your own list in exactly that order — it works alongside Shuffle and Repeat just like a normal playlist. Use 📄 EXPORT TXT to save a readable list, 💾 EXPORT PLAYLIST to save a file you can load back in later, and 📂 IMPORT PLAYLIST to load a playlist you saved before. Want to sort tracks by mood? In the My Playlist panel tap ＋ SECTION, type a name such as Sleeping, Studying or Meditation, then tap the 📁 button on a track to move it into a section (up to 12 sections). Choose a section above the list and PLAY will play only that section; the other tracks stay in your playlist.", cz: "Klepnutím na ♥ u libovolné skladby v playlistu, nebo na + u skladby v HISTORY, ji přidáte do 🎵 MY PLAYLIST — dalším klepnutím na srdíčko ji zase odeberete a váš výběr zůstane označený i při dalším spuštění. Pořadí skladeb změníte pomocí ▲▼ (nebo je přetáhnete myší) či je odeberete tlačítkem ✕, poté tlačítkem PLAY spustíte přehrávání přesně v tomto pořadí — funguje to i společně se Shuffle a Repeat stejně jako u běžného playlistu. Tlačítkem 📄 EXPORT TXT uložíte čitelný seznam, tlačítkem 💾 EXPORT PLAYLIST uložíte soubor, který můžete později znovu načíst, a tlačítkem 📂 IMPORT PLAYLIST načtete dříve uložený playlist. Chcete skladby třídit podle nálady? V panelu My Playlist klepněte na ＋ SEKCE, napište název, například Spánek, Učení nebo Meditace, a tlačítkem 📁 u skladby ji přesuňte do sekce (nejvýše 12 sekcí). Vyberete-li nad seznamem sekci, PŘEHRÁT bude hrát jen ji; ostatní skladby zůstávají ve vašem playlistu." },
     h_gamification: { en: "XP, levels & unlocking downloads", cz: "XP, úrovně a odemykání stažení" },
     p_gamification: { en: "Just using SYNTHLUCIDA earns you XP: about 2 XP per minute of listening, 4 XP for every track you listen to for at least 20 seconds (quickly skipping through tracks won't earn XP), 20 XP for every BREATHE session you keep going for at least a minute, and a 30 XP bonus for every new day you open the app — so a daily visit and a steady streak pay off. Every 180 XP takes you up a level. Once a track is hearted (♥) into 🎵 MY PLAYLIST, your growing XP gradually unlocks it for a real ⬇ MP3 download to your device — one track at a time, in the order you added them, costing 270 XP per unlock. Tracks you add from your own uploaded files in My Files don't take part in this — they're already on your device, so they stay unlocked and don't take up an unlock slot. Open the S button to see your level, XP progress and which tracks are unlocked.", cz: "Pouhým používáním SYNTHLUCIDA získáváte XP: přibližně 2 XP za minutu poslechu, 4 XP za každou skladbu, kterou posloucháte alespoň 20 sekund (rychlé proklikávání skladeb žádné XP nepřinese), 20 XP za každé dechové cvičení BREATHE, které vydržíte alespoň minutu, a bonus 30 XP za každý nový den, kdy appku otevřete — takže se vyplatí appku navštěvovat denně a udržovat si sérii. Každých 180 XP vás posune o úroveň výš. Jakmile skladbu označíte srdíčkem (♥) do 🎵 MY PLAYLIST, vaše rostoucí XP ji postupně odemkne ke skutečnému stažení ⬇ MP3 souboru do zařízení — vždy jednu skladbu po druhé, v pořadí, v jakém jste je přidali, za cenu 270 XP na odemčení. Skladby, které přidáte z vlastních nahraných souborů v Mých souborech, se do tohoto systému nepočítají — už je totiž máte v zařízení, takže zůstávají vždy odemčené a nezabírají místo ve frontě na odemčení. V panelu S (tlačítko S) uvidíte svou úroveň, postup XP i to, které skladby jsou už odemčené.", },
     h_myfiles: { en: "My Files", cz: "Vlastní soubory" },
@@ -9443,7 +9490,7 @@
     const rowIndex = loc.kind === 'queue' ? loc.pos : loc.index;
     let tries = 0;
     const scrollToRow = () => {
-      const row = playlistEl.children[rowIndex];
+      const row = loc.kind === 'queue' ? playlistEl.querySelector('[data-qpos="' + rowIndex + '"]') : playlistEl.children[rowIndex];
       if (!row) { if (++tries < 5) setTimeout(scrollToRow, 80); return; }
       const listRect = playlistEl.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
@@ -10148,13 +10195,7 @@
     restoreFilesContinuation();
     if (customQueueActive) {
       if (!customQueue.length) { customQueueActive = false; return; }
-      let nextPos;
-      if (shuffleEnabled) {
-        nextPos = randomIndexExcept(customQueue.length, customQueueIndex);
-      } else {
-        nextPos = customQueueIndex + 1;
-        if (nextPos >= customQueue.length) nextPos = 0;
-      }
+      const nextPos = shuffleEnabled ? queueRandomPos() : queueNeighborPos(1);
       playCustomQueueAt(nextPos);
       return;
     }
@@ -10173,13 +10214,7 @@
     restoreFilesContinuation();
     if (customQueueActive) {
       if (!customQueue.length) { customQueueActive = false; return; }
-      let prevPos;
-      if (shuffleEnabled) {
-        prevPos = randomIndexExcept(customQueue.length, customQueueIndex);
-      } else {
-        prevPos = customQueueIndex - 1;
-        if (prevPos < 0) prevPos = customQueue.length - 1;
-      }
+      const prevPos = shuffleEnabled ? queueRandomPos() : queueNeighborPos(-1);
       playCustomQueueAt(prevPos);
       return;
     }
@@ -10211,8 +10246,8 @@
       if (!customQueue.length) return null;
       let pos;
       if (repeatEnabled) pos = customQueueIndex;
-      else if (shuffleEnabled) pos = randomIndexExcept(customQueue.length, customQueueIndex);
-      else { pos = customQueueIndex + 1; if (pos >= customQueue.length) pos = 0; }
+      else if (shuffleEnabled) pos = queueRandomPos();
+      else pos = queueNeighborPos(1);
       const entry = customQueue[pos];
       if (!entry) return null;
       return { kind: 'queue', pos, title: entry.title, src: entry.src, playlist: entry.playlist, index: entry.index };
@@ -10796,6 +10831,7 @@
           : [];
       }
     } catch (e) { customQueue = []; }
+    try { loadQueueMoods(); } catch (e) { queueMoods = []; }
   }
 
   function updateQueueCountBadge() {
@@ -11019,7 +11055,7 @@
       `Exported: ${formatExportTimestamp(now)}`,
       ''
     ];
-    customQueue.forEach((entry, i) => lines.push(`${i + 1}. ${entry.title} (${friendlyPlaylistLabel(entry.playlist)})`));
+    customQueue.forEach((entry, i) => lines.push(`${i + 1}. ${entry.title} (${friendlyPlaylistLabel(entry.playlist)}${entry.mood ? ' · ' + entry.mood : ''})`));
     downloadTextFile(`synthlucida_my_playlist_${dateStampForFilename(now)}.txt`, lines.join('\n'));
   };
 
@@ -11031,7 +11067,12 @@
       app: 'SYNTHLUCIDA',
       type: 'my-playlist',
       exported: now.toISOString(),
-      tracks: customQueue.map(e => ({ title: e.title, src: e.src, playlist: e.playlist, index: e.index }))
+      moods: queueMoods.slice(),
+      tracks: customQueue.map(e => {
+        const o = { title: e.title, src: e.src, playlist: e.playlist, index: e.index };
+        if (e.mood) o.mood = e.mood;
+        return o;
+      })
     };
     downloadTextFile(`synthlucida_my_playlist_${dateStampForFilename(now)}.json`, JSON.stringify(payload, null, 2), 'application/json');
   };
@@ -11067,8 +11108,22 @@
         const appendInstead = customQueue.length
           ? !confirm('Replace your current My Playlist with the imported one?\n\nPress OK to replace, or Cancel to add the imported tracks to the end instead.')
           : false;
-        const cleanTracks = valid.map(t => ({ title: t.title, src: t.src, playlist: t.playlist, index: t.index }));
+        const cleanTracks = valid.map(t => {
+          const o = { title: t.title, src: t.src, playlist: t.playlist, index: t.index };
+          const mood = cleanMoodName(t.mood);
+          if (mood) o.mood = mood;
+          return o;
+        });
+        const importedMoods = (!Array.isArray(data) && Array.isArray(data.moods)) ? data.moods : [];
+        queueMoods = normalizeMoodList((appendInstead ? queueMoods : []).concat(importedMoods));
         customQueue = appendInstead ? customQueue.concat(cleanTracks) : cleanTracks;
+        const wantedMoods = new Set(cleanTracks.filter(o => o.mood).map(o => o.mood.toLowerCase()));
+        reconcileQueueMoods();
+        const keptMoods = new Set(queueMoods.map(m => m.toLowerCase()));
+        const lostMoods = [...wantedMoods].filter(m => !keptMoods.has(m)).length;
+        saveQueueMoods();
+        queueMoodView = null;
+        customQueueMoodPlay = null;
         customQueueActive = false;
         customQueueIndex = -1;
         saveCustomQueue();
@@ -11077,6 +11132,11 @@
         refreshPlaylistHeartIcons();
         syncMainListWithQueue();
         showToast('Playlist imported', '📂');
+        if (lostMoods > 0) {
+          setTimeout(() => alert(mt(
+            'The maximum is ' + MOOD_MAX_COUNT + ' sections, so ' + lostMoods + ' section(s) from the file were not added. Their tracks were imported without a section.',
+            'Maximum je ' + MOOD_MAX_COUNT + ' sekcí, proto se ' + lostMoods + ' sekcí ze souboru nepřidalo. Jejich skladby se načetly bez sekce.')), 50);
+        }
       } catch (e) {
         alert('Could not read this playlist file.');
       }
@@ -11084,8 +11144,12 @@
     reader.readAsText(file);
   };
 
-  function playCustomQueueAt(pos) {
+  function playCustomQueueAt(pos, moodFilter) {
     if (pos < 0 || pos >= customQueue.length) return;
+    // Sekce: klepnutí z panelu předá aktuální sekci (nebo null = celý playlist); jinak se sekce
+    // zachová jen, pokud vybraná skladba do ní patří.
+    if (arguments.length >= 2) customQueueMoodPlay = moodFilter || null;
+    else if (customQueueMoodPlay && customQueue[pos].mood !== customQueueMoodPlay) customQueueMoodPlay = null;
     cancelCrossfade();
     filesContinuation = null;
     const entry = customQueue[pos];
@@ -11127,13 +11191,285 @@
 
   window.playCustomQueueFromStart = function() {
     if (!customQueue.length) return;
-    playCustomQueueAt(0);
+    if (queueMoodView) {
+      const first = customQueue.findIndex(e => e && e.mood === queueMoodView);
+      if (first < 0) { showToast(mt('This section is empty', 'Tato sekce je prázdná'), '📁'); return; }
+      playCustomQueueAt(first, queueMoodView);
+      return;
+    }
+    playCustomQueueAt(0, null);
   };
+
+  // ==========================================
+  // MY PLAYLIST: SEKCE PODLE NÁLADY (Sleeping, Studying, Meditation ...)
+  // Sekce je jen štítek (entry.mood) na skladbě ve stejné frontě - pořadí, stahování, export
+  // i ostatní funkce MY PLAYLIST zůstávají beze změny. Když je v panelu vybraná sekce, PLAY a
+  // klepnutí na skladbu přehrávají jen skladby té sekce (customQueueMoodPlay).
+  // ==========================================
+  const MOODS_KEY = 'synthlucida_queue_moods';
+  const MOOD_MAX_LEN = 24;
+  const MOOD_MAX_COUNT = 12;
+  function mt(en, cz) { return guideLang === 'cz' ? cz : en; }
+  function cleanMoodName(s) { return typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, MOOD_MAX_LEN) : ''; }
+  function findMood(name) {
+    const k = cleanMoodName(name).toLowerCase();
+    if (!k) return null;
+    return queueMoods.find(m => m.toLowerCase() === k) || null;
+  }
+  function normalizeMoodList(list) {
+    const out = [];
+    (Array.isArray(list) ? list : []).forEach(n => {
+      const c = cleanMoodName(n);
+      if (c && out.length < MOOD_MAX_COUNT && !out.some(o => o.toLowerCase() === c.toLowerCase())) out.push(c);
+    });
+    return out;
+  }
+  function saveQueueMoods() { try { localStorage.setItem(MOODS_KEY, JSON.stringify(queueMoods)); } catch (e) { /* ignore */ } }
+  // Štítky u skladeb sjednotí s názvy sekcí (neznámý štítek se přidá, pokud je místo, jinak se zahodí).
+  function reconcileQueueMoods() {
+    customQueue.forEach(e => {
+      if (!e || typeof e !== 'object') return;
+      const c = cleanMoodName(e.mood);
+      if (!c) { delete e.mood; return; }
+      let m = findMood(c);
+      if (!m && queueMoods.length < MOOD_MAX_COUNT) { queueMoods.push(c); m = c; }
+      if (m) e.mood = m; else delete e.mood;
+    });
+  }
+  function loadQueueMoods() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(MOODS_KEY) || '[]'); } catch (e) { list = []; }
+    queueMoods = normalizeMoodList(list);
+    reconcileQueueMoods();
+  }
+  function moodCount(name) { return customQueue.reduce((n, e) => n + (e && e.mood === name ? 1 : 0), 0); }
+  function activeMoodFilter() {
+    const f = customQueueMoodPlay;
+    return (f && customQueue.some(e => e && e.mood === f)) ? f : null;
+  }
+  // Další / předchozí pozice ve frontě; při přehrávání sekce jen mezi skladbami té sekce.
+  function queueNeighborPos(dir) {
+    const f = activeMoodFilter();
+    const n = customQueue.length;
+    if (!f) {
+      let p = customQueueIndex + dir;
+      if (p >= n) p = 0;
+      if (p < 0) p = n - 1;
+      return p;
+    }
+    for (let k = 1; k <= n; k++) {
+      const p = (((customQueueIndex + dir * k) % n) + n) % n;
+      if (customQueue[p] && customQueue[p].mood === f) return p;
+    }
+    return customQueueIndex;
+  }
+  function queueRandomPos() {
+    const f = activeMoodFilter();
+    if (!f) return randomIndexExcept(customQueue.length, customQueueIndex);
+    const el = [];
+    customQueue.forEach((e, p) => { if (e && e.mood === f && p !== customQueueIndex) el.push(p); });
+    if (!el.length) return customQueueIndex >= 0 ? customQueueIndex : 0;
+    return el[Math.floor(Math.random() * el.length)];
+  }
+
+  let moodEditMode = null; // 'new' | 'rename' | null
+  let moodEditPos = -1;    // skladba, které se po vytvoření sekce přiřadí (z nabídky 📁)
+
+  function setEntryMood(pos, name) {
+    const e = customQueue[pos];
+    if (!e) return;
+    if (name) e.mood = name; else delete e.mood;
+    saveCustomQueue();
+    renderCustomQueue();
+    syncMainListWithQueue();
+    const m = name || null;
+    showToast(m ? mt('Moved to: ' + m, 'Přesunuto do: ' + m) : mt('Removed from section', 'Odebráno ze sekce'), '📁');
+  }
+
+  function closeMoodPicker() {
+    const p = document.getElementById('mood-picker');
+    if (p) p.remove();
+    document.removeEventListener('pointerdown', moodPickerOutside, true);
+    document.removeEventListener('keydown', moodPickerKey, true);
+    document.removeEventListener('scroll', closeMoodPicker, true);
+    window.removeEventListener('resize', closeMoodPicker);
+  }
+  function moodPickerOutside(e) { const p = document.getElementById('mood-picker'); if (p && !p.contains(e.target)) closeMoodPicker(); }
+  function moodPickerKey(e) { if (e.key === 'Escape') { e.stopPropagation(); closeMoodPicker(); } }
+
+  function openMoodPicker(pos, btn) {
+    closeMoodPicker();
+    const entry = customQueue[pos];
+    if (!entry) return;
+    const menu = document.createElement('div');
+    menu.className = 'mood-picker';
+    menu.id = 'mood-picker';
+    menu.setAttribute('role', 'menu');
+    const add = (label, handler) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.textContent = label;
+      b.addEventListener('click', (ev) => { ev.stopPropagation(); closeMoodPicker(); handler(); });
+      menu.appendChild(b);
+    };
+    queueMoods.forEach(m => add((entry.mood === m ? '✓ ' : '') + m, () => setEntryMood(pos, m)));
+    if (queueMoods.length) { const sep = document.createElement('div'); sep.className = 'mood-picker-sep'; menu.appendChild(sep); }
+    if (entry.mood) add(mt('✕ No section', '✕ Bez sekce'), () => setEntryMood(pos, null));
+    if (queueMoods.length < MOOD_MAX_COUNT) add(mt('＋ New section…', '＋ Nová sekce…'), () => openMoodEdit('new', pos));
+    document.body.appendChild(menu);
+    const r = btn.getBoundingClientRect();
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    let left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+    let top = r.bottom + 4;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    document.addEventListener('pointerdown', moodPickerOutside, true);
+    document.addEventListener('keydown', moodPickerKey, true);
+    document.addEventListener('scroll', closeMoodPicker, true);
+    window.addEventListener('resize', closeMoodPicker);
+    const first = menu.querySelector('button');
+    if (first) first.focus();
+  }
+
+  function openMoodEdit(mode, pos) {
+    moodEditMode = mode;
+    moodEditPos = (typeof pos === 'number') ? pos : -1;
+    renderMoodBar();
+    const inp = document.getElementById('mood-input');
+    if (inp) {
+      inp.value = mode === 'rename' ? (queueMoodView || '') : '';
+      try { inp.focus(); inp.select(); } catch (e) { /* ignore */ }
+    }
+  }
+  function closeMoodEdit() { moodEditMode = null; moodEditPos = -1; renderMoodBar(); }
+
+  function submitMoodEdit() {
+    const inp = document.getElementById('mood-input');
+    const name = cleanMoodName(inp ? inp.value : '');
+    if (!name) { showToast(mt('Type a name first', 'Nejdřív napiš název'), '✎'); return; }
+    if (moodEditMode === 'new') {
+      let m = findMood(name);
+      if (!m) {
+        if (queueMoods.length >= MOOD_MAX_COUNT) { showToast(mt('Up to ' + MOOD_MAX_COUNT + ' sections', 'Maximálně ' + MOOD_MAX_COUNT + ' sekcí'), '📁'); return; }
+        queueMoods.push(name);
+        m = name;
+      }
+      if (moodEditPos >= 0 && customQueue[moodEditPos]) customQueue[moodEditPos].mood = m;
+      else queueMoodView = m;
+      saveCustomQueue();
+    } else if (moodEditMode === 'rename' && queueMoodView) {
+      const old = queueMoodView;
+      const ex = findMood(name);
+      if (ex && ex !== old) { showToast(mt('That section already exists', 'Taková sekce už existuje'), '📁'); return; }
+      const i = queueMoods.indexOf(old);
+      if (i >= 0) queueMoods[i] = name;
+      customQueue.forEach(e => { if (e && e.mood === old) e.mood = name; });
+      queueMoodView = name;
+      if (customQueueMoodPlay === old) customQueueMoodPlay = name;
+      saveCustomQueue();
+    }
+    saveQueueMoods();
+    moodEditMode = null;
+    moodEditPos = -1;
+    renderCustomQueue();
+    syncMainListWithQueue();
+  }
+
+  function deleteMoodView() {
+    const m = queueMoodView;
+    if (!m) return;
+    const n = moodCount(m);
+    if (!confirm(mt('Delete the section "' + m + '"?' + (n ? '\n\nThe ' + n + ' track(s) stay in My Playlist.' : ''),
+                    'Smazat sekci „' + m + '“?' + (n ? '\n\nSkladby (' + n + ') zůstanou v My Playlist.' : '')))) return;
+    customQueue.forEach(e => { if (e && e.mood === m) delete e.mood; });
+    queueMoods = queueMoods.filter(x => x !== m);
+    queueMoodView = null;
+    if (customQueueMoodPlay === m) customQueueMoodPlay = null;
+    moodEditMode = null;
+    saveCustomQueue();
+    saveQueueMoods();
+    renderCustomQueue();
+    syncMainListWithQueue();
+  }
+
+  function renderMoodBar() {
+    const bar = document.getElementById('mood-bar');
+    if (!bar) return;
+    if (queueMoodView && !queueMoods.includes(queueMoodView)) queueMoodView = null;
+    const show = customQueue.length > 0 || queueMoods.length > 0;
+    bar.style.display = show ? '' : 'none';
+    if (!show) return;
+    const chips = document.getElementById('mood-chips');
+    chips.textContent = '';
+    const chip = (label, pressed, onClick, extra) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mood-chip' + (extra ? ' ' + extra : '');
+      b.textContent = label;
+      if (!extra) b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+      b.addEventListener('click', onClick);
+      chips.appendChild(b);
+    };
+    const pick = (m) => () => { queueMoodView = m; moodEditMode = null; renderCustomQueue(); };
+    chip(mt('ALL', 'VŠE') + ' (' + customQueue.length + ')', queueMoodView === null, pick(null));
+    queueMoods.forEach(m => chip(m + ' (' + moodCount(m) + ')', queueMoodView === m, pick(m)));
+    if (queueMoods.length < MOOD_MAX_COUNT) chip(mt('＋ SECTION', '＋ SEKCE'), false, () => openMoodEdit('new'), 'mood-add');
+
+    const edit = document.getElementById('mood-edit');
+    const inp = document.getElementById('mood-input');
+    edit.style.display = moodEditMode ? '' : 'none';
+    inp.placeholder = mt('Mood name, e.g. Sleeping', 'Název nálady, např. Spánek');
+    inp.setAttribute('aria-label', inp.placeholder);
+    document.getElementById('mood-ok').textContent = mt('OK', 'OK');
+    document.getElementById('mood-cancel').setAttribute('aria-label', mt('Cancel', 'Zrušit'));
+
+    const tools = document.getElementById('mood-tools');
+    tools.style.display = (queueMoodView && !moodEditMode) ? '' : 'none';
+    document.getElementById('mood-rename-btn').textContent = mt('✎ RENAME', '✎ PŘEJMENOVAT');
+    document.getElementById('mood-delete-btn').textContent = mt('🗑 DELETE SECTION', '🗑 SMAZAT SEKCI');
+
+    const hint = document.getElementById('mood-hint');
+    let txt = '';
+    if (queueMoodView) {
+      txt = moodCount(queueMoodView)
+        ? mt('PLAY now plays only this section.', 'PŘEHRÁT teď hraje jen tuto sekci.')
+        : mt('This section is empty. Switch to ALL and tap 📁 on a track to move it here.', 'Tato sekce je prázdná. Přepni na VŠE a klepni na 📁 u skladby, kterou sem chceš přesunout.');
+    } else if (!queueMoods.length) {
+      txt = mt('Sort your tracks by mood — e.g. Sleeping, Studying, Meditation. Tap ＋ SECTION, then 📁 on a track.',
+               'Roztřiď si skladby podle nálady — např. Spánek, Učení, Meditace. Klepni na ＋ SEKCE a pak na 📁 u skladby.');
+    }
+    hint.textContent = txt;
+    hint.style.display = txt ? '' : 'none';
+  }
+
+  (function wireMoodBar() {
+    const ok = document.getElementById('mood-ok');
+    const cancel = document.getElementById('mood-cancel');
+    const inp = document.getElementById('mood-input');
+    const rn = document.getElementById('mood-rename-btn');
+    const del = document.getElementById('mood-delete-btn');
+    if (ok) ok.addEventListener('click', submitMoodEdit);
+    if (cancel) cancel.addEventListener('click', closeMoodEdit);
+    if (rn) rn.addEventListener('click', () => { if (queueMoodView) openMoodEdit('rename'); });
+    if (del) del.addEventListener('click', deleteMoodView);
+    if (inp) inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submitMoodEdit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMoodEdit(); }
+    });
+  })();
 
   function renderCustomQueue() {
     const listEl = document.getElementById('queue-list');
     const emptyNote = document.getElementById('queue-empty-note');
     if (!listEl) return;
+
+    renderMoodBar();
+    const view = queueMoodView;
+    listEl.classList.toggle('mood-filtered', !!view);
+    const visible = [];
+    customQueue.forEach((e, p) => { if (!view || (e && e.mood === view)) visible.push(p); });
 
     listEl.innerHTML = '';
     if (!customQueue.length) {
@@ -11153,34 +11489,53 @@
     let notPurchasedIndex = -1; // pořadí jen mezi dosud NEzaplacenými gamifikovanými skladbami
 
     customQueue.forEach((entry, pos) => {
+      const vi = visible.indexOf(pos); // pozice mezi zobrazenými skladbami (při zobrazené sekci)
+      if (vi < 0) return;
       const li = document.createElement('li');
+      li.dataset.qpos = String(pos);
       if (customQueueActive && pos === customQueueIndex) li.classList.add('active');
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'history-name';
-      nameSpan.innerText = `${pos + 1}. ${displayTrackTitle(entry.title)}`;
+      nameSpan.innerText = `${(view ? vi : pos) + 1}. ${displayTrackTitle(entry.title)}`;
       nameSpan.title = 'Tap to play from here';
-      nameSpan.onclick = () => playCustomQueueAt(pos);
+      nameSpan.onclick = () => playCustomQueueAt(pos, view);
       setupHoverMarquee(nameSpan);
 
       const metaSpan = document.createElement('span');
       metaSpan.className = 'history-meta';
-      metaSpan.innerText = friendlyPlaylistLabel(entry.playlist);
-      metaSpan.onclick = () => playCustomQueueAt(pos);
+      if (!view && entry.mood) { metaSpan.classList.add('mood-tag'); metaSpan.innerText = entry.mood; }
+      else metaSpan.innerText = friendlyPlaylistLabel(entry.playlist);
+      metaSpan.onclick = () => playCustomQueueAt(pos, view);
+
+      const moodBtn = document.createElement('button');
+      moodBtn.className = 'icon-btn' + (entry.mood ? ' mood-set' : '');
+      moodBtn.innerText = '📁';
+      moodBtn.title = entry.mood ? mt('Section: ' + entry.mood + ' (tap to change)', 'Sekce: ' + entry.mood + ' (klepnutím změnit)') : mt('Move to a section', 'Přesunout do sekce');
+      moodBtn.setAttribute('aria-label', moodBtn.title);
+      moodBtn.addEventListener('click', (e) => { e.stopPropagation(); openMoodPicker(pos, moodBtn); });
 
       const upBtn = document.createElement('button');
       upBtn.className = 'icon-btn';
       upBtn.title = 'Move up';
       upBtn.innerText = '▲';
-      upBtn.disabled = pos === 0;
-      upBtn.addEventListener('click', (e) => { e.stopPropagation(); moveCustomQueueItem(pos, -1); });
+      upBtn.disabled = view ? vi === 0 : pos === 0;
+      upBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (view) { if (typeof window.moveCustomQueueItemTo === 'function' && vi > 0) window.moveCustomQueueItemTo(pos, visible[vi - 1]); }
+        else moveCustomQueueItem(pos, -1);
+      });
 
       const downBtn = document.createElement('button');
       downBtn.className = 'icon-btn';
       downBtn.title = 'Move down';
       downBtn.innerText = '▼';
-      downBtn.disabled = pos === customQueue.length - 1;
-      downBtn.addEventListener('click', (e) => { e.stopPropagation(); moveCustomQueueItem(pos, 1); });
+      downBtn.disabled = view ? vi === visible.length - 1 : pos === customQueue.length - 1;
+      downBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (view) { if (typeof window.moveCustomQueueItemTo === 'function' && vi < visible.length - 1) window.moveCustomQueueItemTo(pos, visible[vi + 1]); }
+        else moveCustomQueueItem(pos, 1);
+      });
 
       const removeBtn = document.createElement('button');
       removeBtn.className = 'icon-btn';
@@ -11233,6 +11588,7 @@
 
       li.appendChild(nameSpan);
       li.appendChild(metaSpan);
+      li.appendChild(moodBtn);
       li.appendChild(upBtn);
       li.appendChild(downBtn);
       li.appendChild(dlBtn);
@@ -14601,6 +14957,13 @@
       var to = s.to + (s.after ? 1 : 0); // pozice v poli PRED odebranim zdroje
       if (to > s.from) to -= 1;          // po odebrani zdroje se indexy za nim posunou
       if (to === s.from) return;
+      if (list.classList.contains('mood-filtered')) {
+        // zobrazena sekce: indexy radku seznamu se prevedou na skutecne pozice ve fronte (data-qpos)
+        var pos = items().map(function (li) { return parseInt(li.dataset.qpos, 10); });
+        if (isNaN(pos[s.from]) || isNaN(pos[to])) return;
+        moveQueueItemTo(pos[s.from], pos[to]);
+        return;
+      }
       moveQueueItemTo(s.from, to);
     }
     function onMove(e) {
