@@ -2961,9 +2961,12 @@
      (stav ukazuje barva a přeškrtnutý reproduktor), takže je tlačítko malé a pevné a nikdy nezasáhne do VOL. */
   .extra-features { position: relative; }
   .extra-features .btn-mute { position: absolute; right: 0; top: 13px; width: 58px; padding: 0; gap: 4px; }
-  /* GAIN: malý knob vlevo vedle MUTE. Násobí hlavní hlasitost (1.0x - 2.0x), skutečná hlasitost ale nikdy nepřekročí 100 %. */
+  /* GAIN: malý knob vlevo vedle MUTE. Doladí hlavní hlasitost (0.5x - 2.0x, základ uprostřed = 1.0x), skutečná hlasitost ale nikdy nepřekročí 100 %. */
   .gain-mini { position: absolute; right: 64px; top: 3px; width: 34px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .gain-mini .layer-knob-wrap { width: 26px; height: 26px; }
+  .gain-mini .layer-knob { background:
+      conic-gradient(from -135deg, transparent 0deg 133deg, rgba(255,255,255,0.85) 133deg 137deg, transparent 137deg 360deg),
+      conic-gradient(from -135deg, rgba(255,255,255,0.16) 0deg calc(min(var(--p), 0.5) * 270deg), var(--accent-color) calc(min(var(--p), 0.5) * 270deg) calc(max(var(--p), 0.5) * 270deg), rgba(255,255,255,0.16) calc(max(var(--p), 0.5) * 270deg) 270deg, transparent 270deg); }
   .gain-mini .layer-knob::before { inset: 3px; }
   .gain-mini .layer-knob::after { top: 5px; width: 2px; height: 7px; left: calc(50% - 1px); transform-origin: 50% 8px; }
   .gain-mini .layer-knob-tip { font-size: 10px; }
@@ -3357,7 +3360,7 @@
       <span class="vol-percent" id="vol-percent" aria-live="off" title="Volume">30%</span>
       <div class="gain-mini" id="gain-mini">
         <div class="layer-knob-wrap" id="gain-knob-wrap">
-          <div class="layer-knob" id="gain-knob" role="slider" tabindex="0" aria-label="Main volume gain" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1" title="Gain: boosts the main volume up to 2x, never above 100% (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
+          <div class="layer-knob" id="gain-knob" role="slider" tabindex="0" aria-label="Main volume gain" aria-valuemin="0.5" aria-valuemax="2" aria-valuenow="1" title="Gain: fine-tunes the main volume from 0.5x (quieter) to 2x (louder), centre = 1.0x, never above 100% (drag up/down, scroll or use arrow keys; double-tap to reset to the centre)"></div>
           <span class="layer-knob-tip" id="gain-knob-tip" aria-hidden="true"></span>
         </div>
         <span class="gain-mini-label" aria-hidden="true">GAIN</span>
@@ -5926,16 +5929,34 @@
   try { savedVolume = localStorage.getItem('sl-volume'); } catch (e) { /* úložiště zablokované - výchozí hlasitost */ }
   const parsedSavedVolume = savedVolume !== null ? parseFloat(savedVolume) : NaN;
   const initialVolume = isFinite(parsedSavedVolume) ? Math.min(1, Math.max(0, parsedSavedVolume)) : 0.3;
-  // GAIN: násobič hlavní hlasitosti 1.0x - 2.0x (knob vedle MUTE). Skutečná hlasitost audia je vždy min(1, posuvník x gain),
-  // takže se nikdy nepřekročí původní úroveň skladby (žádné klipování). Při 100 % posuvníku gain nic nemění.
-  const GAIN_STORE_KEY = 'sl-main-gain';
-  let mainGainPos = 0; // 0..1 -> gain 1.0x .. 2.0x
+  // GAIN: jemné doladění hlavní hlasitosti v obou směrech (knob vedle MUTE). Poloha 0..1, střed 0.5 = 1.0x (základ);
+  // doleva ztišuje až na 0.5x, doprava zesiluje až na 2.0x (symetricky, +-6 dB). Skutečná hlasitost audia je vždy
+  // min(1, posuvník x gain), takže se nikdy nepřekročí původní úroveň skladby (žádné klipování).
+  // Nový klíč úložiště: starý 'sl-main-gain' měl jiný význam (0 = 1.0x), proto se nepřebírá.
+  const GAIN_STORE_KEY = 'sl-main-gain2';
+  let mainGainPos = 0.5; // 0..1 -> gain 0.5x .. 1.0x (střed) .. 2.0x
   try { const g = parseFloat(localStorage.getItem(GAIN_STORE_KEY)); if (isFinite(g)) mainGainPos = Math.min(1, Math.max(0, g)); } catch (e) { /* výchozí 1.0x */ }
+  function mainGainMul() { return Math.pow(2, (mainGainPos - 0.5) * 2); }
   function mainVol() {
     const v = parseFloat(volumeSlider.value);
-    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * (1 + mainGainPos)));
+    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * mainGainMul()));
   }
-  audio.volume = Math.min(1, initialVolume * (1 + mainGainPos));
+  audio.volume = Math.min(1, initialVolume * mainGainMul());
+  // Plynulá změna hlasitosti (proti "prskání" / zipper noise): audio.volume se při tažení posuvníku nebo knobu
+  // nenastavuje skokově, ale krátce se k cílové hodnotě doběhne (časová konstanta cca 35 ms, kroky po 8 ms).
+  let volRampTimer = null, volRampForced = false;
+  function rampMainVolume(force) {
+    volRampForced = !!force || (volRampTimer ? volRampForced : false);
+    if (volRampTimer) return; // běží - cíl se čte z mainVol() při každém kroku, takže stačí nechat doběhnout
+    volRampTimer = setInterval(() => {
+      let t;
+      try { t = mainVol(); } catch (e) { t = NaN; }
+      if (!isFinite(t) || (!volRampForced && (asmrFadeTimer || crossfadeActive))) { clearInterval(volRampTimer); volRampTimer = null; return; }
+      const c = audio.volume, d = t - c;
+      if (Math.abs(d) < 0.002) { try { audio.volume = t; } catch (e) { /* ignore */ } clearInterval(volRampTimer); volRampTimer = null; return; }
+      try { audio.volume = Math.min(1, Math.max(0, c + d * 0.2)); } catch (e) { /* iOS: hlasitost nelze měnit */ clearInterval(volRampTimer); volRampTimer = null; }
+    }, 8);
+  }
   volumeSlider.value = initialVolume;
   volumeSlider.style.setProperty('--vol', initialVolume);
   { const vp = document.getElementById('vol-percent'); if (vp) vp.textContent = Math.round(parseFloat(volumeSlider.value) * 100) + '%'; }
@@ -7556,7 +7577,7 @@
     if (volPointerDrag && e.isTrusted && Math.abs(parseFloat(e.target.value) - 0.5) < 0.03) e.target.value = '0.5';
     if (e.isTrusted) volCheckMid(); else volPrev = parseFloat(e.target.value);
     syncBmVol();
-    updateVolPercent(); audio.volume = mainVol(); e.target.style.setProperty('--vol', e.target.value); try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ }
+    updateVolPercent(); rampMainVolume(true); e.target.style.setProperty('--vol', e.target.value); try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ }
   });
 
   // Fader hlasitosti v mini přehrávači dechového cvičení: totéž co hlavní posuvník (stejná hodnota i uložení),
@@ -7837,8 +7858,9 @@
   }
   window.toggleMute = function() { soundMuted = !soundMuted; applyMute(); };
 
-  // GAIN knob vedle MUTE: násobí hlavní hlasitost 1.0x - 2.0x. Skutečná hlasitost = min(1, posuvník x gain) (viz mainVol),
-  // takže nikdy nepřekročí 100 % skladby. Hodnota se pamatuje v prohlížeči, dvojité klepnutí = zpět na 1.0x.
+  // GAIN knob vedle MUTE: doladění hlavní hlasitosti 0.5x - 2.0x, základ uprostřed (1.0x). Skutečná hlasitost =
+  // min(1, posuvník x gain) (viz mainVol), takže nikdy nepřekročí 100 % skladby. Hodnota se pamatuje v prohlížeči,
+  // dvojité klepnutí (nebo klávesa Home) = zpět na střed 1.0x. Střed má při tažení lehké "zaskočení".
   (function initGainKnob() {
     const wrap = document.getElementById('gain-knob-wrap');
     const knob = document.getElementById('gain-knob');
@@ -7846,7 +7868,7 @@
     if (!wrap || !knob || !tip) return;
     let tipTimer = null, drag = null, lastTap = 0;
     function paint() {
-      const g = 1 + mainGainPos, txt = g.toFixed(1) + '\u00d7';
+      const g = mainGainMul(), txt = g.toFixed(2) + '\u00d7';
       wrap.style.setProperty('--p', mainGainPos);
       knob.setAttribute('aria-valuenow', g.toFixed(2));
       knob.setAttribute('aria-valuetext', txt);
@@ -7857,12 +7879,14 @@
       clearTimeout(tipTimer);
       tipTimer = setTimeout(() => tip.classList.remove('show'), 900);
     }
-    function change(v) {
-      mainGainPos = Math.min(1, Math.max(0, v));
+    function change(v, snap) {
+      v = Math.min(1, Math.max(0, v));
+      if (Math.abs(v - 0.5) < (snap || 0.004)) v = 0.5; // zaskočení na střed (1.0x)
+      mainGainPos = Math.round(v * 1000) / 1000;
       try { localStorage.setItem(GAIN_STORE_KEY, String(mainGainPos)); } catch (e) { /* ignore */ }
       paint(); showTip();
       // hned použít na hrající skladbu (ne uprostřed ztišení do ASMR nebo crossfade - ty si hlasitost řídí samy)
-      if (!asmrFadeTimer && !crossfadeActive) { try { audio.volume = mainVol(); } catch (e) { /* ignore */ } }
+      if (!asmrFadeTimer && !crossfadeActive) rampMainVolume(false);
     }
     wrap.addEventListener('pointerdown', (e) => {
       drag = { lastY: e.clientY, raw: mainGainPos, moved: 0 };
@@ -7878,7 +7902,7 @@
       drag.lastY = e.clientY;
       drag.moved += Math.abs(dy);
       drag.raw = Math.min(1, Math.max(0, drag.raw + dy * (e.shiftKey ? 1 / 500 : 1 / 100)));
-      change(drag.raw);
+      change(drag.raw, 0.02);
     });
     const endDrag = (e) => {
       if (!drag) return;
@@ -7887,7 +7911,7 @@
       wrap.classList.remove('dragging');
       if (wasTap && e && e.type === 'pointerup') {
         const now = Date.now();
-        if (now - lastTap < 350) { lastTap = 0; change(0); } // dvojité klepnutí = 1.0x
+        if (now - lastTap < 350) { lastTap = 0; change(0.5); } // dvojité klepnutí = střed (1.0x)
         else lastTap = now;
       }
     };
@@ -7901,7 +7925,7 @@
       const fine = e.shiftKey ? 0.2 : 1;
       const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
       if (step !== undefined) { e.preventDefault(); e.stopPropagation(); change(mainGainPos + step * fine); }
-      else if (e.key === 'Home') { e.preventDefault(); e.stopPropagation(); change(0); }
+      else if (e.key === 'Home') { e.preventDefault(); e.stopPropagation(); change(0.5); }
       else if (e.key === 'End') { e.preventDefault(); e.stopPropagation(); change(1); }
     });
     paint();
