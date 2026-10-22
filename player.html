@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.1">
+<meta name="app-version" content="2.2.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -276,7 +276,8 @@
     50% { filter: drop-shadow(0 0 16px var(--accent-color)); }
   }
   /* Podsvícení hlavního okna přehrávače (4. pozice tlačítka ✨) - stejná barva a rytmus pulzu jako u loga */
-  body.window-glow .player-section {
+  body.window-glow .player-section,
+  body.window-glow .focus-mode-right {
     border-color: var(--accent-color);
     animation: windowGlowPulse 3.5s ease-in-out infinite;
   }
@@ -285,7 +286,7 @@
     50% { box-shadow: 0 0 14px var(--accent-color), 0 0 28px var(--accent-color), inset 0 0 12px rgba(255,255,255,0.06); }
   }
   @media (prefers-reduced-motion: reduce) {
-    body.window-glow .player-section { animation: none; box-shadow: 0 0 12px var(--accent-color), 0 0 24px var(--accent-color); }
+    body.window-glow .player-section, body.window-glow .focus-mode-right { animation: none; box-shadow: 0 0 12px var(--accent-color), 0 0 24px var(--accent-color); }
   }
 
   /* ============================================
@@ -753,6 +754,48 @@
   .effects-container { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; padding: 0 10px;}
   .btn-theme { background: none; border: none; color: #fff; opacity: 0.4; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7.5px; cursor: pointer; transition: 0.3s; padding: 1px 3px; letter-spacing: 0.5px; }
   .btn-theme.active, .btn-theme:hover { opacity: 1; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+  /* VISUAL: tlačítko 2 COLORS + mixér dvou barev (kombinace libovolných dvou motivů) */
+  .btn-theme-mix { background: none; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; color: #fff; opacity: 0.6; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7.5px; cursor: pointer; transition: 0.3s; padding: 2px 8px; letter-spacing: 0.5px; -webkit-tap-highlight-color: transparent; }
+  .btn-theme-mix:hover, .btn-theme-mix.active { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+  .theme-mixer { flex: 1 1 100%; max-width: 340px; box-sizing: border-box; margin: 6px auto 2px; padding: 8px 10px 10px; border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; background: rgba(255,255,255,0.04); display: flex; flex-direction: column; gap: 10px; }
+  .theme-mixer[hidden] { display: none; }
+  .tm-row { display: flex; flex-direction: column; gap: 6px; }
+  .tm-label { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7.5px; letter-spacing: 1px; opacity: 0.7; text-align: center; }
+  .tm-swatches { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+  .tm-sw { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,0.22); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.45); -webkit-tap-highlight-color: transparent; transition: 0.2s; }
+  .tm-sw:hover { border-color: rgba(255,255,255,0.7); }
+  .tm-sw[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px var(--accent-color), 0 0 10px var(--accent-color); }
+  .tm-actions { display: flex; gap: 8px; justify-content: center; }
+  .tm-actions .btn-feature { padding: 5px 12px; }
+  .tm-actions .btn-feature:disabled { opacity: 0.35; cursor: default; }
+  /* 2 COLORS: obě barvy se plynule prolínají shora dolů přes celé rozhraní. Každá část (hlavička, tlačítka,
+     název skladby, ovládání, hlasitost ...) dostane vlastní --accent-color / --accent-glow jako směs
+     barvy 1 (--mix-a) a barvy 2 (--mix-b), takže se přebarví všechno, co motiv používá. */
+  body.theme-mix {
+    background: radial-gradient(ellipse 120% 70% at 50% 0%, var(--bg-color-1), transparent 72%),
+                radial-gradient(ellipse 120% 70% at 50% 100%, color-mix(in srgb, var(--mix-b) 30%, #000), transparent 72%),
+                linear-gradient(180deg, var(--bg-color-2), #000);
+    background-attachment: fixed;
+  }
+  body.theme-mix .header, body.theme-mix .brand-name-row { --accent-color: color-mix(in srgb, var(--mix-a) 100%, var(--mix-b)); --accent-glow: var(--mix-b); }
+  body.theme-mix .atmospheres        { --accent-color: color-mix(in srgb, var(--mix-a) 88%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 88%, var(--mix-a)); }
+  body.theme-mix .themes-container   { --accent-color: color-mix(in srgb, var(--mix-a) 78%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 78%, var(--mix-a)); }
+  body.theme-mix .crossfade-container{ --accent-color: color-mix(in srgb, var(--mix-a) 68%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 68%, var(--mix-a)); }
+  body.theme-mix .effects-container  { --accent-color: color-mix(in srgb, var(--mix-a) 58%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 58%, var(--mix-a)); }
+  body.theme-mix .slogan-wrap        { --accent-color: color-mix(in srgb, var(--mix-a) 50%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 50%, var(--mix-a)); }
+  body.theme-mix .now-playing-row    { --accent-color: color-mix(in srgb, var(--mix-a) 46%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 46%, var(--mix-a)); }
+  body.theme-mix .track-time-row     { --accent-color: color-mix(in srgb, var(--mix-a) 42%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 42%, var(--mix-a)); }
+  body.theme-mix .playlist           { --accent-color: color-mix(in srgb, var(--mix-a) 36%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 36%, var(--mix-a)); }
+  body.theme-mix .controls-row       { --accent-color: color-mix(in srgb, var(--mix-a) 28%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 28%, var(--mix-a)); }
+  body.theme-mix .focus-mode-row     { --accent-color: color-mix(in srgb, var(--mix-a) 18%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 18%, var(--mix-a)); }
+  body.theme-mix .extra-features     { --accent-color: color-mix(in srgb, var(--mix-a) 9%, var(--mix-b)); --accent-glow: color-mix(in srgb, var(--mix-b) 9%, var(--mix-a)); }
+  body.theme-mix .timer-section      { --accent-color: var(--mix-b); --accent-glow: var(--mix-a); }
+  body.theme-mix .player-section,
+  body.theme-mix .focus-mode-right {
+    border-color: color-mix(in srgb, var(--mix-a) 55%, transparent) color-mix(in srgb, var(--mix-a) 20%, var(--mix-b)) color-mix(in srgb, var(--mix-b) 55%, transparent) color-mix(in srgb, var(--mix-a) 20%, var(--mix-b));
+    box-shadow: 0 -8px 24px -12px var(--mix-a), 0 10px 24px -12px var(--mix-b), 0 4px 12px rgba(0,0,0,0.25);
+  }
+  body.theme-mix .progress-bar { background: linear-gradient(90deg, var(--mix-a), var(--mix-b)); box-shadow: 0 0 8px color-mix(in srgb, var(--mix-a) 50%, var(--mix-b)); }
 
   .crossfade-container { display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; padding: 0 10px; }
   .crossfade-label { font-size: 7px; opacity: 0.6; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 3px; }
@@ -907,6 +950,33 @@
   .sun-photo-lightbox-close:hover, .sun-photo-lightbox-close:active {
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color);
   }
+
+  /* OFFLINE: zakladni (vestavene) fotky se stahuji z webu - bez internetu by v panelu My SUN Photos
+     byly jen prazdne miniatury, proto se oznaci jako "ONLINE ONLY" a zasednou. */
+  .sun-photo-thumb-offline {
+    width: 36px; height: 36px; border-radius: 4px; flex-shrink: 0; box-sizing: border-box;
+    border: 1px dashed rgba(255,255,255,0.28); display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 7px; line-height: 1.15; letter-spacing: 0.03em; opacity: 0.7;
+  }
+  .sun-photos-source .btn-feature:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+  /* Upozorneni (zavira se krizkem) - nad dechem i "together" overlaye (z-index 9999) */
+  .sun-offline-notice {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 10002; display: none;
+    align-items: flex-start; gap: 12px; box-sizing: border-box;
+    width: max-content; max-width: min(440px, calc(100vw - 24px)); padding: 12px 14px; border-radius: 12px;
+    background: rgba(12, 8, 24, 0.95); border: 1px solid var(--accent-color); box-shadow: 0 0 18px rgba(0,0,0,0.6);
+    color: #fff; font-size: 13px; line-height: 1.45;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .sun-offline-notice.visible { display: flex; }
+  .sun-offline-notice-close {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; padding: 0;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); color: #fff;
+    font-size: 12px; opacity: 0.8; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .sun-offline-notice-close:hover, .sun-offline-notice-close:active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
 
   .queue-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: center; flex-wrap: wrap; }
   /* My Playlist a S (statistiky): ovládací tlačítka jsou nahoře nad obsahem, ať se k nim nemusí scrollovat na konec dlouhého playlistu */
@@ -1395,6 +1465,17 @@
   .btn-focus-mode:hover { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
   .btn-focus-mode.active { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color), 0 2px 5px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25); }
 
+  /* Pravá trojice (motiv / fullscreen / focus) v jednom rámečku - stejný vzhled jako .player-section */
+  .focus-mode-right {
+    gap: 8px; padding: 5px 10px; box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+
   /* Malý odznak s aktuální rychlostí připojení, vedle 🔆 tlačítka "display stále zapnutý" */
   .net-speed-badge { font-size: 9px; letter-spacing: 0.03em; color: #fff; opacity: 0.5; white-space: nowrap; user-select: none; pointer-events: none; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
   .net-speed-badge:empty { display: none; }
@@ -1634,7 +1715,8 @@
     opacity: 0.04 !important;
   }
 
-  body.theme-neon .player-section {
+  body.theme-neon .player-section,
+  body.theme-neon .focus-mode-right {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -2079,6 +2161,15 @@
   /* Radek .focus-mode-left ma overflow:hidden a vysku presne jako tlacitka - pri stisku (posun o 1 px dolu) se spodni okraj
      orizl. Vnitrni odsazeni + stejne zaporne okraje: obsah ma misto navic, ale rozmery a rozlozeni zustavaji stejne. */
   .focus-mode-left { padding: 4px 3px 5px; margin: -4px -3px -5px; }
+  /* Modul: leva skupina (zprava, historie, online, displej, rychlost, stav pripojeni) v malem ramecku,
+     jemne "vytazena" nad pozadi (stin + svetly horni okraj). Ramecek obepina jen tlacitka, ne cely radek. */
+  .focus-mode-left {
+    flex: 0 1 auto; padding: 5px 12px 6px; margin: 0 0 4px;
+    border: 1px solid rgba(255,255,255,0.18); border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
+    transform: translateY(-2px);
+  }
   /* Tlacitka vedle SYNTHLUCIDA: "vytazeny" vzhled jako ostatni male tlacitka, stejna velikost (padding/okraj/ikona beze zmeny). */
   .logo-glow-toggle-btn {
     background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(0,0,0,0.45) 100%);
@@ -3230,6 +3321,21 @@
     <button class="btn-theme" onclick="setVisualTheme('peach', this)">PEACH</button>
     <button class="btn-theme" onclick="setVisualTheme('obsidian', this)">OBSIDIAN</button>
     <button class="btn-theme" onclick="setVisualTheme('sapphire', this)">SAPPHIRE</button>
+    <button type="button" class="btn-theme-mix" id="btn-theme-mix" onclick="toggleThemeMixer()" aria-expanded="false" aria-controls="theme-mixer" data-i18n="theme_mix_btn">◐ 2 COLORS</button>
+    <div class="theme-mixer" id="theme-mixer" hidden>
+      <div class="tm-row">
+        <span class="tm-label" data-i18n="theme_mix_c1">COLOR 1 · TOP OF THE PLAYER</span>
+        <div class="tm-swatches" id="tm-sw-1" role="group" aria-label="Color 1"></div>
+      </div>
+      <div class="tm-row">
+        <span class="tm-label" data-i18n="theme_mix_c2">COLOR 2 · BOTTOM OF THE PLAYER</span>
+        <div class="tm-swatches" id="tm-sw-2" role="group" aria-label="Color 2"></div>
+      </div>
+      <div class="tm-actions">
+        <button type="button" class="btn-feature" id="tm-swap" onclick="swapThemeMix()" data-i18n="theme_mix_swap">⇄ SWAP</button>
+        <button type="button" class="btn-feature" id="tm-off" onclick="clearThemeMix()" data-i18n="theme_mix_off">✕ OFF</button>
+      </div>
+    </div>
   </div>
 
   <div class="extra-features" data-vol-mode="fader">
@@ -3333,6 +3439,8 @@
       <button type="button" class="btn-feature" id="sun-src-builtin" onclick="setSunPhotoSource('builtin')" aria-pressed="false" data-i18n="sun_src_builtin">DEFAULT ONLY</button>
       <button type="button" class="btn-feature" id="sun-src-custom" onclick="setSunPhotoSource('custom')" aria-pressed="false" data-i18n="sun_src_custom">MY PHOTOS ONLY</button>
     </div>
+    <p class="main-guide-note" id="sun-offline-note" style="display:none;" data-i18n="sun_offline_note">OFFLINE - the default photos are available only online, so only your own photos are used. Your original choice returns when you're back online.</p>
+    <p class="main-guide-note" id="sun-offline-note-empty" style="display:none;" data-i18n="sun_offline_note_empty">OFFLINE - the default photos are available only online and you haven't added any photos of your own yet. Add some below to use WEATHER: SUN without internet.</p>
     <p class="main-guide-note" id="sun-src-note" style="display:none;" data-i18n="sun_src_note">You haven't added any photos of your own yet - the default ones are used until you add some.</p>
     <p class="main-guide-note" id="sun-photos-empty-note" style="display:none;" data-i18n="sun_photos_empty">You haven't added any photos of your own yet - only the default ones are shown below.</p>
     <ul class="history-list sun-photos-list" id="sun-photos-list"></ul>
@@ -3348,6 +3456,10 @@
 </div>
 <input type="file" id="sun-photo-dev-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" style="display:none;" onchange="handleDevBuiltinUpload(event)">
 
+<div class="sun-offline-notice" id="sun-offline-notice" role="alert">
+  <span id="sun-offline-notice-text" data-i18n="sun_offline_notice">You're offline and the default photos are available only online. Add your own photos first (＋ PHOTO) to use WEATHER: SUN.</span>
+  <button type="button" class="sun-offline-notice-close" onclick="closeSunOfflineNotice()" aria-label="Close">✖</button>
+</div>
 <div class="sun-photo-lightbox" id="sun-photo-lightbox" onclick="closeSunPhotoLightbox()">
   <button class="sun-photo-lightbox-close" onclick="event.stopPropagation(); closeSunPhotoLightbox()" aria-label="Close photo preview">✖</button>
   <img class="sun-photo-lightbox-img" id="sun-photo-lightbox-img" src="" alt="" onclick="event.stopPropagation()">
@@ -3425,7 +3537,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_themes">Visual themes</h4>
-      <p data-i18n="p_themes">Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.</p>
+      <p data-i18n="p_themes">Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own. At the bottom of the theme list, ◐ 2 COLORS lets you combine any two colours: pick COLOR 1 for the top of the player and COLOR 2 for the bottom, and the whole interface blends smoothly from one to the other. SWAP flips them, OFF returns to a single theme, and SAVE remembers your mix.</p>
     </div>
 
     <div class="main-guide-section">
@@ -5211,6 +5323,68 @@
       if (sSet && (sSet.sunPhotoSource === 'builtin' || sSet.sunPhotoSource === 'custom')) sunPhotoSourceMode = sSet.sunPhotoSource;
   } catch (e) { /* ignore */ }
 
+  // ---- OFFLINE rezim: zakladni fotky jsou samostatne soubory na webu, bez internetu se nenactou ----
+  // Vestavena fotka je "jen online", pokud jsme offline, fotka se nenacetla a pokus o nacteni uz skoncil neuspechem
+  // (fotky ulozene v cache/service workeru se nacist daji, ty za "jen online" nepovazujeme).
+  function sunEntryOnlineOnly(e) {
+      return !!e && !!e.builtin && navigator.onLine === false && !e.loaded && !!e.img && !!e.img.src && e.img.complete;
+  }
+  function sunBuiltinOffline() {
+      if (navigator.onLine !== false) return false;
+      return BUILTIN_SUN_PHOTO_IDS.every((id) => sunEntryOnlineOnly(sunPhotoEntriesById[id]));
+  }
+  window.sunBuiltinOffline = sunBuiltinOffline;
+  // Overi (offline) jestli se zakladni fotky dokazou nacist - pocka na vysledek pokusu o nacteni (max 1,5 s).
+  function sunBuiltinsReachable() {
+      if (navigator.onLine !== false) return Promise.resolve(true);
+      loadSunPhotos();
+      const imgs = SUN_PHOTO_FILES.map((pair) => pair[0]);
+      if (imgs.some((i) => i.complete && i.naturalWidth > 0)) return Promise.resolve(true);
+      return new Promise((resolve) => {
+          let pending = 0, done = false;
+          const finish = (v) => { if (!done) { done = true; resolve(v); } };
+          imgs.forEach((i) => {
+              if (i.complete) return;
+              pending++;
+              i.addEventListener('load', () => finish(true), { once: true });
+              i.addEventListener('error', () => { if (--pending <= 0) finish(false); }, { once: true });
+          });
+          if (!pending) finish(false);
+          setTimeout(() => finish(false), 1500);
+      });
+  }
+  // Upozorneni (zavira se krizkem) - ukaze se jen offline u WEATHER: SUN bez vlastnich fotek.
+  function showSunOfflineNotice() {
+      const n = document.getElementById('sun-offline-notice');
+      if (!n) return;
+      const t = document.getElementById('sun-offline-notice-text');
+      const entry = i18nText.sun_offline_notice;
+      if (t && entry) t.textContent = entry[guideLang] || entry.en;
+      n.classList.add('visible');
+  }
+  window.closeSunOfflineNotice = function() {
+      const n = document.getElementById('sun-offline-notice');
+      if (n) n.classList.remove('visible');
+  };
+  // Zmena stavu pripojeni / nacteni fotek -> prepocitat rotaci a obnovit panel, je-li otevreny.
+  function refreshSunOfflineState() {
+      rebuildSunPhotosArray();
+      const panel = document.getElementById('sun-photos-panel');
+      if (panel && panel.classList.contains('visible')) renderSunPhotosPanel();
+  }
+  window.addEventListener('offline', () => { sunPhotosRequested && refreshSunOfflineState(); });
+  window.addEventListener('online', () => {
+      // po navratu online znovu zkusit stahnout zakladni fotky, ktere drive selhaly
+      if (sunPhotosRequested && !SUN_PHOTO_FILES.every((pair) => pair[0].complete && pair[0].naturalWidth > 0)) {
+          sunPhotosRequested = false;
+          loadSunPhotos();
+      }
+      refreshSunOfflineState();
+  });
+  SUN_PHOTO_FILES.forEach((pair) => {
+      pair[0].addEventListener('error', () => { if (navigator.onLine === false) refreshSunOfflineState(); });
+  });
+
   function rebuildSunPhotosArray() {
       sunPhotos.length = 0;
       for (const id of sunPhotoOrder) {
@@ -5219,8 +5393,11 @@
       }
       // Filtr podle zvoleneho zdroje. Kdyz by po filtru nezbyla zadna fotka (napr. "jen vlastni" bez vlastnich fotek),
       // pouziji se vsechny - rotace SUN nikdy nesmi zustat prazdna.
-      if (sunPhotoSourceMode !== 'mix') {
-          const only = sunPhotos.filter((e) => sunPhotoSourceMode === 'custom' ? !e.builtin : !!e.builtin);
+      // Offline (zakladni fotky se nepodarilo nacist) se pouzivaji jen vlastni fotky; zvolena volba zustava
+      // beze zmeny a po navratu online se zase uplatni.
+      const effMode = sunBuiltinOffline() ? 'custom' : sunPhotoSourceMode;
+      if (effMode !== 'mix') {
+          const only = sunPhotos.filter((e) => effMode === 'custom' ? !e.builtin : !!e.builtin);
           if (only.length) { sunPhotos.length = 0; only.forEach((e) => sunPhotos.push(e)); }
       }
       if (sunPhotoIndex >= sunPhotos.length) sunPhotoIndex = 0;
@@ -5229,6 +5406,7 @@
   window.getSunPhotoSource = function() { return sunPhotoSourceMode; };
   window.setSunPhotoSource = function(mode) {
       if (mode !== 'mix' && mode !== 'builtin' && mode !== 'custom') return;
+      if (sunBuiltinOffline() && mode !== 'custom') return; // offline: zakladni fotky nejsou dostupne
       sunPhotoSourceMode = mode;
       sunPhotoIndex = 0;
       sunPhotoFrame = 0;
@@ -5237,16 +5415,26 @@
   };
   // Zvyrazni aktivni volbu zdroje a ukaze upozorneni, kdyz je zvoleno "jen vlastni" a zadne nejsou.
   function updateSunSourceUI() {
+      const off = sunBuiltinOffline();
+      const eff = off ? 'custom' : sunPhotoSourceMode;
       ['mix', 'builtin', 'custom'].forEach((m) => {
           const btn = document.getElementById('sun-src-' + m);
           if (!btn) return;
-          btn.classList.toggle('active', sunPhotoSourceMode === m);
-          btn.setAttribute('aria-pressed', sunPhotoSourceMode === m ? 'true' : 'false');
+          btn.classList.toggle('active', eff === m);
+          btn.setAttribute('aria-pressed', eff === m ? 'true' : 'false');
+          // offline: aktivni je jen "vlastni", ostatni jsou zasedle
+          btn.disabled = off && m !== 'custom';
       });
+      const hasCustom = customSunPhotoEntries.length > 0;
       const note = document.getElementById('sun-src-note');
-      if (note) note.style.display = (sunPhotoSourceMode === 'custom' && !customSunPhotoEntries.length) ? '' : 'none';
+      if (note) note.style.display = (!off && sunPhotoSourceMode === 'custom' && !hasCustom) ? '' : 'none';
       const emptyNote = document.getElementById('sun-photos-empty-note');
       if (note && emptyNote && note.style.display === '') emptyNote.style.display = 'none';
+      if (emptyNote && off) emptyNote.style.display = 'none';
+      const offNote = document.getElementById('sun-offline-note');
+      const offNoteEmpty = document.getElementById('sun-offline-note-empty');
+      if (offNote) offNote.style.display = (off && hasCustom) ? '' : 'none';
+      if (offNoteEmpty) offNoteEmpty.style.display = (off && !hasCustom) ? '' : 'none';
   }
 
   function saveSunPhotoOrder() {
@@ -5316,6 +5504,13 @@
               if (r.blob) applyBuiltinOverride(r.id, URL.createObjectURL(r.blob), false);
           }
       } catch (e) { console.error('Nelze načíst vlastní SUN fotky:', e); }
+      // Ulozene WEATHER: SUN obnovene offline bez jedine fotky - SUN nema co zobrazit, vypne se a ukaze se upozorneni.
+      try {
+          if (weatherMode === 1 && navigator.onLine === false && !customSunPhotoEntries.length) {
+              const ok = await sunBuiltinsReachable();
+              if (!ok && weatherMode === 1) { weatherMode = 0; applyWeatherUI(); showSunOfflineNotice(); }
+          }
+      } catch (e) { /* ignore */ }
   }
 
   // Otevře/zavře samostatnou sekci pro správu vlastních fotek (přidání, odebrání, přeřazení).
@@ -5492,14 +5687,24 @@
           const li = document.createElement('li');
           li.dataset.pid = id; // pro presouvani tazenim mysi
           // Fotky, ktere jsou podle zvoleneho zdroje mimo rotaci, jsou v seznamu ztlumene (poradi jde dal menit).
-          if (sunPhotos.indexOf(entry) === -1) li.style.opacity = '0.4';
+          const onlineOnly = sunEntryOnlineOnly(entry);
+          if (sunPhotos.indexOf(entry) === -1 || onlineOnly) li.style.opacity = '0.4';
 
-          const thumb = document.createElement('img');
-          thumb.className = 'sun-photo-thumb';
-          thumb.src = entry.url || (entry.img && entry.img.src) || '';
-          thumb.alt = entry.name || '';
-          thumb.title = 'Tap to preview';
-          thumb.addEventListener('click', (e) => { e.stopPropagation(); openSunPhotoLightbox(thumb.src, entry.name); });
+          let thumb;
+          if (onlineOnly) {
+              // offline: misto prazdne miniatury ukazat, ze fotka je dostupna jen online
+              thumb = document.createElement('div');
+              thumb.className = 'sun-photo-thumb-offline';
+              const ot = i18nText.sun_online_only;
+              thumb.textContent = ot ? (ot[guideLang] || ot.en) : 'ONLINE ONLY';
+          } else {
+              thumb = document.createElement('img');
+              thumb.className = 'sun-photo-thumb';
+              thumb.src = entry.url || (entry.img && entry.img.src) || '';
+              thumb.alt = entry.name || '';
+              thumb.title = 'Tap to preview';
+              thumb.addEventListener('click', (e) => { e.stopPropagation(); openSunPhotoLightbox(thumb.src, entry.name); });
+          }
 
           const nameSpan = document.createElement('span');
           nameSpan.className = 'history-name';
@@ -5512,7 +5717,12 @@
           if (entry.builtin) {
               const badge = document.createElement('span');
               badge.className = 'sun-photo-builtin-badge';
-              badge.innerText = 'DEFAULT';
+              if (onlineOnly) {
+                  const bt = i18nText.sun_online_only;
+                  badge.innerText = bt ? (bt[guideLang] || bt.en) : 'ONLINE ONLY';
+              } else {
+                  badge.innerText = 'DEFAULT';
+              }
               li.appendChild(badge);
           }
 
@@ -6385,6 +6595,21 @@
       weatherMode = (weatherMode + 1) % 5;
       // Pri aktivnim NIGHT se SUN preskakuje (SUN nejde s zadnym SUNSET/NIGHT), cyklus je OFF -> RAIN -> WINTER -> WINTER II
       if (weatherMode === 1 && sunsetMode === 3) weatherMode = 2;
+      // OFFLINE: zakladni fotky nejsou dostupne a uzivatel nema zadne vlastni -> SUN nejde zapnout,
+      // zobrazi se upozorneni (zavre se krizkem) a cyklus pokracuje na RAIN. Online se nic nemeni.
+      if (weatherMode === 1 && navigator.onLine === false && !customSunPhotoEntries.length) {
+          sunBuiltinsReachable().then((reachable) => {
+              if (reachable) {
+                  // fotky jsou dostupne (napr. z cache) - SUN se zapne normalne
+                  weatherMode = 1;
+              } else {
+                  weatherMode = 2;
+                  showSunOfflineNotice();
+              }
+              applyWeatherUI();
+          });
+          return;
+      }
       applyWeatherUI();
   };
 
@@ -8386,7 +8611,7 @@
     h_search: { en: "Search", cz: "Vyhledávání" },
     p_search: { en: "Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.", cz: "Klepněte na EXPLORE a poté na SEARCH - otevře se okno vyhledávání. Napište slovo česky nebo anglicky - například rain, déšť, piano, moře nebo noc - a skladby z ASMR, PIANO a CHILL, které sedí, se zobrazí už při psaní (na velikosti písmen ani diakritice nezáleží a česká slova se přiřazují k anglickým názvům skladeb). Klepnutím na skladbu se hlavní okno přepne rovnou do jejího playlistu, skladba se v seznamu odroluje na viditelné místo a krátce se rozsvítí; klepnutím na ▶ vedle ní ji hned přehrajete. Klávesa Enter otevře první výsledek. Pokud žádná skladba neobsahuje všechna vaše slova, zobrazí se nejbližší shody." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
-    p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují." },
+    p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own. At the bottom of the theme list, ◐ 2 COLORS lets you combine any two colours: pick COLOR 1 for the top of the player and COLOR 2 for the bottom, and the whole interface blends smoothly from one to the other. SWAP flips them, OFF returns to a single theme, and SAVE remembers your mix.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují. Úplně dole v seznamu motivů je ◐ 2 BARVY: můžete spojit libovolné dvě barvy. Vyberete BARVU 1 pro horní část playeru a BARVU 2 pro dolní část a celé rozhraní mezi nimi plynule přechází. PROHODIT je vymění, VYPNOUT se vrátí k jednomu motivu a SAVE si váš mix zapamatuje." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
     p_ambient: { en: "WEATHER cycles through four states: a warm SUN scene with drifting light and birds crossing the sky, a soft falling RAIN animation, a quiet WINTER scene with gently falling snow, then a windier WINTER II blizzard with slanted, faster snow. SUNSET cycles through three states: a warm sunset gradient, a second sunset variant SUNSET II, then a living starry NIGHT sky with a softly glowing moon. Both WEATHER and SUNSET/NIGHT can be combined with any visual theme, and are remembered when you save your settings. WEATHER and SUNSET don't mix freely: SUN (your photos) runs alone, so switching it on turns SUNSET/NIGHT off and the other way round; RAIN, WINTER and WINTER II can be combined only with NIGHT, never with SUNSET or SUNSET II. While RAIN or WINTER is on, the SUNSET button therefore skips straight to NIGHT, and while NIGHT is on, the WEATHER button skips SUN. Tap ＋ PHOTO next to WEATHER to add your own photos to the SUN rotation — pick one or several from your device and they join in after the built-in sunset photos, stored only on your device.", cz: "Tlačítko WEATHER prochází čtyřmi stavy: teplá scéna SUN s poletujícím světlem a ptáky na obloze, jemně padající animace deště RAIN, tichá zimní scéna WINTER s pomalu padajícím sněhem a nakonec větrnější vánice WINTER II se šikmým a rychlejším sněžením. SUNSET prochází třemi stavy: teplý gradient západu slunce, druhá varianta západu SUNSET II a živá hvězdná noční obloha NIGHT s jemně zářícím měsícem. WEATHER i SUNSET/NIGHT lze kombinovat s jakýmkoli vizuálním motivem a jejich nastavení se uloží spolu s ostatními. WEATHER a SUNSET se ale nemíchají libovolně: SUN (vaše fotky) běží vždy samostatně, takže jeho zapnutím se SUNSET/NIGHT vypne a naopak; RAIN, WINTER a WINTER II lze kombinovat jen s NIGHT, nikdy se SUNSET ani SUNSET II. Při zapnutém RAIN nebo WINTER proto tlačítko SUNSET přeskočí rovnou na NIGHT a při zapnutém NIGHT tlačítko WEATHER přeskočí SUN. Tlačítkem ＋ PHOTO vedle WEATHER přidáte do rotace SUN vlastní fotky — vyberte jednu nebo víc ze svého zařízení a zařadí se za vestavěné fotky západu slunce, uložené jen na vašem zařízení." },
     h_together: { en: "Breathe together", cz: "Společné dýchání" },
@@ -8506,6 +8731,10 @@
     sun_src_note: { en: "You haven't added any photos of your own yet - the default ones are used until you add some.", cz: "Zatím jste nepřidali žádné vlastní fotky - dokud nějaké nepřidáte, použijí se ty základní." },
     sun_photos_add_btn: { en: "＋ ADD PHOTOS", cz: "＋ PŘIDAT FOTKY" },
     sun_photo_toast_added_one: { en: "Photo added", cz: "Fotka přidána" },
+    sun_offline_notice: { en: "You're offline and the default photos are available only online. Add your own photos first (＋ PHOTO) to use WEATHER: SUN.", cz: "Jste offline a základní fotky jsou dostupné jen online. Pro WEATHER: SUN nejdříve přidejte vlastní fotky (＋ PHOTO)." },
+    sun_offline_note: { en: "OFFLINE - the default photos are available only online, so only your own photos are used. Your original choice returns when you're back online.", cz: "OFFLINE - základní fotky jsou dostupné jen online, proto se používají pouze vaše vlastní. Původní volba se vrátí, jakmile budete zase online." },
+    sun_offline_note_empty: { en: "OFFLINE - the default photos are available only online and you haven't added any photos of your own yet. Add some below to use WEATHER: SUN without internet.", cz: "OFFLINE - základní fotky jsou dostupné jen online a zatím jste nepřidali žádné vlastní. Přidejte je níže, abyste mohli WEATHER: SUN používat bez internetu." },
+    sun_online_only: { en: "ONLINE ONLY", cz: "JEN ONLINE" },
     bv_leg_in: { en: "inhale", cz: "nádech" },
     bv_leg_hold: { en: "hold (full lungs)", cz: "zádrž (plné plíce)" },
     bv_leg_out: { en: "exhale", cz: "výdech" },
@@ -8549,7 +8778,12 @@
     queue_btn_txt: { en: "📄 EXPORT TXT", cz: "📄 EXPORT TXT" },
     queue_btn_export: { en: "💾 EXPORT PLAYLIST", cz: "💾 EXPORTOVAT PLAYLIST" },
     queue_btn_import: { en: "📂 IMPORT PLAYLIST", cz: "📂 IMPORTOVAT PLAYLIST" },
-    queue_btn_clear: { en: "CLEAR", cz: "VYMAZAT" }
+    queue_btn_clear: { en: "CLEAR", cz: "VYMAZAT" },
+    theme_mix_btn: { en: "◐ 2 COLORS", cz: "◐ 2 BARVY" },
+    theme_mix_c1: { en: "COLOR 1 · TOP OF THE PLAYER", cz: "BARVA 1 · HORNÍ ČÁST PLAYERU" },
+    theme_mix_c2: { en: "COLOR 2 · BOTTOM OF THE PLAYER", cz: "BARVA 2 · DOLNÍ ČÁST PLAYERU" },
+    theme_mix_swap: { en: "⇄ SWAP", cz: "⇄ PROHODIT" },
+    theme_mix_off: { en: "✕ OFF", cz: "✕ VYPNOUT" }
   };
 
   // My Playlist: úvodní text má v EN a CZ jiný počet řádků - výška odstavce se zamkne na vyšší z obou jazyků, ať tlačítka
@@ -9977,9 +10211,122 @@
     // Nahrazujeme jen theme-* třídu, zbytek (např. is-fullscreen) necháme být
     body.className = body.className.replace(/theme-\S+/g, '').trim();
     body.classList.add('theme-' + theme);
+    clearThemeMixStyles(); // vybrán jednobarevný motiv -> případný mix dvou barev končí
     document.querySelectorAll('.btn-theme').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updateCanvasState(); 
+    renderThemeMixer();
+  };
+
+  // ==========================================
+  // VISUAL: 2 COLORS - kombinace dvou libovolných motivů.
+  // Barva 1 dodá hlavní barvu (--accent-color) i pozadí, barva 2 druhou záři (--accent-glow:
+  // koule, přechod ukazatele, záře). Mix je jen sada vlastností na <body> (třída theme-mix),
+  // takže původní motivy zůstávají beze změny. Ukládá se tlačítkem SAVE (settings.themeMix).
+  // ==========================================
+  let themeMix = null; // [klíč1, klíč2] nebo null
+  const THEME_VAR_CACHE = {};
+  const THEME_MIX_PROPS = ['--bg-color-1', '--bg-color-2', '--accent-color', '--accent-glow', '--mix-a', '--mix-b'];
+  function themeKeyOfBtn(b) {
+    const m = /setVisualTheme\('([a-z0-9_-]+)'/.exec(b.getAttribute('onclick') || '');
+    return m ? m[1] : null;
+  }
+  function themeButtons() {
+    return Array.prototype.slice.call(document.querySelectorAll('.btn-theme')).filter(b => themeKeyOfBtn(b));
+  }
+  function themeKeys() { return themeButtons().map(themeKeyOfBtn); }
+  // Barvy motivu se čtou přímo z CSS pravidla body.theme-<klíč> (jediný zdroj pravdy)
+  function themeVars(key) {
+    if (THEME_VAR_CACHE[key]) return THEME_VAR_CACHE[key];
+    const out = {};
+    const sel = 'body.theme-' + key;
+    try {
+      for (const sh of Array.prototype.slice.call(document.styleSheets)) {
+        let rules;
+        try { rules = sh.cssRules; } catch (e) { continue; }
+        for (const r of Array.prototype.slice.call(rules || [])) {
+          if (r.selectorText === sel && r.style) {
+            THEME_MIX_PROPS.forEach(p => { const v = r.style.getPropertyValue(p).trim(); if (v) out[p] = v; });
+          }
+        }
+      }
+    } catch (e) { /* ignore */ }
+    THEME_VAR_CACHE[key] = out;
+    return out;
+  }
+  function clearThemeMixStyles() {
+    themeMix = null;
+    THEME_MIX_PROPS.forEach(p => body.style.removeProperty(p));
+    const mb = document.getElementById('btn-theme-mix');
+    if (mb) mb.classList.remove('active');
+  }
+  function applyThemeMix(k1, k2) {
+    const keys = themeKeys();
+    if (!keys.includes(k1) || !keys.includes(k2)) return false;
+    const a = themeVars(k1), b = themeVars(k2);
+    if (!a['--accent-color'] || !b['--accent-color']) return false;
+    body.className = body.className.replace(/theme-\S+/g, '').trim();
+    body.classList.add('theme-mix');
+    body.style.setProperty('--bg-color-1', a['--bg-color-1'] || '#1a0033');
+    body.style.setProperty('--bg-color-2', a['--bg-color-2'] || '#000010');
+    body.style.setProperty('--accent-color', a['--accent-color']);
+    body.style.setProperty('--accent-glow', b['--accent-color']);
+    body.style.setProperty('--mix-a', a['--accent-color']);
+    body.style.setProperty('--mix-b', b['--accent-color']);
+    themeMix = [k1, k2];
+    document.querySelectorAll('.btn-theme').forEach(x => x.classList.remove('active'));
+    const mb = document.getElementById('btn-theme-mix');
+    if (mb) mb.classList.add('active');
+    updateCanvasState();
+    renderThemeMixer();
+    return true;
+  }
+  function renderThemeMixer() {
+    const r1 = document.getElementById('tm-sw-1'), r2 = document.getElementById('tm-sw-2');
+    if (!r1 || !r2) return;
+    const sel1 = themeMix ? themeMix[0] : currentVisualTheme;
+    const sel2 = themeMix ? themeMix[1] : null;
+    [[r1, sel1, 1], [r2, sel2, 2]].forEach(([row, sel, which]) => {
+      row.textContent = '';
+      themeButtons().forEach(tb => {
+        const key = themeKeyOfBtn(tb);
+        const name = tb.textContent.trim();
+        const sw = document.createElement('button');
+        sw.type = 'button';
+        sw.className = 'tm-sw';
+        sw.style.background = themeVars(key)['--accent-color'] || '#888';
+        sw.title = name;
+        sw.setAttribute('aria-label', name);
+        sw.setAttribute('aria-pressed', key === sel ? 'true' : 'false');
+        sw.addEventListener('click', () => pickThemeMixColor(which, key));
+        row.appendChild(sw);
+      });
+    });
+    const swap = document.getElementById('tm-swap'), off = document.getElementById('tm-off');
+    if (swap) swap.disabled = !themeMix;
+    if (off) off.disabled = !themeMix;
+  }
+  function pickThemeMixColor(which, key) {
+    if (which === 1) {
+      if (themeMix) applyThemeMix(key, themeMix[1]);
+      else { const tb = themeButtons().find(b => themeKeyOfBtn(b) === key); if (tb) setVisualTheme(key, tb); }
+    } else {
+      applyThemeMix(themeMix ? themeMix[0] : currentVisualTheme, key);
+    }
+  }
+  window.swapThemeMix = function() { if (themeMix) applyThemeMix(themeMix[1], themeMix[0]); };
+  window.clearThemeMix = function() {
+    if (!themeMix) return;
+    const tb = themeButtons().find(b => themeKeyOfBtn(b) === currentVisualTheme) || themeButtons()[0];
+    if (tb) setVisualTheme(currentVisualTheme, tb);
+  };
+  window.toggleThemeMixer = function() {
+    const m = document.getElementById('theme-mixer'), b = document.getElementById('btn-theme-mix');
+    if (!m) return;
+    const open = m.hidden;
+    m.hidden = !open;
+    if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderThemeMixer();
   };
 
   // Vykreslí čas skladby tak, aby každá číslice měla stejnou šířku (nic neposkakuje při změně sekund)
@@ -12701,6 +13048,7 @@
     } catch (e) { settings = {}; }
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) settings = {};
     settings.theme = currentVisualTheme;
+    if (themeMix) settings.themeMix = themeMix.slice(); else delete settings.themeMix;
     settings.weather = weatherMode;
     settings.sunset = sunsetMode;
     settings.crossfade = crossfadeDuration;
@@ -12779,6 +13127,7 @@
   // Nové načítání z localStorage místo výchozího nastavení
   window.addEventListener('DOMContentLoaded', () => {
     let savedTheme = 'amber'; // výchozí
+    let savedThemeMix = null;  // uložený mix dvou barev ([klíč1, klíč2]) z tlačítka 2 COLORS
     let savedWeatherMode = 0;
     let savedSunsetMode = 0;
     let savedCrossfade = 0;
@@ -12802,6 +13151,7 @@
         if (savedSettings) {
             const settings = JSON.parse(savedSettings);
             if (settings.theme) savedTheme = settings.theme;
+            if (Array.isArray(settings.themeMix) && settings.themeMix.length === 2 && settings.themeMix.every(x => typeof x === 'string')) savedThemeMix = settings.themeMix;
             if (typeof settings.weather === 'number') savedWeatherMode = settings.weather;
             else if (settings.rain) savedWeatherMode = 2; // zpětná kompatibilita se starším uložením (RAIN bývalo prosté true/false)
             if (settings.sunset === true) savedSunsetMode = 1; // zpětná kompatibilita se starším uložením (bool)
@@ -12859,6 +13209,7 @@
     } else {
       setVisualTheme(savedTheme, document.querySelector('.btn-theme'));
     }
+    if (savedThemeMix) { try { applyThemeMix(savedThemeMix[0], savedThemeMix[1]); } catch (e) { /* ignore */ } }
 
     if (savedWeatherMode > 0) {
         weatherMode = savedWeatherMode;
