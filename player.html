@@ -276,9 +276,20 @@
     50% { filter: drop-shadow(0 0 16px var(--accent-color)); }
   }
   /* Podsvícení hlavního okna přehrávače (4. pozice tlačítka ✨) - stejná barva a rytmus pulzu jako u loga */
+  /* Podsvícení se pomalu rozsvěcí (windowGlowIn) a po dosažení plné záře pulzuje; při vypnutí pomalu pohasne (windowGlowOut, třídu window-glow-out dává JS). */
+  .player-section { transition: border-color 1.4s ease; }
   body.window-glow .player-section {
     border-color: var(--accent-color);
-    animation: windowGlowPulse 3.5s ease-in-out infinite;
+    animation: windowGlowIn 1.6s ease-out, windowGlowPulse 3.5s ease-in-out 1.6s infinite;
+  }
+  body.window-glow-out .player-section { animation: windowGlowOut 1.4s ease-in-out forwards; }
+  @keyframes windowGlowIn {
+    from { box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+    to { box-shadow: 0 0 8px var(--accent-color), 0 0 16px var(--accent-color), inset 0 0 8px rgba(255,255,255,0.04); }
+  }
+  @keyframes windowGlowOut {
+    from { box-shadow: var(--wg-from, 0 0 8px var(--accent-color), 0 0 16px var(--accent-color)); }
+    to { box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
   }
   @keyframes windowGlowPulse {
     0%, 100% { box-shadow: 0 0 8px var(--accent-color), 0 0 16px var(--accent-color), inset 0 0 8px rgba(255,255,255,0.04); }
@@ -756,8 +767,14 @@
   /* VISUAL: tlačítko 2 COLORS + mixér dvou barev (kombinace libovolných dvou motivů) */
   .btn-theme-mix { background: none; border: 1px solid rgba(255,255,255,0.3); border-radius: 10px; color: #fff; opacity: 0.6; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7.5px; cursor: pointer; transition: 0.3s; padding: 2px 8px; letter-spacing: 0.5px; -webkit-tap-highlight-color: transparent; }
   .btn-theme-mix:hover, .btn-theme-mix.active { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
-  .theme-mixer { flex: 1 1 100%; max-width: 340px; box-sizing: border-box; margin: 6px auto 2px; padding: 8px 10px 10px; border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; background: rgba(255,255,255,0.04); display: flex; flex-direction: column; gap: 10px; }
-  .theme-mixer[hidden] { display: none; }
+  /* 2 COLORS: samostatné okno (modal) uprostřed obrazovky místo rozbalovacího panelu */
+  .tm-overlay { position: fixed; inset: 0; z-index: 10050; display: flex; align-items: center; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px); box-sizing: border-box; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); overflow-y: auto; }
+  .tm-window { width: 100%; max-width: 340px; box-sizing: border-box; padding: 12px 14px 14px; border: 1px solid rgba(255,255,255,0.22); border-radius: 16px; background: linear-gradient(180deg, #1c1c1f 0%, #0d0d0f 100%); box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 18px color-mix(in srgb, var(--accent-color, #fff) 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 14px; color: #fff; margin: auto; }
+  .tm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tm-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 11px; letter-spacing: 1.5px; color: var(--accent-color, #fff); text-shadow: 0 0 8px var(--accent-color, transparent); }
+  .tm-close { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); background: none; color: #fff; opacity: 0.7; font-size: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; }
+  .tm-close:hover, .tm-close:focus-visible { opacity: 1; border-color: var(--accent-color, #fff); color: var(--accent-color, #fff); outline: none; }
+  .tm-overlay[hidden] { display: none; }
   .tm-row { display: flex; flex-direction: column; gap: 6px; }
   .tm-label { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7.5px; letter-spacing: 1px; opacity: 0.7; text-align: center; }
   .tm-swatches { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
@@ -2162,11 +2179,22 @@
   /* Modul: leva skupina (zprava, historie, online, displej, rychlost, stav pripojeni) v malem ramecku,
      jemne "vytazena" nad pozadi (stin + svetly horni okraj). Ramecek obepina jen tlacitka, ne cely radek. */
   .focus-mode-left {
-    flex: 0 1 auto; padding: 5px 12px 6px; margin: 0 0 4px;
+    flex: 0 1 auto; padding: 5px 12px 6px; margin: 0;
     border: 1px solid rgba(255,255,255,0.18); border-radius: 16px;
     background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
     box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
-    transform: translateY(-2px);
+    transform: none; /* dřív translateY(-2px) + margin-bottom 4px: blok seděl výš než pravý blok (visual / fullscreen / focus) */
+  }
+  /* Podsvícení playeru (✨ 4. poloha = body.window-glow): oba spodní bloky (levý se zprávou/historií a pravý s visual/fullscreen/focus)
+     dostanou jen velmi jemnou, statickou ambientní záři v barvě motivu. Původní stíny zůstávají, záře se přidává navíc. */
+  .focus-mode-left, .focus-mode-right { transition: box-shadow 0.6s ease, border-color 0.6s ease; }
+  body.window-glow .focus-mode-left {
+    border-color: color-mix(in srgb, var(--accent-color) 26%, rgba(255,255,255,0.12));
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), 0 0 10px color-mix(in srgb, var(--accent-color) 16%, transparent), inset 0 1px 0 rgba(255,255,255,0.14);
+  }
+  body.window-glow .focus-mode-right {
+    border-color: color-mix(in srgb, var(--accent-color) 26%, rgba(255,255,255,0.08));
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25), 0 0 10px color-mix(in srgb, var(--accent-color) 16%, transparent);
   }
   /* Tlacitka vedle SYNTHLUCIDA: "vytazeny" vzhled jako ostatni male tlacitka, stejna velikost (padding/okraj/ikona beze zmeny). */
   .logo-glow-toggle-btn {
@@ -2972,6 +3000,12 @@
   .gain-mini .layer-knob-tip { font-size: 10px; }
   .gain-mini-label { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 6.5px; letter-spacing: 1px; line-height: 1; color: #fff; opacity: 0.6; text-transform: uppercase; user-select: none; }
   .extra-features.is-muted .gain-mini { opacity: 0.4; }
+  /* Malé displeje: řádek hlasitosti je hustší, procenta menší a nakonec skrytá, aby nezasahovala do GAIN knobu. */
+  @media (max-width: 480px) {
+    .extra-features .volume-controls-row { gap: 4px; }
+    .extra-features .vol-percent { font-size: 8px; min-width: 0; letter-spacing: 0; display: none; }
+    .extra-features .vol-icon { font-size: 10px; }
+  }
 
   /* About + FAQ uvnitř návodu (ⓘ vlevo nahoře) - indexovatelný text v HTML */
   .guide-about details { border-top: 1px solid rgba(255,255,255,0.14); padding: 8px 0; text-align: left; }
@@ -3330,21 +3364,7 @@
     <button class="btn-theme" onclick="setVisualTheme('peach', this)">PEACH</button>
     <button class="btn-theme" onclick="setVisualTheme('obsidian', this)">OBSIDIAN</button>
     <button class="btn-theme" onclick="setVisualTheme('sapphire', this)">SAPPHIRE</button>
-    <button type="button" class="btn-theme-mix" id="btn-theme-mix" onclick="toggleThemeMixer()" aria-expanded="false" aria-controls="theme-mixer" data-i18n="theme_mix_btn">◐ 2 COLORS</button>
-    <div class="theme-mixer" id="theme-mixer" hidden>
-      <div class="tm-row">
-        <span class="tm-label" data-i18n="theme_mix_c1">COLOR 1 · TOP OF THE PLAYER</span>
-        <div class="tm-swatches" id="tm-sw-1" role="group" aria-label="Color 1"></div>
-      </div>
-      <div class="tm-row">
-        <span class="tm-label" data-i18n="theme_mix_c2">COLOR 2 · BOTTOM OF THE PLAYER</span>
-        <div class="tm-swatches" id="tm-sw-2" role="group" aria-label="Color 2"></div>
-      </div>
-      <div class="tm-actions">
-        <button type="button" class="btn-feature" id="tm-swap" onclick="swapThemeMix()" data-i18n="theme_mix_swap">⇄ SWAP</button>
-        <button type="button" class="btn-feature" id="tm-off" onclick="clearThemeMix()" data-i18n="theme_mix_off">✕ OFF</button>
-      </div>
-    </div>
+    <button type="button" class="btn-theme-mix" id="btn-theme-mix" onclick="toggleThemeMixer()" aria-expanded="false" aria-haspopup="dialog" aria-controls="theme-mixer" data-i18n="theme_mix_btn">◐ 2 COLORS</button>
   </div>
 
   <div class="extra-features" data-vol-mode="fader">
@@ -3762,6 +3782,27 @@
     </div>
 
     <p class="main-guide-note" data-i18n="myfiles_guide_note">Uploaded files, your playlists, and MY PLAYLIST are all stored only on this device and are never uploaded anywhere.</p>
+  </div>
+</div>
+
+<div class="tm-overlay" id="theme-mixer" role="dialog" aria-modal="true" aria-labelledby="tm-title" hidden>
+  <div class="tm-window">
+    <div class="tm-head">
+      <span class="tm-title" id="tm-title" data-i18n="theme_mix_btn">◐ 2 COLORS</span>
+      <button type="button" class="tm-close" id="tm-close" onclick="toggleThemeMixer()" aria-label="Close" title="Close">✕</button>
+    </div>
+    <div class="tm-row">
+      <span class="tm-label" data-i18n="theme_mix_c1">COLOR 1 · TOP OF THE PLAYER</span>
+      <div class="tm-swatches" id="tm-sw-1" role="group" aria-label="Color 1"></div>
+    </div>
+    <div class="tm-row">
+      <span class="tm-label" data-i18n="theme_mix_c2">COLOR 2 · BOTTOM OF THE PLAYER</span>
+      <div class="tm-swatches" id="tm-sw-2" role="group" aria-label="Color 2"></div>
+    </div>
+    <div class="tm-actions">
+      <button type="button" class="btn-feature" id="tm-swap" onclick="swapThemeMix()" data-i18n="theme_mix_swap">⇄ SWAP</button>
+      <button type="button" class="btn-feature" id="tm-off" onclick="clearThemeMix()" data-i18n="theme_mix_off">✕ OFF</button>
+    </div>
   </div>
 </div>
 
@@ -4681,7 +4722,17 @@
       const btn = document.getElementById('btn-logo-pulse');
       if (img) img.classList.toggle('pulse-off', sparkleState !== 0);
       if (brandName) brandName.classList.toggle('text-glow', sparkleState === 1);
-      document.body.classList.toggle('window-glow', sparkleState === 2);
+      { // pomalé rozsvícení / pohasnutí podsvícení hlavního okna
+        const b = document.body, ps = document.querySelector('.player-section');
+        const wasOn = b.classList.contains('window-glow'), isOn = sparkleState === 2;
+        clearTimeout(window._wgOutTimer);
+        if (isOn) { b.classList.remove('window-glow-out'); b.classList.add('window-glow'); }
+        else if (wasOn) {
+          try { if (ps) ps.style.setProperty('--wg-from', getComputedStyle(ps).boxShadow); } catch (e) { /* ignore */ }
+          b.classList.add('window-glow-out'); b.classList.remove('window-glow');
+          window._wgOutTimer = setTimeout(function() { b.classList.remove('window-glow-out'); }, 1450);
+        }
+      }
       if (btn) {
           btn.classList.toggle('active', sparkleState === 0);
           // Popisek vždy říká, co udělá NÁSLEDUJÍCÍ klik (ne aktuální stav)
@@ -10452,6 +10503,12 @@
     if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) renderThemeMixer();
   };
+  (function() {
+    const m = document.getElementById('theme-mixer');
+    if (!m) return;
+    m.addEventListener('click', function(e) { if (e.target === m) window.toggleThemeMixer(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !m.hidden) window.toggleThemeMixer(); });
+  })();
 
   // Vykreslí čas skladby tak, aby každá číslice měla stejnou šířku (nic neposkakuje při změně sekund)
   let _trackTimeLast = null;
