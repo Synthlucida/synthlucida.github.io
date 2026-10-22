@@ -602,6 +602,11 @@
     font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px;
     cursor: pointer; transition: 0.3s; -webkit-tap-highlight-color: transparent;
   }
+  /* MUSIC: šířka tlačítka se řídí nejdelším možným popiskem (MUSIC: PIANO ...), takže při přepnutí playlistu
+     (i na MY PLAYLIST / vlastní playlist) tlačítko nemění šířku a sousední tlačítka neposkakují */
+  .atmos-toggle-label { display: inline-grid; }
+  .atmos-toggle-label > span { grid-area: 1 / 1; text-align: center; white-space: nowrap; }
+  .atmos-toggle-label > .atmos-sizer { visibility: hidden; height: 0; overflow: hidden; pointer-events: none; }
   .atmos-toggle::after { content: '\25BE'; font-size: 8px; line-height: 1; transition: transform 0.25s ease; }
   .atmos-toggle.open { border-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color); }
   .atmos-toggle.open::after { transform: rotate(180deg); }
@@ -3043,10 +3048,25 @@
       var musicToggle = document.getElementById('atmos-toggle-music');
       var musicLabel = musicToggle && musicToggle.querySelector('.atmos-toggle-label');
       var musicBtns = Array.prototype.slice.call(document.querySelectorAll('#atmos-panel-music .btn-atmos'));
+      var musicCur = null;
+      if (musicLabel) {
+        // viditelný popisek + skryté "měřidlo" se všemi možnými popisky (pevná šířka tlačítka)
+        musicLabel.textContent = '';
+        musicCur = document.createElement('span');
+        musicCur.className = 'atmos-cur';
+        musicLabel.appendChild(musicCur);
+        ['MUSIC'].concat(musicBtns.map(function (b) { return 'MUSIC: ' + b.textContent.trim(); })).forEach(function (t) {
+          var sz = document.createElement('span');
+          sz.className = 'atmos-sizer';
+          sz.setAttribute('aria-hidden', 'true');
+          sz.textContent = t;
+          musicLabel.appendChild(sz);
+        });
+      }
       function syncMusicToggle() {
-        if (!musicToggle || !musicLabel) return;
+        if (!musicToggle || !musicLabel || !musicCur) return;
         var active = musicBtns.filter(function (b) { return b.classList.contains('active'); })[0];
-        musicLabel.textContent = active ? 'MUSIC: ' + active.textContent.trim() : 'MUSIC';
+        musicCur.textContent = active ? 'MUSIC: ' + active.textContent.trim() : 'MUSIC';
         musicToggle.classList.toggle('has-new-track', musicBtns.some(function (b) { return b.classList.contains('has-new-track'); }));
       }
       syncMusicToggle();
