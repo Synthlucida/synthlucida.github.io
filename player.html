@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.2">
+<meta name="app-version" content="2.2.3">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2961,6 +2961,14 @@
      (stav ukazuje barva a přeškrtnutý reproduktor), takže je tlačítko malé a pevné a nikdy nezasáhne do VOL. */
   .extra-features { position: relative; }
   .extra-features .btn-mute { position: absolute; right: 0; top: 13px; width: 58px; padding: 0; gap: 4px; }
+  /* GAIN: malý knob vlevo vedle MUTE. Násobí hlavní hlasitost (1.0x - 2.0x), skutečná hlasitost ale nikdy nepřekročí 100 %. */
+  .gain-mini { position: absolute; right: 64px; top: 3px; width: 34px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .gain-mini .layer-knob-wrap { width: 26px; height: 26px; }
+  .gain-mini .layer-knob::before { inset: 3px; }
+  .gain-mini .layer-knob::after { top: 5px; width: 2px; height: 7px; left: calc(50% - 1px); transform-origin: 50% 8px; }
+  .gain-mini .layer-knob-tip { font-size: 10px; }
+  .gain-mini-label { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 6.5px; letter-spacing: 1px; line-height: 1; color: #fff; opacity: 0.6; text-transform: uppercase; user-select: none; }
+  .extra-features.is-muted .gain-mini { opacity: 0.4; }
 
   /* About + FAQ uvnitř návodu (ⓘ vlevo nahoře) - indexovatelný text v HTML */
   .guide-about details { border-top: 1px solid rgba(255,255,255,0.14); padding: 8px 0; text-align: left; }
@@ -3347,6 +3355,13 @@
         <span class="layer-knob-tip" id="vol-knob-tip" aria-hidden="true"></span>
       </div>
       <span class="vol-percent" id="vol-percent" aria-live="off" title="Volume">30%</span>
+      <div class="gain-mini" id="gain-mini">
+        <div class="layer-knob-wrap" id="gain-knob-wrap">
+          <div class="layer-knob" id="gain-knob" role="slider" tabindex="0" aria-label="Main volume gain" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1" title="Gain: boosts the main volume up to 2x, never above 100% (drag up/down, scroll or use arrow keys; double-tap to reset)"></div>
+          <span class="layer-knob-tip" id="gain-knob-tip" aria-hidden="true"></span>
+        </div>
+        <span class="gain-mini-label" aria-hidden="true">GAIN</span>
+      </div>
       <button type="button" class="btn-mute" id="btn-mute" onclick="toggleMute()" aria-pressed="false" aria-label="Mute all sound" title="Mute all sound"><svg class="ico-svg ico-mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><g class="mute-waves"><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></g><path class="mute-x" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg><span class="mute-txt">MUTE</span></button>
     </div>
     <div class="vol-slider-row" id="vol-slider-row">
@@ -5247,6 +5262,13 @@
       sunImage8Loaded = true;
       sunImage8Aspect = sunImage8.naturalWidth / sunImage8.naturalHeight;
   };
+  const sunImage9 = new Image();
+  let sunImage9Loaded = false;
+  let sunImage9Aspect = 16 / 9;
+  sunImage9.onload = function() {
+      sunImage9Loaded = true;
+      sunImage9Aspect = sunImage9.naturalWidth / sunImage9.naturalHeight;
+  };
 
   // WEATHER: SUN — šestá fotka do sekce SUN
   const sunImage6 = new Image();
@@ -5263,7 +5285,7 @@
   const SUN_PHOTO_FILES = [
       [sunImage, 'player-bg-sun-1.jpg'], [sunImage2, 'player-bg-sun-2.jpg'], [sunImage3, 'player-bg-sun-3.jpg'],
       [sunImage4, 'player-bg-sun-4.jpg'], [sunImage5, 'player-bg-sun-5.jpg'], [sunImage6, 'player-bg-sun-6.jpg'],
-      [sunImage7, 'player-bg-sun-7.jpg'], [sunImage8, 'player-bg-sun-8.jpg']
+      [sunImage7, 'player-bg-sun-7.jpg'], [sunImage8, 'player-bg-sun-8.jpg'], [sunImage9, 'player-bg-sun-9.jpg']
   ];
   let sunPhotosRequested = false;
   function loadSunPhotos() {
@@ -5286,7 +5308,8 @@
       { id: 'builtin_5', name: 'Default 5', builtin: true, img: sunImage3, get loaded() { return sunImage3Loaded; }, get aspect() { return sunImage3Aspect; } },
       { id: 'builtin_6', name: 'Default 6', builtin: true, img: sunImage6, get loaded() { return sunImage6Loaded; }, get aspect() { return sunImage6Aspect; } },
       { id: 'builtin_7', name: 'Default 7', builtin: true, img: sunImage7, get loaded() { return sunImage7Loaded; }, get aspect() { return sunImage7Aspect; } },
-      { id: 'builtin_8', name: 'Default 8', builtin: true, img: sunImage8, get loaded() { return sunImage8Loaded; }, get aspect() { return sunImage8Aspect; } }
+      { id: 'builtin_8', name: 'Default 8', builtin: true, img: sunImage8, get loaded() { return sunImage8Loaded; }, get aspect() { return sunImage8Aspect; } },
+      { id: 'builtin_9', name: 'Default 9', builtin: true, img: sunImage9, get loaded() { return sunImage9Loaded; }, get aspect() { return sunImage9Aspect; } }
   ];
   // Původní vestavěné záznamy (pro DEV reset funkci níže) - drží se stranou, nikdy se nemažou.
   const sunPhotosOriginalBuiltins = sunPhotos.slice();
@@ -5496,7 +5519,7 @@
           applySavedSunPhotoOrder();
 
           // Tajná DEV funkce (5x klik na nadpis panelu) - vlastní fotky uložené jako náhrada
-          // za jednu z 6 vestavěných. Uložené jsou ve stejné IndexedDB, jen s kind:'builtin_override'.
+          // za jednu z vestavěných. Uložené jsou ve stejné IndexedDB, jen s kind:'builtin_override'.
           const overrideRecords = allRecords.filter((r) => r.kind === 'builtin_override');
           for (const r of overrideRecords) {
               if (r.blob) applyBuiltinOverride(r.id, URL.createObjectURL(r.blob), false);
@@ -5903,7 +5926,16 @@
   try { savedVolume = localStorage.getItem('sl-volume'); } catch (e) { /* úložiště zablokované - výchozí hlasitost */ }
   const parsedSavedVolume = savedVolume !== null ? parseFloat(savedVolume) : NaN;
   const initialVolume = isFinite(parsedSavedVolume) ? Math.min(1, Math.max(0, parsedSavedVolume)) : 0.3;
-  audio.volume = initialVolume;
+  // GAIN: násobič hlavní hlasitosti 1.0x - 2.0x (knob vedle MUTE). Skutečná hlasitost audia je vždy min(1, posuvník x gain),
+  // takže se nikdy nepřekročí původní úroveň skladby (žádné klipování). Při 100 % posuvníku gain nic nemění.
+  const GAIN_STORE_KEY = 'sl-main-gain';
+  let mainGainPos = 0; // 0..1 -> gain 1.0x .. 2.0x
+  try { const g = parseFloat(localStorage.getItem(GAIN_STORE_KEY)); if (isFinite(g)) mainGainPos = Math.min(1, Math.max(0, g)); } catch (e) { /* výchozí 1.0x */ }
+  function mainVol() {
+    const v = parseFloat(volumeSlider.value);
+    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * (1 + mainGainPos)));
+  }
+  audio.volume = Math.min(1, initialVolume * (1 + mainGainPos));
   volumeSlider.value = initialVolume;
   volumeSlider.style.setProperty('--vol', initialVolume);
   { const vp = document.getElementById('vol-percent'); if (vp) vp.textContent = Math.round(parseFloat(volumeSlider.value) * 100) + '%'; }
@@ -7524,7 +7556,7 @@
     if (volPointerDrag && e.isTrusted && Math.abs(parseFloat(e.target.value) - 0.5) < 0.03) e.target.value = '0.5';
     if (e.isTrusted) volCheckMid(); else volPrev = parseFloat(e.target.value);
     syncBmVol();
-    updateVolPercent(); audio.volume = e.target.value; e.target.style.setProperty('--vol', e.target.value); try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ }
+    updateVolPercent(); audio.volume = mainVol(); e.target.style.setProperty('--vol', e.target.value); try { localStorage.setItem('sl-volume', e.target.value); } catch (err) { /* ignore */ }
   });
 
   // Fader hlasitosti v mini přehrávači dechového cvičení: totéž co hlavní posuvník (stejná hodnota i uložení),
@@ -7744,7 +7776,7 @@
       const box = cv.closest('.extra-features');
       const muted = !!(box && box.classList.contains('is-muted'));
       const playing = !audio.paused && !audio.ended && !muted;
-      const vol = Math.min(1, Math.max(0, parseFloat(volumeSlider.value) || 0));
+      const vol = mainVol();
       const base = Math.pow(vol, 0.7); // jemná "vnímaná" křivka: 30 % = půl metru, 85 % = červená špička
       let busy = false;
       for (let c = 0; c < 2; c++) {
@@ -7804,6 +7836,76 @@
     const bp = document.getElementById('bm-vol-pct'); if (bp) bp.classList.toggle('is-muted', soundMuted);
   }
   window.toggleMute = function() { soundMuted = !soundMuted; applyMute(); };
+
+  // GAIN knob vedle MUTE: násobí hlavní hlasitost 1.0x - 2.0x. Skutečná hlasitost = min(1, posuvník x gain) (viz mainVol),
+  // takže nikdy nepřekročí 100 % skladby. Hodnota se pamatuje v prohlížeči, dvojité klepnutí = zpět na 1.0x.
+  (function initGainKnob() {
+    const wrap = document.getElementById('gain-knob-wrap');
+    const knob = document.getElementById('gain-knob');
+    const tip = document.getElementById('gain-knob-tip');
+    if (!wrap || !knob || !tip) return;
+    let tipTimer = null, drag = null, lastTap = 0;
+    function paint() {
+      const g = 1 + mainGainPos, txt = g.toFixed(1) + '\u00d7';
+      wrap.style.setProperty('--p', mainGainPos);
+      knob.setAttribute('aria-valuenow', g.toFixed(2));
+      knob.setAttribute('aria-valuetext', txt);
+      tip.textContent = txt;
+    }
+    function showTip() {
+      tip.classList.add('show');
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => tip.classList.remove('show'), 900);
+    }
+    function change(v) {
+      mainGainPos = Math.min(1, Math.max(0, v));
+      try { localStorage.setItem(GAIN_STORE_KEY, String(mainGainPos)); } catch (e) { /* ignore */ }
+      paint(); showTip();
+      // hned použít na hrající skladbu (ne uprostřed ztišení do ASMR nebo crossfade - ty si hlasitost řídí samy)
+      if (!asmrFadeTimer && !crossfadeActive) { try { audio.volume = mainVol(); } catch (e) { /* ignore */ } }
+    }
+    wrap.addEventListener('pointerdown', (e) => {
+      drag = { lastY: e.clientY, raw: mainGainPos, moved: 0 };
+      wrap.classList.add('dragging');
+      try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      showTip();
+      knob.focus({ preventScroll: true });
+      e.preventDefault();
+    });
+    wrap.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dy = drag.lastY - e.clientY;
+      drag.lastY = e.clientY;
+      drag.moved += Math.abs(dy);
+      drag.raw = Math.min(1, Math.max(0, drag.raw + dy * (e.shiftKey ? 1 / 500 : 1 / 100)));
+      change(drag.raw);
+    });
+    const endDrag = (e) => {
+      if (!drag) return;
+      const wasTap = drag.moved < 6;
+      drag = null;
+      wrap.classList.remove('dragging');
+      if (wasTap && e && e.type === 'pointerup') {
+        const now = Date.now();
+        if (now - lastTap < 350) { lastTap = 0; change(0); } // dvojité klepnutí = 1.0x
+        else lastTap = now;
+      }
+    };
+    wrap.addEventListener('pointerup', endDrag);
+    wrap.addEventListener('pointercancel', endDrag);
+    wrap.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      change(mainGainPos + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05));
+    }, { passive: false });
+    knob.addEventListener('keydown', (e) => {
+      const fine = e.shiftKey ? 0.2 : 1;
+      const step = { ArrowUp: 0.05, ArrowRight: 0.05, ArrowDown: -0.05, ArrowLeft: -0.05, PageUp: 0.1, PageDown: -0.1 }[e.key];
+      if (step !== undefined) { e.preventDefault(); e.stopPropagation(); change(mainGainPos + step * fine); }
+      else if (e.key === 'Home') { e.preventDefault(); e.stopPropagation(); change(0); }
+      else if (e.key === 'End') { e.preventDefault(); e.stopPropagation(); change(1); }
+    });
+    paint();
+  })();
   const layerGroupEl = document.getElementById('layer-group');
   const layerBtn = document.getElementById('btn-layer');
   const layerKnobWrap = document.getElementById('layer-knob-wrap');
@@ -9562,7 +9664,7 @@
   }
   function cancelAsmrFade(restoreVolume) {
     if (asmrFadeTimer) { clearInterval(asmrFadeTimer); asmrFadeTimer = null; }
-    if (restoreVolume) audio.volume = parseFloat(volumeSlider.value);
+    if (restoreVolume) audio.volume = mainVol();
     // přerušené ztišení (ruční hlasitost, jiná skladba...) - pokud se pořád hraje, ekvalizér se vrátí
     if (!audio.paused && audio.getAttribute('src')) { eqEl.classList.add('playing'); updateSectionEqIndicators(); }
   }
@@ -9579,7 +9681,7 @@
     try { audio.removeAttribute('src'); audio.load(); } catch (e) { /* ignore */ }
     quietEqIndicators();          // pause událost může přijít později - ekvalizér a notičky vypnout hned
     updateSectionEqIndicators();
-    audio.volume = parseFloat(volumeSlider.value); // další přehrání začne v běžné hlasitosti
+    audio.volume = mainVol(); // další přehrání začne v běžné hlasitosti
     playBtn.innerText = "▶";
     hideLoading();
     setTrackTitle('SELECT TRACK', false);
@@ -10516,7 +10618,7 @@
     setTrackTimeText("00:00 / 00:00");
     progressBar.style.width = "0%";
     
-    audio.volume = parseFloat(volumeSlider.value);
+    audio.volume = mainVol();
     
     const playPromise = audio.play();
     if (playPromise !== undefined) {
@@ -10639,7 +10741,7 @@
     const fadeInPromise = crossfadeAudio.play();
     if (fadeInPromise !== undefined) fadeInPromise.catch(() => {});
 
-    const targetVolume = parseFloat(volumeSlider.value);
+    const targetVolume = mainVol();
     const startVolume = audio.volume;
     const steps = 30;
     const stepMs = (crossfadeDuration * 1000) / steps;
@@ -10661,7 +10763,7 @@
 
   function finishCrossfade(target) {
     const elapsed = crossfadeAudio.currentTime;
-    const targetVolume = parseFloat(volumeSlider.value);
+    const targetVolume = mainVol();
 
     crossfadeAudio.pause();
 
@@ -11531,7 +11633,7 @@
     setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, findTrackIndexByRef(entry.playlist, entry.index, entry.title, entry.src))));
     setTrackTimeText("00:00 / 00:00");
     progressBar.style.width = "0%";
-    audio.volume = parseFloat(volumeSlider.value);
+    audio.volume = mainVol();
 
     const playPromise = audio.play();
     if (playPromise !== undefined) playPromise.catch(error => { console.log("Přehrávání selhalo:", error); });
@@ -12031,7 +12133,7 @@
         else if (playlist[currentTrackIndex]) playTrack(currentTrackIndex);
         else playNextTrack();
       } else {
-        audio.volume = parseFloat(volumeSlider.value);
+        audio.volume = mainVol();
         if (stoppedSrc && stoppedSrc === (audio.getAttribute('src') || '')) {
           try { audio.currentTime = 0; } catch (e) { /* ignore */ }
           stoppedSrc = '';
