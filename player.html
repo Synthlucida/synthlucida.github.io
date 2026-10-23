@@ -790,7 +790,8 @@
   .tm-actions { display: flex; gap: 8px; justify-content: center; }
   .tm-actions .btn-feature { padding: 5px 12px; }
   .tm-actions .btn-feature:disabled { opacity: 0.35; cursor: default; }
-  /* CROSSFADE CURVE: tlačítko v řádku CROSSFADE a okno pro doladění křivky přechodu */
+  body.cf-vol-locked #volume-slider, body.cf-vol-locked #bm-volume, body.cf-vol-locked #vol-knob-wrap, body.cf-vol-locked #gain-knob-wrap, body.cf-vol-locked #bn-mknob-wrap { opacity: 0.45; pointer-events: none; }
+    /* CROSSFADE CURVE: tlačítko v řádku CROSSFADE a okno pro doladění křivky přechodu */
   .btn-cf-tune { display: inline-flex; align-items: center; justify-content: center; }
   .btn-cf-tune.tuned { opacity: 1; color: var(--accent-color); text-shadow: 0 0 6px var(--accent-color); }
   .cf-window { gap: 10px; }
@@ -7781,7 +7782,17 @@
   volumeSlider.addEventListener('pointerup', volEndDrag);
   volumeSlider.addEventListener('pointercancel', volEndDrag);
   volumeSlider.addEventListener('blur', volEndDrag);
+  // ZÁMEK HLASITOSTI BĚHEM CROSSFADE: dokud probíhá prolnutí (a předání zvuku na konci), hlasitost řídí křivka přechodu.
+  // Zásah uživatele by s ní bojoval a zvuk by drhl, proto se změna zahodí a posuvník vrátí na poslední platnou hodnotu.
+  let volLastGood = parseFloat(volumeSlider.value);
   volumeSlider.addEventListener('input', (e) => {
+    if (crossfadeActive) {
+      if (isFinite(volLastGood)) e.target.value = String(volLastGood);
+      e.target.style.setProperty('--vol', e.target.value);
+      syncBmVol(); updateVolPercent();
+      return;
+    }
+    volLastGood = parseFloat(e.target.value);
     // magnetický střed jen při tažení (ne při klávesách, jinak by šipky u 50 % uvízly)
     if (volPointerDrag && e.isTrusted && Math.abs(parseFloat(e.target.value) - 0.5) < 0.03) e.target.value = '0.5';
     if (e.isTrusted) volCheckMid(); else volPrev = parseFloat(e.target.value);
@@ -8089,6 +8100,7 @@
       tipTimer = setTimeout(() => tip.classList.remove('show'), 900);
     }
     function change(v, snap) {
+      if (crossfadeActive) { paint(); return; } // během crossfade je hlasitost zamčená (viz zámek u posuvníku)
       v = Math.min(1, Math.max(0, v));
       if (Math.abs(v - 0.5) < (snap || 0.004)) v = 0.5; // zaskočení na střed (1.0x)
       mainGainPos = Math.round(v * 1000) / 1000;
@@ -11302,6 +11314,20 @@
       timer = setInterval(tick, 20);
     } catch (e) { fallback(); }
   }
+
+  // Vizuální zámek hlasitosti po dobu prolnutí: posuvníky se zašednou a zablokují, po skončení se vrátí.
+  (function initCfVolumeLock() {
+    let locked = false;
+    const apply = (on) => {
+      ['volume-slider', 'bm-volume'].forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = on; });
+      document.body.classList.toggle('cf-vol-locked', on);
+    };
+    setInterval(() => {
+      if (!!crossfadeActive === locked) return;
+      locked = !!crossfadeActive;
+      apply(locked);
+    }, 100);
+  })();
 
   // Zruší probíhající prolnutí (např. když uživatel ručně přepne skladbu)
   function cancelCrossfade() {
