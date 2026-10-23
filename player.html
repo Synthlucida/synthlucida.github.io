@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.5">
+<meta name="app-version" content="2.2.4">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4589,6 +4589,7 @@
   const crossfadeAudio = document.getElementById('audio-player-crossfade');
   let crossfadeDuration = 0; // 0 = vypnuto, jinak 3/6/8/10/15 sekund
   let crossfadeActive = false;
+  let cfHandoff = null; // probíhající předání zvuku z druhého prvku na hlavní na konci prolnutí (viz beginCrossfadeHandoff)
   let crossfadeInterval = null;
 
   // Vlastní playlist (fronta) skládaný uživatelem z historie
@@ -11156,10 +11157,9 @@
   }
 
   function finishCrossfade(target) {
-    const elapsed = crossfadeAudio.currentTime;
-    const targetVolume = mainVol();
-
-    crossfadeAudio.pause();
+    // Druhý prvek (crossfadeAudio) se tu už NEzastavuje: dál nahlas hraje novou skladbu, dokud hlavní prvek
+    // skladbu nenačte, nepřetočí na stejné místo a nezačne hrát (beginCrossfadeHandoff). Dřív se zastavil hned,
+    // takže po dobu načítání bylo ticho a pak skladba "naskočila" znovu.
 
     // Pořadí se mohlo během prolnutí změnit (přesun / odebrání skladby) - cílovou skladbu proto
     // najdeme znovu podle adresy (při duplicitách nejbližší původní pozici), ať index sedí.
@@ -11188,14 +11188,7 @@
     progressBar.style.width = "0%";
     showLoading();
 
-    audio.src = target.src;
-    audio.addEventListener('loadedmetadata', function seekAfterCrossfade() {
-      if (isCurrentAudioSrc(target.src) && elapsed && elapsed < audio.duration) audio.currentTime = elapsed;
-      audio.removeEventListener('loadedmetadata', seekAfterCrossfade);
-    });
-    audio.volume = targetVolume;
-    const playPromise = audio.play();
-    if (playPromise !== undefined) playPromise.catch(() => {});
+    beginCrossfadeHandoff(target);
 
     isPlaying = true;
     playBtn.innerText = "⏸";
@@ -11218,12 +11211,101 @@
         });
       } catch (e) { /* ignore */ }
     }
+    // crossfadeActive zůstává true, dokud předání nedoběhne (vypne ho beginCrossfadeHandoff nebo cancelCrossfade)
+  }
 
-    crossfadeActive = false;
+  // Předání zvuku na konci prolnutí: hlavní prvek se potichu (muted) načte, přetočí na místo, kde zrovna hraje
+  // druhý prvek, a až když hraje a rozdíl je zanedbatelný, krátce (cca 80 ms) se mezi nimi prolne a druhý
+  // prvek se zastaví. Kdyby se to do 6 s nepovedlo, použije se záložní postup (hlavní prvek prostě pokračuje).
+  function beginCrossfadeHandoff(target) {
+    if (cfHandoff) cfHandoff.abort();
+    let done = false, timer = null, rampTimer = null, tries = 0, lead = 0.25, started = false;
+    const t0 = Date.now();
+    const restoreMain = () => { try { audio.muted = !!soundMuted; } catch (e) { /* ignore */ } };
+    const clearTimers = () => {
+      if (timer) { clearInterval(timer); timer = null; }
+      if (rampTimer) { clearInterval(rampTimer); rampTimer = null; }
+    };
+    const handle = {
+      abort() { // volá cancelCrossfade (ruční přepnutí, pauza, časovač ...)
+        done = true; clearTimers(); restoreMain();
+        try { audio.volume = mainVol(); } catch (e) { /* ignore */ }
+        if (cfHandoff === handle) cfHandoff = null;
+      }
+    };
+    cfHandoff = handle;
+
+    const seekMain = () => {
+      let t = crossfadeAudio.currentTime + lead;
+      if (isFinite(audio.duration)) t = Math.min(t, Math.max(0, audio.duration - 0.25));
+      audio.currentTime = t;
+    };
+    const end = () => {
+      try { crossfadeAudio.pause(); } catch (e) { /* ignore */ }
+      try { audio.volume = mainVol(); } catch (e) { /* ignore */ }
+      if (cfHandoff === handle) cfHandoff = null;
+      crossfadeActive = false;
+    };
+    const complete = () => {
+      if (done) return;
+      done = true; clearTimers();
+      const finalVol = mainVol();
+      const cfStart = crossfadeAudio.volume;
+      restoreMain();
+      audio.volume = 0;
+      let k = 0; const steps = 8;
+      rampTimer = setInterval(() => {
+        k++; const r = Math.min(1, k / steps);
+        try { audio.volume = finalVol * r; crossfadeAudio.volume = cfStart * (1 - r); } catch (e) { /* ignore */ }
+        if (r >= 1) { clearInterval(rampTimer); rampTimer = null; end(); }
+      }, 10);
+    };
+    const fallback = () => {
+      if (done) return;
+      done = true; clearTimers();
+      try {
+        const pos = crossfadeAudio.currentTime;
+        if (isFinite(audio.duration) && pos < audio.duration && Math.abs(audio.currentTime - pos) > 0.3) audio.currentTime = pos;
+      } catch (e) { /* ignore */ }
+      restoreMain();
+      try { audio.volume = mainVol(); } catch (e) { /* ignore */ }
+      try { crossfadeAudio.pause(); } catch (e) { /* ignore */ }
+      if (audio.paused) { const pp = audio.play(); if (pp !== undefined) pp.catch(() => {}); }
+      if (cfHandoff === handle) cfHandoff = null;
+      crossfadeActive = false;
+    };
+    const tick = () => {
+      if (done) return;
+      try {
+        if (Date.now() - t0 > 6000) { fallback(); return; }
+        if (!started) {
+          if (audio.readyState >= 1) {
+            started = true;
+            seekMain();
+            const pp = audio.play(); if (pp !== undefined) pp.catch(() => {});
+          }
+          return;
+        }
+        if (audio.seeking || audio.paused || audio.readyState < 3) return;
+        const d = audio.currentTime - crossfadeAudio.currentTime; // + = hlavní prvek je napřed
+        if (Math.abs(d) <= 0.08) { complete(); return; }
+        if (++tries > 4) { fallback(); return; }
+        lead = Math.min(3, Math.max(0.05, lead - d));
+        seekMain();
+      } catch (e) { fallback(); }
+    };
+
+    try {
+      audio.muted = true; // hlavní prvek je při načítání potichu, zvuk nese dál druhý prvek
+      audio.volume = 0;
+      audio.src = target.src;
+      timer = setInterval(tick, 20);
+    } catch (e) { fallback(); }
   }
 
   // Zruší probíhající prolnutí (např. když uživatel ručně přepne skladbu)
   function cancelCrossfade() {
+    if (cfHandoff) cfHandoff.abort();
     if (crossfadeInterval) {
       clearInterval(crossfadeInterval);
       crossfadeInterval = null;
