@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.7">
+<meta name="app-version" content="2.2.8">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1601,7 +1601,9 @@
   body.focus-mode-2 .layer-hint { max-height: 0; margin: 0; opacity: 0; pointer-events: none; }
   @media (prefers-reduced-motion: reduce) { .playlist, .layer-hint, body.focus-mode-2 .playlist { transition: none; } }
   #btn-focus-mode { position: relative; }
-  #btn-focus-mode[data-stage="2"]::after { content: '2'; position: absolute; right: -3px; top: -5px; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7px; line-height: 1; color: var(--accent-color); text-shadow: 0 0 4px var(--accent-color); pointer-events: none; }
+  /* Číslička polohy (1/2, 2/2) u focus mode - ukáže se jen při přepnutí a po chvíli zmizí */
+  #btn-focus-mode[data-stage]::after { content: attr(data-stage); position: absolute; right: -4px; top: -6px; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7px; line-height: 1; letter-spacing: 0; color: var(--accent-color); text-shadow: 0 0 4px var(--accent-color), 0 1px 2px rgba(0,0,0,0.9); pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+  #btn-focus-mode.show-stage[data-stage]::after { opacity: 1; }
   body.focus-mode .player-section {
     position: relative;
     z-index: 5;
@@ -1753,6 +1755,14 @@
      bez toho při přepnutí poskakovala/přeskakovala sousední tlačítka na další řádek */
   #btn-weather { min-width: 122px; }
   #btn-sunset { min-width: 100px; }
+  /* Číslička polohy (1/4 - 4/4) UVNITŘ tlačítka SUNSET - absolutně umístěná, takže velikost tlačítka zůstává stejná. Ukáže se jen při přepnutí. */
+  #btn-sunset { position: relative; }
+  #btn-sunset[data-stage]::after { content: attr(data-stage); position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 6px; line-height: 1; letter-spacing: 0; color: var(--accent-color); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+  #btn-sunset.show-stage[data-stage]::after { opacity: 0.9; }
+  /* WEATHER: stejná číslička (1/5 - 5/5) uvnitř tlačítka, stejná velikost a poloha jako u SUNSET; velikost tlačítka se nemění. */
+  #btn-weather { position: relative; }
+  #btn-weather[data-stage]::after { content: attr(data-stage); position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 6px; line-height: 1; letter-spacing: 0; color: var(--accent-color); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+  #btn-weather.show-stage[data-stage]::after { opacity: 0.9; }
   /* Pevná min. šířka MY PLAYLIST tlačítka - číslo v závorce vedle názvu roste s počtem
      skladeb (jednociferné/dvouciferné/trojciferné), bez pevné šířky se tlačítko při
      10+ skladbách rozšířilo a celý řádek tlačítek se přeuspořádal/přeskočil o řádek níž */
@@ -2262,6 +2272,11 @@
   .logo-glow-toggle-btn.active { color: var(--accent-color); border-color: rgba(255,255,255,0.28); box-shadow: 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 3px rgba(0,0,0,0.3); }
   .logo-glow-toggle-btn.active:hover { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-color), 0 2px 4px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
   .logo-glow-toggle-btn:active, .logo-glow-toggle-btn.active:active { transform: translateY(1px); border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-color), inset 0 2px 3px rgba(0,0,0,0.5); }
+
+  /* Malá číslička stavu u tlačítka ✨ vedle SYNTHLUCIDA (např. 1/4) - stejný princip jako číslička u focus mode; ukazuje, že tlačítko má víc poloh. */
+  #btn-logo-pulse, #btn-logo-glow { position: relative; }
+  #btn-logo-pulse[data-stage]::after, #btn-logo-glow[data-stage]::after { content: attr(data-stage); position: absolute; right: -4px; top: -6px; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7px; line-height: 1; letter-spacing: 0; color: var(--accent-color); text-shadow: 0 0 4px var(--accent-color), 0 1px 2px rgba(0,0,0,0.9); pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+  #btn-logo-pulse.show-stage[data-stage]::after, #btn-logo-glow.show-stage[data-stage]::after { opacity: 1; }
 
   /* ORBS: vypne rotujici kulicky (body::before) a velke plynouci koule (.ambient-blobs), zustane jen barevny visual. */
   body.no-orbs .ambient-blobs { display: none !important; }
@@ -4829,6 +4844,14 @@
       logoGlowEnabled = !logoGlowEnabled;
       try { localStorage.setItem(LOGO_GLOW_KEY, logoGlowEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
       applyLogoGlowUI();
+      // Číslička polohy (1/2 = logo zapnuté, 2/2 = vypnuté) se ukáže jen při přepnutí a po chvíli zmizí
+      const lb = document.getElementById('btn-logo-glow');
+      if (lb) {
+          lb.setAttribute('data-stage', (logoGlowEnabled ? 1 : 2) + '/2');
+          lb.classList.add('show-stage');
+          clearTimeout(window._logoStageTimer);
+          window._logoStageTimer = setTimeout(function() { lb.classList.remove('show-stage'); }, 1600);
+      }
       try { applySparkleUI(); } catch (e) { /* ještě neinicializováno */ } // popisek tlačítka ✨ závisí na tom, jestli je logo vidět
   };
 
@@ -4885,6 +4908,14 @@
       if (!logoGlowEnabled && sparkleState === 0) sparkleState = 1;
       try { localStorage.setItem(SPARKLE_STATE_KEY, String(sparkleState)); } catch (e) { /* ignore */ }
       applySparkleUI();
+      // Číslička polohy (např. 1/4) se ukáže jen při přepnutí a po chvíli zmizí
+      const pb = document.getElementById('btn-logo-pulse');
+      if (pb) {
+          pb.setAttribute('data-stage', (sparkleState + 1) + '/4');
+          pb.classList.add('show-stage');
+          clearTimeout(window._stageBadgeTimer);
+          window._stageBadgeTimer = setTimeout(function() { pb.classList.remove('show-stage'); }, 1600);
+      }
   };
 
   try {
@@ -6802,10 +6833,10 @@
           btn.innerText = "WEATHER: RAIN";
           btn.classList.add('active');
       } else if (weatherMode === 3) {
-          btn.innerText = "WEATHER: WINTER";
+          btn.innerText = "WINTER 1";
           btn.classList.add('active');
       } else {
-          btn.innerText = "WEATHER: WINTER II";
+          btn.innerText = "WINTER 2";
           btn.classList.add('active');
       }
       updateWeatherPhotoMode();
@@ -6827,6 +6858,16 @@
       if (typeof window.togetherOnWeather === 'function') window.togetherOnWeather();
   }
 
+  // Číslička polohy (např. 1/5) uvnitř tlačítka WEATHER - ukáže se jen při přepnutí a po chvíli zmizí
+  function showWeatherStage() {
+      const wb = document.getElementById('btn-weather');
+      if (!wb) return;
+      wb.setAttribute('data-stage', (weatherMode + 1) + '/5');
+      wb.classList.add('show-stage');
+      clearTimeout(window._weatherStageTimer);
+      window._weatherStageTimer = setTimeout(function() { wb.classList.remove('show-stage'); }, 1600);
+  }
+
   // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> WINTER II -> OFF (stejný princip jako u SUNSET)
   window.toggleWeather = function() {
       weatherMode = (weatherMode + 1) % 5;
@@ -6844,10 +6885,12 @@
                   showSunOfflineNotice();
               }
               applyWeatherUI();
+              showWeatherStage();
           });
           return;
       }
       applyWeatherUI();
+      showWeatherStage();
   };
 
   function applySunsetUI() {
@@ -6888,6 +6931,14 @@
           applyWeatherUI();
       }
       applySunsetUI();
+      // Číslička polohy (např. 1/4) se ukáže jen při přepnutí a po chvíli zmizí
+      const sb = document.getElementById('btn-sunset');
+      if (sb) {
+          sb.setAttribute('data-stage', (sunsetMode + 1) + '/4');
+          sb.classList.add('show-stage');
+          clearTimeout(window._sunsetStageTimer);
+          window._sunsetStageTimer = setTimeout(function() { sb.classList.remove('show-stage'); }, 1600);
+      }
   };
 
   // ==========================================
@@ -7277,9 +7328,15 @@
     const isActive = body.classList.contains('focus-mode');
     if (btn) {
       btn.classList.toggle('active', isActive);
-      if (body.classList.contains('focus-mode-2')) btn.setAttribute('data-stage', '2');
-      else if (isActive) btn.setAttribute('data-stage', '1');
-      else btn.removeAttribute('data-stage');
+      clearTimeout(window._focusStageTimer);
+      if (isActive) {
+        btn.setAttribute('data-stage', body.classList.contains('focus-mode-2') ? '2/2' : '1/2');
+        btn.classList.add('show-stage');
+        window._focusStageTimer = setTimeout(function() { btn.classList.remove('show-stage'); }, 1600);
+      } else {
+        btn.classList.remove('show-stage');
+        btn.removeAttribute('data-stage');
+      }
     }
   };
 
