@@ -443,7 +443,18 @@
   .section-label{ font-family:'Orbitron', sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--accent-color); text-shadow:0 0 10px var(--accent-color); margin:0 0 12px 2px; opacity:0.9; }
 
   /* ---- hourly strip ---- */
-  .hourly{ display:flex; gap:10px; overflow-x:auto; padding:4px 2px 16px; scrollbar-width:thin; }
+  .hourly{
+    display:flex; gap:14px; overflow-x:auto; padding:6px 4px 20px; scroll-padding:0 4px;
+    scrollbar-width:thin;
+    scrollbar-color: color-mix(in srgb, var(--accent-color) 60%, transparent) rgba(255,255,255,0.05);
+  }
+  .hourly::-webkit-scrollbar{ height:6px; }
+  .hourly::-webkit-scrollbar-track{ background:rgba(255,255,255,0.05); border-radius:999px; margin:0 6px; }
+  .hourly::-webkit-scrollbar-thumb{
+    background:linear-gradient(90deg, color-mix(in srgb, var(--accent-color) 45%, transparent), color-mix(in srgb, var(--accent-color) 75%, transparent));
+    border-radius:999px; box-shadow:0 0 8px color-mix(in srgb, var(--accent-color) 50%, transparent);
+  }
+  .hourly::-webkit-scrollbar-thumb:hover{ background:var(--accent-color); }
 
   .hourly-graph-wrap{ position:relative; height:112px; margin:2px 0 10px; }
   .hg-svg{ width:100%; height:100%; display:block; overflow:visible; }
@@ -473,7 +484,7 @@
   .hg-caption .hg-range{ display:inline-flex; align-items:center; gap:4px; }
   .hg-caption .hg-range svg{ width:11px; height:11px; vertical-align:-1.5px; }
   .hour{
-    flex:0 0 auto; width:60px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03);
+    flex:0 0 auto; width:64px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03);
     padding:13px 0 11px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;
   }
   .hour.now{ border-color:var(--accent-color); box-shadow:0 0 16px color-mix(in srgb, var(--accent-color) 25%, transparent); }
@@ -2309,6 +2320,10 @@
 
   function computeMushroomConditions(mushData, forecastData){
     if(!mushData || !mushData.daily || !mushData.daily.time || !mushData.daily.time.length) return null;
+    // out of mushroom season (May–November; shifted by half a year in the southern hemisphere) hide mushroom foraging entirely
+    var mushMonth = new Date().getMonth(); // 0 = January
+    if(mushData.latitude != null && mushData.latitude < 0) mushMonth = (mushMonth + 6) % 12;
+    if(mushMonth < 4 || mushMonth > 10) return null;
     var d = mushData.daily;
     var n = d.time.length;
     var pastDays = Math.max(0, n - 1); // poslední den je "dnes/zítra" (forecast_days:1), ten do bilance nepočítáme
