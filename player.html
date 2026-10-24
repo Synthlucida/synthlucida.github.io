@@ -2050,6 +2050,118 @@
   .bp-reset-row .btn-breath-ctrl { min-width: 150px; opacity: 0.7; }
   @media (max-width: 380px) { .bp-stats { grid-template-columns: repeat(2, 1fr); } .bp-summary { flex-direction: column; } }
 
+  /* TVŮJ PROGRES - odolnost proti dlouhým číslům (3-4 cifry) a proti "poskakování" obsahu */
+  .breath-progress { overflow-x: hidden; scrollbar-gutter: stable; }       /* scrollbar se neobjevuje/nemizí za běhu = nic nepoposkočí do strany */
+  #bp-body { min-width: 0; }
+  .bp-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }          /* minmax(0,..): sloupec se kvůli obsahu nikdy nezvětší */
+  .bp-stat { min-width: 0; overflow: hidden; padding-left: 3px; padding-right: 3px; }
+  .bp-stat-value { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .bp-stat-value.long { font-size: clamp(13px, 4vw, 17px); }              /* 4 cifry (1000+) se zmenší, aby se vešly */
+  .bp-stat-label { overflow-wrap: anywhere; hyphens: auto; -webkit-hyphens: auto; }
+  .bp-summary-col p { overflow-wrap: anywhere; }
+  .bp-summary-col p span { display: block; }                               /* počet cvičení a čas na dvou řádcích - i "123× cvičení" se vejde */
+  .bp-summary-col p .bp-sum-t { opacity: 0.7; }
+  .bp-row { flex-wrap: wrap; }
+  .bp-tech-top > span:first-child { min-width: 0; overflow-wrap: anywhere; }   /* dlouhé jméno vlastní techniky nevytlačí čas/procenta */
+  .bp-tech-top > span:last-child { flex-shrink: 0; }
+  .bp-sub { overflow-wrap: anywhere; }
+  .bp-day-detail { min-height: 84px; }                                     /* přepínání dnů (s tlačítkem / bez něj) nemění výšku panelu */
+  .bp-reset-row .btn-breath-ctrl { min-width: 170px; }                     /* "SMAZAT ZÁZNAMY" ↔ "OPRAVDU?" nemění šířku */
+  .bp-reset-row.idle { visibility: hidden; }                               /* místo pro tlačítko je rezervované i bez dat */
+  .bp-noanim .bp-bar { animation: none; }                                  /* průběžné překreslení za běhu cvičení neanimuje sloupce znovu */
+  @media (max-width: 380px) { .bp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  /* TVŮJ PROGRES - tlačítka ve stejném stylu jako na úvodní straně playeru (Orbitron, jemný přechod, odlesk, stín, prolisování, záře v barvě motivu) */
+  .bp-pill, .bp-mark-btn, .bp-month-nav button {
+    font-family: 'Orbitron', 'Orbitron CZ', sans-serif; color: #fff; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    background: linear-gradient(180deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(255,255,255,0.22);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
+    transition: 0.25s;
+  }
+  .bp-pill { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 12px; border-radius: 20px; opacity: 0.75; }
+  .bp-mark-btn { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; padding: 7px 14px; border-radius: 20px; opacity: 0.9; }
+  .bp-month-nav button { width: 30px; height: 30px; border-radius: 50%; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 28%, rgba(255,255,255,0.16) 0%, rgba(0,0,0,0.4) 75%);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 3px rgba(0,0,0,0.3); }
+  .bp-pill:hover, .bp-mark-btn:hover, .bp-month-nav button:not(:disabled):hover {
+    opacity: 1; border-color: var(--accent-color); color: var(--accent-color);
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%); }
+  .bp-month-nav button:not(:disabled):hover { background: radial-gradient(circle at 50% 28%, rgba(255,255,255,0.22) 0%, rgba(0,0,0,0.4) 75%); }
+  .bp-pill:active, .bp-mark-btn:active, .bp-month-nav button:not(:disabled):active {
+    transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 3px rgba(0,0,0,0.35); }
+  .bp-pill.on { opacity: 1; color: var(--accent-color); border-color: var(--accent-color);
+    background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 100%);
+    box-shadow: 0 0 10px var(--accent-color), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .bp-pill:focus-visible, .bp-mark-btn:focus-visible, .bp-month-nav button:focus-visible, .bp-day:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  .bp-month-nav button:disabled { opacity: 0.25; box-shadow: none; }
+  /* dny v kalendáři: stejné prolisování; odcvičený den svítí barvou motivu */
+  .bp-day { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8.5px; border-radius: 8px; transition: 0.2s;
+    background: linear-gradient(180deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1); }
+  .bp-day:not(:disabled):hover { opacity: 1; border-color: var(--accent-color); }
+  .bp-day:not(:disabled):active { transform: translateY(1px); box-shadow: inset 0 1px 3px rgba(0,0,0,0.4); }
+  .bp-day.done { background: linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 78%, #fff) 0%, var(--accent-color) 100%);
+    border-color: var(--accent-color); color: #06201c;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color) 60%, transparent), inset 0 1px 0 rgba(255,255,255,0.45); }
+  .bp-day.manual { border: 1px dashed var(--accent-color); background: color-mix(in srgb, var(--accent-color) 12%, transparent); box-shadow: none; }
+  .bp-day.sel { border-color: #a56bff; box-shadow: 0 0 0 2px rgba(165,107,255,0.7), 0 0 10px rgba(165,107,255,0.4); }
+  .bp-day.done.sel { box-shadow: 0 0 0 2px rgba(165,107,255,0.8), 0 0 12px color-mix(in srgb, var(--accent-color) 60%, transparent); }
+  .bp-day.pad, .bp-day.future { box-shadow: none; }
+  .bp-dot { background: var(--accent-color); box-shadow: 0 0 8px var(--accent-color); }
+  .bp-dot.manual { background: transparent; border-color: var(--accent-color); box-shadow: none; }
+  /* tlačítko SMAZAT ZÁZNAMY: o něco výraznější, ale pořád jemné */
+  .bp-reset-row .btn-breath-ctrl { font-size: 8px; letter-spacing: 1.2px; padding: 8px 16px; border-radius: 20px; opacity: 0.8; }
+  .bp-reset-row .btn-breath-ctrl:hover { opacity: 1; border-color: #ff6b8b; color: #ff9db3; }
+  .bp-reset-row .btn-breath-ctrl.bp-sure { opacity: 1; border-color: #ff6b8b; color: #ff9db3; box-shadow: 0 0 10px rgba(255,107,139,0.6), inset 0 1px 0 rgba(255,255,255,0.2); }
+
+  /* TVŮJ PROGRES - ikonky sekcí: čárové SVG jako jinde v playeru, barva motivu + jemná záře */
+  .bp-group-title { color: var(--accent-color); }
+  .bp-group-title::after { background: linear-gradient(90deg, color-mix(in srgb, var(--accent-color) 50%, transparent), transparent); }
+  .bp-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex-shrink: 0; }
+  .bp-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-color) 70%, transparent)); }
+
+  /* TVŮJ PROGRES - čitelnější písmo: větší velikosti, vyšší kontrast (průsvitnost menší), vzdušnější řádkování. Jen panel progresu. */
+  .breath-progress .breath-guide-inner h3 { font-size: 15px; }
+  .breath-progress .breath-guide-inner p.breath-guide-intro { font-size: 12px; line-height: 1.75; opacity: 0.92; }
+  .breath-progress .breath-guide-note { font-size: 10.5px; line-height: 1.7; opacity: 0.75; }
+  .breath-progress .bp-notice { font-size: 11.5px; line-height: 1.65; }
+  .breath-progress .bp-notice.empty { opacity: 0.9; }
+  .breath-progress .bp-group-title { font-size: 12px; letter-spacing: 1.5px; }
+  .breath-progress .bp-icon { width: 18px; height: 18px; }
+  .breath-progress .bp-icon svg { width: 17px; height: 17px; }
+  .breath-progress .bp-summary-col h4 { font-size: 10.5px; letter-spacing: 0.8px; opacity: 0.8; }
+  .breath-progress .bp-summary-col p { font-size: 12.5px; line-height: 1.6; }
+  .breath-progress .bp-summary-col p.none { opacity: 0.75; }
+  .breath-progress .bp-summary-col p .bp-sum-t { opacity: 0.85; }
+  .breath-progress .bp-stat-label { font-size: 10px; line-height: 1.45; opacity: 0.85; letter-spacing: 0.2px; }
+  .breath-progress .bp-sub { font-size: 11px; line-height: 1.6; opacity: 0.85; }
+  .breath-progress .bp-row { font-size: 11px; opacity: 0.95; }
+  .breath-progress .bp-legend { font-size: 10.5px; opacity: 0.85; }
+  .breath-progress .bp-pill, .breath-progress .bp-mark-btn { font-size: 9.5px; }
+  .breath-progress .bp-pill { opacity: 0.85; }
+  .breath-progress .bp-pill.on { opacity: 1; }
+  .breath-progress .bp-axis, .breath-progress .bp-xl { font-size: 9.5px; fill: rgba(255,255,255,0.72); }
+  .breath-progress .bp-xl.today { fill: var(--accent-color); }
+  .breath-progress .bp-val { font-size: 9.5px; fill: rgba(255,255,255,0.92); }
+  .breath-progress .bp-month-nav span { font-size: 13px; opacity: 0.95; }
+  .breath-progress .bp-weekdays span { font-size: 10px; opacity: 0.65; }
+  .breath-progress .bp-day { font-size: 10.5px; opacity: 0.8; }
+  .breath-progress .bp-day.done, .breath-progress .bp-day.manual, .breath-progress .bp-day.sel { opacity: 1; }
+  .breath-progress .bp-day.pad { opacity: 0.22; }
+  .breath-progress .bp-day.future { opacity: 0.32; }
+  .breath-progress .bp-day-detail { font-size: 11.5px; line-height: 1.75; min-height: 92px; }
+  .breath-progress .bp-day-detail div { opacity: 0.9; }
+  .breath-progress .bp-tech-top { font-size: 11px; }
+  .breath-progress .bp-tech-top span:last-child { opacity: 0.8; }
+  .breath-progress .bp-reset-row .btn-breath-ctrl { font-size: 9.5px; opacity: 0.9; }
+
+  /* datum v detailu dne: velké jen první písmeno (česky "Sobota 24. října", ne "Října") */
+  .breath-progress .bp-day-detail b { text-transform: none; }
+  .breath-progress .bp-day-detail b::first-letter { text-transform: uppercase; }
+
   /* Ambientní bubliny uvnitř overlaye - vlastní kopie, protože zbytek stránky se při dýchání schová */
   .breath-ambient {
     position: absolute; inset: 0; overflow: hidden; pointer-events: none;
@@ -7455,6 +7567,32 @@
     bpSave();
   };
 
+  // Průběžný záznam: rozběhnuté cvičení se zapisuje do úložiště už za jízdy (od 30. sekundy, pak každých ~5 s, při STOP a při
+  // zavření stránky) jako jeden záznam, který se pořád přepisuje. Po ✖ (stopBreathing) se záznam jen dokončí - nevznikne duplicita.
+  function bpLiveWrite(ms, tech) {
+    const sec = Math.round(Number(ms) / 1000);
+    if (!isFinite(sec) || sec < BP_MIN_SEC) return false;
+    bpData = bpLoad();
+    if (bpState.liveT !== null) bpData.sessions = bpData.sessions.filter(function(s) { return s.t !== bpState.liveT; });
+    const k = BP_TECH_RE.test(String(tech)) ? String(tech) : '478';
+    const rec = { t: Date.now(), d: Math.min(BP_MAX_SEC, sec), k: k };
+    if (k === 'custom') rec.n = String((BREATH_TECHNIQUES.custom && BREATH_TECHNIQUES.custom.name) || 'Custom').replace(/[\r\n]+/g, ' ').trim().slice(0, 20);
+    bpData.sessions.push(rec);
+    bpData.sessions.sort(function(a, b) { return a.t - b.t; });
+    if (bpData.sessions.length > BP_MAX_SESSIONS) bpData.sessions = bpData.sessions.slice(-BP_MAX_SESSIONS);
+    bpState.liveT = rec.t;
+    bpSave();
+    return true;
+  }
+  window.bpLiveSync = function(ms, tech) {
+    if (bpState.liveOff) return;
+    if (bpLiveWrite(ms, tech)) bpRenderIfOpen(true);   // otevřený panel se obnoví sám, bez animace a bez poskočení
+  };
+  window.bpLiveFinish = function(ms, tech) {
+    try { if (!bpState.liveOff) bpLiveWrite(ms, tech); } finally { bpState.liveT = null; bpState.liveOff = false; }
+  };
+  window.bpLiveReset = function() { bpState.liveT = null; bpState.liveOff = false; };
+
   function bpLang() { try { return guideLang === 'cz' ? 'cz' : 'en'; } catch (e) { return 'en'; } }
   function bpTr(k) { const e = i18nText[k]; return e ? (e[bpLang()] || e.en) : k; }
   function bpLoc() { return bpLang() === 'cz' ? 'cs-CZ' : 'en-GB'; }
@@ -7492,10 +7630,26 @@
     b.onclick = onclick;
     return b;
   }
+  // Čárové ikonky ve stejném stylu jako ikonky v playeru (24×24, stroke = currentColor, zaoblené konce) - místo barevných emoji
+  const BP_ICONS = {
+    overview: [['rect', { x: 3, y: 4, width: 8, height: 7, rx: 2 }], ['rect', { x: 13, y: 4, width: 8, height: 7, rx: 2 }], ['rect', { x: 3, y: 14, width: 18, height: 6, rx: 2 }]],
+    stats: [['polyline', { points: '3,17 9,11 13,15 21,7' }], ['polyline', { points: '15,7 21,7 21,13' }]],
+    chart: [['line', { x1: 6, y1: 20, x2: 6, y2: 13 }], ['line', { x1: 12, y1: 20, x2: 12, y2: 5 }], ['line', { x1: 18, y1: 20, x2: 18, y2: 10 }], ['line', { x1: 3, y1: 21, x2: 21, y2: 21 }]],
+    cal: [['rect', { x: 3, y: 5, width: 18, height: 16, rx: 3 }], ['line', { x1: 3, y1: 10, x2: 21, y2: 10 }], ['line', { x1: 8, y1: 3, x2: 8, y2: 7 }], ['line', { x1: 16, y1: 3, x2: 16, y2: 7 }],
+          ['polyline', { points: '8.5,15.5 11,18 15.5,13.5' }]],
+    tech: [['path', { d: 'M3 8h10a3 3 0 1 0-3-3' }], ['path', { d: 'M3 12h15a3 3 0 1 1-3 3' }], ['path', { d: 'M3 16h7' }]]
+  };
+  function bpIcon(name) {
+    const span = bpEl('span', 'bp-icon');
+    const svg = bpSvg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' });
+    (BP_ICONS[name] || []).forEach(function(d) { svg.appendChild(bpSvg(d[0], d[1])); });
+    span.appendChild(svg);
+    return span;
+  }
   function bpGroup(icon, key) {
     const g = bpEl('div', 'bp-group');
     const t = bpEl('div', 'bp-group-title');
-    t.appendChild(bpEl('span', 'bp-icon', icon));
+    t.appendChild(bpIcon(icon));
     t.appendChild(bpEl('span', '', bpTr(key)));
     g.appendChild(t);
     return g;
@@ -7530,7 +7684,7 @@
   }
 
   function bpOverviewGroup() {
-    const g = bpGroup('🗓️', 'bp_g_overview');
+    const g = bpGroup('overview', 'bp_g_overview');
     const now = new Date(), dow = (now.getDay() + 6) % 7;
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow).getTime();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -7538,7 +7692,13 @@
     [['bp_week', bpRangeSum(weekStart)], ['bp_month', bpRangeSum(monthStart)]].forEach(function(x) {
       const col = bpEl('div', 'bp-summary-col');
       col.appendChild(bpEl('h4', '', bpTr(x[0])));
-      col.appendChild(x[1].n === 0 ? bpEl('p', 'none', bpTr('bp_none')) : bpEl('p', '', x[1].n + '× ' + bpTr('bp_cex') + ' · ' + bpFmt(x[1].sec)));
+      if (x[1].n === 0) col.appendChild(bpEl('p', 'none', bpTr('bp_none')));
+      else {
+        const pp = bpEl('p', '');
+        pp.appendChild(bpEl('span', '', x[1].n + '× ' + bpTr('bp_cex')));
+        pp.appendChild(bpEl('span', 'bp-sum-t', bpFmt(x[1].sec)));
+        col.appendChild(pp);
+      }
       wrap.appendChild(col);
     });
     g.appendChild(wrap);
@@ -7546,13 +7706,14 @@
   }
 
   function bpStatsGroup(byDay) {
-    const g = bpGroup('📈', 'bp_g_stats');
+    const g = bpGroup('stats', 'bp_g_stats');
     const st = bpStreaks(byDay), n = bpData.sessions.length;
     const total = bpData.sessions.reduce(function(a, s) { return a + s.d; }, 0);
     const grid = bpEl('div', 'bp-stats');
     [[st.cur, 'bp_s_streak'], [st.best, 'bp_s_best'], [st.days, 'bp_s_days'], [n, 'bp_s_sessions']].forEach(function(x) {
       const box = bpEl('div', 'bp-stat');
-      box.appendChild(bpEl('div', 'bp-stat-value', String(x[0])));
+      const vs = String(x[0]);
+      box.appendChild(bpEl('div', 'bp-stat-value' + (vs.length >= 5 ? ' long' : ''), vs));
       box.appendChild(bpEl('div', 'bp-stat-label', bpTr(x[1])));
       grid.appendChild(box);
     });
@@ -7562,7 +7723,7 @@
   }
 
   function bpChartGroup(byDay) {
-    const g = bpGroup('📊', 'bp_g_chart');
+    const g = bpGroup('chart', 'bp_g_chart');
     const n = bpState.range === 30 ? 30 : 7, loc = bpLoc(), now = new Date();
     const box = bpEl('div', 'bp-box');
     const row = bpEl('div', 'bp-row');
@@ -7665,7 +7826,7 @@
   }
 
   function bpCalendarGroup(byDay) {
-    const g = bpGroup('📅', 'bp_g_cal');
+    const g = bpGroup('cal', 'bp_g_cal');
     const loc = bpLoc(), box = bpEl('div', 'bp-box');
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayKey = bpKey(today);
@@ -7720,7 +7881,7 @@
 
   function bpTechGroup() {
     if (!bpData.sessions.length) return null;
-    const g = bpGroup('🌬️', 'bp_g_tech');
+    const g = bpGroup('tech', 'bp_g_tech');
     const agg = {};
     bpData.sessions.forEach(function(s) { const nm = bpTechName(s); agg[nm] = (agg[nm] || 0) + s.d; });
     const rows = Object.keys(agg).map(function(k) { return { name: k, sec: agg[k] }; }).sort(function(a, b) { return b.sec - a.sec; });
@@ -7757,9 +7918,11 @@
     frag.appendChild(bpCalendarGroup(byDay));
     const tech = bpTechGroup();
     if (tech) frag.appendChild(tech);
-    if (bpData.sessions.length || Object.keys(bpData.marked).length) {
-      const row = bpEl('div', 'bp-reset-row');
-      row.appendChild(bpBtn('btn-breath-ctrl', bpState.sure ? bpTr('bp_sure') : bpTr('bp_reset'), function() {
+    {
+      // Řádek s tlačítkem je v panelu vždy (bez dat jen neviditelný) - když se objeví první záznam, spodek panelu neposkočí
+      const hasData = bpData.sessions.length > 0 || Object.keys(bpData.marked).length > 0;
+      const row = bpEl('div', 'bp-reset-row' + (hasData ? '' : ' idle'));
+      const rbtn = bpBtn('btn-breath-ctrl' + (bpState.sure ? ' bp-sure' : ''), bpState.sure ? bpTr('bp_sure') : bpTr('bp_reset'), function() {
         if (!bpState.sure) {
           bpState.sure = true;
           clearTimeout(bpState.sureTimer);
@@ -7769,23 +7932,43 @@
           bpState.sure = false;
           bpData = { sessions: [], marked: {} };
           bpSave();
+          // smazáno během běžícího cvičení: rozběhnutý záznam se už znovu nezapisuje (jinak by hned "vstal z mrtvých")
+          bpState.liveT = null;
+          if (typeof breathingActive !== 'undefined' && breathingActive) bpState.liveOff = true;
         }
         bpRenderKeep();
-      }));
+      });
+      if (!hasData) { rbtn.disabled = true; rbtn.tabIndex = -1; row.setAttribute('aria-hidden', 'true'); }
+      row.appendChild(rbtn);
       frag.appendChild(row);
     }
     body.textContent = '';
     body.appendChild(frag);
+    body.classList.toggle('bp-noanim', !!bpState.noAnim);
   }
-  function bpRenderKeep() {
+  // Výška upozornění nahoře (prázdný stav / chyba ukládání) - když zmizí, obsah pod ním se posune; scroll to vyrovná
+  function bpNoticeH() {
+    let h = 0;
+    document.querySelectorAll('#bp-body .bp-notice').forEach(function(n) { h += n.offsetHeight + 14; });
+    return h;
+  }
+  function bpRenderKeep(live) {
     const p = document.getElementById('breath-progress');
     const keep = p ? p.scrollTop : 0;
+    const fromEnd = p ? p.scrollHeight - p.clientHeight - p.scrollTop : 0;
+    const atEnd = !!p && keep > 0 && fromEnd < 4;
+    const n0 = bpNoticeH();
+    bpState.noAnim = !!live;
     try { bpRender(); } catch (e) { if (window.console) console.error('Progress render failed', e); }
-    if (p) p.scrollTop = keep;
+    bpState.noAnim = false;
+    if (p) {
+      if (atEnd) p.scrollTop = p.scrollHeight;                          // byl jsi úplně dole -> zůstaneš dole
+      else p.scrollTop = keep > 0 ? Math.max(0, keep + (bpNoticeH() - n0)) : 0;
+    }
   }
-  function bpRenderIfOpen() {
+  function bpRenderIfOpen(live) {
     const p = document.getElementById('breath-progress');
-    if (p && p.classList.contains('visible')) bpRenderKeep();
+    if (p && p.classList.contains('visible')) bpRenderKeep(live === true);
   }
   window.bpOnLanguage = bpRenderIfOpen;
 
@@ -7798,6 +7981,7 @@
     if (q) q.classList.remove('visible');
     const show = !p.classList.contains('visible');
     if (show) {
+      try { if (typeof window.bpLiveNow === 'function') window.bpLiveNow(); } catch (e) { /* ignore */ }   // doplní čas z právě běžícího cvičení
       bpData = bpLoad();
       bpState.offset = 0; bpState.sure = false; bpState.sel = bpKey(new Date());
       clearTimeout(bpState.sureTimer);
@@ -8164,6 +8348,7 @@
       // proti tomu, aby se XP počítalo i za čas strávený čekáním na obrazovce).
       breathCycleStarted = true;
       breathingSessionStartTime = Date.now();
+      try { if (typeof window.bpLiveReset === 'function') window.bpLiveReset(); } catch (e) { /* ignore */ }
       requestAnimationFrame(() => {
         requestAnimationFrame(runBreathPhase);
       });
@@ -8276,19 +8461,34 @@
     if (breathElapsedStamp) return;
     breathElapsedStamp = Date.now();
     clearInterval(breathElapsedInterval);
-    breathElapsedInterval = setInterval(renderBreathElapsed, 500);
+    breathElapsedInterval = setInterval(function() { renderBreathElapsed(); bpLiveTick(false); }, 500);
     renderBreathElapsed();
   }
   function breathElapsedPause() {
     if (breathElapsedStamp) { breathElapsedMs += Date.now() - breathElapsedStamp; breathElapsedStamp = null; }
     clearInterval(breathElapsedInterval); breathElapsedInterval = null;
     renderBreathElapsed();
+    bpLiveTick(true);
   }
   function breathElapsedReset() {
-    breathElapsedMs = 0; breathElapsedStamp = null;
+    breathElapsedMs = 0; breathElapsedStamp = null; bpLiveLastTick = 0;
     clearInterval(breathElapsedInterval); breathElapsedInterval = null;
     renderBreathElapsed();
   }
+  // Průběžné ukládání do TVŮJ PROGRES (viz bpLiveSync): od 30. sekundy cvičení každých ~5 s, při STOP, při otevření panelu a při zavření stránky
+  let bpLiveLastTick = 0;
+  function bpLiveTick(force) {
+    if (typeof window.bpLiveSync !== 'function' || !breathingActive) return;
+    const ms = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0);
+    if (ms < 29500) return;                                  // pod 30 s se nezapisuje (stejně jako dřív)
+    const now = Date.now();
+    if (!force && now - bpLiveLastTick < 5000) return;
+    bpLiveLastTick = now;
+    try { window.bpLiveSync(ms, currentBreathTechnique); } catch (e) { /* záznam je jen doplněk */ }
+  }
+  window.bpLiveNow = function() { bpLiveTick(true); };
+  window.addEventListener('pagehide', function() { bpLiveTick(true); });
+  document.addEventListener('visibilitychange', function() { if (document.hidden) bpLiveTick(true); });
 
   window.stopBreathing = function() {
     if (!breathingActive) return;
@@ -8297,7 +8497,7 @@
     breathCycleStarted = false;
     const bpSessionMs = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0);
     breathElapsedReset();
-    try { logBreathSession(bpSessionMs, currentBreathTechnique); } catch (e) { /* zaznam je jen doplnek */ }
+    try { window.bpLiveFinish(bpSessionMs, currentBreathTechnique); } catch (e) { /* zaznam je jen doplnek */ }
 
     // XP za dokončené cvičení - jen pokud reálně trvalo aspoň BREATHING_XP_MIN_SECONDS,
     // aby nešlo nasbírat XP rychlým klikáním start/stop
@@ -9727,7 +9927,7 @@
     bp_title: { en: "Your progress", cz: "Tvůj progres" },
     bp_intro: { en: "A calm look at your breathing practice: how often you come back, how long you stay and how steady your rhythm is. Every minute counts — there is nothing to win here.", cz: "Klidný pohled na tvoje dýchání: jak často se vracíš, jak dlouho zůstaneš a jak stabilní je tvůj rytmus. Každá minuta se počítá — nejde tu o výkon." },
     bp_note: { en: "Records are stored only in this browser on this device and are never sent anywhere. General wellbeing information — not medical advice.", cz: "Záznamy se ukládají jen v tomto prohlížeči na tomto zařízení a nikam se neodesílají. Obecné informace pro pohodu — není to lékařská rada." },
-    bp_empty: { en: "No records yet. Each breathing exercise lasting at least 30 seconds will appear here once you leave it with ✖.", cz: "Zatím žádné záznamy. Každé dechové cvičení delší než 30 sekund se sem zapíše, jakmile ho ukončíš křížkem ✖." },
+    bp_empty: { en: "No records yet. Each breathing exercise is saved here as it goes, as soon as it passes 30 seconds.", cz: "Zatím žádné záznamy. Každé dechové cvičení se sem zapisuje průběžně, jakmile překročí 30 sekund." },
     bp_g_overview: { en: "Overview", cz: "Přehled" },
     bp_g_stats: { en: "Statistics", cz: "Statistiky" },
     bp_g_chart: { en: "Minutes per day", cz: "Minuty po dnech" },
