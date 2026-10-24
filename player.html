@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.8">
+<meta name="app-version" content="2.2.9">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1978,6 +1978,77 @@
   .bq-tip { font-size: 10px; line-height: 1.65; opacity: 0.8; margin: 16px 0 0; padding: 10px 12px;
     border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; background: rgba(255,255,255,0.03); }
   @media (max-width: 380px) { .bq-card { grid-template-columns: 1fr; } .bq-fig { margin: 0 auto; } }
+
+  /* ============================================
+     TVŮJ PROGRES (dech) - přehled, statistiky, graf, kalendář, techniky; podle sekce Tvůj pokrok z Uklidni To (jen dech). Předpona bp-
+     ============================================ */
+  #breath-progress-btn { min-width: 118px; }
+  .bp-notice { font-size: 10px; line-height: 1.6; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; }
+  .bp-notice.empty { opacity: 0.75; border: 1px dashed rgba(255,255,255,0.18); }
+  .bp-notice.warn { border: 1px solid rgba(255,107,201,0.5); background: rgba(255,107,201,0.08); color: #ffd3ee; }
+  .bp-group { margin: 26px 0 0; }
+  .bp-group:first-child { margin-top: 0; }
+  .bp-group-title { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #57e0c9; margin: 0 0 12px; }
+  .bp-group-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(87,224,201,0.45), transparent); }
+  .bp-icon { font-size: 14px; letter-spacing: 0; }
+  .bp-summary { display: flex; gap: 10px; }
+  .bp-summary-col { flex: 1; min-width: 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; }
+  .bp-summary-col h4 { font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.55; margin: 0 0 7px; font-weight: normal; }
+  .bp-summary-col p { font-size: 11px; line-height: 1.55; margin: 0; }
+  .bp-summary-col p.none { opacity: 0.5; font-style: italic; }
+  .bp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .bp-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 4px; text-align: center; }
+  .bp-stat-value { font-size: clamp(17px, 5vw, 22px); color: #57e0c9; text-shadow: 0 0 12px rgba(87,224,201,0.45); line-height: 1.2; }
+  .bp-stat-label { font-size: 8.5px; letter-spacing: 0.3px; opacity: 0.6; margin-top: 5px; line-height: 1.4; }
+  .bp-sub { font-size: 9.5px; opacity: 0.6; margin: 10px 0 0; line-height: 1.5; }
+  .bp-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; }
+  .bp-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; font-size: 10px; opacity: 0.8; }
+  .bp-seg { display: flex; gap: 6px; }
+  .bp-pill { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff; font: inherit; font-size: 9.5px; letter-spacing: 0.3px;
+    padding: 5px 11px; border-radius: 20px; cursor: pointer; opacity: 0.7; -webkit-tap-highlight-color: transparent; }
+  .bp-pill.on { background: #57e0c9; border-color: #57e0c9; color: #06201c; opacity: 1; }
+  .bp-legend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 9px; opacity: 0.65; }
+  .bp-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; background: #57e0c9; box-shadow: 0 0 8px rgba(87,224,201,0.6); }
+  .bp-dot.manual { background: transparent; border: 1px dashed #57e0c9; box-shadow: none; }
+  .bp-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .bp-gridline { stroke: rgba(255,255,255,0.09); stroke-width: 1; stroke-dasharray: 2 4; }
+  .bp-axis { fill: rgba(255,255,255,0.4); font-size: 8px; }
+  .bp-xl { fill: rgba(255,255,255,0.5); font-size: 8px; }
+  .bp-xl.today { fill: #57e0c9; }
+  .bp-val { fill: rgba(255,255,255,0.75); font-size: 8px; }
+  .bp-bar { fill: url(#bpGrad); transform-box: fill-box; transform-origin: 50% 100%; animation: bpGrow 0.7s ease-out both; }
+  @keyframes bpGrow { from { transform: scaleY(0.05); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .bp-bar { animation: none; } }
+  .bp-month-nav { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; }
+  .bp-month-nav span { font-size: 11px; letter-spacing: 0.5px; opacity: 0.85; text-transform: capitalize; }
+  .bp-month-nav button { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 28px; height: 28px;
+    border-radius: 50%; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; -webkit-tap-highlight-color: transparent; }
+  .bp-month-nav button:disabled { opacity: 0.25; cursor: default; }
+  .bp-weekdays, .bp-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .bp-weekdays { margin: 0 0 6px; }
+  .bp-weekdays span { text-align: center; font-size: 9px; opacity: 0.4; letter-spacing: 0.5px; }
+  .bp-day { aspect-ratio: 1; min-width: 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); color: #fff;
+    font: inherit; font-size: 9px; padding: 0; opacity: 0.6; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+  .bp-day.done { background: #57e0c9; border-color: #57e0c9; color: #06201c; opacity: 1; box-shadow: 0 0 10px rgba(87,224,201,0.45); font-weight: 600; }
+  .bp-day.manual { border: 1px dashed #57e0c9; background: rgba(87,224,201,0.1); opacity: 1; }
+  .bp-day.today { outline: 1px solid #fff; outline-offset: 1px; }
+  .bp-day.sel { border-color: #a56bff; box-shadow: 0 0 0 2px rgba(165,107,255,0.7); opacity: 1; }
+  .bp-day.pad { opacity: 0.18; cursor: default; }
+  .bp-day.future { opacity: 0.25; cursor: default; }
+  .bp-day-detail { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 10px; line-height: 1.7; }
+  .bp-day-detail b { display: block; font-weight: normal; color: #57e0c9; letter-spacing: 0.6px; text-transform: capitalize; margin-bottom: 2px; }
+  .bp-day-detail div { opacity: 0.75; }
+  .bp-mark-btn { margin-top: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.18); color: #fff; font: inherit; font-size: 9.5px;
+    letter-spacing: 0.3px; padding: 6px 12px; border-radius: 18px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .bp-tech-row { margin: 0 0 10px; }
+  .bp-tech-row:last-child { margin-bottom: 0; }
+  .bp-tech-top { display: flex; justify-content: space-between; gap: 8px; font-size: 9.5px; margin: 0 0 4px; }
+  .bp-tech-top span:last-child { opacity: 0.6; white-space: nowrap; }
+  .bp-tech-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.07); overflow: hidden; }
+  .bp-tech-bar i { display: block; height: 100%; border-radius: 4px; opacity: 0.85; }
+  .bp-reset-row { display: flex; justify-content: center; margin: 26px 0 0; }
+  .bp-reset-row .btn-breath-ctrl { min-width: 150px; opacity: 0.7; }
+  @media (max-width: 380px) { .bp-stats { grid-template-columns: repeat(2, 1fr); } .bp-summary { flex-direction: column; } }
 
   /* Ambientní bubliny uvnitř overlaye - vlastní kopie, protože zbytek stránky se při dýchání schová */
   .breath-ambient {
@@ -4103,6 +4174,17 @@
     </div>
   </div>
 
+  <div class="breath-guide breath-progress" id="breath-progress" role="dialog" aria-labelledby="bp-heading">
+    <div class="breath-guide-inner">
+      <button class="breath-guide-close" onclick="toggleBreathProgress()" aria-label="Close">✖</button>
+      <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
+      <h3 id="bp-heading" data-i18n="bp_title">Your progress</h3>
+      <p class="breath-guide-intro" data-i18n="bp_intro">A calm look at your breathing practice: how often you come back, how long you stay and how steady your rhythm is. Every minute counts — there is nothing to win here.</p>
+      <div id="bp-body"></div>
+      <p class="breath-guide-note" data-i18n="bp_note">Records are stored only in this browser on this device. General wellbeing information — not medical advice.</p>
+    </div>
+  </div>
+
   <div class="breath-custom-editor" id="breath-custom-editor" role="dialog" aria-modal="true" aria-labelledby="bce-title">
     <div class="bce-inner">
       <button class="breath-guide-close" onclick="closeBreathCustomEditor()" aria-label="Close">&#10006;</button>
@@ -4164,6 +4246,7 @@
     <button class="btn-breath-ctrl" id="breath-weather-btn" onclick="toggleWeather()">WEATHER: OFF</button>
     <button class="btn-breath-ctrl" id="breath-shape-btn" type="button" onclick="toggleBreathShape()">SHAPE: ORB</button>
     <button class="btn-breath-ctrl" id="breath-quick-btn" type="button" onclick="toggleBreathQuick()" data-i18n="bq_btn">STRETCH</button>
+    <button class="btn-breath-ctrl" id="breath-progress-btn" type="button" onclick="toggleBreathProgress()" data-i18n="bp_btn">YOUR PROGRESS</button>
     <button class="btn-breath-ctrl" id="breath-together-btn" onclick="if(window.openTogether)openTogether()"><svg class="tg-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14.2c2.4 0 4.2 1.8 4.2 4.3"/></svg><span data-tg="entryBtn">TOGETHER</span><span class="tg-entry-count" id="breath-together-count" hidden><span class="together-live-dot"></span><span class="tg-entry-count-text"></span></span></button>
   </div>
 
@@ -7275,6 +7358,8 @@
     const guide = document.getElementById('breath-guide');
     const q = document.getElementById('breath-quick');
     if (q) q.classList.remove('visible');
+    const bpP = document.getElementById('breath-progress');
+    if (bpP) bpP.classList.remove('visible');
     if (guide) guide.classList.toggle('visible');
   };
 
@@ -7283,8 +7368,445 @@
     const q = document.getElementById('breath-quick');
     const guide = document.getElementById('breath-guide');
     if (guide) guide.classList.remove('visible');
+    const bpP = document.getElementById('breath-progress');
+    if (bpP) bpP.classList.remove('visible');
     if (q) q.classList.toggle('visible');
   };
+
+  // ============================================
+  // TVŮJ PROGRES - jen dech: záznam cvičení, přehled týdne/měsíce, statistiky, graf, kalendář, techniky.
+  // Data: localStorage 'synthlucida_breath_log' = { v: 2, sessions: [{ t: čas konce (ms), d: sekundy, k: technika, n?: jméno vlastní }], marked: { 'RRRR-MM-DD': 1 } }
+  // Bezpečnost: data se při každém načtení pročistí (datum jen RRRR-MM-DD, čísla v mezích, technika jen [A-Za-z0-9_-]),
+  // vše se vykresluje přes textContent / createElement (žádné innerHTML s daty). Žádný import ani export.
+  // ============================================
+  const BP_KEY = 'synthlucida_breath_log';
+  const BP_MIN_SEC = 30;          // kratší cvičení se nezapisuje
+  const BP_MAX_SEC = 86400;       // jedno cvičení nejvýš 24 h
+  const BP_MAX_SESSIONS = 3000;
+  const BP_MAX_MARKED = 3660;
+  const BP_T_MIN = 946684800000;  // 1. 1. 2000
+  const BP_T_MAX = 4102444800000; // 1. 1. 2100
+  const BP_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const BP_TECH_RE = /^[A-Za-z0-9_-]{1,20}$/;
+  const BP_COLORS = ['#57e0c9', '#a56bff', '#ff6bc9', '#7fb4ff', '#ffd27a', '#9be37f'];
+  const BP_SVG = 'http://www.w3.org/2000/svg';
+  const bpState = { view: 'weeks', offset: 0, range: 7, sel: null, sure: false, sureTimer: null, saveFailed: false };
+
+  function bpPad(n) { return String(n).padStart(2, '0'); }
+  function bpKey(d) { return d.getFullYear() + '-' + bpPad(d.getMonth() + 1) + '-' + bpPad(d.getDate()); }
+  function bpValidKey(k) {
+    if (typeof k !== 'string' || !BP_DATE_RE.test(k)) return false;
+    const p = k.split('-'), y = +p[0], m = +p[1], d = +p[2];
+    if (y < 2000 || y > 2100) return false;
+    const dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+  }
+  function bpParseKey(k) { const p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function bpIdx(key) { const p = key.split('-'); return Math.round(new Date(+p[0], +p[1] - 1, +p[2], 12).getTime() / 86400000); }
+
+  // Pročištění dat z úložiště (poškozená nebo podvržená položka se tiše zahodí)
+  function bpClean(raw) {
+    const out = { sessions: [], marked: {} };
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    if (Array.isArray(raw.sessions)) {
+      raw.sessions.forEach(function(s) {
+        if (!s || typeof s !== 'object') return;
+        const t = Number(s.t), d = Number(s.d);
+        if (!isFinite(t) || !isFinite(d) || t < BP_T_MIN || t > BP_T_MAX || d < 1) return;
+        if (typeof s.k !== 'string' || !BP_TECH_RE.test(s.k)) return;
+        const rec = { t: Math.round(t), d: Math.min(BP_MAX_SEC, Math.round(d)), k: s.k };
+        if (s.k === 'custom') rec.n = String(s.n == null ? '' : s.n).replace(/[\r\n]+/g, ' ').trim().slice(0, 20);
+        out.sessions.push(rec);
+      });
+      out.sessions.sort(function(a, b) { return a.t - b.t; });
+      if (out.sessions.length > BP_MAX_SESSIONS) out.sessions = out.sessions.slice(-BP_MAX_SESSIONS);
+    }
+    if (raw.marked && typeof raw.marked === 'object' && !Array.isArray(raw.marked)) {
+      let n = 0;
+      Object.keys(raw.marked).forEach(function(k) {
+        if (n >= BP_MAX_MARKED || !bpValidKey(k) || raw.marked[k] !== 1) return;
+        out.marked[k] = 1; n++;
+      });
+    }
+    return out;
+  }
+  function bpLoad() {
+    try { return bpClean(JSON.parse(localStorage.getItem(BP_KEY))); } catch (e) { return bpClean(null); }
+  }
+  let bpData = bpLoad();
+  function bpSave() {
+    try {
+      localStorage.setItem(BP_KEY, JSON.stringify({ v: 2, sessions: bpData.sessions, marked: bpData.marked }));
+      bpState.saveFailed = false;
+    } catch (e) { bpState.saveFailed = true; }
+  }
+
+  // Zápis jednoho dokončeného dechového cvičení (volá stopBreathing). Před zápisem se data znovu načtou,
+  // aby souběžně otevřená druhá karta nepřepsala záznamy z této.
+  window.logBreathSession = function(ms, tech) {
+    const sec = Math.round(Number(ms) / 1000);
+    if (!isFinite(sec) || sec < BP_MIN_SEC) return;
+    bpData = bpLoad();
+    const k = BP_TECH_RE.test(String(tech)) ? String(tech) : '478';
+    const rec = { t: Date.now(), d: Math.min(BP_MAX_SEC, sec), k: k };
+    if (k === 'custom') rec.n = String((BREATH_TECHNIQUES.custom && BREATH_TECHNIQUES.custom.name) || 'Custom').replace(/[\r\n]+/g, ' ').trim().slice(0, 20);
+    bpData.sessions.push(rec);
+    if (bpData.sessions.length > BP_MAX_SESSIONS) bpData.sessions = bpData.sessions.slice(-BP_MAX_SESSIONS);
+    bpSave();
+  };
+
+  function bpLang() { try { return guideLang === 'cz' ? 'cz' : 'en'; } catch (e) { return 'en'; } }
+  function bpTr(k) { const e = i18nText[k]; return e ? (e[bpLang()] || e.en) : k; }
+  function bpLoc() { return bpLang() === 'cz' ? 'cs-CZ' : 'en-GB'; }
+  function bpFmt(sec) {
+    if (sec < 60) return Math.round(sec) + ' s';
+    const m = Math.round(sec / 60);
+    if (m < 60) return m + ' min';
+    const h = Math.floor(m / 60), r = m % 60;
+    return h + ' h' + (r ? ' ' + r + ' min' : '');
+  }
+  function bpTechName(s) {
+    if (s.k === 'together') return bpTr('bp_together');
+    if (s.k === 'custom') return s.n || 'Custom';
+    const t = BREATH_TECHNIQUES[s.k];
+    return t ? String(t.name) : s.k;
+  }
+
+  // Pomocné funkce pro stavbu DOM (žádné innerHTML)
+  function bpEl(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function bpSvg(tag, attrs, text) {
+    const e = document.createElementNS(BP_SVG, tag);
+    Object.keys(attrs || {}).forEach(function(k) { e.setAttribute(k, String(attrs[k])); });
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function bpBtn(cls, text, onclick, aria) {
+    const b = bpEl('button', cls, text);
+    b.type = 'button';
+    if (aria) b.setAttribute('aria-label', aria);
+    b.onclick = onclick;
+    return b;
+  }
+  function bpGroup(icon, key) {
+    const g = bpEl('div', 'bp-group');
+    const t = bpEl('div', 'bp-group-title');
+    t.appendChild(bpEl('span', 'bp-icon', icon));
+    t.appendChild(bpEl('span', '', bpTr(key)));
+    g.appendChild(t);
+    return g;
+  }
+
+  function bpByDay() {
+    const map = {};
+    bpData.sessions.forEach(function(s) {
+      const k = bpKey(new Date(s.t));
+      const e = map[k] || (map[k] = { sec: 0, n: 0, list: [] });
+      e.sec += s.d; e.n++; e.list.push(s);
+    });
+    return map;
+  }
+  function bpStreaks(byDay) {
+    const keys = {};
+    Object.keys(byDay).forEach(function(k) { keys[k] = 1; });
+    Object.keys(bpData.marked).forEach(function(k) { keys[k] = 1; });
+    const idxs = Object.keys(keys).map(bpIdx).sort(function(a, b) { return a - b; });
+    let best = 0, run = 0, prev = null;
+    idxs.forEach(function(i) { run = (prev !== null && i === prev + 1) ? run + 1 : 1; if (run > best) best = run; prev = i; });
+    const set = new Set(idxs);
+    const today = bpIdx(bpKey(new Date()));
+    let cur = 0, c = set.has(today) ? today : today - 1;
+    while (set.has(c)) { cur++; c--; }
+    return { cur: cur, best: best, days: idxs.length };
+  }
+  function bpRangeSum(startMs) {
+    let n = 0, sec = 0;
+    bpData.sessions.forEach(function(s) { if (s.t >= startMs) { n++; sec += s.d; } });
+    return { n: n, sec: sec };
+  }
+
+  function bpOverviewGroup() {
+    const g = bpGroup('🗓️', 'bp_g_overview');
+    const now = new Date(), dow = (now.getDay() + 6) % 7;
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow).getTime();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const wrap = bpEl('div', 'bp-summary');
+    [['bp_week', bpRangeSum(weekStart)], ['bp_month', bpRangeSum(monthStart)]].forEach(function(x) {
+      const col = bpEl('div', 'bp-summary-col');
+      col.appendChild(bpEl('h4', '', bpTr(x[0])));
+      col.appendChild(x[1].n === 0 ? bpEl('p', 'none', bpTr('bp_none')) : bpEl('p', '', x[1].n + '× ' + bpTr('bp_cex') + ' · ' + bpFmt(x[1].sec)));
+      wrap.appendChild(col);
+    });
+    g.appendChild(wrap);
+    return g;
+  }
+
+  function bpStatsGroup(byDay) {
+    const g = bpGroup('📈', 'bp_g_stats');
+    const st = bpStreaks(byDay), n = bpData.sessions.length;
+    const total = bpData.sessions.reduce(function(a, s) { return a + s.d; }, 0);
+    const grid = bpEl('div', 'bp-stats');
+    [[st.cur, 'bp_s_streak'], [st.best, 'bp_s_best'], [st.days, 'bp_s_days'], [n, 'bp_s_sessions']].forEach(function(x) {
+      const box = bpEl('div', 'bp-stat');
+      box.appendChild(bpEl('div', 'bp-stat-value', String(x[0])));
+      box.appendChild(bpEl('div', 'bp-stat-label', bpTr(x[1])));
+      grid.appendChild(box);
+    });
+    g.appendChild(grid);
+    if (n) g.appendChild(bpEl('p', 'bp-sub', bpTr('bp_total') + ': ' + bpFmt(total) + ' · ' + bpTr('bp_avg') + ': ' + bpFmt(total / n)));
+    return g;
+  }
+
+  function bpChartGroup(byDay) {
+    const g = bpGroup('📊', 'bp_g_chart');
+    const n = bpState.range === 30 ? 30 : 7, loc = bpLoc(), now = new Date();
+    const box = bpEl('div', 'bp-box');
+    const row = bpEl('div', 'bp-row');
+    row.appendChild(bpEl('span', '', ''));
+    const seg = bpEl('div', 'bp-seg');
+    [7, 30].forEach(function(r) {
+      seg.appendChild(bpBtn('bp-pill' + (n === r ? ' on' : ''), bpTr(r === 7 ? 'bp_r7' : 'bp_r30'), function() { bpState.range = r; bpRenderKeep(); }));
+    });
+    row.appendChild(seg);
+    box.appendChild(row);
+
+    const days = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 12);
+      const e = byDay[bpKey(d)];
+      days.push({ d: d, min: e ? e.sec / 60 : 0, i: i });
+    }
+    const maxV = Math.max.apply(null, days.map(function(x) { return x.min; }));
+    const steps = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 360];
+    const top = steps.find(function(s) { return s >= maxV; }) || Math.ceil(maxV / 60) * 60;
+    const W = 320, H = 150, L = 28, R = 6, T = 16, B = 24, pw = W - L - R, ph = H - T - B;
+    const slot = pw / n, bw = Math.max(3, slot * (n <= 7 ? 0.5 : 0.62));
+    const svg = bpSvg('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': bpTr('bp_g_chart') });
+    const defs = bpSvg('defs', {});
+    const grad = bpSvg('linearGradient', { id: 'bpGrad', x1: 0, y1: 0, x2: 0, y2: 1 });
+    grad.appendChild(bpSvg('stop', { offset: 0, 'stop-color': '#57e0c9' }));
+    grad.appendChild(bpSvg('stop', { offset: 1, 'stop-color': '#a56bff' }));
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+    [0, 0.5, 1].forEach(function(f) {
+      const y = T + ph - ph * f;
+      svg.appendChild(bpSvg('line', { 'class': 'bp-gridline', x1: L, x2: W - R, y1: y, y2: y }));
+      svg.appendChild(bpSvg('text', { 'class': 'bp-axis', x: L - 5, y: y + 3, 'text-anchor': 'end' }, String(Math.round(top * f))));
+    });
+    let sumSec = 0, active = 0;
+    days.forEach(function(x, idx) {
+      const cx = L + slot * idx + slot / 2;
+      if (x.min > 0) {
+        sumSec += x.min * 60; active++;
+        const h = Math.max(3, ph * x.min / top);
+        const rect = bpSvg('rect', { 'class': 'bp-bar', x: (cx - bw / 2).toFixed(1), y: (T + ph - h).toFixed(1), width: bw.toFixed(1), height: h.toFixed(1), rx: Math.min(4, bw / 2).toFixed(1) });
+        rect.appendChild(bpSvg('title', {}, x.d.toLocaleDateString(loc, { day: 'numeric', month: 'numeric' }) + ' · ' + bpFmt(x.min * 60)));
+        svg.appendChild(rect);
+        if (n <= 7) svg.appendChild(bpSvg('text', { 'class': 'bp-val', x: cx.toFixed(1), y: (T + ph - h - 4).toFixed(1), 'text-anchor': 'middle' }, String(Math.max(1, Math.round(x.min)))));
+      }
+      let xl = '';
+      if (n <= 7) xl = x.d.toLocaleDateString(loc, { weekday: 'short' });
+      else if (x.i % 5 === 0) xl = String(x.d.getDate());
+      if (xl) svg.appendChild(bpSvg('text', { 'class': 'bp-xl' + (x.i === 0 ? ' today' : ''), x: cx.toFixed(1), y: H - 7, 'text-anchor': 'middle' }, xl));
+    });
+    const chart = bpEl('div', 'bp-chart');
+    chart.appendChild(svg);
+    box.appendChild(chart);
+    box.appendChild(bpEl('p', 'bp-sub', (sumSec ? bpFmt(sumSec) : '0 min') + ' · ' + active + '/' + n + ' ' + bpTr('bp_days')));
+    g.appendChild(box);
+    return g;
+  }
+
+  function bpDayCell(date, today, todayKey, byDay, pad) {
+    const key = bpKey(date);
+    const b = bpEl('button', 'bp-day', String(date.getDate()));
+    b.type = 'button';
+    if (pad) { b.classList.add('pad'); b.disabled = true; return b; }
+    if (date > today) { b.classList.add('future'); b.disabled = true; return b; }
+    const rec = byDay[key], marked = bpData.marked[key] === 1;
+    if (rec) b.classList.add('done'); else if (marked) b.classList.add('manual');
+    if (key === todayKey) b.classList.add('today');
+    if (key === bpState.sel) b.classList.add('sel');
+    b.setAttribute('aria-label', key + ' — ' + (rec ? bpTr('bp_done') : marked ? bpTr('bp_marked') : bpTr('bp_notdone')));
+    b.setAttribute('aria-pressed', key === bpState.sel ? 'true' : 'false');
+    b.onclick = function() { bpState.sel = key; bpRenderKeep(); };
+    return b;
+  }
+
+  function bpDetail(byDay, today) {
+    const key = bpState.sel;
+    if (!key || !bpValidKey(key)) return null;
+    const d = bpParseKey(key);
+    if (d > today) return null;
+    const rec = byDay[key], marked = bpData.marked[key] === 1;
+    const box = bpEl('div', 'bp-day-detail');
+    box.appendChild(bpEl('b', '', d.toLocaleDateString(bpLoc(), { weekday: 'long', day: 'numeric', month: 'long' })));
+    if (rec) {
+      rec.list.slice().sort(function(a, b) { return a.t - b.t; }).forEach(function(s) {
+        const t = new Date(s.t);
+        box.appendChild(bpEl('div', '', bpPad(t.getHours()) + ':' + bpPad(t.getMinutes()) + ' · ' + bpTechName(s) + ' · ' + bpFmt(s.d)));
+      });
+    } else {
+      box.appendChild(bpEl('div', '', marked ? bpTr('bp_marked') : bpTr('bp_noday')));
+      // Ruční označení (třeba když jsi dýchal/a mimo přehrávač) jen u dnů bez zaznamenaného cvičení
+      box.appendChild(bpBtn('bp-mark-btn', marked ? bpTr('bp_unmark') : bpTr('bp_mark'), function() {
+        bpData = bpLoad();
+        if (bpData.marked[key] === 1) delete bpData.marked[key];
+        else if (Object.keys(bpData.marked).length < BP_MAX_MARKED) bpData.marked[key] = 1;
+        bpSave();
+        bpRenderKeep();
+      }));
+    }
+    return box;
+  }
+
+  function bpCalendarGroup(byDay) {
+    const g = bpGroup('📅', 'bp_g_cal');
+    const loc = bpLoc(), box = bpEl('div', 'bp-box');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const todayKey = bpKey(today);
+    const head = bpEl('div', 'bp-row');
+    const seg = bpEl('div', 'bp-seg');
+    seg.appendChild(bpBtn('bp-pill' + (bpState.view === 'weeks' ? ' on' : ''), bpTr('bp_v_weeks'), function() { bpState.view = 'weeks'; bpRenderKeep(); }));
+    seg.appendChild(bpBtn('bp-pill' + (bpState.view === 'month' ? ' on' : ''), bpTr('bp_v_month'), function() { bpState.view = 'month'; bpState.offset = 0; bpRenderKeep(); }));
+    head.appendChild(seg);
+    const legend = bpEl('div', 'bp-legend');
+    legend.appendChild(bpEl('span', 'bp-dot'));
+    legend.appendChild(bpEl('span', '', bpTr('bp_done')));
+    legend.appendChild(bpEl('span', 'bp-dot manual'));
+    legend.appendChild(bpEl('span', '', bpTr('bp_marked_short')));
+    head.appendChild(legend);
+    box.appendChild(head);
+
+    const grid = bpEl('div', 'bp-cal');
+    grid.setAttribute('role', 'group');
+    grid.setAttribute('aria-label', bpTr('bp_g_cal'));
+    if (bpState.view === 'month') {
+      const view = new Date(today.getFullYear(), today.getMonth() + bpState.offset, 1);
+      const y = view.getFullYear(), m = view.getMonth();
+      const nav = bpEl('div', 'bp-month-nav');
+      nav.appendChild(bpBtn('', '‹', function() { if (bpState.offset > -600) { bpState.offset--; bpRenderKeep(); } }, bpTr('bp_prev')));
+      nav.appendChild(bpEl('span', '', view.toLocaleDateString(loc, { month: 'long', year: 'numeric' })));
+      const next = bpBtn('', '›', function() { if (bpState.offset < 0) { bpState.offset++; bpRenderKeep(); } }, bpTr('bp_next'));
+      next.disabled = bpState.offset >= 0;
+      nav.appendChild(next);
+      box.appendChild(nav);
+      const last = new Date(y, m + 1, 0), lead = (new Date(y, m, 1).getDay() + 6) % 7, trail = (7 - ((last.getDay() + 6) % 7 + 1)) % 7;
+      for (let i = lead; i > 0; i--) grid.appendChild(bpDayCell(new Date(y, m, 1 - i), today, todayKey, byDay, true));
+      for (let d = 1; d <= last.getDate(); d++) grid.appendChild(bpDayCell(new Date(y, m, d), today, todayKey, byDay, false));
+      for (let i = 1; i <= trail; i++) grid.appendChild(bpDayCell(new Date(y, m + 1, i), today, todayKey, byDay, true));
+    } else {
+      // 5 týdnů: od 34 dní zpět, zarovnáno na pondělí, až do konce tohoto týdne
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 34);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + (6 - ((today.getDay() + 6) % 7)));
+      for (let c = new Date(start); c <= end; c = new Date(c.getFullYear(), c.getMonth(), c.getDate() + 1)) {
+        grid.appendChild(bpDayCell(c, today, todayKey, byDay, false));
+      }
+    }
+    const wd = bpEl('div', 'bp-weekdays');
+    for (let i = 0; i < 7; i++) wd.appendChild(bpEl('span', '', new Date(2024, 0, 1 + i).toLocaleDateString(loc, { weekday: 'narrow' })));
+    box.appendChild(wd);
+    box.appendChild(grid);
+    const det = bpDetail(byDay, today);
+    if (det) box.appendChild(det);
+    g.appendChild(box);
+    return g;
+  }
+
+  function bpTechGroup() {
+    if (!bpData.sessions.length) return null;
+    const g = bpGroup('🌬️', 'bp_g_tech');
+    const agg = {};
+    bpData.sessions.forEach(function(s) { const nm = bpTechName(s); agg[nm] = (agg[nm] || 0) + s.d; });
+    const rows = Object.keys(agg).map(function(k) { return { name: k, sec: agg[k] }; }).sort(function(a, b) { return b.sec - a.sec; });
+    const total = rows.reduce(function(a, r) { return a + r.sec; }, 0);
+    const box = bpEl('div', 'bp-box');
+    rows.forEach(function(r, i) {
+      const pct = Math.round(100 * r.sec / total);
+      const row = bpEl('div', 'bp-tech-row');
+      const top = bpEl('div', 'bp-tech-top');
+      top.appendChild(bpEl('span', '', r.name));
+      top.appendChild(bpEl('span', '', bpFmt(r.sec) + ' · ' + pct + '%'));
+      const bar = bpEl('div', 'bp-tech-bar');
+      const fill = bpEl('i');
+      fill.style.width = pct + '%';
+      fill.style.background = BP_COLORS[i % BP_COLORS.length];
+      bar.appendChild(fill);
+      row.appendChild(top); row.appendChild(bar);
+      box.appendChild(row);
+    });
+    g.appendChild(box);
+    return g;
+  }
+
+  function bpRender() {
+    const body = document.getElementById('bp-body');
+    if (!body) return;
+    const byDay = bpByDay();
+    const frag = document.createDocumentFragment();
+    if (bpState.saveFailed) { const w = bpEl('p', 'bp-notice warn', bpTr('bp_save_fail')); w.setAttribute('role', 'alert'); frag.appendChild(w); }
+    if (!bpData.sessions.length) frag.appendChild(bpEl('p', 'bp-notice empty', bpTr('bp_empty')));
+    frag.appendChild(bpOverviewGroup());
+    frag.appendChild(bpStatsGroup(byDay));
+    frag.appendChild(bpChartGroup(byDay));
+    frag.appendChild(bpCalendarGroup(byDay));
+    const tech = bpTechGroup();
+    if (tech) frag.appendChild(tech);
+    if (bpData.sessions.length || Object.keys(bpData.marked).length) {
+      const row = bpEl('div', 'bp-reset-row');
+      row.appendChild(bpBtn('btn-breath-ctrl', bpState.sure ? bpTr('bp_sure') : bpTr('bp_reset'), function() {
+        if (!bpState.sure) {
+          bpState.sure = true;
+          clearTimeout(bpState.sureTimer);
+          bpState.sureTimer = setTimeout(function() { bpState.sure = false; bpRenderIfOpen(); }, 4000);
+        } else {
+          clearTimeout(bpState.sureTimer);
+          bpState.sure = false;
+          bpData = { sessions: [], marked: {} };
+          bpSave();
+        }
+        bpRenderKeep();
+      }));
+      frag.appendChild(row);
+    }
+    body.textContent = '';
+    body.appendChild(frag);
+  }
+  function bpRenderKeep() {
+    const p = document.getElementById('breath-progress');
+    const keep = p ? p.scrollTop : 0;
+    try { bpRender(); } catch (e) { if (window.console) console.error('Progress render failed', e); }
+    if (p) p.scrollTop = keep;
+  }
+  function bpRenderIfOpen() {
+    const p = document.getElementById('breath-progress');
+    if (p && p.classList.contains('visible')) bpRenderKeep();
+  }
+  window.bpOnLanguage = bpRenderIfOpen;
+
+  window.toggleBreathProgress = function() {
+    const p = document.getElementById('breath-progress');
+    if (!p) return;
+    const guide = document.getElementById('breath-guide');
+    const q = document.getElementById('breath-quick');
+    if (guide) guide.classList.remove('visible');
+    if (q) q.classList.remove('visible');
+    const show = !p.classList.contains('visible');
+    if (show) {
+      bpData = bpLoad();
+      bpState.offset = 0; bpState.sure = false; bpState.sel = bpKey(new Date());
+      clearTimeout(bpState.sureTimer);
+      try { bpRender(); } catch (e) { if (window.console) console.error('Progress render failed', e); }
+    }
+    p.classList.toggle('visible', show);
+    if (show) p.scrollTop = 0;
+  };
+
 
   // Animace cviků v panelu PROTAŽENÍ: běží jen když je panel otevřený; při "snížit pohyb" zůstanou statické pózy
   (function() {
@@ -7773,7 +8295,9 @@
     breathingActive = false;
     breathingPaused = false;
     breathCycleStarted = false;
+    const bpSessionMs = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0);
     breathElapsedReset();
+    try { logBreathSession(bpSessionMs, currentBreathTechnique); } catch (e) { /* zaznam je jen doplnek */ }
 
     // XP za dokončené cvičení - jen pokud reálně trvalo aspoň BREATHING_XP_MIN_SECONDS,
     // aby nešlo nasbírat XP rychlým klikáním start/stop
@@ -7799,6 +8323,8 @@
     if (guide) guide.classList.remove('visible');
     const quickPanel = document.getElementById('breath-quick');
     if (quickPanel) quickPanel.classList.remove('visible');
+    const bpPanel = document.getElementById('breath-progress');
+    if (bpPanel) bpPanel.classList.remove('visible');
     updateBreathWeatherUI();
     updateCanvasState(); // obnoví déšť/sunset/night canvas, pokud byl zapnutý
   };
@@ -7808,6 +8334,8 @@
       const mainGuide = document.getElementById('main-guide');
       if (mainGuide && mainGuide.classList.contains('visible')) { mainGuide.classList.remove('visible'); return; }
       if (!breathingActive) return;
+      const bpEsc2 = document.getElementById('breath-progress');
+      if (bpEsc2 && bpEsc2.classList.contains('visible')) { bpEsc2.classList.remove('visible'); return; }
       const quickEsc = document.getElementById('breath-quick');
       if (quickEsc && quickEsc.classList.contains('visible')) { quickEsc.classList.remove('visible'); return; }
       const guide = document.getElementById('breath-guide');
@@ -9195,6 +9723,44 @@
     bv_cap_calm: { en: "4 s inhale · 6 s exhale", cz: "4 s nádech · 6 s výdech" },
     bv_cap_sigh: { en: "2 s inhale · 1 s extra sip · 6 s exhale", cz: "2 s nádech · 1 s dosání · 6 s výdech" },
     bq_btn: { en: "STRETCH", cz: "PROTAŽENÍ" },
+    bp_btn: { en: "YOUR PROGRESS", cz: "TVŮJ PROGRES" },
+    bp_title: { en: "Your progress", cz: "Tvůj progres" },
+    bp_intro: { en: "A calm look at your breathing practice: how often you come back, how long you stay and how steady your rhythm is. Every minute counts — there is nothing to win here.", cz: "Klidný pohled na tvoje dýchání: jak často se vracíš, jak dlouho zůstaneš a jak stabilní je tvůj rytmus. Každá minuta se počítá — nejde tu o výkon." },
+    bp_note: { en: "Records are stored only in this browser on this device and are never sent anywhere. General wellbeing information — not medical advice.", cz: "Záznamy se ukládají jen v tomto prohlížeči na tomto zařízení a nikam se neodesílají. Obecné informace pro pohodu — není to lékařská rada." },
+    bp_empty: { en: "No records yet. Each breathing exercise lasting at least 30 seconds will appear here once you leave it with ✖.", cz: "Zatím žádné záznamy. Každé dechové cvičení delší než 30 sekund se sem zapíše, jakmile ho ukončíš křížkem ✖." },
+    bp_g_overview: { en: "Overview", cz: "Přehled" },
+    bp_g_stats: { en: "Statistics", cz: "Statistiky" },
+    bp_g_chart: { en: "Minutes per day", cz: "Minuty po dnech" },
+    bp_g_cal: { en: "Calendar of practised days", cz: "Kalendář odcvičených dní" },
+    bp_g_tech: { en: "Techniques", cz: "Techniky" },
+    bp_week: { en: "This week", cz: "Tento týden" },
+    bp_month: { en: "This month", cz: "Tento měsíc" },
+    bp_none: { en: "No activity yet.", cz: "Zatím žádná aktivita." },
+    bp_cex: { en: "exercises", cz: "cvičení" },
+    bp_s_streak: { en: "Current streak (days)", cz: "Aktuální série (dní)" },
+    bp_s_best: { en: "Longest streak", cz: "Nejdelší série" },
+    bp_s_days: { en: "Total days", cz: "Celkem dní" },
+    bp_s_sessions: { en: "Total exercises", cz: "Celkem cvičení" },
+    bp_total: { en: "Total time", cz: "Celkový čas" },
+    bp_avg: { en: "average", cz: "průměr" },
+    bp_r7: { en: "7 days", cz: "7 dní" },
+    bp_r30: { en: "30 days", cz: "30 dní" },
+    bp_days: { en: "days with practice", cz: "dní s praxí" },
+    bp_v_weeks: { en: "5 weeks", cz: "5 týdnů" },
+    bp_v_month: { en: "Month", cz: "Měsíc" },
+    bp_prev: { en: "Previous month", cz: "Předchozí měsíc" },
+    bp_next: { en: "Next month", cz: "Následující měsíc" },
+    bp_done: { en: "practised", cz: "odcvičeno" },
+    bp_notdone: { en: "not practised", cz: "neodcvičeno" },
+    bp_marked: { en: "Marked by hand.", cz: "Označeno ručně." },
+    bp_marked_short: { en: "by hand", cz: "ručně" },
+    bp_noday: { en: "No breathing recorded on this day.", cz: "V tento den žádné zaznamenané dýchání." },
+    bp_mark: { en: "Mark as practised", cz: "Označit jako odcvičeno" },
+    bp_unmark: { en: "Remove mark", cz: "Zrušit označení" },
+    bp_reset: { en: "CLEAR RECORDS", cz: "SMAZAT ZÁZNAMY" },
+    bp_sure: { en: "SURE?", cz: "OPRAVDU?" },
+    bp_together: { en: "Together", cz: "Společné dýchání" },
+    bp_save_fail: { en: "Your browser could not save the records (private mode or full storage). They may be lost when you close the page.", cz: "Prohlížeč nedokázal záznamy uložit (soukromé prohlížení nebo plné úložiště). Po zavření stránky mohou zmizet." },
     bq_title: { en: "Stretches", cz: "Protažení" },
     bq_intro: { en: "Light stretches you can do anywhere in a few minutes, no equipment needed. Pick one for the spot that feels most tense, or run through all five as a short routine — then come back to the breathing.", cz: "Lehké protažení, které zvládneš kdekoliv za pár minut a bez pomůcek. Vyber si jedno podle toho, kde cítíš největší napětí, nebo projdi všech pět jako krátkou rutinu — a pak se vrať k dýchání." },
     bq_1_title: { en: "Neck stretch", cz: "Protažení šíje" },
@@ -9299,6 +9865,7 @@
     try { lockQueueIntroHeight(); } catch (e) { /* ignore */ }
     if (typeof updateMotivationBtnUI === 'function') updateMotivationBtnUI();
     if (typeof window.togetherOnLanguage === 'function') window.togetherOnLanguage();
+    if (typeof window.bpOnLanguage === 'function') window.bpOnLanguage();
   }
 
   window.toggleGuideLanguage = function() {
@@ -15934,6 +16501,9 @@
           if (typeof updateMiniStats === 'function') updateMiniStats();
         }
       } catch (e) { /* ignore */ }
+
+      // Záznam do sekce TVŮJ PROGRES (jen skutečně odbytý čas v místnosti; minimum hlídá logBreathSession)
+      try { if (sessionMs > 0 && typeof window.logBreathSession === 'function') window.logBreathSession(sessionMs, 'together'); } catch (e) { /* záznam je jen doplněk */ }
 
       entryCount = null;
       if (breathOverlayVisible()) startEntryTimer();
