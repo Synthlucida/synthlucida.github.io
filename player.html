@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.2.9">
+<meta name="app-version" content="2.3.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3292,6 +3292,44 @@
   .guide-about .contact-status.error { color: #ff6b6b; }
   .guide-about .contact-thanks { margin: 0; padding: 8px 0; text-align: center; color: var(--accent-color); font-size: 13px; }
   .guide-about .about-outer p { margin-bottom: 10px; }
+  /* ===== Jemné "panelové" rámečky kolem skupin tlačítek (lehký 3D efekt) =====
+     Pouze vzhled: rámeček se kreslí přes ::before (absolutně, pointer-events:none) nebo přes box-shadow,
+     takže se NEMĚNÍ velikost přehrávače, rozestupy ani poloha tlačítek. */
+  .player-panel { position: relative; }
+  .player-panel::before, .atmospheres::before {
+    content: ""; position: absolute; pointer-events: none; z-index: -1; border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.015) 100%);
+    border: 1px solid rgba(255,255,255,0.13); border-top-color: rgba(255,255,255,0.22);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.38), 0 0 0 1px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 4px rgba(0,0,0,0.16);
+  }
+  /* Jeden společný panel kolem celého spodku přehrávače (ovládání, tlačítka, hlasitost, časovač) */
+  .player-panel::before { inset: -5px -8px -3px -8px; }
+  /* MUSIC / EXPLORE: rámeček obepíná jen tlačítka (ne celou šířku obrazovky) */
+  .atmospheres { width: max-content; max-width: 100%; box-sizing: border-box; margin-left: auto; margin-right: auto; }
+  .atmospheres::before { inset: -4px 4px; }
+  /* Pravá trojice tlačítek: stejný panel jako levá skupina */
+  .focus-mode-right {
+    border-color: rgba(255,255,255,0.18);
+    background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
+  }
+  /* ASMR MIX panel: o něco výraznější okraj a plastičnost (rozměry beze změny) */
+  .layer-group {
+    border-color: rgba(255,255,255,0.18); border-top-color: rgba(255,255,255,0.26);
+    background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(0,0,0,0.22));
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -2px 4px rgba(0,0,0,0.2);
+  }
+  /* Časovač 15m / 30m / 60m / ✖: stejný lehce vypouklý vzhled jako SAVE */
+  .btn-timer {
+    background: linear-gradient(180deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.03) 100%);
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.14);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-timer:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 3px rgba(0,0,0,0.35); }
+  body.window-glow .player-panel::before, body.window-glow .atmospheres::before {
+    border-color: color-mix(in srgb, var(--accent-color) 22%, rgba(255,255,255,0.10));
+  }
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
         async src="https://gc.zgo.at/count.js"></script>
@@ -3572,6 +3610,7 @@
   <div class="layer-hint" id="layer-hint" hidden>Tap a second ASMR track to layer it.</div>
   <ul class="playlist" id="playlist"></ul>
 
+  <div class="player-panel">
   <div class="controls-row">
     <div class="controls">
       <div class="layer-group disabled" id="layer-group">
@@ -3679,6 +3718,7 @@
     <button class="btn-timer" onclick="cancelTimer()">✖</button>
     <button class="btn-feature" onclick="saveSettings()">SAVE</button>
   </div>
+  </div><!-- /player-panel -->
 </div>
 
 <audio id="audio-player"></audio>
