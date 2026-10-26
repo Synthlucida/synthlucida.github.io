@@ -2624,7 +2624,7 @@
     horoscope_error: { en: 'The horoscope could not be loaded right now.', cz: 'Horoskop se teď nepodařilo načíst.' },
     horoscope_missing: { en: 'No horoscope for this sign yet \u2014 check back later.', cz: 'Pro toto znamení zatím horoskop není \u2014 zkuste to později.' },
     horoscope_retry: { en: 'TRY AGAIN', cz: 'ZKUSIT ZNOVU' },
-    horoscope_source: { en: 'Horoscopes sourced from FreeHoroscopeAPI.', cz: 'Horoskopy pocházejí z FreeHoroscopeAPI.' },
+    horoscope_source: { en: 'Powered by', cz: 'Horoskopy poskytuje' },
     horoscope_en_only: { en: 'For entertainment purposes only.', cz: 'Text horoskopu je zatím jen anglicky. Pouze pro zábavu.' },
     page_title: { en: '✦ CARD OF THE DAY ✦', cz: '✦ KARTA DNE ✦' },
     btn_draw: { en: 'DRAW AGAIN', cz: 'TÁHNOUT ZNOVU' },
@@ -3004,9 +3004,9 @@
     return HORO_MONTHS_EN[z.from[0] - 1] + ' ' + z.from[1] + ' \u2013 ' + HORO_MONTHS_EN[z.to[0] - 1] + ' ' + z.to[1];
   }
   function horoDate(iso, period) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+    var m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(iso || ''); // měsíční horoskop má datum jen jako YYYY-MM
     if (!m) return '';
-    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    var d = new Date(+m[1], +m[2] - 1, m[3] ? +m[3] : 1);
     var opts = period === 'daily' ? { day: 'numeric', month: 'long', year: 'numeric' } : { month: 'long', year: 'numeric' }; // měsíční/týdenní: jen měsíc a rok
     try { return d.toLocaleDateString(guideLang === 'cz' ? 'cs-CZ' : 'en-US', opts); }
     catch (e) { return iso; }
@@ -3063,7 +3063,11 @@
     box.appendChild(head);
     addP('horoscope-text', entry.text);
     addP('horoscope-note', horoText('horoscope_en_only'));
-    addP('horoscope-note', horoText('horoscope_source'));
+    var srcNote = addP('horoscope-note', horoText('horoscope_source') + ' ');
+    var srcLink = document.createElement('a');
+    srcLink.href = 'https://freehoroscopeapi.com'; srcLink.target = '_blank'; srcLink.rel = 'noopener';
+    srcLink.textContent = 'FreeHoroscopeAPI'; srcLink.style.color = 'inherit'; srcLink.style.textDecoration = 'underline';
+    srcNote.appendChild(srcLink);
   }
 
   function loadHoroscopeData() {
