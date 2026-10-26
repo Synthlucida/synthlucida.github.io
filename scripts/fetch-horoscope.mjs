@@ -66,7 +66,7 @@ for (const sign of SIGNS) {
 }
 
 if (fetched === 0) {
-  console.error(`::error::Nepodařilo se stáhnout žádné znamení (period=${PERIOD}), horoscope.json zůstává beze změny. Pokud API hlásí HTTP 400, zkus HOROSCOPE_PERIOD=daily.`);
+  console.error(`::error::Nepodařilo se stáhnout žádné znamení (period=${PERIOD}), horoscope.json zůstává beze změny. Zkontroluj log výše (HTTP 502/504 = chyba na straně API, zkus workflow spustit později).`);
   process.exit(1);
 }
 
