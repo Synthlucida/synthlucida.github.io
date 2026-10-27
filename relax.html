@@ -607,7 +607,7 @@
 </head>
 <body>
 
-<audio id="crickets-audio" src="cvrcci.mp3" loop></audio>
+<audio id="crickets-audio" src="cvrcci.mp3" preload="auto" loop></audio>
 <div id="app-toast" class="toast" role="status" aria-live="polite"></div>
 
 <div class="top-bar">
@@ -1735,6 +1735,7 @@ setInterval(updateMoonPhase, 3600000);
 
   // Nature sound fades out over a few seconds instead of stopping dead in the middle of your sleep.
   function fadeOutNature(sec) {
+    if (natureLoading) { endNatureLoading(); try { cricketsAudio.pause(); } catch (e) {} setNatureUI(false); return; }
     if (cricketsAudio.paused) return;
     const myFade = ++natureFadeId; // pressing NATURE yourself cancels this fade
     if (natureGain && audioCtx) {
@@ -1885,9 +1886,23 @@ setInterval(updateMoonPhase, 3600000);
     cricketsBtn.classList.toggle('active-btn', on);
   }
 
+  // First visit on a device: the file is not cached yet and has to download before it can play.
+  // While that happens the button shows "NATURE: …" and extra clicks are ignored (before, a second
+  // click paused the half-started playback, so it looked like nothing ever played).
+  let natureLoading = false, natureLoadTimer = null;
+  function endNatureLoading() { natureLoading = false; clearTimeout(natureLoadTimer); }
+  function startNatureLoading() {
+    natureLoading = true;
+    cricketsBtn.innerText = "NATURE: …";
+    cricketsBtn.classList.add('active-btn');
+    clearTimeout(natureLoadTimer);
+    natureLoadTimer = setTimeout(() => { if (natureLoading) natureUnavailable(); }, 30000); // give up after 30 s
+  }
+
   // The button only says ON once the browser has really started playing. If playback fails
   // (file missing / blocked / unsupported) the button stays OFF and a message is shown instead.
   function natureUnavailable() {
+    endNatureLoading();
     try { cricketsAudio.pause(); } catch (e) {}
     setNatureUI(false);
     const entry = i18nText.nature_unavailable;
@@ -1896,10 +1911,11 @@ setInterval(updateMoonPhase, 3600000);
 
   // The file stopped working while it was already playing (e.g. connection lost).
   cricketsAudio.addEventListener('error', () => {
-    if (cricketsBtn.classList.contains('active-btn')) natureUnavailable();
+    if (natureLoading || cricketsBtn.classList.contains('active-btn')) natureUnavailable();
   });
 
   cricketsBtn.addEventListener('click', () => {
+    if (natureLoading) return;                          // still downloading - do not cancel it by accident
     initAudio();
     routeNatureIntoEngine();
     natureFadeId++;                                     // a running timer fade no longer applies
@@ -1908,9 +1924,12 @@ setInterval(updateMoonPhase, 3600000);
       let playPromise;
       try { playPromise = cricketsAudio.play(); } catch (err) { console.log("Audio nezapuštěno: ", err); natureUnavailable(); return; }
       if (playPromise && typeof playPromise.then === 'function') {
+        if (cricketsAudio.readyState < 3) startNatureLoading();   // not enough data yet -> show it
         playPromise.then(() => {
+          endNatureLoading();
           if (!cricketsAudio.paused) setNatureUI(true);
         }).catch(err => {
+          endNatureLoading();
           // pressing NATURE again (or the timer) while it was still starting is not an error
           if (err && err.name === 'AbortError') return;
           console.log("Audio nezapuštěno: ", err);
