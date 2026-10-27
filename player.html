@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.3.1">
+<meta name="app-version" content="2.3.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -10356,16 +10356,64 @@
     return key.toUpperCase();
   }
 
+  let myFilesLibraryOk = false; // knihovna se podařilo načíst (jinak se nic nemaže - prázdný seznam by byl jen důsledek chyby)
   async function refreshMyFilesLibrary() {
     try {
       const all = await myFilesDbGetAll();
       myFilesLibrary = all
         .map(r => ({ id: r.id, name: r.name, type: r.type, size: r.size, addedAt: r.addedAt }))
         .sort((a, b) => b.addedAt - a.addedAt);
+      myFilesLibraryOk = true;
     } catch (e) {
       console.error('Nelze načíst vlastní soubory:', e);
       myFilesLibrary = [];
+      myFilesLibraryOk = false;
     }
+  }
+
+  // Při startu: úklid odkazů na vlastní soubory, které už v knihovně F nejsou (smazané dřív, než appka uměla
+  // mazat všude, nebo vymazané mimo appku). Spouští se jen, když se knihovna úspěšně načetla.
+  function pruneOrphanedFileRefs() {
+    if (!myFilesLibraryOk) return;
+    const ids = new Set(myFilesLibrary.map(f => f.id));
+    const orphan = (id) => typeof id === 'string' && !!id && !ids.has(id);
+    // F playlisty
+    let plChanged = false;
+    myPlaylists.forEach(pl => {
+      if (!pl || !Array.isArray(pl.items)) return;
+      const n = pl.items.length;
+      pl.items = pl.items.filter(it => !(it && it.type === 'file' && orphan(it.fileId)));
+      if (pl.items.length !== n) plChanged = true;
+    });
+    if (plChanged) saveMyPlaylistsToStorage();
+    // MY PLAYLIST
+    const qBefore = customQueue.length;
+    customQueue = customQueue.filter(e => !(e && orphan(e.fileId)));
+    if (customQueue.length !== qBefore) {
+      if (!customQueueActive) customQueueIndex = -1;
+      saveCustomQueue();
+      try { renderCustomQueue(); updateQueueCountBadge(); refreshPlaylistHeartIcons(); syncMainListWithQueue(); } catch (e) { /* ignore */ }
+    }
+    // HISTORY
+    try {
+      let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      if (Array.isArray(history)) {
+        const hBefore = history.length;
+        history = history.filter(h => {
+          if (!h || typeof h !== 'object') return true;
+          if (orphan(h.fileId)) return false;
+          const pk = typeof h.playlist === 'string' ? h.playlist : '';
+          if (pk.indexOf('custom:file:') === 0) return !orphan(pk.slice('custom:file:'.length));
+          if (pk.indexOf('custom:') === 0 && !h.fileId) {
+            // starší záznam F playlistu bez id: zůstane jen, pokud je playlist i skladba (podle názvu) pořád tam
+            const pl = myPlaylists.find(p => p.id === pk.slice('custom:'.length));
+            return !!(pl && Array.isArray(pl.items) && pl.items.some(it => it && it.title === h.title));
+          }
+          return true;
+        });
+        if (history.length !== hBefore) localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      }
+    } catch (e) { /* ignore */ }
   }
 
   async function getMyFileBlobUrl(fileId) {
@@ -10451,24 +10499,103 @@
   };
 
   // Smazání vlastního souboru z knihovny (a odebrání z playlistů, kde je použit)
+  // Po smazání souboru zmizí všude: z playlistů F, z MY PLAYLIST, z HISTORY i z hlavního okna
+  // (a pokud právě hrál, přehrávání se zastaví). Starší záznamy bez fileId se hledají podle názvu souboru.
+  function purgeDeletedFileEverywhere(fileId, fileName, oldUrl) {
+    const fileKey = 'custom:file:' + fileId;
+    // Další soubor se stejným názvem v knihovně? Pak se záznamy bez fileId podle názvu nemažou (nešlo by poznat, který je který).
+    const nameShared = !!fileName && myFilesLibrary.some(f => f.id !== fileId && f.name === fileName);
+    const matchesByName = (e) => !!fileName && !nameShared && !e.fileId && typeof e.playlist === 'string' &&
+      e.playlist.indexOf('custom:') === 0 && e.title === fileName;
+    const isDeleted = (e) => !!e && (e.fileId === fileId || e.playlist === fileKey || matchesByName(e));
+
+    // 1) Hraje se právě smazaný soubor? -> zastavit a vyprázdnit přehrávač
+    let wasPlaying = false;
+    try { wasPlaying = !!oldUrl && isCurrentAudioSrc(oldUrl); } catch (e) { wasPlaying = false; }
+    if (!wasPlaying && customQueueActive && isDeleted(customQueue[customQueueIndex])) wasPlaying = true;
+    if (wasPlaying) {
+      try { window.stopPlayback(); } catch (e) { /* ignore */ }
+      try { audio.removeAttribute('src'); audio.load(); } catch (e) { /* ignore */ }
+      try { setTrackTitle('SELECT TRACK', false); setTrackTimeText('00:00 / 00:00'); progressBar.style.width = '0%'; } catch (e) { /* ignore */ }
+      currentTrackIndex = -1;
+    }
+    // 2. vrstva (ASMR layer) z tohoto souboru
+    try { if (oldUrl && layerSrc === oldUrl) stopLayer(); } catch (e) { /* ignore */ }
+
+    // 3) MY PLAYLIST (fronta) - pozice hrající skladby se přepočítá
+    const oldIdx = customQueueIndex;
+    let newIdx = -1, survivorsBefore = 0, changed = false;
+    const kept = [];
+    customQueue.forEach((e, i) => {
+      if (isDeleted(e)) {
+        changed = true;
+        if (i === oldIdx) newIdx = kept.length - 1; // další bude skladba, která po ní následovala
+      } else {
+        if (i === oldIdx) newIdx = kept.length;
+        kept.push(e);
+      }
+    });
+    if (changed) {
+      customQueue = kept;
+      customQueueIndex = kept.length ? newIdx : -1;
+      if (!kept.length || (wasPlaying && customQueueActive)) { customQueueActive = false; if (!kept.length) customQueueIndex = -1; }
+      saveCustomQueue();
+      try { renderCustomQueue(); updateQueueCountBadge(); refreshPlaylistHeartIcons(); syncMainListWithQueue(); } catch (e) { /* ignore */ }
+    }
+
+    // 4) HISTORY
+    try {
+      let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      if (Array.isArray(history)) {
+        const before = history.length;
+        history = history.filter(h => !(h && typeof h === 'object' && isDeleted(h)));
+        if (history.length !== before) localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      }
+    } catch (e) { /* ignore */ }
+    try { const hp = document.getElementById('history-panel'); if (hp && hp.classList.contains('visible')) renderHistory(); } catch (e) { /* ignore */ }
+
+    // 5) Hlavní okno: zobrazený seznam jednoho souboru nebo F playlist, který se tím vyprázdnil
+    delete tracks[fileKey];
+    return fileKey;
+  }
+
+  // Přepne hlavní okno zpět na běžný playlist (poslední vybraný ASMR/PIANO/CHILL), když to, co zobrazovalo, už neexistuje
+  function showDefaultPlaylistInMain() {
+    let key = 'asmr';
+    try { const k = localStorage.getItem('synthlucida_last_playlist'); if (k && tracks[k] && k.indexOf('custom:') !== 0) key = k; } catch (e) { /* ignore */ }
+    const btn = Array.from(document.querySelectorAll('.btn-atmos')).find(b => (b.getAttribute('onclick') || '').indexOf("setPlaylist('" + key + "'") !== -1);
+    if (btn) setPlaylist(key, btn);
+  }
+
   window.deleteMyFile = async function(fileId) {
     if (!confirm('Delete this file from your device?')) return;
+    const rec = myFilesLibrary.find(f => f.id === fileId);
+    const fileName = rec ? rec.name : '';
+    const oldUrl = myFilesBlobUrlCache[fileId] || '';
     try { await myFilesDbDelete(fileId); } catch (e) { console.error(e); }
-    if (myFilesBlobUrlCache[fileId]) {
-      try { URL.revokeObjectURL(myFilesBlobUrlCache[fileId]); } catch (e) { /* ignore */ }
-      delete myFilesBlobUrlCache[fileId];
-    }
     myPlaylists.forEach(pl => {
       pl.items = pl.items.filter(it => !(it.type === 'file' && it.fileId === fileId));
     });
     saveMyPlaylistsToStorage();
-    const beforeLen = customQueue.length;
-    customQueue = customQueue.filter(e => e.fileId !== fileId);
-    if (customQueue.length !== beforeLen) { saveCustomQueue(); renderCustomQueue(); updateQueueCountBadge(); refreshPlaylistHeartIcons(); syncMainListWithQueue(); }
+    let fileKey = 'custom:file:' + fileId;
+    try { fileKey = purgeDeletedFileEverywhere(fileId, fileName, oldUrl); } catch (e) { console.error(e); }
+    if (myFilesBlobUrlCache[fileId]) {
+      try { URL.revokeObjectURL(myFilesBlobUrlCache[fileId]); } catch (e) { /* ignore */ }
+      delete myFilesBlobUrlCache[fileId];
+    }
     await refreshMyFilesLibrary();
     renderMyFiles();
-    if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0 && currentPlaylistKey.indexOf('custom:file:') !== 0) {
-      syncMyPlaylistToMainWindow(currentPlaylistKey.slice('custom:'.length));
+    if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0) {
+      if (currentPlaylistKey === fileKey) {
+        showDefaultPlaylistInMain(); // hlavní okno ukazovalo jen tento jeden soubor
+      } else {
+        const plId = currentPlaylistKey.slice('custom:'.length);
+        const pl = myPlaylists.find(p => p.id === plId);
+        let anyLeft = false;
+        if (pl) { try { anyLeft = (await resolveMyPlaylistTracks(pl)).length > 0; } catch (e) { anyLeft = false; } }
+        if (!anyLeft) showDefaultPlaylistInMain(); // playlist se vyprázdnil -> nic už v něm není
+        else syncMyPlaylistToMainWindow(plId);
+      }
     }
   };
 
@@ -12635,12 +12762,16 @@
       const trackIndex = typeof explicitIndex === 'number'
         ? explicitIndex
         : (tracks[playlistKey] ? tracks[playlistKey].indexOf(track) : -1);
-      history.unshift({
+      const histEntry = {
         title: track.title,
         playlist: playlistKey,
         index: trackIndex,
         time: Date.now()
-      });
+      };
+      // vlastní soubor z F: pamatuje se jeho id, aby se záznam po smazání souboru dal spolehlivě odstranit
+      const histFileId = (track && track.fileId) || (typeof playlistKey === 'string' && playlistKey.indexOf('custom:file:') === 0 ? playlistKey.slice('custom:file:'.length) : '');
+      if (histFileId) histEntry.fileId = histFileId;
+      history.unshift(histEntry);
       if (history.length > HISTORY_LIMIT) history = history.slice(0, HISTORY_LIMIT);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     } catch (e) { /* ignore */ }
@@ -13152,7 +13283,7 @@
     isPlaying = true;
     playBtn.innerText = "⏸";
 
-    addToHistory({ title: entry.title }, entry.playlist, entry.index);
+    addToHistory({ title: entry.title, fileId: entry.fileId }, entry.playlist, entry.index);
     renderCustomQueue();
 
     if ('mediaSession' in navigator) {
@@ -14752,7 +14883,7 @@
     refreshPlaylistHeartIcons();
 
     loadMyPlaylistsFromStorage();
-    refreshMyFilesLibrary().then(repairCustomQueueBlobUrls);
+    refreshMyFilesLibrary().then(() => { try { pruneOrphanedFileRefs(); } catch (e) { console.error(e); } return repairCustomQueueBlobUrls(); });
     loadCustomSunPhotosOnStart();
 
     try {
