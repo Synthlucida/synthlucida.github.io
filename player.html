@@ -333,6 +333,15 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent);
   }
   .main-donate-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  /* Nenápadné upozornění: každých 5 minut ☕ na 30 s zabliká (viz skript pod tlačítkem), po prvním kliknutí už nikdy */
+  .main-donate-btn.donate-nudge { animation: donateNudge 1.3s ease-in-out infinite; border-color: var(--accent-color); color: var(--accent-color); }
+  @keyframes donateNudge {
+    0%, 100% { opacity: 0.55; box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+    50% { opacity: 1; box-shadow: 0 0 14px 2px var(--accent-color); transform: scale(1.12); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .main-donate-btn.donate-nudge { animation: none; opacity: 1; box-shadow: 0 0 10px var(--accent-color); }
+  }
 
   /* ============================================
      STATS (AJ) — tlačítko S v pravém horním rohu hlavní stránky
@@ -3482,6 +3491,32 @@
 
 <button class="main-guide-btn" onclick="toggleMainGuide()" aria-label="User guide"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.6" r="0.6" fill="currentColor"/></svg></button>
 <a class="main-donate-btn" href="https://uklidnito.gumroad.com/coffee" target="_blank" rel="noopener noreferrer" aria-label="Donate / Buy me a coffee"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3.5c-.8 1 .8 1.8 0 3M12 3.5c-.8 1 .8 1.8 0 3"/></svg></a>
+<script>
+  /* ☕ DONATE: každých 5 minut na 30 s zabliká. Po prvním kliknutí se to uloží a už se nerozbliká nikdy. */
+  (function () {
+    var btn = document.querySelector('.main-donate-btn');
+    if (!btn) return;
+    var KEY = 'sl-donate-clicked';
+    var EVERY_MS = 5 * 60 * 1000, BLINK_MS = 30 * 1000;
+    function clicked() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
+    var every = null, off = null, stopped = clicked();
+    function stopNudge() { btn.classList.remove('donate-nudge'); if (off) { clearTimeout(off); off = null; } }
+    function forever() {
+      stopped = true;
+      stopNudge();
+      if (every) { clearInterval(every); every = null; }
+      try { localStorage.setItem(KEY, '1'); } catch (e) { /* bez úložiště se jen nerozbliká do konce této návštěvy */ }
+    }
+    if (stopped) return;
+    ['click', 'auxclick', 'contextmenu'].forEach(function (ev) { btn.addEventListener(ev, forever); });
+    every = setInterval(function () {
+      if (stopped || document.hidden) return; // na skryté záložce se nebliká
+      btn.classList.add('donate-nudge');
+      if (off) clearTimeout(off);
+      off = setTimeout(stopNudge, BLINK_MS);
+    }, EVERY_MS);
+  })();
+</script>
 <button class="main-stats-btn" onclick="toggleMainStats()" aria-label="Your statistics">S</button>
 <button class="main-files-btn" onclick="toggleMainFiles()" aria-label="My files and playlists">F</button>
 
