@@ -3390,6 +3390,8 @@
   .glow-fader-ticks i:nth-child(1) { bottom: 0; } .glow-fader-ticks i:nth-child(2) { bottom: 25%; }
   .glow-fader-ticks i:nth-child(3) { bottom: 50%; width: 5px; background: rgba(255,255,255,0.55); }
   .glow-fader-ticks i:nth-child(4) { bottom: 75%; } .glow-fader-ticks i:nth-child(5) { bottom: 100%; }
+  /* fader má jen 3 stupně (dole / uprostřed / nahoře) - mezilehlé rysky se skryjí */
+  .glow-fader-ticks i:nth-child(2), .glow-fader-ticks i:nth-child(4) { display: none; }
   .glow-fader-thumb {
     position: absolute; left: 50%; bottom: 50%; width: 13px; height: 16px; margin: 0 0 -8px -6.5px; border-radius: 6px; pointer-events: none;
     background:
@@ -3734,8 +3736,8 @@
   <div class="playlist-wrap" id="playlist-wrap">
   <ul class="playlist" id="playlist"></ul>
   <div class="pl-sb" id="pl-sb" aria-hidden="true"><div class="pl-sb-thumb" id="pl-sb-thumb"></div></div>
-  <div class="glow-fader" id="glow-fader" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Glow intensity" aria-valuemin="0" aria-valuemax="200" aria-valuenow="100" title="Glow intensity (drag up/down, scroll or arrow keys; tap the sun to reset)">
-    <button type="button" class="glow-fader-ico" id="glow-fader-ico" tabindex="-1" aria-label="Reset glow to 100%"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg></button>
+  <div class="glow-fader" id="glow-fader" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Glow intensity" aria-valuemin="1" aria-valuemax="3" aria-valuenow="2" aria-valuetext="2 / 3" title="Glow intensity: 3 levels (drag up/down, scroll or arrow keys; tap the sun to reset)">
+    <button type="button" class="glow-fader-ico" id="glow-fader-ico" tabindex="-1" aria-label="Reset glow to level 2"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg></button>
     <div class="glow-fader-body" id="glow-fader-body"><div class="glow-fader-track" id="glow-fader-track"><div class="glow-fader-fill" id="glow-fader-fill"></div><div class="glow-fader-thumb" id="glow-fader-thumb"></div></div><div class="glow-fader-ticks"><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="glow-fader-tip" id="glow-fader-tip" aria-hidden="true"></div>
   </div>
@@ -3916,7 +3918,7 @@
   <button class="main-guide-close" onclick="toggleSunPhotosPanel()" aria-label="Close photo manager">✖</button>
   <div class="main-guide-inner">
     <h3 data-i18n="sun_photos_title" onclick="handleSunPhotosTitleClick()">My SUN Photos</h3>
-    <p class="main-guide-intro" data-i18n="sun_photos_intro">Choose which photos WEATHER: SUN rotates: a MIX of the 9 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Reorder photos with ▲▼ or by dragging them with the mouse; default photos can't be removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.</p>
+    <p class="main-guide-intro" data-i18n="sun_photos_intro">Choose which photos WEATHER: SUN rotates: a MIX of the 10 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Reorder photos with ▲▼ or by dragging them with the mouse; default photos can't be removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.</p>
     <div class="sun-photos-source" role="group" aria-label="Photo source">
       <button type="button" class="btn-feature" id="sun-src-mix" onclick="setSunPhotoSource('mix')" aria-pressed="true" data-i18n="sun_src_mix">MIX</button>
       <button type="button" class="btn-feature" id="sun-src-builtin" onclick="setSunPhotoSource('builtin')" aria-pressed="false" data-i18n="sun_src_builtin">DEFAULT ONLY</button>
@@ -3932,7 +3934,7 @@
     </div>
 
     <div id="sun-photos-dev-panel" style="display:none;">
-      <p class="main-guide-note">DEV MODE: replace any of the 9 default photos with your own, on this device only.</p>
+      <p class="main-guide-note">DEV MODE: replace any of the 10 default photos with your own, on this device only.</p>
       <ul class="history-list sun-photos-list" id="sun-photos-dev-list"></ul>
     </div>
   </div>
@@ -5896,6 +5898,13 @@
       sunImage9Loaded = true;
       sunImage9Aspect = sunImage9.naturalWidth / sunImage9.naturalHeight;
   };
+  const sunImage10 = new Image();
+  let sunImage10Loaded = false;
+  let sunImage10Aspect = 16 / 9;
+  sunImage10.onload = function() {
+      sunImage10Loaded = true;
+      sunImage10Aspect = sunImage10.naturalWidth / sunImage10.naturalHeight;
+  };
 
   // WEATHER: SUN — šestá fotka do sekce SUN
   const sunImage6 = new Image();
@@ -5912,7 +5921,8 @@
   const SUN_PHOTO_FILES = [
       [sunImage, 'player-bg-sun-1.jpg'], [sunImage2, 'player-bg-sun-2.jpg'], [sunImage3, 'player-bg-sun-3.jpg'],
       [sunImage4, 'player-bg-sun-4.jpg'], [sunImage5, 'player-bg-sun-5.jpg'], [sunImage6, 'player-bg-sun-6.jpg'],
-      [sunImage7, 'player-bg-sun-7.jpg'], [sunImage8, 'player-bg-sun-8.jpg'], [sunImage9, 'player-bg-sun-9.jpg']
+      [sunImage7, 'player-bg-sun-7.jpg'], [sunImage8, 'player-bg-sun-8.jpg'], [sunImage9, 'player-bg-sun-9.jpg'],
+      [sunImage10, 'player-bg-sun-10.jpg']
   ];
   let sunPhotosRequested = false;
   function loadSunPhotos() {
@@ -5936,7 +5946,8 @@
       { id: 'builtin_6', name: 'Default 6', builtin: true, img: sunImage6, get loaded() { return sunImage6Loaded; }, get aspect() { return sunImage6Aspect; } },
       { id: 'builtin_7', name: 'Default 7', builtin: true, img: sunImage7, get loaded() { return sunImage7Loaded; }, get aspect() { return sunImage7Aspect; } },
       { id: 'builtin_8', name: 'Default 8', builtin: true, img: sunImage8, get loaded() { return sunImage8Loaded; }, get aspect() { return sunImage8Aspect; } },
-      { id: 'builtin_9', name: 'Default 9', builtin: true, img: sunImage9, get loaded() { return sunImage9Loaded; }, get aspect() { return sunImage9Aspect; } }
+      { id: 'builtin_9', name: 'Default 9', builtin: true, img: sunImage9, get loaded() { return sunImage9Loaded; }, get aspect() { return sunImage9Aspect; } },
+      { id: 'builtin_10', name: 'Default 10', builtin: true, img: sunImage10, get loaded() { return sunImage10Loaded; }, get aspect() { return sunImage10Aspect; } }
   ];
   // Původní vestavěné záznamy (pro DEV reset funkci níže) - drží se stranou, nikdy se nemažou.
   const sunPhotosOriginalBuiltins = sunPhotos.slice();
@@ -10096,7 +10107,7 @@
     breath_custom_text: { en: "Tap the pencil button to set your own inhale, hold and exhale lengths. Save it and it stays available here. Choose a rhythm that feels comfortable and don't strain.", cz: "Klepni na tlačítko tužky a nastav si vlastní délku nádechu, zadržení a výdechu. Po uložení ti zůstane k dispozici. Zvol rytmus, který je ti příjemný, a nic neforsíruj." },
     breath_guide_note: { en: "General relaxation information only — not medical advice. If you feel dizzy or unwell, breathe normally and stop.", cz: "Pouze obecné informace pro uvolnění — nejedná se o lékařskou radu. Pokud se vám udělá špatně nebo pocítíte závrať, dýchejte normálně a přestaňte cvičit." },
     sun_photos_title: { en: "My SUN Photos", cz: "Moje fotky pro SUN" },
-    sun_photos_intro: { en: "Choose which photos WEATHER: SUN rotates: a MIX of the 9 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Reorder photos with ▲▼ or by dragging them with the mouse; default photos can't be removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.", cz: "Vyberte, které fotky WEATHER: SUN střídá: MIX 9 základních a vašich vlastních, jen ZÁKLADNÍ, nebo jen VLASTNÍ. Pořadí fotek měníte pomocí ▲▼ nebo tažením myší; základní fotky nejdou smazat. Níže si přidejte vlastní - originály zůstávají nedotčené a vše je uloženo jen ve vašem zařízení. Volbu si uložíte tlačítkem SAVE." },
+    sun_photos_intro: { en: "Choose which photos WEATHER: SUN rotates: a MIX of the 10 default and your own photos, only the DEFAULT ones, or only YOUR OWN. Reorder photos with ▲▼ or by dragging them with the mouse; default photos can't be removed. Add your own below - originals stay untouched and everything is stored only on this device. Press SAVE to keep your choice.", cz: "Vyberte, které fotky WEATHER: SUN střídá: MIX 10 základních a vašich vlastních, jen ZÁKLADNÍ, nebo jen VLASTNÍ. Pořadí fotek měníte pomocí ▲▼ nebo tažením myší; základní fotky nejdou smazat. Níže si přidejte vlastní - originály zůstávají nedotčené a vše je uloženo jen ve vašem zařízení. Volbu si uložíte tlačítkem SAVE." },
     sun_photos_empty: { en: "You haven't added any photos of your own yet - only the default ones are shown below.", cz: "Zatím jste nepřidali žádné vlastní fotky - níže vidíte jen ty základní." },
     sun_src_mix: { en: "MIX", cz: "MIX" },
     sun_src_builtin: { en: "DEFAULT ONLY", cz: "JEN ZÁKLADNÍ" },
@@ -17452,42 +17463,42 @@
     var el = document.getElementById('glow-fader');
     if (!el) return;
     var track = document.getElementById('glow-fader-track'), ico = document.getElementById('glow-fader-ico'), fill = document.getElementById('glow-fader-fill'), thumb = document.getElementById('glow-fader-thumb'), tip = document.getElementById('glow-fader-tip');
-    var KEY = 'synthlucida_glow_level', MAX = 200, MID = 100, SNAP = 4;
-    var val = MID, dragging = false, snapped = false, tipTimer = null, raf = 0;
-    try { var s = parseInt(localStorage.getItem(KEY), 10); if (isFinite(s) && s >= 0 && s <= MAX) val = s; } catch (e) { /* ignore */ }
+    var KEY = 'synthlucida_glow_level', LEVELS = [50, 100, 160]; // 3 stupně: 1 slabé / 2 běžné (výchozí) / 3 silné
+    var lvl = 1, dragging = false, tipTimer = null, raf = 0;
+    function toLevel(v) { return v < 67 ? 0 : (v > 133 ? 2 : 1); }
+    try { var s0 = parseInt(localStorage.getItem(KEY), 10); if (isFinite(s0) && s0 >= 0 && s0 <= 200) lvl = toLevel(s0); } catch (e) { /* ignore */ }
     function buzz() { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* ignore */ } }
     function apply() {
-      var k = val / 100, root = document.documentElement.style;
+      var val = LEVELS[lvl], k = val / 100, root = document.documentElement.style;
       root.setProperty('--glow-pct', (Math.min(1, k) * 100) + '%');
       root.setProperty('--gb', String(Math.max(1, k)));
       root.setProperty('--glow-op', String(Math.min(1, val / 100)));
-      var p = (val / MAX * 100) + '%';
+      var p = (lvl * 50) + '%';
       fill.style.height = p; thumb.style.bottom = p;
-      el.setAttribute('aria-valuenow', String(val));
-      tip.textContent = '\u2728 ' + val + '%';
-      var lv = val < 67 ? 1 : (val > 133 ? 3 : 2), bc = document.body.classList;
-      if (!bc.contains('wg-lv' + lv)) { bc.remove('wg-lv1', 'wg-lv3'); if (lv !== 2) bc.add('wg-lv' + lv); }
+      el.setAttribute('aria-valuenow', String(lvl + 1));
+      el.setAttribute('aria-valuetext', (lvl + 1) + ' / 3');
+      tip.textContent = '\u2728 ' + (lvl + 1) + '/3';
+      var bc = document.body.classList; // stupeň podsvícení hlavního okna
+      bc.remove('wg-lv1', 'wg-lv3'); if (lvl !== 1) bc.add(lvl === 0 ? 'wg-lv1' : 'wg-lv3');
     }
     function schedule() { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; apply(); }); }
     function showTip() { tip.classList.add('show'); clearTimeout(tipTimer); tipTimer = setTimeout(function () { tip.classList.remove('show'); }, 900); }
-    function save() { try { localStorage.setItem(KEY, String(val)); } catch (e) { /* ignore */ } }
-    function set(v, snap) {
-      v = Math.max(0, Math.min(MAX, Math.round(v)));
-      if (snap) {
-        if (Math.abs(v - MID) <= SNAP) { v = MID; if (!snapped) { snapped = true; buzz(); } } else snapped = false;
-      }
-      if (v === val) return;
-      val = v; schedule(); showTip();
+    function save() { try { localStorage.setItem(KEY, String(LEVELS[lvl])); } catch (e) { /* ignore */ } }
+    function setLevel(l, haptic) {
+      l = Math.max(0, Math.min(2, l));
+      if (l === lvl) return;
+      lvl = l; if (haptic) buzz(); schedule(); showTip();
     }
     function fromPointer(e) {
       var r = track.getBoundingClientRect();
       if (!r.height) return;
-      set((1 - (e.clientY - r.top) / r.height) * MAX, true);
+      var f = 1 - (e.clientY - r.top) / r.height;
+      setLevel(f < 0.25 ? 0 : (f > 0.75 ? 2 : 1), true);
     }
     el.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      if (e.target.closest && e.target.closest('.glow-fader-ico')) { snapped = true; set(MID, false); save(); e.preventDefault(); return; }
-      dragging = true; el.classList.add('dragging'); document.documentElement.classList.add('glow-dragging'); snapped = (val === MID);
+      if (e.target.closest && e.target.closest('.glow-fader-ico')) { setLevel(1, false); save(); e.preventDefault(); return; }
+      dragging = true; el.classList.add('dragging'); document.documentElement.classList.add('glow-dragging');
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
       fromPointer(e); e.preventDefault();
     });
@@ -17496,19 +17507,17 @@
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('lostpointercapture', end);
-    el.addEventListener('dblclick', function () { snapped = true; set(MID, false); save(); });
-    el.addEventListener('wheel', function (e) { e.preventDefault(); set(val + (e.deltaY < 0 ? 5 : -5), true); save(); }, { passive: false });
+    el.addEventListener('dblclick', function () { setLevel(1, false); save(); });
+    el.addEventListener('wheel', function (e) { e.preventDefault(); setLevel(lvl + (e.deltaY < 0 ? 1 : -1), true); save(); }, { passive: false });
     el.addEventListener('keydown', function (e) {
       var d = 0;
-      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') d = 5;
-      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') d = -5;
-      else if (e.key === 'PageUp') d = 20;
-      else if (e.key === 'PageDown') d = -20;
-      else if (e.key === 'Home') { set(0, false); save(); e.preventDefault(); return; }
-      else if (e.key === 'End') { set(MAX, false); save(); e.preventDefault(); return; }
-      else if (e.key === 'Enter' || e.key === ' ') { set(MID, false); save(); e.preventDefault(); return; }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'PageUp') d = 1;
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'PageDown') d = -1;
+      else if (e.key === 'Home') { setLevel(0, false); save(); e.preventDefault(); return; }
+      else if (e.key === 'End') { setLevel(2, false); save(); e.preventDefault(); return; }
+      else if (e.key === 'Enter' || e.key === ' ') { setLevel(1, false); save(); e.preventDefault(); return; }
       else return;
-      e.preventDefault(); set(val + d, true); save();
+      e.preventDefault(); setLevel(lvl + d, true); save();
     });
     apply();
   })();

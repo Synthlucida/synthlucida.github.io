@@ -76,9 +76,11 @@
 // po prvním stažení se uloží do cache a fungují i offline. Pozor: názvy NESMÍ
 // začínat "weather" - to je v EXCLUDED_APPS (appka weather.html) a SW by je ignoroval.
 // Cache zvýšena na v1116.
+// v44 - do LAZY_ASSETS přidány fotky player-bg-sun-9.jpg a player-bg-sun-10.jpg (9 tam dosud
+// chyběla, takže se offline necachovala). Cache zvýšena na v1233.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1232';
+const APP_CACHE_NAME = 'synthlucida-app-v1234';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -173,7 +175,8 @@ const SHELL_PATHS = new Set(
 const LAZY_ASSETS = [
   './player-bg-moon.jpg',
   './player-bg-sun-1.jpg', './player-bg-sun-2.jpg', './player-bg-sun-3.jpg', './player-bg-sun-4.jpg',
-  './player-bg-sun-5.jpg', './player-bg-sun-6.jpg', './player-bg-sun-7.jpg', './player-bg-sun-8.jpg'
+  './player-bg-sun-5.jpg', './player-bg-sun-6.jpg', './player-bg-sun-7.jpg', './player-bg-sun-8.jpg',
+  './player-bg-sun-9.jpg', './player-bg-sun-10.jpg'
 ];
 LAZY_ASSETS.forEach((u) => SHELL_PATHS.add(new URL(u, self.registration.scope).pathname));
 
