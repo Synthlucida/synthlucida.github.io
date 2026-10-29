@@ -3400,6 +3400,9 @@
   /* Úsporný režim: tlačítko ✨ (záře loga/nápisu/okna) je nefunkční a zašedlé */
   /* Úsporný režim: žádné rozostření pozadí oken/překryvů (backdrop-filter) a sezónní atmosféry jsou vypnuté */
   body.opt-noblur *, body.opt-noblur *::before, body.opt-noblur *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  /* Výjimka: rozostření zůstává vždy zapnuté v menu EXPLORE a v hlavním přehrávači */
+  body.opt-noblur #atmos-panel-explore { -webkit-backdrop-filter: blur(18px) saturate(1.2) !important; backdrop-filter: blur(18px) saturate(1.2) !important; }
+  body.opt-noblur .player-section { -webkit-backdrop-filter: blur(2px) !important; backdrop-filter: blur(2px) !important; }
   body.opt-noblur .blob, body.opt-noblur .breath-blob { display: none !important; }
   body.opt-noblur .together-orb { filter: none !important; }
   body.opt-lite .su-seg { opacity: 0.35; pointer-events: none; }
@@ -3416,7 +3419,10 @@
   .glow-master-btn svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .glow-fader.master-off .glow-master-btn { color: rgba(255,255,255,0.45); opacity: 0.8; filter: none; }
   .glow-fader.master-off .glow-fader-ico { opacity: 0.25; filter: none; }
-  .glow-fader.master-off .glow-fader-body { opacity: 0.35; }
+  .glow-fader.master-off .glow-fader-body { opacity: 0.35; filter: grayscale(1); pointer-events: none; cursor: default; }
+  .glow-fader.master-off .glow-fader-fill, .glow-fader.master-off .glow-fader-thumb { filter: grayscale(1); box-shadow: none; }
+  .glow-fader.master-off .glow-fader-ico { pointer-events: none; filter: grayscale(1); }
+  body.glow-master-off #btn-logo-pulse { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; cursor: default; }
   /* Podsvícení vypnuto: záře (včetně okna přehrávače a animací) je pryč; proměnné --glow-pct/--gb nastavuje JS na 0. */
   html body.glow-master-off { --wg-pct: 0%; --wg-gb: 0; }
   html body.glow-master-off .player-section { animation: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important; }
@@ -5429,7 +5435,7 @@
   }
 
   window.toggleTextGlow = function() {
-      if (document.body.classList.contains('opt-lite')) return; // úsporný režim: tlačítko ✨ je nefunkční
+      if (document.body.classList.contains('opt-lite') || document.body.classList.contains('glow-master-off')) return; // úsporný režim / vypnuté podsvícení: tlačítko ✨ je nefunkční
       sparkleState = (sparkleState + 1) % 4;
       // Logo je schované (tlačítko 💡): stav 0 = "svítí logo" by nic neukázal a vypadal by stejně jako stav 3 (nesvítí nic),
       // takže se přeskočí rovnou na záři nápisu.
@@ -17655,6 +17661,7 @@
       var bc = document.body.classList; // stupeň podsvícení hlavního okna
       bc.remove('wg-lv1', 'wg-lv3'); if (lvl !== 1) bc.add(lvl === 0 ? 'wg-lv1' : 'wg-lv3');
       bc.toggle('glow-master-off', !on); el.classList.toggle('master-off', !on); // hlavní vypínač
+      var pbtn = document.getElementById('btn-logo-pulse'); if (pbtn) pbtn.disabled = !on || bc.contains('opt-lite');
       if (master) { master.setAttribute('aria-pressed', on ? 'true' : 'false'); master.setAttribute('aria-label', on ? 'Turn glow off' : 'Turn glow on'); master.title = on ? 'Glow: ON (tap to turn off)' : 'Glow: OFF (tap to turn on)'; }
     }
     function schedule() { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; apply(); }); }
@@ -17668,7 +17675,7 @@
     }
     function setLevel(l, haptic) {
       l = Math.max(0, Math.min(2, l));
-      if (l !== lvl && !on) { lvl = l; setMaster(true, haptic); return; } // posun faderu při vypnutém podsvícení ho zase zapne
+      if (!on) return; // při vypnutém podsvícení je fader nefunkční (zapíná se jen hlavním vypínačem)
       if (l === lvl) return;
       lvl = l; if (haptic) buzz(); schedule(); showTip();
     }
@@ -17681,7 +17688,8 @@
     el.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (e.target.closest && e.target.closest('.glow-master-btn')) { setMaster(!on, true); e.preventDefault(); return; }
-      if (e.target.closest && e.target.closest('.glow-fader-ico')) { setLevel(1, false); if (!on) setMaster(true, false); save(); e.preventDefault(); return; }
+      if (e.target.closest && e.target.closest('.glow-fader-ico')) { if (on) { setLevel(1, false); save(); } e.preventDefault(); return; }
+      if (!on) { e.preventDefault(); return; }
       dragging = true; el.classList.add('dragging'); document.documentElement.classList.add('glow-dragging');
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
       fromPointer(e); e.preventDefault();
@@ -17774,7 +17782,7 @@
         b.disabled = lite; b.title = lite ? 'Off in LITE MODE' : '';
         if (lite && B.classList.contains('theme-' + mt[1])) { var ab = document.querySelector(".btn-theme[onclick*=\"'aqua'\"]"); if (ab) ab.click(); }
       });
-      var pb = document.getElementById('btn-logo-pulse'); if (pb) pb.disabled = lite;
+      var pb = document.getElementById('btn-logo-pulse'); if (pb) pb.disabled = lite || document.body.classList.contains('glow-master-off');
       if (lite && window.enforceLiteWeather) { try { window.enforceLiteWeather(); } catch (e) { /* ignore */ } }
       var v = { lite: lite, glow: glowOn(), anim: st.anim, blur: st.blur, mix: st.mix, slide: st.slide };
       m.querySelectorAll('.su-sw').forEach(function (b) { b.setAttribute('aria-checked', v[b.getAttribute('data-opt')] ? 'true' : 'false'); });
