@@ -546,6 +546,10 @@
   .main-guide-inner p.main-guide-intro {
     font-size: 10.5px; line-height: 1.7; opacity: 0.75; margin: 0 0 22px;
   }
+  /* Zvýrazněný tip v návodu (ⓘ): doporučení ÚSPORNÉHO REŽIMU pro slabší zařízení */
+  .guide-tip { display: flex; flex-direction: column; gap: 4px; margin: 0 0 22px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent-color) 65%, transparent); background: color-mix(in srgb, var(--accent-color) 10%, transparent); box-shadow: 0 0 calc(12px * var(--gb)) color-mix(in srgb, var(--accent-color) calc(var(--glow-pct) * 0.4), transparent); }
+  .guide-tip-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent-color); }
+  .guide-tip-text { font-size: 10.5px; line-height: 1.6; opacity: 0.9; }
   .main-guide-section { margin-bottom: 18px; }
   .main-guide-section h4 {
     font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent-color);
@@ -2573,12 +2577,13 @@
      ============================================ */
   /* Panel je přichycený u spodního okraje a má pevnou výšku, takže nic neposkakuje (název skladby je vždy
      jen jeden řádek) a nezasahuje do časovače nahoře - obsah dechu má dole vyhrazené místo (.bm-open). */
-  .breathing-overlay { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 58px); transition: padding-bottom 0.25s ease; }
+  /* Odsazení nahoře platí na všech výškách displeje: řada technik i koule začínají vždy pod tlačítky ⓘ / časovač / ✖ (dřív na vyšších displejích, kde se obsah vystředil nad rozbalený panel, vyjela technika až do časovače) */
+  .breathing-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 76px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 58px); transition: padding-bottom 0.25s ease; }
   .breathing-overlay.bm-open { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 172px); }
   /* Panel hudby na nízkých displejích (mobily): řádek technik se nesmí dotýkat tlačítek ⓘ / časovač / ✖ nahoře
      a obsah se musí vejít nad panel - proto víc místa nahoře a menší mezery mezi prvky - platí stejně při sbaleném i rozbaleném panelu, aby obsah při přepnutí neposkakoval. */
   @media (max-height: 760px) {
-    .breathing-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 68px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 172px); }
+    .breathing-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 76px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 172px); }
     .breathing-overlay .breath-phase { margin-top: 16px; }
     .breathing-overlay .breath-count { margin-top: 4px; }
     .breathing-overlay .breath-slogan { margin-top: 6px; }
@@ -2602,14 +2607,19 @@
     .breathing-overlay { justify-content: flex-start; }
     .breathing-overlay::before, .breathing-overlay::after { content: ""; display: block; flex: 1 0 0; min-height: 0; }
     .breathing-overlay > .breathing-close, .breathing-overlay > .breathing-info, .breathing-overlay > .breath-elapsed { position: fixed; }
+    /* položky se při nedostatku místa nesmí smršťovat (popisek techniky se jinak zploštil a byl oříznutý) - raději se doscrolluje */
+    .breathing-overlay > *:not(.breath-ambient) { flex-shrink: 0; }
   }
   /* Rozbalený panel na nízkém displeji: o trochu těsnější rozestupy, ať se obsah vejde bez scrollování */
-  @media (max-height: 700px) {
+  @media (max-height: 760px) {
     .breathing-overlay.bm-open .breath-technique-select { margin-bottom: 2px; }
     .breathing-overlay.bm-open .breath-technique-info { margin-bottom: 0; }
     .breathing-overlay.bm-open .breath-phase { margin-top: 10px; }
     .breathing-overlay.bm-open .breath-slogan { height: 24px; margin-top: 2px; }
     .breathing-overlay.bm-open .breath-controls { margin-top: 8px; }
+    .breathing-overlay.bm-open .breath-technique-info { height: calc(2 * 1.25em); }
+    .breathing-overlay.bm-open .breath-stage { transform: scale(0.72); margin: -25px 0; }
+    .breathing-overlay.bm-open .breath-count { font-size: 34px; }
     .breathing-overlay.bm-open .breath-weather-row { margin-top: 6px; }
   }
 
@@ -4039,6 +4049,11 @@
     <h3 data-i18n="guide_title">SYNTHLUCIDA — User Guide</h3>
     <p class="main-guide-note" id="app-version-top" style="margin: -6px 0 14px;"></p>
     <p class="main-guide-intro" data-i18n="guide_intro">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.</p>
+
+    <div class="guide-tip" role="note">
+      <span class="guide-tip-title" data-i18n="guide_tip_title">Smooth performance on slower devices</span>
+      <span class="guide-tip-text" data-i18n="guide_tip_text">If playback stutters or the interface feels sluggish on an older or less powerful device, open EXPLORE &gt; SETUP and turn on LITE MODE. It disables the most demanding visual effects for smoother, more reliable performance.</span>
+    </div>
 
     <div class="main-guide-section guide-about" id="about-synthlucida">
       <details class="about-outer">
@@ -10141,6 +10156,8 @@
     contact_error: { en: "Something went wrong, please try again.", cz: "Něco se pokazilo, zkuste to prosím znovu." },
     guide_title: { en: "SYNTHLUCIDA — User Guide", cz: "SYNTHLUCIDA — Uživatelská příručka" },
     guide_intro: { en: "Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.", cz: "Nepřetržité vysílání 24 hodin denně, 7 dní v týdnu. Užívejte si nekonečný, bezplatný poslech. Ať už potřebujete hudbu na pozadí pro soustředění, hluboké uvolnění nebo běžné činnosti, tento stream nabízí dokonalý atmosférický doprovod. Více informací na www.SYNTHLUCIDA.com." },
+    guide_tip_title: { en: "Smooth performance on slower devices", cz: "Plynulý chod i na slabších zařízeních" },
+    guide_tip_text: { en: "If playback stutters or the interface feels sluggish on an older or less powerful device, open EXPLORE > SETUP and turn on LITE MODE. It disables the most demanding visual effects for smoother, more reliable performance.", cz: "Pokud se přehrávání na starším nebo méně výkonném zařízení zasekává či aplikace reaguje se zpožděním, otevřete EXPLORE > SETUP (NASTAVENÍ) a zapněte ÚSPORNÝ REŽIM. Ten vypne nejnáročnější vizuální efekty a zajistí plynulejší a spolehlivější chod." },
     h_links: { en: "Links", cz: "Odkazy" },
     link_explore: { en: "EXPLORE FULL WEBSITE", cz: "PROZKOUMAT CELÝ WEB" },
     link_home: { en: "HOME WEBSITE", cz: "DOMÁCÍ STRÁNKA" },
