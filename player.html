@@ -2593,6 +2593,25 @@
   @media (max-height: 600px) {
     .breathing-overlay .breath-stage { transform: scale(0.7); margin: -27px 0; }
   }
+  /* Malé telefony + rozbalený hudební panel: obsah se nemusí vejít mezi horní tlačítka (ⓘ / časovač / ✖) a panel.
+     'justify-content: safe center' to starší prohlížeče neumí a obsah pak vyjel nahoru přes časovač. Proto se obsah
+     centruje pomocí dvou pružných rozpěrek (::before / ::after) - když je místa málo, rozpěrky se zmenší na nulu
+     a obsah začne přesně pod odsazením nahoře (a dá se doscrollovat), nikdy ne výš. Horní tlačítka zůstanou na místě
+     i při scrollování. */
+  @media (max-height: 760px) {
+    .breathing-overlay { justify-content: flex-start; }
+    .breathing-overlay::before, .breathing-overlay::after { content: ""; display: block; flex: 1 0 0; min-height: 0; }
+    .breathing-overlay > .breathing-close, .breathing-overlay > .breathing-info, .breathing-overlay > .breath-elapsed { position: fixed; }
+  }
+  /* Rozbalený panel na nízkém displeji: o trochu těsnější rozestupy, ať se obsah vejde bez scrollování */
+  @media (max-height: 700px) {
+    .breathing-overlay.bm-open .breath-technique-select { margin-bottom: 2px; }
+    .breathing-overlay.bm-open .breath-technique-info { margin-bottom: 0; }
+    .breathing-overlay.bm-open .breath-phase { margin-top: 10px; }
+    .breathing-overlay.bm-open .breath-slogan { height: 24px; margin-top: 2px; }
+    .breathing-overlay.bm-open .breath-controls { margin-top: 8px; }
+    .breathing-overlay.bm-open .breath-weather-row { margin-top: 6px; }
+  }
 
   /* ============================================
      BINAURAL (EXPLORE > BINAURAL)
@@ -3378,7 +3397,8 @@
   .su-note { font-size: 9px; line-height: 1.35; opacity: 0.55; text-align: center; }
   .su-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(255,255,255,0.03); }
   .su-row.su-main { border-color: color-mix(in srgb, var(--accent-color) 60%, transparent); }
-  .su-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  /* Text každé volby se roztáhne do celé šířky vedle přepínače a je vycentrovaný stejně u všech řádků (dřív se řádky s krátkým popiskem tiskly doleva) */
+  .su-txt { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; min-width: 0; flex: 1 1 auto; }
   .su-name { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px; }
   .su-main .su-desc { white-space: pre-line; opacity: 0.75; }
   .su-desc { font-size: 9px; line-height: 1.3; opacity: 0.6; }
@@ -3400,13 +3420,14 @@
   /* Úsporný režim: tlačítko ✨ (záře loga/nápisu/okna) je nefunkční a zašedlé */
   /* Úsporný režim: žádné rozostření pozadí oken/překryvů (backdrop-filter) a sezónní atmosféry jsou vypnuté */
   body.opt-noblur *, body.opt-noblur *::before, body.opt-noblur *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-  /* Výjimka: rozostření zůstává vždy zapnuté v menu EXPLORE a v hlavním přehrávači */
-  body.opt-noblur #atmos-panel-explore { -webkit-backdrop-filter: blur(18px) saturate(1.2) !important; backdrop-filter: blur(18px) saturate(1.2) !important; }
+  /* Výjimka: rozostření zůstává vždy zapnuté v menu MUSIC (ASMR / PIANO / CHILL), v menu EXPLORE a v hlavním přehrávači */
+  body.opt-noblur #atmos-panel-explore, body.opt-noblur #atmos-panel-music { -webkit-backdrop-filter: blur(18px) saturate(1.2) !important; backdrop-filter: blur(18px) saturate(1.2) !important; }
   body.opt-noblur .player-section { -webkit-backdrop-filter: blur(2px) !important; backdrop-filter: blur(2px) !important; }
   body.opt-noblur .blob, body.opt-noblur .breath-blob { display: none !important; }
   body.opt-noblur .together-orb { filter: none !important; }
   body.opt-lite .su-seg { opacity: 0.35; pointer-events: none; }
-  body.opt-lite .btn-theme:disabled { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; }
+  body.opt-lite .btn-theme:disabled { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; text-decoration: line-through; }
+  body.opt-lite .btn-orbs { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; cursor: default; text-decoration: line-through; }
   body.opt-lite #btn-logo-pulse { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; cursor: default; }
   body.opt-noslide .themes-container, body.opt-noslide .themes-container.open { transition: none !important; }
   body.opt-noslide .themes-container.open { overflow: visible; }
@@ -17783,6 +17804,7 @@
         if (lite && B.classList.contains('theme-' + mt[1])) { var ab = document.querySelector(".btn-theme[onclick*=\"'aqua'\"]"); if (ab) ab.click(); }
       });
       var pb = document.getElementById('btn-logo-pulse'); if (pb) pb.disabled = lite || document.body.classList.contains('glow-master-off');
+      var ob = document.getElementById('btn-orbs'); if (ob) { ob.disabled = lite; ob.title = lite ? 'Off in LITE MODE' : 'Floating orbs and big spheres: ' + ((window.isOrbsOff && window.isOrbsOff()) ? 'OFF' : 'ON'); }
       if (lite && window.enforceLiteWeather) { try { window.enforceLiteWeather(); } catch (e) { /* ignore */ } }
       var v = { lite: lite, glow: glowOn(), anim: st.anim, blur: st.blur, mix: st.mix, slide: st.slide };
       m.querySelectorAll('.su-sw').forEach(function (b) { b.setAttribute('aria-checked', v[b.getAttribute('data-opt')] ? 'true' : 'false'); });
