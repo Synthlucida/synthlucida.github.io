@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.3.5">
+<meta name="app-version" content="2.3.6">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3372,6 +3372,59 @@
     transition: opacity 0.2s ease;
   }
   .glow-fader-ico svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* ===== SETUP (EXPLORE > SETUP): úsporný režim, volby grafiky a sezónní atmosféry ===== */
+  .su-window { max-width: 360px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .su-sec { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1.5px; opacity: 0.6; text-align: center; margin-top: 6px; }
+  .su-note { font-size: 9px; line-height: 1.35; opacity: 0.55; text-align: center; }
+  .su-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(255,255,255,0.03); }
+  .su-row.su-main { border-color: color-mix(in srgb, var(--accent-color) 60%, transparent); }
+  .su-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .su-name { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px; }
+  .su-main .su-desc { white-space: pre-line; opacity: 0.75; }
+  .su-desc { font-size: 9px; line-height: 1.3; opacity: 0.6; }
+  .su-sw { flex: none; position: relative; width: 38px; height: 20px; padding: 0; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); cursor: pointer; transition: background 0.2s, border-color 0.2s; -webkit-tap-highlight-color: transparent; }
+  .su-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; opacity: 0.7; transition: transform 0.2s, background 0.2s; }
+  .su-sw[aria-checked="true"] { border-color: var(--accent-color); background: color-mix(in srgb, var(--accent-color) 35%, #000); }
+  .su-sw[aria-checked="true"]::after { transform: translateX(18px); background: var(--accent-color); opacity: 1; }
+  .su-seg { flex: none; display: flex; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; overflow: hidden; }
+  .su-seg button { padding: 5px 7px; border: 0; background: none; color: #fff; opacity: 0.6; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 0.8px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .su-seg button + button { border-left: 1px solid rgba(255,255,255,0.2); }
+  .su-seg button[aria-pressed="true"] { opacity: 1; color: var(--accent-color); background: rgba(255,255,255,0.1); }
+  /* Úsporné volby (třídy na body nastavuje SETUP) */
+  body.opt-noanim *, body.opt-noanim *::before, body.opt-noanim *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
+  body.opt-noanim .ambient-blobs, body.opt-noanim::before { display: none !important; }
+  html body.opt-noanim.window-glow:not(.glow-master-off) .player-section { animation: none !important; box-shadow: 0 0 calc(12px * var(--wg-gb)) color-mix(in srgb, var(--accent-color) var(--wg-pct), transparent), 0 0 calc(24px * var(--wg-gb)) color-mix(in srgb, var(--accent-color) var(--wg-pct), transparent) !important; }
+  html body.opt-noanim:not(.glow-master-off) .logo:not(.pulse-off):not(.glow-off) { filter: drop-shadow(0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent)); }
+  html body.opt-noanim:not(.glow-master-off) .brand-name.text-glow { filter: drop-shadow(0 0 calc(7px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent)); }
+  body.opt-nomix #btn-theme-mix { display: none !important; }
+  /* Úsporný režim: tlačítko ✨ (záře loga/nápisu/okna) je nefunkční a zašedlé */
+  /* Úsporný režim: žádné rozostření pozadí oken/překryvů (backdrop-filter) a sezónní atmosféry jsou vypnuté */
+  body.opt-noblur *, body.opt-noblur *::before, body.opt-noblur *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  body.opt-noblur .blob, body.opt-noblur .breath-blob { display: none !important; }
+  body.opt-noblur .together-orb { filter: none !important; }
+  body.opt-lite .su-seg { opacity: 0.35; pointer-events: none; }
+  body.opt-lite .btn-theme:disabled { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; }
+  body.opt-lite #btn-logo-pulse { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; cursor: default; }
+  body.opt-noslide .themes-container, body.opt-noslide .themes-container.open { transition: none !important; }
+  body.opt-noslide .themes-container.open { overflow: visible; }
+  /* Hlavní vypínač podsvícení (nad sluníčkem): vypne/zapne záři úplně všude. */
+  .glow-master-btn {
+    flex: none; width: 13px; height: 13px; padding: 0; margin: 0 0 4px; border: 0; background: none; cursor: pointer; color: var(--accent-color);
+    opacity: 1; filter: drop-shadow(0 0 calc(3px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent));
+    transition: opacity 0.2s ease, color 0.2s ease; -webkit-tap-highlight-color: transparent;
+  }
+  .glow-master-btn svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .glow-fader.master-off .glow-master-btn { color: rgba(255,255,255,0.45); opacity: 0.8; filter: none; }
+  .glow-fader.master-off .glow-fader-ico { opacity: 0.25; filter: none; }
+  .glow-fader.master-off .glow-fader-body { opacity: 0.35; }
+  /* Podsvícení vypnuto: záře (včetně okna přehrávače a animací) je pryč; proměnné --glow-pct/--gb nastavuje JS na 0. */
+  html body.glow-master-off { --wg-pct: 0%; --wg-gb: 0; }
+  html body.glow-master-off .player-section { animation: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important; }
+  html body.glow-master-off .logo, html body.glow-master-off .logo img, html body.glow-master-off .brand-name { animation: none !important; filter: none !important; }
+  html body.glow-master-off .layer-knob-wrap { filter: none; }
+  html body.glow-master-off .main-donate-btn.donate-nudge, html body.glow-master-off #btn-play.playing, html body.glow-master-off #btn-wakelock.active { box-shadow: none !important; }
+  html body.glow-master-off .playlist li.track-special .track-name, html body.glow-master-off .history-list li.track-special .history-name { text-shadow: none; }
+  html body.glow-master-off #btn-my-playlist.added-pop { animation: myplPop 0.55s ease-out; }
   .glow-fader-body { position: relative; flex: 1 1 auto; width: 100%; min-height: 0; }
   /* jezdec má poloviční výšku (8px) navíc nahoře i dole, takže na krajních polohách nepřesahuje */
   .glow-fader-track {
@@ -3576,6 +3629,7 @@
     <button class="btn-atmos" id="btn-binaural" onclick="startBinaural()"><svg class="ico-inline binaural-icon"viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9c2.500-5 5-5 7.500 0s5 5 7.500 0 3-3 5-1"/><path d="M2 16c2.500-5 5-5 7.500 0s5 5 7.500 0 3-3 5-1"/></svg>BINAURAL</button>
     <button class="btn-atmos" id="btn-tarot" onclick="location.href='player-tarot.html'" title="Card of the day" data-i18n-aria="tarot_btn" aria-label="Card of the day"><svg class="ico-inline tarot-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5.500" y="3" width="13" height="18" rx="2.200"/><path class="ti-star" d="M12 7.500l1.600 3.400 3.400.5-2.500 2.400.6 3.500L12 15.600 8.900 17.300l.6-3.500L7 11.400l3.400-.5z"/></svg>CARD</button>
     <button class="btn-atmos" id="btn-search" onclick="toggleSearch()"><svg class="ico-inline search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.4" y1="15.4" x2="20.5" y2="20.5"/></svg>SEARCH</button>
+    <button class="btn-atmos" id="btn-setup" onclick="toggleSetup()" aria-haspopup="dialog" aria-controls="setup-window"><svg class="ico-inline setup-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.800v2.600M12 18.600v2.600M2.800 12h2.600M18.600 12h2.600M5.500 5.500l1.900 1.900M16.600 16.600l1.900 1.900M5.500 18.500l1.900-1.900M16.600 7.400l1.900-1.900"/></svg>SETUP</button>
   </div>
 </div>
 <script>
@@ -3737,6 +3791,7 @@
   <ul class="playlist" id="playlist"></ul>
   <div class="pl-sb" id="pl-sb" aria-hidden="true"><div class="pl-sb-thumb" id="pl-sb-thumb"></div></div>
   <div class="glow-fader" id="glow-fader" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Glow intensity" aria-valuemin="1" aria-valuemax="3" aria-valuenow="2" aria-valuetext="2 / 3" title="Glow intensity: 3 levels (drag up/down, scroll or arrow keys; tap the sun to reset)">
+    <button type="button" class="glow-master-btn" id="glow-master-btn" tabindex="-1" aria-pressed="true" aria-label="Turn glow off" title="Glow on/off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button>
     <button type="button" class="glow-fader-ico" id="glow-fader-ico" tabindex="-1" aria-label="Reset glow to level 2"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg></button>
     <div class="glow-fader-body" id="glow-fader-body"><div class="glow-fader-track" id="glow-fader-track"><div class="glow-fader-fill" id="glow-fader-fill"></div><div class="glow-fader-thumb" id="glow-fader-thumb"></div></div><div class="glow-fader-ticks"><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="glow-fader-tip" id="glow-fader-tip" aria-hidden="true"></div>
@@ -4268,6 +4323,24 @@
       <button type="button" class="btn-feature" id="tm-swap" onclick="swapThemeMix()" data-i18n="theme_mix_swap">⇄ SWAP</button>
       <button type="button" class="btn-feature" id="tm-off" onclick="clearThemeMix()" data-i18n="theme_mix_off">✕ OFF</button>
     </div>
+  </div>
+</div>
+
+<div class="tm-overlay" id="setup-window" role="dialog" aria-modal="true" aria-labelledby="su-title" hidden>
+  <div class="tm-window su-window">
+    <div class="tm-head"><span class="tm-title" id="su-title" data-i18n="su_title">⚙ SETUP</span><button type="button" class="tm-close" onclick="toggleSetup()" aria-label="Close" title="Close">✕</button></div>
+    <div class="su-sec" data-i18n="su_sec_gfx">GRAPHICS</div>
+    <div class="su-row su-main"><div class="su-txt"><span class="su-name" data-i18n="su_lite"></span><span class="su-desc" data-i18n="su_lite_d"></span></div><button type="button" class="su-sw" data-opt="lite" role="switch" aria-checked="false"></button></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_glow"></span><span class="su-desc" data-i18n="su_glow_d"></span></div><button type="button" class="su-sw" data-opt="glow" role="switch" aria-checked="false"></button></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_anim"></span><span class="su-desc" data-i18n="su_anim_d"></span></div><button type="button" class="su-sw" data-opt="anim" role="switch" aria-checked="false"></button></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_blur"></span><span class="su-desc" data-i18n="su_blur_d"></span></div><button type="button" class="su-sw" data-opt="blur" role="switch" aria-checked="false"></button></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_mix"></span><span class="su-desc" data-i18n="su_mix_d"></span></div><button type="button" class="su-sw" data-opt="mix" role="switch" aria-checked="false"></button></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_slide"></span><span class="su-desc" data-i18n="su_slide_d"></span></div><button type="button" class="su-sw" data-opt="slide" role="switch" aria-checked="false"></button></div>
+    <div class="su-sec" data-i18n="su_sec_season">SEASONAL ATMOSPHERES</div>
+    <div class="su-note" data-i18n="su_season_note"></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_xmas_n"></span><span class="su-desc" data-i18n="su_xmas_d"></span></div><div class="su-seg" data-season="xmas" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_souls_n"></span><span class="su-desc" data-i18n="su_souls_d"></span></div><div class="su-seg" data-season="souls" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_witch_n"></span><span class="su-desc" data-i18n="su_witch_d"></span></div><div class="su-seg" data-season="witches" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
   </div>
 </div>
 
@@ -5232,6 +5305,7 @@
   }
 
   function isChristmasActive() {
+      if (document.body && document.body.classList.contains('opt-lite')) return false; // ÚSPORNÝ REŽIM: sezónní atmosféry se nekreslí
       return christmasOverride === null ? isChristmasSeason() : christmasOverride;
   }
   function syncXmasClass() {
@@ -5355,6 +5429,7 @@
   }
 
   window.toggleTextGlow = function() {
+      if (document.body.classList.contains('opt-lite')) return; // úsporný režim: tlačítko ✨ je nefunkční
       sparkleState = (sparkleState + 1) % 4;
       // Logo je schované (tlačítko 💡): stav 0 = "svítí logo" by nic neukázal a vypadal by stejně jako stav 3 (nesvítí nic),
       // takže se přeskočí rovnou na záři nápisu.
@@ -5472,6 +5547,7 @@
   }
 
   function isAllSoulsActive() {
+      if (document.body && document.body.classList.contains('opt-lite')) return false; // ÚSPORNÝ REŽIM: sezónní atmosféry se nekreslí
       return allSoulsOverride === null ? isAllSoulsSeason() : allSoulsOverride;
   }
 
@@ -5615,6 +5691,7 @@
   }
 
   function isWitchesActive() {
+      if (document.body && document.body.classList.contains('opt-lite')) return false; // ÚSPORNÝ REŽIM: sezónní atmosféry se nekreslí
       return witchesOverride === null ? isWitchesSeason() : witchesOverride;
   }
 
@@ -5650,6 +5727,19 @@
       const dot = document.querySelector('#net-status-badge .net-status-dot');
       if (dot) dot.addEventListener('click', window.handleWitchesLedClick);
   })();
+  // Ovládání sezónních atmosfér z okna SETUP (AUTO / ZAP / VYP) - používá stejné přepisy jako skryté 5x kliky.
+  window.setupSeason = {
+      get: function(n) { var v = n === 'xmas' ? christmasOverride : (n === 'souls' ? allSoulsOverride : witchesOverride); return v === null ? 'auto' : (v ? 'on' : 'off'); },
+      set: function(n, st) {
+          var v = st === 'auto' ? null : (st === 'on'), key;
+          if (n === 'xmas') { christmasOverride = v; key = 'synthlucida_christmas_override'; }
+          else if (n === 'souls') { allSoulsOverride = v; key = 'synthlucida_allsouls_override'; }
+          else { witchesOverride = v; key = 'synthlucida_witches_override'; }
+          try { if (v === null) localStorage.removeItem(key); else localStorage.setItem(key, String(v)); } catch (e) { /* ignore */ }
+          if (n === 'xmas') syncXmasClass();
+          updateCanvasState();
+      }
+  };
 
   function initWitches() {
       const colors = ['#ffd27a', '#ffb347', '#ff8c1a', '#ff6a00'];
@@ -7333,6 +7423,8 @@
   // Tlačítko WEATHER prochází cyklem OFF -> SUN -> RAIN -> WINTER -> WINTER II -> OFF (stejný princip jako u SUNSET)
   window.toggleWeather = function() {
       weatherMode = (weatherMode + 1) % 5;
+      // ÚSPORNÝ REŽIM (SETUP): jen OFF <-> SUN, RAIN / WINTER / WINTER II se přeskakují
+      if (document.body.classList.contains('opt-lite') && weatherMode >= 2) weatherMode = 0;
       // Pri aktivnim NIGHT se SUN preskakuje (SUN nejde s zadnym SUNSET/NIGHT), cyklus je OFF -> RAIN -> WINTER -> WINTER II
       if (weatherMode === 1 && sunsetMode === 3) weatherMode = 2;
       // OFFLINE: zakladni fotky nejsou dostupne a uzivatel nema zadne vlastni -> SUN nejde zapnout,
@@ -7343,7 +7435,7 @@
                   // fotky jsou dostupne (napr. z cache) - SUN se zapne normalne
                   weatherMode = 1;
               } else {
-                  weatherMode = 2;
+                  weatherMode = document.body.classList.contains('opt-lite') ? 0 : 2;
                   showSunOfflineNotice();
               }
               applyWeatherUI();
@@ -7383,7 +7475,17 @@
   }
 
   // Tlačítko SUNSET nyní prochází cyklem OFF -> SUNSET -> SUNSET II -> NIGHT -> OFF
+  // ÚSPORNÝ REŽIM (SETUP): WEATHER smí být jen SUN a SUNSET je vypnutý - tohle vynutí stav při zapnutí režimu.
+  // Po přepnutí úsporného režimu: znovu vyhodnotit sezónní atmosféry (třída xmas + canvas smyčka)
+  window.liteChanged = function() { try { syncXmasClass(); } catch (e) { /* ignore */ } updateCanvasState(); };
+
+  window.enforceLiteWeather = function() {
+      if (weatherMode >= 2) { weatherMode = 0; applyWeatherUI(); }
+      if (sunsetMode !== 0) { sunsetMode = 0; applySunsetUI(); }
+  };
+
   window.toggleSunset = function() {
+      if (document.body.classList.contains('opt-lite')) { if (sunsetMode !== 0) { sunsetMode = 0; applySunsetUI(); } return; }
       sunsetMode = (sunsetMode + 1) % 4;
       // Pri RAIN / WINTER / WINTER II se SUNSET a SUNSET II preskakuji (s pocasim jde jen NIGHT), cyklus je OFF -> NIGHT -> OFF
       if (weatherMode >= 2 && (sunsetMode === 1 || sunsetMode === 2)) sunsetMode = 3;
@@ -10253,7 +10355,29 @@
     theme_mix_c1: { en: "COLOR 1 · TOP OF THE PLAYER", cz: "BARVA 1 · HORNÍ ČÁST PLAYERU" },
     theme_mix_c2: { en: "COLOR 2 · BOTTOM OF THE PLAYER", cz: "BARVA 2 · DOLNÍ ČÁST PLAYERU" },
     theme_mix_swap: { en: "⇄ SWAP", cz: "⇄ PROHODIT" },
-    theme_mix_off: { en: "✕ OFF", cz: "✕ VYPNOUT" }
+    theme_mix_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
+    su_title: { en: "⚙ SETUP", cz: "⚙ NASTAVENÍ" },
+    su_sec_gfx: { en: "GRAPHICS", cz: "GRAFIKA" },
+    su_lite: { en: "LITE MODE", cz: "ÚSPORNÝ REŽIM" },
+    su_lite_d: { en: "Smoother on slower devices. Switches off:\n• glow effects\n• animations (pulsing, background blobs and dots)\n• 2 COLORS mix\n• VISUAL panel slide animation\n• the ✨ button next to the logo\n• seasonal atmospheres (Christmas, All Souls, witches)\n• blur (behind windows and panels, background orbs)\n• the AURORA theme\n• WEATHER: only SUN works, SUNSET is off", cz: "Plynulejší chod na pomalejších zařízeních. Vypne:\n• záři (glow)\n• animace (pulzování, plovoucí koule a kuličky v pozadí)\n• 2 BARVY (mix)\n• animaci vysunutí panelu VISUAL\n• tlačítko ✨ vedle loga\n• sezónní atmosféry (Vánoce, Dušičky, čarodějnice)\n• rozostření (za okny a panely, koule v pozadí)\n• motiv AURORA\n• WEATHER: půjde jen SUN, SUNSET bude vypnutý" },
+    su_glow: { en: "GLOW EFFECTS", cz: "ZÁŘE (GLOW)" },
+    su_glow_d: { en: "Backlight of the logo, window, buttons and faders.", cz: "Podsvícení loga, okna, tlačítek a faderů." },
+    su_anim: { en: "ANIMATIONS", cz: "ANIMACE" },
+    su_anim_d: { en: "Pulsing, floating background blobs and moving dots.", cz: "Pulzování, plovoucí koule a pohyblivé kuličky v pozadí." },
+    su_blur: { en: "BLUR", cz: "ROZOSTŘENÍ (BLUR)" },
+    su_blur_d: { en: "Frosted-glass blur behind windows and panels, and the soft blurred orbs in the background.", cz: "Rozostření pozadí za okny a panely a měkké rozostřené koule v pozadí." },
+    su_mix: { en: "2 COLORS MIX", cz: "2 BARVY (MIX)" },
+    su_mix_d: { en: "Two-colour blend across the player. When off, the 2 COLORS button is hidden.", cz: "Prolnutí dvou barev přes celý přehrávač. Po vypnutí se tlačítko 2 BARVY skryje." },
+    su_slide: { en: "VISUAL SLIDE ANIMATION", cz: "ANIMACE VYSUNUTÍ VISUALU" },
+    su_slide_d: { en: "Sliding the VISUAL panel out and back in.", cz: "Vysouvání a zasouvání panelu VISUAL." },
+    su_sec_season: { en: "SEASONAL ATMOSPHERES", cz: "SEZÓNNÍ ATMOSFÉRY" },
+    su_season_note: { en: "AUTO = by date, ON = always, OFF = never. Shown only while WEATHER and SUNSET/NIGHT are off. Disabled in LITE MODE.", cz: "AUTO = podle data, ON = vždy, OFF = nikdy. Zobrazí se jen když je WEATHER i SUNSET/NIGHT vypnuté. V úsporném režimu jsou vypnuté." },
+    su_xmas_n: { en: "🎄 CHRISTMAS", cz: "🎄 VÁNOCE" },
+    su_xmas_d: { en: "AUTO: December", cz: "AUTO: prosinec" },
+    su_souls_n: { en: "🕯️ ALL SOULS", cz: "🕯️ DUŠIČKY" },
+    su_souls_d: { en: "AUTO: 26 Oct – 2 Nov", cz: "AUTO: 26. 10. – 2. 11." },
+    su_witch_n: { en: "🔥 WITCHES", cz: "🔥 ČARODĚJNICE" },
+    su_witch_d: { en: "AUTO: 23 Apr – 1 May", cz: "AUTO: 23. 4. – 1. 5." }
   };
 
   // My Playlist: úvodní text má v EN a CZ jiný počet řádků - výška odstavce se zamkne na vyšší z obou jazyků, ať tlačítka
@@ -11835,6 +11959,11 @@
   })();
 
   window.setVisualTheme = function(theme, btn) {
+    // ÚSPORNÝ REŽIM (SETUP): těžké animované motivy (AURORA) nejdou zapnout, místo nich se použije AQUA
+    if (document.body.classList.contains('opt-lite') && theme === 'aurora') {
+      const alt = document.querySelector(".btn-theme[onclick*=\"'aqua'\"]");
+      if (alt) { theme = 'aqua'; btn = alt; }
+    }
     currentVisualTheme = theme;
     // Nahrazujeme jen theme-* třídu, zbytek (např. is-fullscreen) necháme být
     body.className = body.className.replace(/theme-\S+/g, '').trim();
@@ -17506,13 +17635,15 @@
     var el = document.getElementById('glow-fader');
     if (!el) return;
     var track = document.getElementById('glow-fader-track'), ico = document.getElementById('glow-fader-ico'), fill = document.getElementById('glow-fader-fill'), thumb = document.getElementById('glow-fader-thumb'), tip = document.getElementById('glow-fader-tip');
+    var master = document.getElementById('glow-master-btn'), MKEY = 'synthlucida_glow_master', on = true;
+    try { if (localStorage.getItem(MKEY) === '0') on = false; } catch (e) { /* ignore */ }
     var KEY = 'synthlucida_glow_level', LEVELS = [50, 100, 160]; // 3 stupně: 1 slabé / 2 běžné (výchozí) / 3 silné
     var lvl = 1, dragging = false, tipTimer = null, raf = 0;
     function toLevel(v) { return v < 67 ? 0 : (v > 133 ? 2 : 1); }
     try { var s0 = parseInt(localStorage.getItem(KEY), 10); if (isFinite(s0) && s0 >= 0 && s0 <= 200) lvl = toLevel(s0); } catch (e) { /* ignore */ }
     function buzz() { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* ignore */ } }
     function apply() {
-      var val = LEVELS[lvl], k = val / 100, root = document.documentElement.style;
+      var val = on ? LEVELS[lvl] : 0, k = val / 100, root = document.documentElement.style;
       root.setProperty('--glow-pct', (Math.min(1, k) * 100) + '%');
       root.setProperty('--gb', String(Math.max(1, k)));
       root.setProperty('--glow-op', String(Math.min(1, val / 100)));
@@ -17520,15 +17651,24 @@
       fill.style.height = p; thumb.style.bottom = p;
       el.setAttribute('aria-valuenow', String(lvl + 1));
       el.setAttribute('aria-valuetext', (lvl + 1) + ' / 3');
-      tip.textContent = '\u2728 ' + (lvl + 1) + '/3';
+      tip.textContent = on ? '\u2728 ' + (lvl + 1) + '/3' : '\u2728 OFF';
       var bc = document.body.classList; // stupeň podsvícení hlavního okna
       bc.remove('wg-lv1', 'wg-lv3'); if (lvl !== 1) bc.add(lvl === 0 ? 'wg-lv1' : 'wg-lv3');
+      bc.toggle('glow-master-off', !on); el.classList.toggle('master-off', !on); // hlavní vypínač
+      if (master) { master.setAttribute('aria-pressed', on ? 'true' : 'false'); master.setAttribute('aria-label', on ? 'Turn glow off' : 'Turn glow on'); master.title = on ? 'Glow: ON (tap to turn off)' : 'Glow: OFF (tap to turn on)'; }
     }
     function schedule() { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; apply(); }); }
     function showTip() { tip.classList.add('show'); clearTimeout(tipTimer); tipTimer = setTimeout(function () { tip.classList.remove('show'); }, 900); }
     function save() { try { localStorage.setItem(KEY, String(LEVELS[lvl])); } catch (e) { /* ignore */ } }
+    function setMaster(v, haptic) {
+      if (v === on) return;
+      on = v; try { localStorage.setItem(MKEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+      if (haptic) buzz(); apply(); showTip();
+      try { document.dispatchEvent(new Event('glowmasterchange')); } catch (e) { /* ignore */ }
+    }
     function setLevel(l, haptic) {
       l = Math.max(0, Math.min(2, l));
+      if (l !== lvl && !on) { lvl = l; setMaster(true, haptic); return; } // posun faderu při vypnutém podsvícení ho zase zapne
       if (l === lvl) return;
       lvl = l; if (haptic) buzz(); schedule(); showTip();
     }
@@ -17540,7 +17680,8 @@
     }
     el.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      if (e.target.closest && e.target.closest('.glow-fader-ico')) { setLevel(1, false); save(); e.preventDefault(); return; }
+      if (e.target.closest && e.target.closest('.glow-master-btn')) { setMaster(!on, true); e.preventDefault(); return; }
+      if (e.target.closest && e.target.closest('.glow-fader-ico')) { setLevel(1, false); if (!on) setMaster(true, false); save(); e.preventDefault(); return; }
       dragging = true; el.classList.add('dragging'); document.documentElement.classList.add('glow-dragging');
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
       fromPointer(e); e.preventDefault();
@@ -17550,7 +17691,7 @@
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('lostpointercapture', end);
-    el.addEventListener('dblclick', function () { setLevel(1, false); save(); });
+    el.addEventListener('dblclick', function (e) { if (e.target.closest && e.target.closest('.glow-master-btn')) return; setLevel(1, false); save(); });
     el.addEventListener('wheel', function (e) { e.preventDefault(); setLevel(lvl + (e.deltaY < 0 ? 1 : -1), true); save(); }, { passive: false });
     el.addEventListener('keydown', function (e) {
       var d = 0;
@@ -17562,6 +17703,7 @@
       else return;
       e.preventDefault(); setLevel(lvl + d, true); save();
     });
+    window.glowMaster = { get: function () { return on; }, set: function (v) { setMaster(!!v, false); } };
     apply();
   })();
   /* Vlastní, stále viditelný posuvník seznamu skladeb (#playlist) - synchronizovaný se scrollTop, tažení i klepnutí do dráhy */
@@ -17606,6 +17748,74 @@
     });
     schedule();
     setTimeout(schedule, 400); setTimeout(schedule, 1500);
+  })();
+</script>
+<script>
+  /* SETUP (EXPLORE > SETUP): úsporný režim pro pomalejší zařízení + sezónní atmosféry. Samostatný skript, volby se ukládají do localStorage. */
+  (function () {
+    var m = document.getElementById('setup-window');
+    if (!m) return;
+    var B = document.body, K = { anim: 'synthlucida_opt_anim', blur: 'synthlucida_opt_blur', mix: 'synthlucida_opt_mix', slide: 'synthlucida_opt_slide' };
+    var st = { anim: true, blur: true, mix: true, slide: true };
+    Object.keys(K).forEach(function (k) { try { if (localStorage.getItem(K[k]) === '0') st[k] = false; } catch (e) { /* ignore */ } });
+    function glowOn() { return window.glowMaster ? window.glowMaster.get() : true; }
+    function isLite() { return !glowOn() && !st.anim && !st.blur && !st.mix && !st.slide; }
+    function save(k) { try { localStorage.setItem(K[k], st[k] ? '1' : '0'); } catch (e) { /* ignore */ } }
+    function render() {
+      var lite = isLite();
+      B.classList.toggle('opt-lite', lite);
+      var sb = document.getElementById('btn-sunset');
+      if (sb) { sb.disabled = lite; sb.style.opacity = lite ? '0.35' : ''; sb.title = lite ? 'Off in LITE MODE' : ''; }
+      if (window._liteLast !== lite) { window._liteLast = lite; if (window.liteChanged) { try { window.liteChanged(); } catch (e) { /* ignore */ } } }
+      var HEAVY = ['aurora']; // těžké (animované) motivy, které úsporný režim vypíná
+      document.querySelectorAll('.btn-theme').forEach(function (b) {
+        var mt = /setVisualTheme\('([a-z0-9_-]+)'/.exec(b.getAttribute('onclick') || '');
+        if (!mt || HEAVY.indexOf(mt[1]) < 0) return;
+        b.disabled = lite; b.title = lite ? 'Off in LITE MODE' : '';
+        if (lite && B.classList.contains('theme-' + mt[1])) { var ab = document.querySelector(".btn-theme[onclick*=\"'aqua'\"]"); if (ab) ab.click(); }
+      });
+      var pb = document.getElementById('btn-logo-pulse'); if (pb) pb.disabled = lite;
+      if (lite && window.enforceLiteWeather) { try { window.enforceLiteWeather(); } catch (e) { /* ignore */ } }
+      var v = { lite: lite, glow: glowOn(), anim: st.anim, blur: st.blur, mix: st.mix, slide: st.slide };
+      m.querySelectorAll('.su-sw').forEach(function (b) { b.setAttribute('aria-checked', v[b.getAttribute('data-opt')] ? 'true' : 'false'); });
+      m.querySelectorAll('.su-seg').forEach(function (g) {
+        var cur = window.setupSeason ? window.setupSeason.get(g.getAttribute('data-season')) : 'auto';
+        g.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'); });
+      });
+    }
+    function applyClasses() {
+      B.classList.toggle('opt-noanim', !st.anim);
+      B.classList.toggle('opt-noblur', !st.blur);
+      B.classList.toggle('opt-nomix', !st.mix);
+      B.classList.toggle('opt-noslide', !st.slide);
+      if (!st.mix && B.classList.contains('theme-mix') && window.clearThemeMix) { try { window.clearThemeMix(); } catch (e) { /* ignore */ } }
+      render();
+    }
+    function setOpt(k, v) {
+      if (k === 'glow') { if (window.glowMaster) window.glowMaster.set(v); return; }
+      st[k] = v; save(k); applyClasses();
+    }
+    m.addEventListener('click', function (e) {
+      if (e.target === m) { window.toggleSetup(); return; }
+      var sw = e.target.closest && e.target.closest('.su-sw');
+      if (sw) {
+        var k = sw.getAttribute('data-opt');
+        if (k === 'lite') { var on = !isLite(); setOpt('glow', !on); ['anim', 'blur', 'mix', 'slide'].forEach(function (x) { st[x] = !on; save(x); }); applyClasses(); }
+        else setOpt(k, !(k === 'glow' ? glowOn() : st[k]));
+        return;
+      }
+      var sb = e.target.closest && e.target.closest('.su-seg button');
+      if (sb && window.setupSeason) { window.setupSeason.set(sb.parentNode.getAttribute('data-season'), sb.getAttribute('data-v')); render(); }
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !m.hidden) window.toggleSetup(); });
+    document.addEventListener('glowmasterchange', render);
+    window.toggleSetup = function () {
+      var open = m.hidden; m.hidden = !open;
+      var b = document.getElementById('btn-setup'); if (b) b.classList.toggle('active', open);
+      if (open) render();
+    };
+    applyClasses();
+    window.addEventListener('load', function () { setTimeout(applyClasses, 800); }); // uložený 2COLORS mix se po načtení zruší, když je vypnutý
   })();
 </script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
