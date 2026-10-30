@@ -5302,6 +5302,20 @@
   const myPlaylistEqEl = document.getElementById('myplaylist-eq');
   const myFilesEqEl = document.getElementById('myfiles-eq');
 
+  // SKUTEČNĚ ZNÍ: element není pozastavený, nedohrál, nemá chybu, má načtená data pro plynulé přehrávání
+  // (readyState >= 3) a právě neprobíhá seek. Samotné !audio.paused tu nestačí - je false už ve chvíli, kdy se
+  // skladba teprve načítá (nová skladba, buffering, mrtvý odkaz, bez internetu), a ekvalizér, notičky i VU metr
+  // by pak předstíraly zvuk, který nehraje. Počítá se i druhý prvek (prolnutí) a druhá ASMR stopa, protože
+  // během prolnutí nebo předání zvuku opravdu hraje jen ten druhý.
+  function mediaIsSounding(a) {
+    return !!a && !a.paused && !a.ended && !a.error && !a.seeking && a.readyState >= 3 && !!a.getAttribute('src');
+  }
+  function isAudiblyPlaying() {
+    return mediaIsSounding(audio) || mediaIsSounding(crossfadeAudio) || mediaIsSounding(document.getElementById('audio-player-layer'));
+  }
+  // true = ASMR fade-out právě dozníval, ekvalizér se uklidní (nastavuje quietEqIndicators / cancelAsmrFade)
+  let eqQuiet = false;
+
   // Tlačítko MUSIC svítí, jen když opravdu hraje skladba z jednoho ze 3 playlistů (asmr / piano / chill)
   function syncMusicPlayingGlow() {
     const btn = document.getElementById('atmos-toggle-music');
@@ -5315,8 +5329,10 @@
   // se opravdu přehrává obsah dané sekce (MY PLAYLIST fronta / vlastní playlist z F panelu)
   // A zároveň je uživatel stále v daném panelu (ten je "visible" - neodešel zpět do hlavní nabídky).
   function updateSectionEqIndicators() {
-    const playing = !audio.paused;
+    const playing = isAudiblyPlaying() && !eqQuiet;
     syncMusicPlayingGlow();
+    // hlavní ekvalizér + notičky vedle něj (.eq.playing + .eq-notes) - jediné místo, které je zapíná a vypíná
+    if (eqEl) eqEl.classList.toggle('playing', playing);
     const queuePanel = document.getElementById('queue-panel');
     const filesPanel = document.getElementById('main-files');
     const queuePanelOpen = !!queuePanel && queuePanel.classList.contains('visible');
@@ -9216,7 +9232,7 @@
       const dt = Math.min(0.05, lastT ? (t - lastT) / 1000 : 0.016); lastT = t;
       const box = cv.closest('.extra-features');
       const muted = !!(box && box.classList.contains('is-muted'));
-      const playing = !audio.paused && !audio.ended && !muted;
+      const playing = isAudiblyPlaying() && !muted; // jen když zvuk opravdu zní, ne už při načítání
       const vol = mainVol();
       const base = Math.pow(vol, 0.7); // jemná "vnímaná" křivka: 30 % = půl metru, 85 % = červená špička
       let busy = false;
@@ -9240,7 +9256,7 @@
       else { lastT = 0; }
     }
     function kick() { if (!running) { running = true; lastT = 0; requestAnimationFrame(frame); } }
-    ['play', 'playing', 'pause', 'ended', 'emptied'].forEach(ev => audio.addEventListener(ev, kick));
+    ['play', 'playing', 'pause', 'ended', 'emptied', 'loadstart', 'waiting', 'canplay', 'seeking', 'seeked', 'error', 'abort'].forEach(ev => { audio.addEventListener(ev, kick); crossfadeAudio.addEventListener(ev, kick); });
     volumeSlider.addEventListener('input', kick);
     const mb = document.getElementById('btn-mute'); if (mb) mb.addEventListener('click', kick);
     document.addEventListener('visibilitychange', kick);
@@ -11363,6 +11379,7 @@
   const ASMR_FADE_MS = 4000;
   // Ekvalizér a notičky se při ztišování uklidní (nehraje se skoro nic), po zrušení ztišení se vrátí
   function quietEqIndicators() {
+    eqQuiet = true;
     eqEl.classList.remove('playing');
     if (myPlaylistEqEl) myPlaylistEqEl.classList.remove('playing');
     if (myFilesEqEl) myFilesEqEl.classList.remove('playing');
@@ -11370,8 +11387,9 @@
   function cancelAsmrFade(restoreVolume) {
     if (asmrFadeTimer) { clearInterval(asmrFadeTimer); asmrFadeTimer = null; }
     if (restoreVolume) audio.volume = mainVol();
-    // přerušené ztišení (ruční hlasitost, jiná skladba...) - pokud se pořád hraje, ekvalizér se vrátí
-    if (!audio.paused && audio.getAttribute('src')) { eqEl.classList.add('playing'); updateSectionEqIndicators(); }
+    // přerušené ztišení (ruční hlasitost, jiná skladba...) - pokud se pořád opravdu hraje, ekvalizér se vrátí
+    eqQuiet = false;
+    updateSectionEqIndicators();
   }
   // Po dokončeném ztišení se ztišená skladba úplně "zahodí": přehrávač se vrátí do stavu SELECT TRACK
   // (bez načtené skladby), takže ▶ už ji nedopřehraje a spustí jen skladbu z právě otevřeného playlistu ASMR.
@@ -11385,6 +11403,7 @@
     try { audio.pause(); } catch (e) { /* ignore */ }
     try { audio.removeAttribute('src'); audio.load(); } catch (e) { /* ignore */ }
     quietEqIndicators();          // pause událost může přijít později - ekvalizér a notičky vypnout hned
+    eqQuiet = false;              // skladba je zahozená (nic nezní), příznak nesmí zůstat zapnutý pro další přehrávání
     updateSectionEqIndicators();
     audio.volume = mainVol(); // další přehrání začne v běžné hlasitosti
     playBtn.innerText = "▶";
@@ -12212,12 +12231,18 @@
   // Ambientní ekvalizér - reaguje na skutečný stav přehrávání (play/pause),
   // ne na reálnou frekvenční analýzu (ta by u cross-origin MP3 stejně nešla spolehlivě).
   audio.addEventListener('play', () => {
-    eqEl.classList.add('playing');
     updateSectionEqIndicators();
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
   });
+  // Ekvalizér, notičky i VU metr se řídí tím, co SKUTEČNĚ zní (viz isAudiblyPlaying): zhasnou při načítání nové
+  // skladby, bufferování, seeku, chybě i nedostupné skladbě a rozběhnou se, až zvuk opravdu začne.
+  ['playing', 'ended', 'emptied', 'loadstart', 'waiting', 'canplay', 'seeking', 'seeked', 'error', 'abort'].forEach((ev) => {
+    audio.addEventListener(ev, updateSectionEqIndicators);
+  });
+  ['play', 'playing', 'pause', 'ended', 'emptied', 'loadstart', 'waiting', 'canplay', 'seeking', 'seeked', 'error', 'abort'].forEach((ev) => {
+    crossfadeAudio.addEventListener(ev, updateSectionEqIndicators); // během prolnutí hraje jen tento prvek
+  });
   audio.addEventListener('pause', () => {
-    eqEl.classList.remove('playing');
     updateSectionEqIndicators();
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     statsLastTick = null;
@@ -14812,10 +14837,10 @@
       let m = 0;
       ['audio-player', 'audio-player-crossfade'].forEach((id) => {
         const a = document.getElementById(id);
-        if (a && !a.paused && !a.muted) m = Math.max(m, a.volume);
+        if (mediaIsSounding(a) && !a.muted) m = Math.max(m, a.volume);
       });
       const l = document.getElementById('audio-player-layer'); // druhá ASMR stopa je taky hudba
-      if (l && !l.paused && !l.muted) m = Math.sqrt(m * m + l.volume * l.volume);
+      if (mediaIsSounding(l) && !l.muted) m = Math.sqrt(m * m + l.volume * l.volume);
       return m;
     }
 
