@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.3.8">
+<meta name="app-version" content="2.3.9">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -660,6 +660,7 @@
   @keyframes dice-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: no-preference) {
     .atmos-dice.active .dice-face { animation: dice-spin 2.2s linear infinite; }
+    .cf-quick-btn.active .cf-dice-ico { animation: dice-spin 2.2s linear infinite; }
   }
 
   /* Animace tlačítek shuffle / repeat / držení displeje - jen když jsou zapnutá (.active),
@@ -3816,6 +3817,7 @@
     <button type="button" class="btn-crossfade btn-cf-tune" id="btn-cf-tune" onclick="toggleCrossfadeTuner()" aria-haspopup="dialog" aria-expanded="false" aria-controls="cf-tuner" data-i18n-aria="cf_tune_aria" aria-label="Fine-tune crossfade curve" title="Fine-tune crossfade curve"><svg width="12" height="9" viewBox="0 0 12 9" aria-hidden="true"><path d="M0.5 8 C 5 8, 7 1, 11.5 1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
   </div>
   <div class="cf-quick cf-quick-right" role="group" aria-label="Quick access">
+    <button type="button" class="cf-quick-btn" data-cfq="dice" aria-pressed="false" aria-label="Random track, then shuffle" title="Random track from PIANO &amp; CHILL, then shuffle"><svg class="cf-quick-ico cf-dice-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.3" fill="currentColor" stroke="none"/></svg></button>
     <button type="button" class="cf-quick-btn" data-cfq="queue" aria-label="My Playlist" title="My Playlist"><svg class="cf-quick-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg></button>
     <button type="button" class="cf-quick-btn" data-cfq="files" aria-label="My Files" title="My Files &amp; Playlists">F</button>
   </div>
@@ -8523,6 +8525,7 @@
       : (mainListShowsQueue ? 'queue' : currentPlaylistKey);
     document.querySelectorAll('.cf-quick-btn[data-cfq]').forEach((b) => {
       const k = b.getAttribute('data-cfq');
+      if (k === 'dice') return; // stav kostky řídí syncRandomMixBtn()
       const act = k === 'queue' ? !!queueOn : (k === 'files' ? !!filesOn : cur === k);
       b.classList.toggle('active', act);
       if (k !== 'queue' && k !== 'files') b.setAttribute('aria-pressed', act ? 'true' : 'false');
@@ -8532,6 +8535,7 @@
     const b = e.target.closest && e.target.closest('.cf-quick-btn');
     if (!b) return;
     const k = b.getAttribute('data-cfq');
+    if (k === 'dice') { if (typeof window.playRandomMix === 'function') window.playRandomMix(); return; }
     if (k === 'queue') { armFocus2Resume(); toggleCustomQueue(); return; }
     if (k === 'files') { armFocus2Resume(); toggleMainFiles(); return; }
     const mainBtn = document.querySelector('#atmos-panel-music .btn-atmos[onclick*="\'' + k + '\'"]');
@@ -9788,6 +9792,10 @@
     const on = shuffleEnabled && dice.dataset.used === '1';
     dice.classList.toggle('active', on);
     dice.setAttribute('aria-pressed', on ? 'true' : 'false');
+    document.querySelectorAll('.cf-quick-btn[data-cfq="dice"]').forEach((q) => {
+      q.classList.toggle('active', on);
+      q.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
   window.playRandomMix = function() {
     const pool = [];
