@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.3.7">
+<meta name="app-version" content="2.3.8">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -543,6 +543,9 @@
   }
   .section-title-row .eq { height: 11px; }
   .section-title-row .eq span { height: 11px; }
+  /* My Playlist: ekvalizér a notičky jsou vedle nadpisu "vznášející se" - nadpis zůstává přesně uprostřed a nic se neposouvá */
+  .title-eq-anchor { position: relative; display: inline-block; }
+  .title-eq-abs { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 9px; display: flex; align-items: center; gap: 9px; white-space: nowrap; }
   .main-guide-inner p.main-guide-intro {
     font-size: 10.5px; line-height: 1.7; opacity: 0.75; margin: 0 0 22px;
   }
@@ -1061,6 +1064,21 @@
   #main-stats .queue-actions .btn-feature { flex: 1 1 auto; min-width: 0; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 6px 3px; font-size: clamp(5px, 1.55vw, 8px); }
   #queue-panel .queue-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: 360px; margin-left: auto; margin-right: auto; }
   #queue-panel .queue-actions .btn-feature { width: 100%; min-width: 0; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; padding-right: 4px; }
+  /* My Playlist: PLAY svítí a jemně "dýchá", dokud hraje fronta; STOP zůstane jemně označený (bez animace), dokud je přehrávání zastavené */
+  #queue-btn-play.active, #queue-btn-stop.active { background: color-mix(in srgb, var(--accent-color) 14%, rgba(255,255,255,0.06)); }
+  @keyframes queuePlayBreath {
+    0%, 100% { box-shadow: 0 0 calc(4px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent), inset 0 1px 0 rgba(255,255,255,0.2); }
+    50%      { box-shadow: 0 0 calc(11px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent), inset 0 1px 0 rgba(255,255,255,0.2); }
+  }
+  @media (prefers-reduced-motion: no-preference) { #queue-btn-play.active { animation: queuePlayBreath 2.4s ease-in-out infinite; } }
+  /* My Playlist: všechna tlačítka působí "mačkacím" dojmem - mírně vystouplá s hranou dole, při stisku se propadnou */
+  #queue-panel .queue-actions .btn-feature { transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease; will-change: transform; }
+  #queue-panel .queue-actions .btn-feature:not(.active):not(:disabled) { box-shadow: 0 3px 0 rgba(0,0,0,0.38), 0 5px 9px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.18); }
+  @media (hover: hover) {
+    #queue-panel .queue-actions .btn-feature:not(:disabled):hover { transform: translateY(-1px); }
+  }
+  #queue-panel .queue-actions .btn-feature:not(:disabled):active { transform: translateY(2px); }
+  #queue-panel .queue-actions .btn-feature:not(.active):not(:disabled):active { box-shadow: 0 1px 0 rgba(0,0,0,0.38), inset 0 2px 5px rgba(0,0,0,0.42); background: rgba(255,255,255,0.07); }
 
   /* ---- MY PLAYLIST: sekce podle nálady ---- */
   .mood-bar { max-width: 360px; margin: 0 auto 12px; }
@@ -1628,6 +1646,42 @@
     transition: height 0.95s cubic-bezier(.22,.8,.3,1), margin 0.95s cubic-bezier(.22,.8,.3,1), opacity 0.6s ease, transform 0.95s cubic-bezier(.22,.8,.3,1), visibility 0s linear 0.95s;
   }
   body.focus-mode-2 .layer-hint { max-height: 0; margin: 0; opacity: 0; pointer-events: none; }
+  body.focus-exit-instant .playlist, body.focus-exit-instant .layer-hint, body.focus-exit-instant .player-section { transition: none !important; }
+  /* Focus mode 1 i 2: CROSSFADE se přesune do okna přehrávače (nad název skladby), takže má stejné podsvícení jako přehrávač. JS ho tam vloží a při odchodu vrátí zpět. */
+  body.focus-mode .player-section .crossfade-container { display: grid !important; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 6px; margin: 4px 0 12px; padding: 0; animation: cfFocusIn 0.8s ease both; }
+  body.focus-mode .player-section .crossfade-label { display: none; } /* ve focus bez nápisu CROSSFADE - jen tlačítka, vystředěná */
+  body.focus-mode .player-section .crossfade-container { justify-content: center; width: 100%; }
+  /* Rychlá tlačítka okolo CROSSFADE (focus 1 i 2): vlevo ASMR / PIANO / CHILL, vpravo MY PLAYLIST a F (My Files). Skupina CROSSFADE zůstává přesně uprostřed. */
+  .cf-quick { display: none; align-items: center; gap: 2px; }
+  body.focus-mode .player-section .cf-quick { display: flex; }
+  .cf-quick-left { justify-self: start; }
+  .cf-quick-right { justify-self: end; }
+  body.focus-mode .player-section .crossfade-group { justify-self: center; }
+  .cf-quick-btn {
+    width: 20px; height: 20px; padding: 0; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.24); color: #fff; opacity: 0.6; cursor: pointer;
+    font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; font-weight: 700; line-height: 1;
+    background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(255,255,255,0.05) 100%);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1), 0 2px 6px rgba(0,0,0,0.25);
+    transition: opacity 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cf-quick-btn:hover, .cf-quick-btn:focus-visible { opacity: 0.95; }
+  .cf-quick-btn:active { transform: translateY(1px); }
+  .cf-quick-btn.active { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .cf-quick-ico { width: 12px; height: 12px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  /* úzké displeje: tlačítka se vejdou na vlastní řádek nad CROSSFADE (vlevo a vpravo), jsou o něco větší pro snadný dotyk */
+  @media (max-width: 450px) {
+    body.focus-mode .player-section .crossfade-container { grid-template-columns: 1fr 1fr; row-gap: 9px; }
+    body.focus-mode .player-section .cf-quick-left { grid-column: 1; grid-row: 1; }
+    body.focus-mode .player-section .cf-quick-right { grid-column: 2; grid-row: 1; }
+    body.focus-mode .player-section .crossfade-group { grid-column: 1 / -1; grid-row: 2; }
+    .cf-quick { gap: 5px; }
+    .cf-quick-btn { width: 26px; height: 26px; font-size: 9px; }
+    .cf-quick-ico { width: 14px; height: 14px; }
+  }
+  @keyframes cfFocusIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { body.focus-mode .player-section .crossfade-container { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .playlist, .layer-hint, body.focus-mode-2 .playlist { transition: none; } }
   #btn-focus-mode { position: relative; }
   /* Číslička polohy (1/2, 2/2) u focus mode - ukáže se jen při přepnutí a po chvíli zmizí */
@@ -3745,7 +3799,12 @@
   })();
 </script>
 
-<div class="crossfade-container">
+<div class="crossfade-container" id="crossfade-main">
+  <div class="cf-quick cf-quick-left" role="group" aria-label="Quick playlists">
+    <button type="button" class="cf-quick-btn" data-cfq="asmr" aria-pressed="false" aria-label="ASMR" title="ASMR"><svg class="cf-quick-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.5" height="7" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="7" rx="1.5"/></svg></button>
+    <button type="button" class="cf-quick-btn" data-cfq="piano" aria-pressed="false" aria-label="PIANO" title="PIANO"><svg class="cf-quick-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M8.8 13v6M15.2 13v6"/><rect x="6.5" y="5" width="4.2" height="8" rx=".8"/><rect x="13.3" y="5" width="4.2" height="8" rx=".8"/></svg></button>
+    <button type="button" class="cf-quick-btn" data-cfq="chill" aria-pressed="false" aria-label="CHILL" title="CHILL"><svg class="cf-quick-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h12v4a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M16 12.5h1.5a2.5 2.5 0 0 1 0 5H15.5"/><path d="M8 7c-1.2-1.3 1.2-2.2 0-3.5"/><path d="M12 7c-1.2-1.3 1.2-2.2 0-3.5"/></svg></button>
+  </div>
   <span class="crossfade-label">⇄ CROSSFADE</span>
   <div class="crossfade-group">
     <button class="btn-crossfade active" data-cf="0" onclick="setCrossfade(0, this)">OFF</button>
@@ -3755,6 +3814,10 @@
     <button class="btn-crossfade" data-cf="10" onclick="setCrossfade(10, this)">10s</button>
     <button class="btn-crossfade" data-cf="15" onclick="setCrossfade(15, this)">15s</button>
     <button type="button" class="btn-crossfade btn-cf-tune" id="btn-cf-tune" onclick="toggleCrossfadeTuner()" aria-haspopup="dialog" aria-expanded="false" aria-controls="cf-tuner" data-i18n-aria="cf_tune_aria" aria-label="Fine-tune crossfade curve" title="Fine-tune crossfade curve"><svg width="12" height="9" viewBox="0 0 12 9" aria-hidden="true"><path d="M0.5 8 C 5 8, 7 1, 11.5 1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="cf-quick cf-quick-right" role="group" aria-label="Quick access">
+    <button type="button" class="cf-quick-btn" data-cfq="queue" aria-label="My Playlist" title="My Playlist"><svg class="cf-quick-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg></button>
+    <button type="button" class="cf-quick-btn" data-cfq="files" aria-label="My Files" title="My Files &amp; Playlists">F</button>
   </div>
 </div>
 
@@ -3981,12 +4044,12 @@
   <button class="main-guide-close" onclick="toggleCustomQueue()" aria-label="Close my playlist">✖</button>
   <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
   <div class="main-guide-inner">
-    <h3 class="section-title-row"><span data-i18n="queue_title">My Playlist</span><span class="eq" id="myplaylist-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span></h3>
+    <h3 class="section-title-row"><span class="title-eq-anchor"><span data-i18n="queue_title">My Playlist</span><span class="title-eq-abs"><span class="eq" id="myplaylist-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span><span class="eq-notes" aria-hidden="true"><span class="eq-note">♪</span><span class="eq-note">♫</span></span></span></span></h3>
     <p class="main-guide-intro" data-i18n="queue_intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼ (or drag tracks with the mouse), then hit PLAY to listen through your own list, in exactly the order you built it.</p>
     <p class="main-guide-note" id="queue-empty-note" style="display:none;" data-i18n="queue_empty">Your playlist is empty. Add tracks from HISTORY.</p>
     <div class="queue-actions">
-      <button class="btn-feature" data-i18n="queue_btn_play" onclick="playCustomQueueFromStart()">▶ PLAY</button>
-      <button class="btn-feature" data-i18n="queue_btn_stop" onclick="stopPlayback()">■ STOP</button>
+      <button class="btn-feature" id="queue-btn-play" aria-pressed="false" data-i18n="queue_btn_play" onclick="playCustomQueueFromStart()">▶ PLAY</button>
+      <button class="btn-feature" id="queue-btn-stop" aria-pressed="false" data-i18n="queue_btn_stop" onclick="stopPlayback()">■ STOP</button>
       <button class="btn-feature" data-i18n="queue_btn_txt" onclick="exportCustomQueue()">📄 EXPORT TXT</button>
       <button class="btn-feature" data-i18n="queue_btn_export" onclick="exportCustomQueueFile()">💾 EXPORT PLAYLIST</button>
       <button class="btn-feature" data-i18n="queue_btn_import" onclick="triggerImportCustomQueue()">📂 IMPORT PLAYLIST</button>
@@ -4268,7 +4331,7 @@
   <button class="myfiles-help-btn" onclick="toggleMyFilesGuide()" aria-label="How to use My Files">?</button>
   <div class="main-guide-inner">
     <h3 class="section-title-row">My Files &amp; Playlists<span class="eq" id="myfiles-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span></h3>
-    <p class="main-guide-intro">Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.</p>
+    <p class="main-guide-intro" data-i18n="myfiles_intro">Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.</p>
 
     <input type="file" id="myfiles-input" accept="audio/*" multiple style="display:none;" onchange="handleMyFilesUpload(event)">
     <div class="queue-actions">
@@ -8441,20 +8504,100 @@
     const mm = String(now.getMinutes()).padStart(2, '0');
     el.textContent = hh + ':' + mm;
   }
+  // Focus mode 2: ovládání CROSSFADE se vloží na začátek okna přehrávače; při odchodu se vrátí na původní místo (před tlačítka WEATHER / SUNSET ...)
+  function moveCrossfadeForFocus(into) {
+    const cf = document.getElementById('crossfade-main');
+    if (!cf) return;
+    if (into) {
+      const ps = document.querySelector('.player-section');
+      if (ps && cf.parentNode !== ps) ps.insertBefore(cf, ps.firstChild);
+    } else {
+      const fx = document.querySelector('.effects-container');
+      if (fx && fx.parentNode && cf.parentNode !== fx.parentNode) fx.parentNode.insertBefore(cf, fx);
+    }
+  }
+  // Rychlá tlačítka u CROSSFADE (focus 2): ASMR / PIANO / CHILL přepnou a rovnou pustí playlist (stejně jako čipy v mini přehrávači), MY PLAYLIST a F otevřou své panely
+  function syncCfQuick(queueOn, filesOn) {
+    const cur = customQueueActive ? 'queue'
+      : (audio.getAttribute('src') && playingRef && playingRef.key) ? playingRef.key
+      : (mainListShowsQueue ? 'queue' : currentPlaylistKey);
+    document.querySelectorAll('.cf-quick-btn[data-cfq]').forEach((b) => {
+      const k = b.getAttribute('data-cfq');
+      const act = k === 'queue' ? !!queueOn : (k === 'files' ? !!filesOn : cur === k);
+      b.classList.toggle('active', act);
+      if (k !== 'queue' && k !== 'files') b.setAttribute('aria-pressed', act ? 'true' : 'false');
+    });
+  }
+  document.addEventListener('click', function(e) {
+    const b = e.target.closest && e.target.closest('.cf-quick-btn');
+    if (!b) return;
+    const k = b.getAttribute('data-cfq');
+    if (k === 'queue') { armFocus2Resume(); toggleCustomQueue(); return; }
+    if (k === 'files') { armFocus2Resume(); toggleMainFiles(); return; }
+    const mainBtn = document.querySelector('#atmos-panel-music .btn-atmos[onclick*="\'' + k + '\'"]');
+    if (!mainBtn) return;
+    const cur = customQueueActive ? 'queue'
+      : (audio.getAttribute('src') && playingRef && playingRef.key) ? playingRef.key
+      : (mainListShowsQueue ? 'queue' : currentPlaylistKey);
+    if (cur === k) {
+      if (playBtn.getAttribute('data-state') !== 'pause') playBtn.click(); // už je vybraný: jen obnoví přehrávání
+    } else {
+      setPlaylist(k, mainBtn);
+      if (Array.isArray(playlist) && playlist.length) playTrack(shuffleEnabled ? Math.floor(Math.random() * playlist.length) : 0);
+    }
+    try { syncQueueBackBtn(); } catch (err) { /* ignore */ }
+  });
+  // Lupa / nota pod názvem skladby ve focus 2: seznam skladeb je tam schovaný, takže se focus 2 hned (bez animace) vypne
+  // a přehrávač se vrátí do normálního režimu - teprve pak se v seznamu najde hrající skladba. Ve focus 1 (seznam je vidět) se nic nemění.
+  // Po zavření panelu MY PLAYLIST / F, který se otevřel rychlým tlačítkem ve focus 1 nebo 2, se stejný focus vždy vrátí (kdyby se mezitím vypnul)
+  let focus2Resume = 0;      // 0 = nic se nevrací, 1 / 2 = stupeň focus mode, který byl při otevření panelu zapnutý
+  let focus2Internal = false; // true = focus mode mění kód sám, ne uživatel tlačítkem ⛶
+  function focusStageNow() { const c = document.body.classList; return c.contains('focus-mode-2') ? 2 : (c.contains('focus-mode') ? 1 : 0); }
+  function armFocus2Resume() { focus2Resume = focusStageNow(); }
+  function checkFocus2Resume() {
+    if (!focus2Resume) return;
+    const anyOpen = ['queue-panel', 'main-files'].some(function(id) { const el = document.getElementById(id); return el && el.classList.contains('visible'); });
+    if (anyOpen) return;
+    const want = focus2Resume;
+    focus2Resume = 0;
+    focus2Internal = true;
+    try {
+      for (let have = focusStageNow(); have < want; have++) window.toggleFocusMode(); // vypnuto -> 1 -> 2
+    } finally { focus2Internal = false; }
+  }
+  if (window.MutationObserver) {
+    ['queue-panel', 'main-files'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) new MutationObserver(checkFocus2Resume).observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+  }
+  function leaveFocus2ForList() {
+    const body = document.body;
+    if (!body.classList.contains('focus-mode-2')) return;
+    body.classList.add('focus-exit-instant');
+    focus2Internal = true;
+    try { window.toggleFocusMode(); } finally { focus2Internal = false; } // 2. stupeň -> vypnuto (vrátí i CROSSFADE na původní místo)
+    void body.offsetHeight;   // layout teď, ať se seznam rozbalí hned a skladba se odroluje na správné místo
+    setTimeout(function() { body.classList.remove('focus-exit-instant'); }, 150);
+  }
   // Focus mode má tři kroky: vypnuto -> 1 (schová hlavičku a ostatní, zůstane přehrávač se seznamem) -> 2 (schová i seznam skladeb, zůstane základní přehrávač) -> vypnuto
   window.toggleFocusMode = function() {
+    if (!focus2Internal) focus2Resume = 0; // uživatel sám přepnul focus mode -> nic se nevrací
     const body = document.body;
     const btn = document.getElementById('btn-focus-mode');
     const wasActive = body.classList.contains('focus-mode');
     const wasStage2 = body.classList.contains('focus-mode-2');
     if (!wasActive) {
       body.classList.add('focus-mode');
+      moveCrossfadeForFocus(true);
       updateFocusClock();
       focusClockInterval = setInterval(updateFocusClock, 1000);
     } else if (!wasStage2) {
       body.classList.add('focus-mode-2');
+      moveCrossfadeForFocus(true);
     } else {
       body.classList.remove('focus-mode-2');
+      moveCrossfadeForFocus(false);
       body.classList.remove('focus-mode');
       if (focusClockInterval) {
         clearInterval(focusClockInterval);
@@ -10260,6 +10403,7 @@
     h_myfiles_step4: { en: "4. Everything else still works", cz: "4. Vše ostatní funguje jako obvykle" },
     p_myfiles_step4: { en: "Playlists built from your own files play through the exact same engine as the rest of the app - Shuffle, Repeat, Crossfade, and the sleep timer all work with them too, and the last one you played is remembered the next time you open the app.", cz: "Playlisty sestavené z vašich vlastních souborů běží přes úplně stejné přehrávací jádro jako zbytek appky - funguje s nimi Shuffle, Repeat, Crossfade i sleep timer, a naposledy přehrávaný playlist si appka zapamatuje i při dalším spuštění." },
     myfiles_guide_note: { en: "Uploaded files, your playlists, and MY PLAYLIST are all stored only on this device and are never uploaded anywhere.", cz: "Nahrané soubory, vaše playlisty i MY PLAYLIST se ukládají pouze v tomto zařízení a nikam se neodesílají." },
+    myfiles_intro: { en: "Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.", cz: "Přidejte si vlastní audio soubory a vytvářejte playlisty, které je mixují se skladbami SYNTHLUCIDA. Vše se přehrává přes stejný přehrávač níže - shuffle, opakování, crossfade i časovač spánku fungují i s nimi." },
     h_save: { en: "Save & fullscreen", cz: "Uložení a celá obrazovka" },
     p_save: { en: "SAVE stores your current theme, effects and other preferences so they load automatically the next time you visit. FULLSCREEN hides the browser interface for a cleaner, distraction-free view.", cz: "SAVE uloží aktuální motiv, efekty a další předvolby, které se při příští návštěvě automaticky načtou. FULLSCREEN skryje rozhraní prohlížeče pro čistší zobrazení bez rušivých prvků." },
     h_offline: { en: "Offline listening", cz: "Poslech offline" },
@@ -11605,6 +11749,15 @@
       const label = fromFiles ? 'Back to the playing playlist from F' : 'Back to the playing MY PLAYLIST';
       btn.title = label; btn.setAttribute('aria-label', label);
     }
+    // MY PLAYLIST panel: PLAY svítí, dokud hraje fronta; STOP je označený, dokud je fronta zastavená (po STOP, před dalším PLAY)
+    const qPlay = document.getElementById('queue-btn-play');
+    const qStop = document.getElementById('queue-btn-stop');
+    if (qPlay || qStop) {
+      const playingNow = on && !audio.paused;
+      const stoppedNow = on && audio.paused && typeof window.isPlaybackStopped === 'function' && window.isPlaybackStopped();
+      if (qPlay) { qPlay.classList.toggle('active', playingNow); qPlay.setAttribute('aria-pressed', playingNow ? 'true' : 'false'); }
+      if (qStop) { qStop.classList.toggle('active', stoppedNow); qStop.setAttribute('aria-pressed', stoppedNow ? 'true' : 'false'); }
+    }
     // Horní tlačítko MY PLAYLIST svítí, dokud je fronta aktivní zdroj přehrávání (stejně jako nota)
     const top = document.getElementById('btn-my-playlist');
     if (top) top.classList.toggle('active', on);
@@ -11614,14 +11767,16 @@
       fBtn.classList.toggle('files-active', fromFiles);
       fBtn.classList.toggle('files-playing', fromFiles && !audio.paused);
     }
+    try { syncCfQuick(on, fromFiles); } catch (e) { /* ignore */ }
   }
   window.backToMyPlaylist = function() {
     if (queueIsPlaying()) {
+      leaveFocus2ForList();
       revealTrackInMainList({ kind: 'queue', pos: customQueueIndex }, true);
     } else {
       // sekce F: vrátit hlavní okno na hrající playlist/soubor z F a odrolovat na skladbu
       const loc = findPlayingFilesLocation();
-      if (loc) revealTrackInMainList(loc, true);
+      if (loc) { leaveFocus2ForList(); revealTrackInMainList(loc, true); }
     }
     syncQueueBackBtn();
   };
@@ -11679,12 +11834,14 @@
         const hl = tracks[homeKeys[k]];
         const hi = Array.isArray(hl) ? hl.findIndex(x => x && isCurrentAudioSrc(x.src)) : -1;
         if (hi !== -1) {
+          leaveFocus2ForList();
           revealTrackInMainList({ kind: 'list', key: homeKeys[k], index: hi }, true);
           filesContinuation = { key: loc.key, index: loc.index };
           return;
         }
       }
     }
+    leaveFocus2ForList();
     revealTrackInMainList(loc, true);
   };
 
