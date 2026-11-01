@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.3.9">
+<meta name="app-version" content="2.4.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1693,6 +1693,20 @@
     z-index: 5;
     margin-top: 12vh;
   }
+  /* Focus mode 3 (třetí klepnutí / volba FOCUS 3): jako focus 1, ale okno přehrávače se posune výš a seznam skladeb se prodlouží až ke spodku obrazovky,
+     takže je vidět víc skladek. Výšku seznamu dopočítává JS (--f3-pl-h) podle výšky displeje; níže je jen záložní hodnota. Přechod mezi focus 1/2 a 3 je plynulý. */
+  body.focus-mode .player-section { transition: border-color 1.4s ease, margin-top 0.95s cubic-bezier(.22,.8,.3,1); }
+  body.focus-mode-3 .player-section { margin-top: calc(env(safe-area-inset-top, 0px) + 28px); }
+  body.focus-mode-3 .playlist { height: var(--f3-pl-h, clamp(160px, 52vh, 560px)); height: var(--f3-pl-h, clamp(160px, 52dvh, 560px)); }
+  @media (prefers-reduced-motion: reduce) { body.focus-mode .player-section { transition: border-color 1.4s ease; } }
+  /* Focus 3: úchyt pod seznamem - tažením nahoru / dolů si výšku seznamu nastavíš sám (uloží se), dvojklepnutí = automatická výška */
+  .f3-grip { display: none; align-items: center; justify-content: center; height: 14px; width: 90%; margin: -4px auto 0; cursor: ns-resize; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; outline: none; }
+  .f3-grip span { width: 44px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); transition: background 0.2s ease, width 0.2s ease; }
+  .f3-grip:hover span, .f3-grip.dragging span, .f3-grip:focus-visible span { background: var(--accent-color); width: 58px; }
+  body.focus-mode-3 .f3-grip { display: flex; }
+  body.focus-mode-3.f3-dragging .playlist, body.focus-mode-3.f3-dragging .player-section { transition: none; }
+  body.focus-mode-3 .pl-sb { bottom: 22px; }
+  body.focus-mode-3 .glow-fader { bottom: 24px; }
 
   .extra-features { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; margin-bottom: 8px; padding: 0 15px;}
   .volume-controls-row { display: flex; justify-content: center; align-items: center; gap: 8px; }
@@ -3456,6 +3470,14 @@
     transition: opacity 0.2s ease;
   }
   .glow-fader-ico svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* ===== FOCUS tlačítko: volitelná nabídka FOCUS 1 / FOCUS 2 (přepínač v SETUP) ===== */
+  .focus-menu { position: fixed; z-index: 10040; min-width: 130px; padding: 6px; display: flex; flex-direction: column; gap: 4px; border: 1px solid color-mix(in srgb, var(--accent-color, #fff) 55%, transparent); border-radius: 12px; background: linear-gradient(180deg, #1c1c1f 0%, #0d0d0f 100%); box-shadow: 0 10px 30px rgba(0,0,0,0.7), 0 0 calc(14px * var(--gb)) color-mix(in srgb, var(--accent-color, #fff) var(--glow-pct), transparent); }
+  .focus-menu[hidden] { display: none; }
+  .focus-menu button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 10px; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; background: rgba(255,255,255,0.04); color: #fff; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1.2px; cursor: pointer; opacity: 0.85; -webkit-tap-highlight-color: transparent; }
+  .focus-menu button small { font-family: inherit; font-size: 7px; letter-spacing: 0.5px; opacity: 0.6; }
+  .focus-menu button:hover, .focus-menu button:focus-visible { opacity: 1; border-color: var(--accent-color); outline: none; }
+  .focus-menu button.on { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
+  body.opt-lite .su-seg.su-seg-focus { opacity: 1; pointer-events: auto; }
   /* ===== SETUP (EXPLORE > SETUP): úsporný režim, volby grafiky a sezónní atmosféry ===== */
   .su-window { max-width: 360px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .su-sec { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1.5px; opacity: 0.6; text-align: center; margin-top: 6px; }
@@ -3466,7 +3488,7 @@
   .su-txt { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; min-width: 0; flex: 1 1 auto; }
   .su-name { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px; }
   .su-main .su-desc { white-space: pre-line; opacity: 0.75; }
-  .su-desc[data-i18n="su_anim_d"] { white-space: pre-line; opacity: 0.75; }
+  .su-desc[data-i18n="su_anim_d"], .su-desc[data-i18n="su_focus_d"] { white-space: pre-line; opacity: 0.75; }
   .su-desc { font-size: 9px; line-height: 1.3; opacity: 0.6; }
   .su-sw { flex: none; position: relative; width: 38px; height: 20px; padding: 0; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); cursor: pointer; transition: background 0.2s, border-color 0.2s; -webkit-tap-highlight-color: transparent; }
   .su-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; opacity: 0.7; transition: transform 0.2s, background 0.2s; }
@@ -3895,6 +3917,7 @@
   <div class="layer-hint" id="layer-hint" hidden>Tap a second ASMR track to layer it.</div>
   <div class="playlist-wrap" id="playlist-wrap">
   <ul class="playlist" id="playlist"></ul>
+  <div class="f3-grip" id="f3-grip" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Drag to resize the playlist" title="Drag to resize · double-tap = automatic height"><span></span></div>
   <div class="pl-sb" id="pl-sb" aria-hidden="true"><div class="pl-sb-thumb" id="pl-sb-thumb"></div></div>
   <div class="glow-fader" id="glow-fader" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Glow intensity" aria-valuemin="1" aria-valuemax="3" aria-valuenow="2" aria-valuetext="2 / 3" title="Glow intensity: 3 levels (drag up/down, scroll or arrow keys; tap the sun to reset)">
     <button type="button" class="glow-master-btn" id="glow-master-btn" tabindex="-1" aria-pressed="true" aria-label="Turn glow off" title="Glow on/off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button>
@@ -3939,7 +3962,7 @@
     <div class="focus-mode-right">
       <button class="btn-focus-mode visual-toggle-btn" id="btn-visual-toggle" onclick="toggleVisualPanel()" title="Visual themes" aria-label="Toggle visual themes"><svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-.9 1.6-1.9-.3-1.1.4-2.1 1.5-2.1H17a4 4 0 0 0 4-4c0-5.2-4-10-9-10z"/><circle cx="7.8" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.2" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.8" r="1" fill="currentColor" stroke="none"/></svg></button>
       <button class="btn-focus-mode fullscreen-toggle-btn" id="btn-fullscreen-toggle" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle fullscreen">⤢</button>
-      <button class="btn-focus-mode" id="btn-focus-mode" onclick="toggleFocusMode()" title="Focus mode" aria-label="Toggle focus mode">⛶</button>
+      <button class="btn-focus-mode" id="btn-focus-mode" onclick="focusButtonClick(event)" title="Focus mode" aria-haspopup="menu" aria-label="Toggle focus mode">⛶</button>
     </div>
   </div>
 
@@ -4437,6 +4460,12 @@
   </div>
 </div>
 
+<div class="focus-menu" id="focus-menu" role="menu" aria-label="Focus mode" hidden>
+  <button type="button" role="menuitem" data-focus-stage="1"><span>FOCUS 1</span><small data-i18n="focus_menu_1">PLAYER + LIST</small></button>
+  <button type="button" role="menuitem" data-focus-stage="2"><span>FOCUS 2</span><small data-i18n="focus_menu_2">PLAYER ONLY</small></button>
+  <button type="button" role="menuitem" data-focus-stage="3"><span>FOCUS 3</span><small data-i18n="focus_menu_3">TALL PLAYLIST</small></button>
+  <button type="button" role="menuitem" data-focus-stage="0" id="focus-menu-off"><span data-i18n="focus_menu_off">✕ OFF</span></button>
+</div>
 <div class="tm-overlay" id="setup-window" role="dialog" aria-modal="true" aria-labelledby="su-title" hidden>
   <div class="tm-window su-window">
     <div class="tm-head"><span class="tm-title" id="su-title" data-i18n="su_title">⚙ SETUP</span><button type="button" class="tm-close" onclick="toggleSetup()" aria-label="Close" title="Close">✕</button></div>
@@ -4452,6 +4481,8 @@
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_xmas_n"></span><span class="su-desc" data-i18n="su_xmas_d"></span></div><div class="su-seg" data-season="xmas" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_souls_n"></span><span class="su-desc" data-i18n="su_souls_d"></span></div><div class="su-seg" data-season="souls" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_witch_n"></span><span class="su-desc" data-i18n="su_witch_d"></span></div><div class="su-seg" data-season="witches" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
+    <div class="su-sec" data-i18n="su_sec_focus">FOCUS BUTTON</div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_focus_n"></span><span class="su-desc" data-i18n="su_focus_d"></span></div><div class="su-seg su-seg-focus" data-focusbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
   </div>
 </div>
 
@@ -8557,7 +8588,7 @@
   // Po zavření panelu MY PLAYLIST / F, který se otevřel rychlým tlačítkem ve focus 1 nebo 2, se stejný focus vždy vrátí (kdyby se mezitím vypnul)
   let focus2Resume = 0;      // 0 = nic se nevrací, 1 / 2 = stupeň focus mode, který byl při otevření panelu zapnutý
   let focus2Internal = false; // true = focus mode mění kód sám, ne uživatel tlačítkem ⛶
-  function focusStageNow() { const c = document.body.classList; return c.contains('focus-mode-2') ? 2 : (c.contains('focus-mode') ? 1 : 0); }
+  function focusStageNow() { const c = document.body.classList; return c.contains('focus-mode-3') ? 3 : (c.contains('focus-mode-2') ? 2 : (c.contains('focus-mode') ? 1 : 0)); }
   function armFocus2Resume() { focus2Resume = focusStageNow(); }
   function checkFocus2Resume() {
     if (!focus2Resume) return;
@@ -8567,7 +8598,7 @@
     focus2Resume = 0;
     focus2Internal = true;
     try {
-      for (let have = focusStageNow(); have < want; have++) window.toggleFocusMode(); // vypnuto -> 1 -> 2
+      applyFocusStage(want); // vrátí přesně ten stupeň (1 / 2 / 3), který byl zapnutý před otevřením panelu
     } finally { focus2Internal = false; }
   }
   if (window.MutationObserver) {
@@ -8581,29 +8612,72 @@
     if (!body.classList.contains('focus-mode-2')) return;
     body.classList.add('focus-exit-instant');
     focus2Internal = true;
-    try { window.toggleFocusMode(); } finally { focus2Internal = false; } // 2. stupeň -> vypnuto (vrátí i CROSSFADE na původní místo)
+    try { applyFocusStage(0); } finally { focus2Internal = false; } // 2. stupeň -> vypnuto (vrátí i CROSSFADE na původní místo)
     void body.offsetHeight;   // layout teď, ať se seznam rozbalí hned a skladba se odroluje na správné místo
     setTimeout(function() { body.classList.remove('focus-exit-instant'); }, 150);
   }
   // Focus mode má tři kroky: vypnuto -> 1 (schová hlavičku a ostatní, zůstane přehrávač se seznamem) -> 2 (schová i seznam skladeb, zůstane základní přehrávač) -> vypnuto
-  window.toggleFocusMode = function() {
-    if (!focus2Internal) focus2Resume = 0; // uživatel sám přepnul focus mode -> nic se nevrací
+  // Focus mode 3: výška seznamu skladeb se dopočítá tak, aby okno přehrávače (posunuté výš) skončilo u spodku displeje.
+  // Měří se výška všeho ostatního v okně přehrávače, takže to funguje na různých telefonech i při otočení displeje.
+  let f3Timer = null, f3Probe = null, f3Manual = null, f3MaxH = 600;
+  const F3_KEY = 'synthlucida_f3_h';
+  try { const v = parseInt(localStorage.getItem(F3_KEY), 10); if (v >= 90 && v <= 2000) f3Manual = v; } catch (e) { /* ignore */ }
+  function f3SafeTop() {
+    if (!f3Probe) {
+      f3Probe = document.createElement('div');
+      f3Probe.setAttribute('aria-hidden', 'true');
+      f3Probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';
+      document.body.appendChild(f3Probe);
+    }
+    const cs = getComputedStyle(f3Probe);
+    return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 };
+  }
+  function f3Layout() {
+    const body = document.body;
+    if (!body.classList.contains('focus-mode-3')) return;
+    const ps = document.querySelector('.player-section'), list = document.getElementById('playlist');
+    if (!ps || !list) return;
+    try {
+      const safe = f3SafeTop();
+      const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      const psCs = getComputedStyle(ps), listCs = getComputedStyle(list);
+      const base = ps.getBoundingClientRect().top + (window.pageYOffset || 0) - (parseFloat(psCs.marginTop) || 0); // horní okraj okna bez horního odsazení
+      const finalTop = base + safe.top + 28;                                                                     // kam se okno posune (stejné jako v CSS)
+      const listMargins = (parseFloat(listCs.marginTop) || 0) + (parseFloat(listCs.marginBottom) || 0);
+      const other = ps.offsetHeight - list.offsetHeight - listMargins;                                           // vše v okně kromě seznamu
+      const avail = vh - finalTop - other - 8 - safe.bottom - 14;                                                // 8 = spodní odsazení seznamu, 14 = rezerva
+      f3MaxH = Math.min(1400, Math.max(260, Math.floor(avail)));                                                 // nejvíc, na co jde seznam ručně natáhnout
+      const auto = Math.max(140, Math.min(760, Math.floor(avail)));
+      const h = f3Manual != null ? Math.max(90, Math.min(f3Manual, f3MaxH)) : auto;                              // ruční výška má přednost před automatickou
+      body.style.setProperty('--f3-pl-h', h + 'px');
+    } catch (e) { /* ignore - platí záložní výška z CSS */ }
+  }
+  function f3Schedule() {
+    clearTimeout(f3Timer);
+    f3Timer = setTimeout(f3Layout, 120);
+  }
+  window.addEventListener('resize', f3Schedule);
+  window.addEventListener('orientationchange', function() { setTimeout(f3Layout, 350); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', f3Schedule);
+
+  // Přepne focus mode přímo na zadaný stupeň: 0 = vypnuto, 1 = přehrávač + seznam, 2 = jen přehrávač, 3 = přehrávač výš + dlouhý seznam
+  function applyFocusStage(target) {
     const body = document.body;
     const btn = document.getElementById('btn-focus-mode');
-    const wasActive = body.classList.contains('focus-mode');
-    const wasStage2 = body.classList.contains('focus-mode-2');
-    if (!wasActive) {
-      body.classList.add('focus-mode');
+    const prev = focusStageNow();
+    target = Math.max(0, Math.min(3, target | 0));
+    if (target === prev) return;
+    body.classList.toggle('focus-mode', target > 0);
+    body.classList.toggle('focus-mode-2', target === 2);
+    body.classList.toggle('focus-mode-3', target === 3);
+    if (target > 0) {
       moveCrossfadeForFocus(true);
-      updateFocusClock();
-      focusClockInterval = setInterval(updateFocusClock, 1000);
-    } else if (!wasStage2) {
-      body.classList.add('focus-mode-2');
-      moveCrossfadeForFocus(true);
+      if (prev === 0) {
+        updateFocusClock();
+        focusClockInterval = setInterval(updateFocusClock, 1000);
+      }
     } else {
-      body.classList.remove('focus-mode-2');
       moveCrossfadeForFocus(false);
-      body.classList.remove('focus-mode');
       if (focusClockInterval) {
         clearInterval(focusClockInterval);
         focusClockInterval = null;
@@ -8611,12 +8685,20 @@
       // Při odchodu z focus mode panel historie zavřeme, pokud byl otevřený
       closeCommunityHistoryPanel();
     }
-    const isActive = body.classList.contains('focus-mode');
+    if (target === 3) {
+      f3Layout();                                  // hned (okno už má správné třídy i CROSSFADE uvnitř)
+      requestAnimationFrame(f3Layout);
+      setTimeout(f3Layout, 400);
+      setTimeout(f3Layout, 1100);                  // po dojetí animace a případném dotažení fontů
+    } else {
+      clearTimeout(f3Timer);
+      body.style.removeProperty('--f3-pl-h');
+    }
     if (btn) {
-      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('active', target > 0);
       clearTimeout(window._focusStageTimer);
-      if (isActive) {
-        btn.setAttribute('data-stage', body.classList.contains('focus-mode-2') ? '2/2' : '1/2');
+      if (target > 0) {
+        btn.setAttribute('data-stage', target + '/3');
         btn.classList.add('show-stage');
         window._focusStageTimer = setTimeout(function() { btn.classList.remove('show-stage'); }, 1600);
       } else {
@@ -8624,7 +8706,107 @@
         btn.removeAttribute('data-stage');
       }
     }
+  }
+  window.applyFocusStage = applyFocusStage;
+
+  // Úchyt pod seznamem ve focus 3: tažení (myš i dotyk) mění výšku seznamu, klávesy ↑ / ↓ po 24 px, dvojklepnutí vrátí automatickou výšku.
+  (function() {
+    const grip = document.getElementById('f3-grip');
+    if (!grip) return;
+    let drag = null, lastTap = 0;
+    function setH(h) {
+      f3Manual = Math.max(90, Math.min(Math.round(h), f3MaxH));
+      document.body.style.setProperty('--f3-pl-h', f3Manual + 'px');
+    }
+    function save() { try { localStorage.setItem(F3_KEY, String(f3Manual)); } catch (e) { /* ignore */ } }
+    function reset() {
+      f3Manual = null;
+      try { localStorage.removeItem(F3_KEY); } catch (e) { /* ignore */ }
+      f3Layout();
+    }
+    grip.addEventListener('pointerdown', function(e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const list = document.getElementById('playlist');
+      if (!list) return;
+      f3Layout(); // čerstvý maximální rozměr
+      drag = { y: e.clientY, h: list.offsetHeight, moved: false, id: e.pointerId };
+      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      grip.classList.add('dragging');
+      document.body.classList.add('f3-dragging');
+      e.preventDefault();
+    });
+    grip.addEventListener('pointermove', function(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dy = e.clientY - drag.y;
+      if (Math.abs(dy) > 3) drag.moved = true;
+      if (drag.moved) setH(drag.h + dy);
+    });
+    function end(e) {
+      if (!drag || (e && e.pointerId !== drag.id)) return;
+      const moved = drag.moved;
+      drag = null;
+      grip.classList.remove('dragging');
+      document.body.classList.remove('f3-dragging');
+      try { grip.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      if (moved) { save(); lastTap = 0; return; }
+      const now = Date.now();
+      if (now - lastTap < 400) { lastTap = 0; reset(); } else lastTap = now; // dvojklepnutí / dvojklik
+    }
+    grip.addEventListener('pointerup', end);
+    grip.addEventListener('pointercancel', end);
+    grip.addEventListener('keydown', function(e) {
+      const list = document.getElementById('playlist');
+      if (!list) return;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        f3Layout();
+        setH(list.offsetHeight + (e.key === 'ArrowDown' ? 24 : -24));
+        save();
+      } else if (e.key === 'Home' || e.key === 'Escape') { e.preventDefault(); reset(); }
+    });
+  })();
+  // Focus mode má čtyři kroky: vypnuto -> 1 (schová hlavičku a ostatní, zůstane přehrávač se seznamem) -> 2 (schová i seznam, zůstane základní přehrávač)
+  // -> 3 (přehrávač výš a dlouhý seznam skladeb) -> vypnuto
+  window.toggleFocusMode = function() {
+    if (!focus2Internal) focus2Resume = 0; // uživatel sám přepnul focus mode -> nic se nevrací
+    applyFocusStage((focusStageNow() + 1) % 4);
   };
+
+  // Tlačítko FOCUS: podle volby v SETUP buď přepíná kroky (výchozí, jako dřív), nebo otevře malou nabídku FOCUS 1 / FOCUS 2.
+  const FOCUS_BTN_KEY = 'synthlucida_focus_btn';
+  window.focusBtnMode = {
+    get: function() { try { return localStorage.getItem(FOCUS_BTN_KEY) === 'menu' ? 'menu' : 'cycle'; } catch (e) { return 'cycle'; } },
+    set: function(v) { try { localStorage.setItem(FOCUS_BTN_KEY, v === 'menu' ? 'menu' : 'cycle'); } catch (e) { /* ignore */ } closeFocusMenu(); }
+  };
+  function closeFocusMenu() { const m = document.getElementById('focus-menu'); if (m) m.hidden = true; }
+  function setFocusStage(target) {
+    focus2Resume = 0; // uživatel sám vybral stupeň -> nic se nevrací
+    applyFocusStage(target);
+  }
+  window.focusButtonClick = function(ev) {
+    if (window.focusBtnMode.get() !== 'menu') { closeFocusMenu(); window.toggleFocusMode(); return; }
+    const m = document.getElementById('focus-menu'), btn = document.getElementById('btn-focus-mode');
+    if (!m || !btn) { window.toggleFocusMode(); return; }
+    if (!m.hidden) { closeFocusMenu(); return; }
+    const st = focusStageNow();
+    m.querySelectorAll('[data-focus-stage]').forEach(function(b) { b.classList.toggle('on', Number(b.getAttribute('data-focus-stage')) === st && st > 0); });
+    const off = document.getElementById('focus-menu-off'); if (off) off.style.display = st ? '' : 'none';
+    m.hidden = false;
+    const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+    let left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+    let top = r.bottom + 8;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+    m.style.left = left + 'px'; m.style.top = top + 'px';
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+  };
+  document.addEventListener('click', function(e) {
+    const m = document.getElementById('focus-menu');
+    if (!m || m.hidden) return;
+    const b = e.target.closest && e.target.closest('[data-focus-stage]');
+    if (b && m.contains(b)) { const t = Number(b.getAttribute('data-focus-stage')); closeFocusMenu(); setFocusStage(t); return; }
+    if (!m.contains(e.target)) closeFocusMenu();
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeFocusMenu(); });
 
   // Panel s vizuálními (barevnými) motivy - schovaný, otevírá se tlačítkem VISUAL vedle Focus mode
   window.toggleVisualPanel = function() {
@@ -10574,6 +10756,15 @@
     theme_mix_c2: { en: "COLOR 2 · BOTTOM OF THE PLAYER", cz: "BARVA 2 · DOLNÍ ČÁST PLAYERU" },
     theme_mix_swap: { en: "⇄ SWAP", cz: "⇄ PROHODIT" },
     theme_mix_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
+    su_sec_focus: { en: "FOCUS BUTTON", cz: "TLAČÍTKO FOCUS" },
+    su_focus_n: { en: "FOCUS BUTTON MODE", cz: "REŽIM TLAČÍTKA FOCUS" },
+    su_focus_d: { en: "SWITCH = each tap goes to the next step (FOCUS 1, 2, 3, off).\nWINDOW = a tap opens a small menu to pick FOCUS 1, 2 or 3.", cz: "PŘEPÍNÁNÍ = každé klepnutí přejde na další krok (FOCUS 1, 2, 3, vypnuto).\nOKNO = klepnutí otevře malou nabídku, kde vybereš FOCUS 1, 2 nebo 3." },
+    su_focus_cycle: { en: "SWITCH", cz: "PŘEPÍNÁNÍ" },
+    su_focus_menu: { en: "WINDOW", cz: "OKNO" },
+    focus_menu_1: { en: "PLAYER + LIST", cz: "PŘEHRÁVAČ + SEZNAM" },
+    focus_menu_2: { en: "PLAYER ONLY", cz: "JEN PŘEHRÁVAČ" },
+    focus_menu_3: { en: "TALL PLAYLIST", cz: "DLOUHÝ SEZNAM" },
+    focus_menu_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
     su_title: { en: "⚙ SETUP", cz: "⚙ NASTAVENÍ" },
     su_sec_gfx: { en: "GRAPHICS", cz: "GRAFIKA" },
     su_lite: { en: "LITE MODE", cz: "ÚSPORNÝ REŽIM" },
@@ -15303,7 +15494,7 @@
     settings.crossfade = crossfadeDuration;
     settings.logoGlowEnabled = logoGlowEnabled;
     settings.sparkleState = sparkleState;
-    settings.focusMode = document.body.classList.contains('focus-mode-2') ? 2 : (document.body.classList.contains('focus-mode') ? 1 : 0); // focus mode: 0 = vypnuto, 1 = focus, 2 = základní přehrávač
+    settings.focusMode = document.body.classList.contains('focus-mode-3') ? 3 : (document.body.classList.contains('focus-mode-2') ? 2 : (document.body.classList.contains('focus-mode') ? 1 : 0)); // focus mode: 0 = vypnuto, 1 = focus, 2 = základní přehrávač
     settings.orbsOff = !!(window.isOrbsOff && window.isOrbsOff());
     settings.sunPhotoSource = (typeof window.getSunPhotoSource === 'function') ? window.getSunPhotoSource() : 'mix';
     settings.motivationTexts = motivationTextsEnabled;
@@ -15402,7 +15593,7 @@
         if (savedSettings) {
             const settings = JSON.parse(savedSettings);
             if (settings.theme) savedTheme = settings.theme;
-            if (settings.focusMode === 1 || settings.focusMode === 2) savedFocusMode = settings.focusMode;
+            if (settings.focusMode === 1 || settings.focusMode === 2 || settings.focusMode === 3) savedFocusMode = settings.focusMode;
             if (Array.isArray(settings.themeMix) && settings.themeMix.length === 2 && settings.themeMix.every(x => typeof x === 'string')) savedThemeMix = settings.themeMix;
             if (typeof settings.weather === 'number') savedWeatherMode = settings.weather;
             else if (settings.rain) savedWeatherMode = 2; // zpětná kompatibilita se starším uložením (RAIN bývalo prosté true/false)
@@ -15464,7 +15655,7 @@
     if (savedThemeMix) { try { applyThemeMix(savedThemeMix[0], savedThemeMix[1]); } catch (e) { /* ignore */ } }
     // Obnovení uloženého focus mode: 1 = jedno klepnutí na ⛶, 2 = dvě klepnutí (základní přehrávač)
     if (savedFocusMode > 0 && !document.body.classList.contains('focus-mode')) {
-      try { for (let i = 0; i < savedFocusMode; i++) window.toggleFocusMode(); } catch (e) { /* ignore */ }
+      try { for (let i = 0; i < savedFocusMode; i++) window.toggleFocusMode(); } catch (e) { /* ignore */ } // 0 -> 1 -> 2 -> 3
     }
 
     if (savedWeatherMode > 0) {
@@ -18077,10 +18268,14 @@
       if (lite && window.enforceLiteWeather) { try { window.enforceLiteWeather(); } catch (e) { /* ignore */ } }
       var v = { lite: lite, glow: glowOn(), anim: st.anim, blur: st.blur, mix: st.mix, slide: st.slide };
       m.querySelectorAll('.su-sw').forEach(function (b) { b.setAttribute('aria-checked', v[b.getAttribute('data-opt')] ? 'true' : 'false'); });
-      m.querySelectorAll('.su-seg').forEach(function (g) {
+      m.querySelectorAll('.su-seg[data-season]').forEach(function (g) {
         var cur = window.setupSeason ? window.setupSeason.get(g.getAttribute('data-season')) : 'auto';
         g.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'); });
       });
+    }
+    function renderFocusBtn() {
+      var cur = window.focusBtnMode ? window.focusBtnMode.get() : 'cycle';
+      m.querySelectorAll('.su-seg[data-focusbtn] button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'); });
     }
     function applyClasses() {
       B.classList.toggle('opt-noanim', !st.anim);
@@ -18103,7 +18298,9 @@
         else setOpt(k, !(k === 'glow' ? glowOn() : st[k]));
         return;
       }
-      var sb = e.target.closest && e.target.closest('.su-seg button');
+      var fb = e.target.closest && e.target.closest('.su-seg[data-focusbtn] button');
+      if (fb) { if (window.focusBtnMode) window.focusBtnMode.set(fb.getAttribute('data-v')); renderFocusBtn(); return; }
+      var sb = e.target.closest && e.target.closest('.su-seg[data-season] button');
       if (sb && window.setupSeason) { window.setupSeason.set(sb.parentNode.getAttribute('data-season'), sb.getAttribute('data-v')); render(); }
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !m.hidden) window.toggleSetup(); });
@@ -18111,7 +18308,7 @@
     window.toggleSetup = function () {
       var open = m.hidden; m.hidden = !open;
       var b = document.getElementById('btn-setup'); if (b) b.classList.toggle('active', open);
-      if (open) render();
+      if (open) { render(); renderFocusBtn(); }
     };
     applyClasses();
     window.addEventListener('load', function () { setTimeout(applyClasses, 800); }); // uložený 2COLORS mix se po načtení zruší, když je vypnutý
