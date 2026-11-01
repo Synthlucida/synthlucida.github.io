@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.4.1">
+<meta name="app-version" content="2.4.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1688,10 +1688,10 @@
   /* FOCUS 2: vyhledávání skladeb těsně nad oknem přehrávače (nad jeho podsvícením) - stejné hledání jako EXPLORE > SEARCH.
      Obal má výšku 1px (jen kotva), takže se okno přehrávače nikam neposune; pole i výsledky jsou přes něj vykreslené absolutně. */
   .f2-search { display: none; }
-  body.focus-mode-2 .f2-search { display: block; position: relative; z-index: 7; height: 1px; margin: 0 auto -1px; max-width: 420px; width: calc(100% - 30px); }
-  .f2-search-box { position: absolute; left: 0; right: 0; top: calc(var(--f2s-pm) - var(--f2s-h) - 8px); animation: cfFocusIn 0.8s ease both; }
-  body.focus-mode-2 { --f2s-h: 34px; --f2s-pm: calc(max(calc(12vh + 24px), 72px) + env(safe-area-inset-top, 0px)); } /* výška pole a odsazení okna přehrávače (na nízkém displeji aspoň 72px, ať pole nelezou pod hodiny) */
-  body.focus-mode.focus-mode-2 .player-section { margin-top: var(--f2s-pm); } /* okno přehrávače jde o kus níž, aby nahoře zbylo místo pro vyhledávání */
+  body.focus-mode-2 .f2-search { display: block; position: relative; z-index: 7; flex: none; box-sizing: border-box; height: var(--f2s-h, 34px); margin: auto auto 8px; max-width: 420px; width: calc(100% - 30px); } /* margin-top:auto = pole se přilepí těsně nad okno přehrávače (to sedí u spodku displeje) */
+  .f2-search-box { position: absolute; left: 0; right: 0; top: 0; height: var(--f2s-h, 34px); animation: cfFocusIn 0.8s ease both; }
+  body.focus-mode-2 { --f2s-h: 34px; } /* výška vyhledávacího pole */
+  body.focus-mode.focus-mode-2 .player-section { margin-top: 0; } /* mezeru nad oknem řeší pole vyhledávání (margin-top:auto) */
   .f2-search-input {
     width: 100%; box-sizing: border-box; margin: 0; height: var(--f2s-h, 34px);
     font-family: 'Exo 2', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
@@ -1716,10 +1716,11 @@
     border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; box-shadow: 0 10px 28px rgba(0,0,0,0.45);
   }
   .f2-search-results.open { display: flex; flex-direction: column; gap: 4px; }
+  .f2-search-results.up { top: auto; bottom: calc(100% + 6px); } /* seznam se otevře nahoru, když je tam víc místa než dole */
   .f2-search-results li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; background: rgba(255,255,255,0.04); border: 1px solid transparent; -webkit-tap-highlight-color: transparent; transition: background 0.2s ease, border-color 0.2s ease; }
   .f2-search-results li:hover, .f2-search-results li:focus-visible { background: rgba(255,255,255,0.09); border-color: color-mix(in srgb, var(--accent-color) 55%, transparent); outline: none; }
   .f2-search-results li.f2s-note { cursor: default; background: none; border-color: transparent; font-size: 10px; letter-spacing: 0.08em; opacity: 0.55; padding: 4px 8px; }
-  .f2-search-results .f2s-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .f2-search-results .f2s-name { flex: 1; min-width: 0; text-align: left; font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .f2-search-results .f2s-meta { flex: none; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8.5px; letter-spacing: 0.08em; padding: 3px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); opacity: 0.75; }
   .f2-search-results .f2s-play { flex: none; font-size: 11px; opacity: 0.7; }
   @media (max-width: 360px) { .f2-search-results .f2s-meta { display: none; } .f2-search-results li { padding: 8px; } }
@@ -12468,6 +12469,16 @@
       try { input.blur(); } catch (e) { /* ignore */ }
       try { openSearchResult(r.key, r.index, true); } catch (e) { /* hledání nesmí nic rozbít */ }
     }
+    // seznam se otevře tam, kde je víc místa (nahoru / dolů), a výška se přizpůsobí displeji
+    function placeList() {
+      if (!listEl.classList.contains('open')) return;
+      const r = box.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const above = r.top - 14, below = vh - r.bottom - 14;
+      const up = above >= below;
+      listEl.classList.toggle('up', up);
+      listEl.style.maxHeight = Math.max(110, Math.min(340, (up ? above : below) - 6)) + 'px';
+    }
     function addNote(text) {
       const li = document.createElement('li');
       li.className = 'f2s-note';
@@ -12485,6 +12496,7 @@
       if (!res.items.length) {
         addNote(cz ? 'Nic nenalezeno. Zkuste jiné slovo (česky nebo anglicky).' : 'Nothing found. Try another word (English or Czech).');
         listEl.classList.add('open');
+        placeList();
         return;
       }
       if (!res.exact) addNote(cz ? 'Nejbližší shody' : 'Closest matches');
@@ -12504,11 +12516,18 @@
         ico.textContent = '▶';
         li.appendChild(name); li.appendChild(meta); li.appendChild(ico);
         li.addEventListener('click', () => pick(r));
-        li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(r); } });
+        li.addEventListener('keydown', (e) => {
+          e.stopPropagation(); // Mezerník / šipky na řádku nesmí spustit globální zkratky přehrávače (play/pause)
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(r); }
+          else if (e.key === 'ArrowDown') { e.preventDefault(); const n = li.nextElementSibling; if (n && n.tabIndex === 0) n.focus(); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); const pv = li.previousElementSibling; if (pv && pv.tabIndex === 0) pv.focus(); else input.focus(); }
+          else if (e.key === 'Escape') { input.value = ''; closeList(); input.focus(); }
+        });
         listEl.appendChild(li);
         current.push(r);
       });
       listEl.classList.add('open');
+      placeList();
     }
 
     input.addEventListener('input', render);
@@ -12518,6 +12537,8 @@
       else if (e.key === 'Enter') { e.preventDefault(); if (current.length) pick(current[0]); }
       else if (e.key === 'ArrowDown') { const f = listEl.querySelector('li[role="option"]'); if (f) { e.preventDefault(); f.focus(); } }
     });
+    window.addEventListener('resize', placeList);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', placeList);
     // klepnutí mimo pole a výsledky seznam zavře
     document.addEventListener('pointerdown', (e) => { if (listEl.classList.contains('open') && !box.contains(e.target)) closeList(); });
     // po odchodu z focus 2 se pole vyčistí a seznam zavře
