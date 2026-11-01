@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.4.0">
+<meta name="app-version" content="2.4.1">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1623,6 +1623,8 @@
   /* Unobtrusive clock shown only while in focus mode */
   .focus-clock { display: none; position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(14px + env(safe-area-inset-right, 0px)); left: auto; transform: none; font-size: 10px; letter-spacing: 1px; color: #fff; opacity: 0; user-select: none; pointer-events: none; z-index: 500; transition: opacity 0.6s ease; }
   body.focus-mode .focus-clock { display: block; opacity: 0.45; }
+  .focus-clock { text-align: right; line-height: 1.35; } /* pod časem je datum (všechny focus mody) */
+  .focus-clock .fc-date { display: block; font-size: 8.5px; letter-spacing: 0.6px; opacity: 0.8; text-transform: uppercase; }
 
   /* Focus mode: hide everything except the background canvas/ambient visuals and the player+tracklist */
   body.focus-mode .main-guide-btn,
@@ -1683,6 +1685,45 @@
   }
   @keyframes cfFocusIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { body.focus-mode .player-section .crossfade-container { animation: none; } }
+  /* FOCUS 2: vyhledávání skladeb těsně nad oknem přehrávače (nad jeho podsvícením) - stejné hledání jako EXPLORE > SEARCH.
+     Obal má výšku 1px (jen kotva), takže se okno přehrávače nikam neposune; pole i výsledky jsou přes něj vykreslené absolutně. */
+  .f2-search { display: none; }
+  body.focus-mode-2 .f2-search { display: block; position: relative; z-index: 7; height: 1px; margin: 0 auto -1px; max-width: 420px; width: calc(100% - 30px); }
+  .f2-search-box { position: absolute; left: 0; right: 0; top: calc(var(--f2s-pm) - var(--f2s-h) - 8px); animation: cfFocusIn 0.8s ease both; }
+  body.focus-mode-2 { --f2s-h: 34px; --f2s-pm: calc(max(calc(12vh + 24px), 72px) + env(safe-area-inset-top, 0px)); } /* výška pole a odsazení okna přehrávače (na nízkém displeji aspoň 72px, ať pole nelezou pod hodiny) */
+  body.focus-mode.focus-mode-2 .player-section { margin-top: var(--f2s-pm); } /* okno přehrávače jde o kus níž, aby nahoře zbylo místo pro vyhledávání */
+  .f2-search-input {
+    width: 100%; box-sizing: border-box; margin: 0; height: var(--f2s-h, 34px);
+    font-family: 'Exo 2', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 16px; font-weight: 500; letter-spacing: 0.02em; color: #fff; /* 16px kvůli iOS (jinak se při psaní přibližuje stránka) */
+    padding: 0 10px 0 33px; border-radius: 12px;
+    background-color: rgba(255,255,255,0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='.55' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cline x1='15.4' y1='15.4' x2='20.5' y2='20.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 11px 50%; background-size: 16px 16px;
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 14px rgba(0,0,0,0.25);
+    -webkit-appearance: none; appearance: none; outline: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .f2-search-input::placeholder { color: rgba(255,255,255,0.42); font-weight: 400; }
+  .f2-search-input:focus { border-color: var(--accent-color); box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent), inset 0 1px 0 rgba(255,255,255,0.1); }
+  .f2-search-input::-webkit-search-cancel-button { -webkit-appearance: none; height: 16px; width: 16px; margin-left: 6px; cursor: pointer; opacity: 0.55;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / 14px 14px no-repeat; }
+  .f2-search-results {
+    display: none; list-style: none; margin: 0; padding: 6px; position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 8;
+    max-height: max(120px, min(340px, calc(100vh - 140px))); max-height: max(120px, min(340px, calc(100dvh - 140px))); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    background: rgba(12,12,22,0.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+  }
+  .f2-search-results.open { display: flex; flex-direction: column; gap: 4px; }
+  .f2-search-results li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; background: rgba(255,255,255,0.04); border: 1px solid transparent; -webkit-tap-highlight-color: transparent; transition: background 0.2s ease, border-color 0.2s ease; }
+  .f2-search-results li:hover, .f2-search-results li:focus-visible { background: rgba(255,255,255,0.09); border-color: color-mix(in srgb, var(--accent-color) 55%, transparent); outline: none; }
+  .f2-search-results li.f2s-note { cursor: default; background: none; border-color: transparent; font-size: 10px; letter-spacing: 0.08em; opacity: 0.55; padding: 4px 8px; }
+  .f2-search-results .f2s-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .f2-search-results .f2s-meta { flex: none; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8.5px; letter-spacing: 0.08em; padding: 3px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); opacity: 0.75; }
+  .f2-search-results .f2s-play { flex: none; font-size: 11px; opacity: 0.7; }
+  @media (max-width: 360px) { .f2-search-results .f2s-meta { display: none; } .f2-search-results li { padding: 8px; } }
+  @media (prefers-reduced-motion: reduce) { .f2-search-box { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .playlist, .layer-hint, body.focus-mode-2 .playlist { transition: none; } }
   #btn-focus-mode { position: relative; }
   /* Číslička polohy (1/2, 2/2) u focus mode - ukáže se jen při přepnutí a po chvíli zmizí */
@@ -3891,6 +3932,13 @@
   </div>
 </div>
 
+<div class="f2-search" id="f2-search">
+  <div class="f2-search-box">
+    <input type="search" class="f2-search-input" id="f2-search-input" placeholder="Search / Hledat…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search tracks" aria-controls="f2-search-results">
+    <ul class="f2-search-results" id="f2-search-results" role="listbox" aria-label="Search results"></ul>
+  </div>
+</div>
+
 <div class="player-section">
   <div class="now-playing-row">
     <div class="track-title" id="track-title">SELECT TRACK</div>
@@ -4221,7 +4269,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_search">Search</h4>
-      <p data-i18n="p_search">Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.</p>
+      <p data-i18n="p_search">Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown. In FOCUS 2 (player only) the same search is built in right above the player window - type a word and tap a result to play it straight away.</p>
     </div>
 
     <div class="main-guide-section">
@@ -8536,7 +8584,22 @@
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
-    el.textContent = hh + ':' + mm;
+    let tEl = el.querySelector('.fc-time'), dEl = el.querySelector('.fc-date');
+    if (!tEl || !dEl) {
+      el.textContent = '';
+      tEl = document.createElement('span'); tEl.className = 'fc-time';
+      dEl = document.createElement('span'); dEl.className = 'fc-date';
+      el.appendChild(tEl); el.appendChild(dEl);
+    }
+    tEl.textContent = hh + ':' + mm;
+    // datum pod časem: česky (so 1. 11.) nebo anglicky (Sun, 1 Nov) podle jazyka přehrávače
+    let cz = false;
+    try { cz = guideLang === 'cz'; } catch (e) { /* jazyk ještě není inicializovaný */ }
+    let dateStr = '';
+    try {
+      dateStr = now.toLocaleDateString(cz ? 'cs-CZ' : 'en-GB', cz ? { weekday: 'short', day: 'numeric', month: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' });
+    } catch (e) { dateStr = now.getDate() + '.' + (now.getMonth() + 1) + '.'; }
+    if (dEl.textContent !== dateStr) dEl.textContent = dateStr;
   }
   // Focus mode 2: ovládání CROSSFADE se vloží na začátek okna přehrávače; při odchodu se vrátí na původní místo (před tlačítka WEATHER / SUNSET ...)
   function moveCrossfadeForFocus(into) {
@@ -10523,7 +10586,7 @@
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
     p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session), BINAURAL (calming binaural beats - see Binaural beats below) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from all playlists except ASMR, starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist, in MY PLAYLIST once it contains at least one ASMR track added with the ♥, and in your own playlists from the F section (SYNTHLUCIDA tracks mixed with your own files) once they contain at least one ASMR track (they are dimmed elsewhere; outside the ASMR playlist only the ASMR tracks of the list can be layered and the other rows are dimmed). A file you upload yourself in F counts as an ASMR track when the word 'asmr' is in its name, so you can layer your own recordings too, the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave these lists. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení), BINAURAL (uklidňující binaurální tóny - viz Binaurální tóny níže) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu ze všech playlistů kromě ASMR, rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR, v MY PLAYLIST, jakmile obsahuje alespoň jednu ASMR skladbu přidanou srdíčkem ♥, a ve vlastních playlistech ze sekce F (skladby SYNTHLUCIDA smíchané s vlastními soubory), jakmile obsahují alespoň jednu ASMR skladbu (jinde jsou ztlumené; mimo playlist ASMR jde vrstvit jen ASMR skladby ze seznamu a ostatní řádky jsou ztlumené). Soubor, který si v sekci F sám nahraješ, se bere jako ASMR skladba, když má v názvu slovo 'asmr', takže můžeš vrstvit i vlastní nahrávky, knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z těchto seznamů se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
     h_search: { en: "Search", cz: "Vyhledávání" },
-    p_search: { en: "Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown.", cz: "Klepněte na EXPLORE a poté na SEARCH - otevře se okno vyhledávání. Napište slovo česky nebo anglicky - například rain, déšť, piano, moře nebo noc - a skladby z ASMR, PIANO a CHILL, které sedí, se zobrazí už při psaní (na velikosti písmen ani diakritice nezáleží a česká slova se přiřazují k anglickým názvům skladeb). Klepnutím na skladbu se hlavní okno přepne rovnou do jejího playlistu, skladba se v seznamu odroluje na viditelné místo a krátce se rozsvítí; klepnutím na ▶ vedle ní ji hned přehrajete. Klávesa Enter otevře první výsledek. Pokud žádná skladba neobsahuje všechna vaše slova, zobrazí se nejbližší shody." },
+    p_search: { en: "Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown. In FOCUS 2 (player only) the same search is built in right above the player window - type a word and tap a result to play it straight away.", cz: "Klepněte na EXPLORE a poté na SEARCH - otevře se okno vyhledávání. Napište slovo česky nebo anglicky - například rain, déšť, piano, moře nebo noc - a skladby z ASMR, PIANO a CHILL, které sedí, se zobrazí už při psaní (na velikosti písmen ani diakritice nezáleží a česká slova se přiřazují k anglickým názvům skladeb). Klepnutím na skladbu se hlavní okno přepne rovnou do jejího playlistu, skladba se v seznamu odroluje na viditelné místo a krátce se rozsvítí; klepnutím na ▶ vedle ní ji hned přehrajete. Klávesa Enter otevře první výsledek. Pokud žádná skladba neobsahuje všechna vaše slova, zobrazí se nejbližší shody. Ve FOCUS 2 (jen přehrávač) je stejné vyhledávání přímo nad oknem přehrávače - napište slovo a klepnutím na výsledek skladbu rovnou přehrajete." },
     h_themes: { en: "Visual themes", cz: "Vizuální motivy" },
     p_themes: { en: "Tap 🎨 and choose from 28 themes — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN and SAPPHIRE — to change the colors and ambient glow of the player. NEON and AURORA shift gently over time on their own. At the bottom of the theme list, ◐ 2 COLORS lets you combine any two colours: pick COLOR 1 for the top of the player and COLOR 2 for the bottom, and the whole interface blends smoothly from one to the other. SWAP flips them, OFF returns to a single theme, and SAVE remembers your mix.", cz: "Klepněte na 🎨 a vyberte si z 28 motivů — NEON, SPACE, EARTH, SYNTH, DARK, BLOOD, AQUA, GOLD, MATRIX, AMBER, LAVENDER, AURORA, SAKURA, FROST, ROSEGOLD, ROYAL, CORAL, TOXIC, PLASMA, MINT, SOLAR, NEBULA, EMERALD, COBALT, CRIMSON, PEACH, OBSIDIAN a SAPPHIRE — a změňte tak barvy a okolní záři přehrávače. NEON a AURORA se navíc samy postupně jemně proměňují. Úplně dole v seznamu motivů je ◐ 2 BARVY: můžete spojit libovolné dvě barvy. Vyberete BARVU 1 pro horní část playeru a BARVU 2 pro dolní část a celé rozhraní mezi nimi plynule přechází. PROHODIT je vymění, VYPNOUT se vrátí k jednomu motivu a SAVE si váš mix zapamatuje." },
     h_ambient: { en: "Ambient effects", cz: "Ambientní efekty" },
@@ -12381,6 +12444,88 @@
         if (first) first.click();
       }
     });
+  })();
+
+  // FOCUS 2: vyhledávání skladeb nad oknem přehrávače. Stejné hledání (searchTracks) jako EXPLORE > SEARCH, jenže seznam skladeb je
+  // ve focus 2 schovaný, takže klepnutí na výsledek skladbu rovnou přehraje (přepne i hlavní playlist) a focus 2 zůstane zapnutý.
+  (function initFocusSearch() {
+    const box = document.getElementById('f2-search');
+    const input = document.getElementById('f2-search-input');
+    const listEl = document.getElementById('f2-search-results');
+    if (!box || !input || !listEl) return;
+    const MAX = 40;
+    let current = []; // aktuálně zobrazené výsledky (kvůli Enteru)
+
+    function closeList() {
+      listEl.classList.remove('open');
+      listEl.innerHTML = '';
+      current = [];
+    }
+    function pick(r) {
+      if (!r || !tracks[r.key] || !tracks[r.key][r.index]) return;
+      input.value = '';
+      closeList();
+      try { input.blur(); } catch (e) { /* ignore */ }
+      try { openSearchResult(r.key, r.index, true); } catch (e) { /* hledání nesmí nic rozbít */ }
+    }
+    function addNote(text) {
+      const li = document.createElement('li');
+      li.className = 'f2s-note';
+      li.textContent = text;
+      listEl.appendChild(li);
+    }
+    function render() {
+      listEl.innerHTML = '';
+      current = [];
+      const q = input.value.trim();
+      if (!q) { listEl.classList.remove('open'); return; }
+      const cz = guideLang === 'cz';
+      let res;
+      try { res = searchTracks(q); } catch (e) { res = { items: [], exact: true }; }
+      if (!res.items.length) {
+        addNote(cz ? 'Nic nenalezeno. Zkuste jiné slovo (česky nebo anglicky).' : 'Nothing found. Try another word (English or Czech).');
+        listEl.classList.add('open');
+        return;
+      }
+      if (!res.exact) addNote(cz ? 'Nejbližší shody' : 'Closest matches');
+      res.items.slice(0, MAX).forEach(r => {
+        const li = document.createElement('li');
+        li.setAttribute('role', 'option');
+        li.tabIndex = 0;
+        const name = document.createElement('span');
+        name.className = 'f2s-name';
+        name.textContent = displayTrackTitle(r.title);
+        const meta = document.createElement('span');
+        meta.className = 'f2s-meta';
+        meta.textContent = r.key.toUpperCase();
+        const ico = document.createElement('span');
+        ico.className = 'f2s-play';
+        ico.setAttribute('aria-hidden', 'true');
+        ico.textContent = '▶';
+        li.appendChild(name); li.appendChild(meta); li.appendChild(ico);
+        li.addEventListener('click', () => pick(r));
+        li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(r); } });
+        listEl.appendChild(li);
+        current.push(r);
+      });
+      listEl.classList.add('open');
+    }
+
+    input.addEventListener('input', render);
+    input.addEventListener('focus', () => { if (input.value.trim()) render(); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); input.value = ''; closeList(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (current.length) pick(current[0]); }
+      else if (e.key === 'ArrowDown') { const f = listEl.querySelector('li[role="option"]'); if (f) { e.preventDefault(); f.focus(); } }
+    });
+    // klepnutí mimo pole a výsledky seznam zavře
+    document.addEventListener('pointerdown', (e) => { if (listEl.classList.contains('open') && !box.contains(e.target)) closeList(); });
+    // po odchodu z focus 2 se pole vyčistí a seznam zavře
+    if (window.MutationObserver) {
+      new MutationObserver(() => {
+        if (!document.body.classList.contains('focus-mode-2')) { input.value = ''; closeList(); }
+      }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
   })();
 
   window.setVisualTheme = function(theme, btn) {
