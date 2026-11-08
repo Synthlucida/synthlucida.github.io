@@ -4282,6 +4282,9 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
      are on synthlucida.com itself (same origin) or on a host that sends CORS headers
      (Cloudflare R2 does - the CORS rule on the bucket must stay in place). */
   var REAL_VU = true;
+  /* The meter follows the volume knob. Because the signal is now taken after the knob it is quieter,
+     so this trim keeps the needles in a good range (1 = no boost, 2 = +6 dB, 4 = +12 dB). */
+  var VU_TRIM = 2;
 
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var TRAY_MS = reduceMotion ? 200 : 1100;
@@ -4341,8 +4344,8 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
       anL.fftSize = anR.fftSize = 1024;
       anBuf = new Float32Array(1024);
       gainNode = actx.createGain();
-      src.connect(split); split.connect(anL, 0); split.connect(anR, 1);
       src.connect(gainNode); gainNode.connect(actx.destination);
+      gainNode.connect(split); split.connect(anL, 0); split.connect(anR, 1);   /* meter reads AFTER the volume knob */
       audio.volume = 1;
       applyVolume();
     } catch (e) { actx = null; gainNode = null; anL = anR = null; }
@@ -4563,7 +4566,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     if (anL) {
       var a = rms(anL), b = rms(anR);
       if (b < 1e-5) b = a;
-      return [level(a * 1.9), level(b * 1.9)];
+      return [level(a * 1.9 * VU_TRIM), level(b * 1.9 * VU_TRIM)];
     }
     /* animated stand-in: slow swell + kick-like pulses, L/R slightly different */
     var ph = cur * 1.7;
