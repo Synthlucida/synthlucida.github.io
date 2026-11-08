@@ -4269,7 +4269,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   if (!root) return;
 
   /* ---- settings ------------------------------------------------------- */
-  var BASE = 'https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/';
+  var BASE = 'https://pub-d03f98e0a05747929b6ecd9ffc0e9b20.r2.dev/';
   var TRACKS = [
     { title: 'Everything',               src: BASE + 'everything.mp3' },
     { title: 'Spirits Of Summer',        src: BASE + 'spirits_of_summer.mp3' },
@@ -4278,10 +4278,10 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   ];
   /* 0 = play whole track; e.g. 60 = every track is cut after 60 s and the next one starts */
   var PREVIEW_SECONDS = 0;
-  /* false = VU meter is animated (GitHub does not send CORS headers, so the browser
-     cannot read the audio signal). true = real signal; only works when the mp3 files
-     are on synthlucida.com itself (same origin) or on a host that sends CORS headers. */
-  var REAL_VU = false;
+  /* false = VU meter is animated. true = real signal; only works when the mp3 files
+     are on synthlucida.com itself (same origin) or on a host that sends CORS headers
+     (Cloudflare R2 does - the CORS rule on the bucket must stay in place). */
+  var REAL_VU = true;
 
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var TRAY_MS = reduceMotion ? 200 : 1100;
@@ -4303,6 +4303,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   /* ---- state ---------------------------------------------------------- */
   var audio = new Audio();
   audio.preload = 'none';
+  if (REAL_VU) audio.crossOrigin = 'anonymous';   /* musí být nastaveno před prvním audio.src */
   var loaded = -1;
   var cur = 0, mode = 'stop';             /* 'stop' | 'play' | 'pause' */
   var trayOpen = false, busy = false, reading = false, pendingPlay = false;
@@ -4348,7 +4349,7 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
   }
   function ensureSrc(i) {
     if (loaded === i) return;
-    if (REAL_VU && !actx) audio.crossOrigin = 'anonymous';
+    if (REAL_VU) audio.crossOrigin = 'anonymous';
     audio.src = TRACKS[i].src;
     loaded = i;
   }
