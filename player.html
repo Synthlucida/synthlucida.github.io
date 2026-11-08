@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.4.1">
+<meta name="app-version" content="2.4.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3520,6 +3520,42 @@
   .focus-menu button:hover, .focus-menu button:focus-visible { opacity: 1; border-color: var(--accent-color); outline: none; }
   .focus-menu button.on { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   body.opt-lite .su-seg.su-seg-focus { opacity: 1; pointer-events: auto; }
+  /* ===== EQUALIZER (EXPLORE > EQUALIZER): 5 pásem, předvolby, uložení do localStorage ===== */
+  /* EQ zapnutý: tlačítko v EXPLORE je decentně zvýrazněné (tónované písmo a okraj + malá LED tečka); otevřené okno (.active) zůstává výraznější */
+  .atmos-panel .btn-atmos.eq-on:not(.active) { color: color-mix(in srgb, var(--accent-color) 55%, #fff); background: color-mix(in srgb, var(--accent-color) 9%, rgba(255,255,255,0.05)); border-color: color-mix(in srgb, var(--accent-color) 38%, transparent); }
+  .atmos-panel .btn-atmos.eq-on:not(.active):hover, .atmos-panel .btn-atmos.eq-on:not(.active):focus-visible { border-color: color-mix(in srgb, var(--accent-color) 62%, transparent); }
+  #btn-eq.eq-on::after { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent-color); box-shadow: 0 0 calc(5px * var(--gb, 1)) var(--accent-color); }
+  #btn-eq.eq-on .eq-icon { color: var(--accent-color); }
+  .eq-window { max-width: 360px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .eq-presets { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .eq-presets button { padding: 6px 9px; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; background: rgba(255,255,255,0.03); color: #fff; opacity: 0.65; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 0.8px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .eq-presets button[aria-pressed="true"] { opacity: 1; color: var(--accent-color); border-color: color-mix(in srgb, var(--accent-color) 60%, transparent); background: rgba(255,255,255,0.1); }
+  .eq-presets button:focus-visible { outline: 1px solid var(--accent-color); outline-offset: 1px; }
+  .eq-bands { display: flex; justify-content: space-between; gap: 2px; padding: 12px 8px 8px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: linear-gradient(180deg, rgba(0,0,0,0.42), rgba(0,0,0,0.22)); box-shadow: inset 0 2px 8px rgba(0,0,0,0.55); transition: opacity 0.2s; }
+  .eq-window.eq-off .eq-bands { opacity: 0.45; }
+  .eq-band { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+  .eq-band.eq-scalecol { flex: 0 0 24px; }
+  .eq-val { min-width: 36px; height: 18px; line-height: 16px; box-sizing: border-box; padding: 0; text-align: center; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.5); box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; opacity: 0.7; transition: opacity 0.15s, color 0.15s; }
+  .eq-val.eq-nz { opacity: 1; color: var(--accent-color); }
+  .eq-val.eq-ghost { visibility: hidden; min-width: 0; width: 0; border: 0; }
+  .eq-scale { position: relative; width: 24px; height: 160px; margin: 9px 0; }
+  .eq-scale span { position: absolute; right: 0; transform: translateY(-50%); font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 7px; letter-spacing: 0.2px; opacity: 0.55; white-space: nowrap; }
+  .eq-track { position: relative; width: 44px; height: 160px; margin: 9px 0; touch-action: none; cursor: ns-resize; outline: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  .eq-track::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 6px; margin-left: -3px; box-sizing: border-box; border-radius: 3px; border: 1px solid rgba(255,255,255,0.14); background: linear-gradient(90deg, rgba(0,0,0,0.78), rgba(0,0,0,0.45)); box-shadow: inset 0 1px 3px rgba(0,0,0,0.8); }
+  .eq-tk { position: absolute; top: 0; bottom: -1px; width: 7px; background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.35) 0 1px, transparent 1px 20px); }
+  .eq-tkl { left: 2px; }
+  .eq-tkr { right: 2px; }
+  .eq-zero { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--accent-color); opacity: 0.55; }
+  .eq-fill { position: absolute; left: 50%; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--accent-color); opacity: 0.8; box-shadow: 0 0 calc(6px * var(--gb, 1)) color-mix(in srgb, var(--accent-color) 60%, transparent); }
+  .eq-thumb { position: absolute; left: 50%; width: 30px; height: 20px; margin: -10px 0 0 -15px; box-sizing: border-box; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: linear-gradient(180deg, #6a6e7e 0%, #454959 48%, #2b2d39 52%, #444857 100%); box-shadow: 0 3px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.25); transition: filter 0.15s, box-shadow 0.15s; }
+  .eq-thumb::before { content: ""; position: absolute; left: 3px; right: 3px; top: 2px; bottom: 2px; background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.22) 0 1px, transparent 1px 3px); -webkit-mask: linear-gradient(to bottom, #000 0 36%, transparent 36% 64%, #000 64% 100%); mask: linear-gradient(to bottom, #000 0 36%, transparent 36% 64%, #000 64% 100%); }
+  .eq-thumb::after { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--accent-color); box-shadow: 0 0 calc(6px * var(--gb, 1)) color-mix(in srgb, var(--accent-color) 70%, transparent); }
+  .eq-track:hover .eq-thumb { filter: brightness(1.12); }
+  .eq-track:active .eq-thumb { filter: brightness(1.25); }
+  .eq-track:focus-visible .eq-thumb { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 65%, transparent), 0 3px 6px rgba(0,0,0,0.6); }
+  .eq-hz { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 0.5px; opacity: 0.8; }
+  .eq-nm { font-size: 7px; letter-spacing: 0.4px; opacity: 0.5; text-align: center; white-space: nowrap; }
+
   /* ===== SETUP (EXPLORE > SETUP): úsporný režim, volby grafiky a sezónní atmosféry ===== */
   .su-window { max-width: 360px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .su-sec { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1.5px; opacity: 0.6; text-align: center; margin-top: 6px; }
@@ -3789,6 +3825,7 @@
     <button class="btn-atmos" id="btn-binaural" onclick="startBinaural()"><svg class="ico-inline binaural-icon"viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9c2.500-5 5-5 7.500 0s5 5 7.500 0 3-3 5-1"/><path d="M2 16c2.500-5 5-5 7.500 0s5 5 7.500 0 3-3 5-1"/></svg>BINAURAL</button>
     <button class="btn-atmos" id="btn-tarot" onclick="location.href='player-tarot.html'" title="Card of the day" data-i18n-aria="tarot_btn" aria-label="Card of the day"><svg class="ico-inline tarot-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5.500" y="3" width="13" height="18" rx="2.200"/><path class="ti-star" d="M12 7.500l1.600 3.400 3.400.5-2.500 2.400.6 3.500L12 15.600 8.900 17.300l.6-3.500L7 11.400l3.400-.5z"/></svg>CARD</button>
     <button class="btn-atmos" id="btn-search" onclick="toggleSearch()"><svg class="ico-inline search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.4" y1="15.4" x2="20.5" y2="20.5"/></svg>SEARCH</button>
+    <button class="btn-atmos" id="btn-eq" onclick="toggleEq()" aria-haspopup="dialog" aria-controls="eq-window"><svg class="ico-inline eq-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7M6 16v5M12 3v3M12 12v9M18 3v9M18 18v3"/><circle cx="6" cy="13" r="3"/><circle cx="12" cy="9" r="3"/><circle cx="18" cy="15" r="3"/></svg>EQUALIZER</button>
     <button class="btn-atmos" id="btn-setup" onclick="toggleSetup()" aria-haspopup="dialog" aria-controls="setup-window"><svg class="ico-inline setup-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.800v2.600M12 18.600v2.600M2.800 12h2.600M18.600 12h2.600M5.500 5.500l1.900 1.900M16.600 16.600l1.900 1.900M5.500 18.500l1.900-1.900M16.600 7.400l1.900-1.900"/></svg>SETUP</button>
   </div>
 </div>
@@ -4090,6 +4127,26 @@
 <audio id="audio-player"></audio>
 <audio id="audio-player-crossfade"></audio>
 <audio id="audio-player-layer" loop preload="none"></audio>
+<script>
+  /* EQUALIZER - příprava: skladby z R2 / vlastní soubory se načítají v CORS režimu (jinak by je Web Audio přehrávalo potichu).
+     Nastavuje se při každém přiřazení src, takže staré odkazy mimo R2 zůstávají beze změny. */
+  (function () {
+    var R2 = 'https://pub-d03f98e0a05747929b6ecd9ffc0e9b20.r2.dev/';
+    var d = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+    if (!d || !d.set || !d.get) return;
+    ['audio-player', 'audio-player-crossfade', 'audio-player-layer'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      Object.defineProperty(el, 'src', {
+        configurable: true, enumerable: true,
+        get: function () { return d.get.call(this); },
+        set: function (v) {
+          try { var s = String(v || ''); if (s.indexOf(R2) === 0 || s.indexOf('blob:') === 0) this.crossOrigin = 'anonymous'; else this.removeAttribute('crossorigin'); } catch (e) { /* ignore */ }
+          d.set.call(this, v);
+        }
+      });
+    });
+  })();
+</script>
 
 <div class="main-guide" id="history-panel">
   <button class="main-guide-close" onclick="toggleHistory()" aria-label="Close history">✖</button>
@@ -4271,6 +4328,11 @@
     <div class="main-guide-section">
       <h4 data-i18n="h_search">Search</h4>
       <p data-i18n="p_search">Tap EXPLORE and then SEARCH to open the search window. Type a word in English or Czech - for example rain, déšť, piano, moře or noc - and matching tracks from ASMR, PIANO and CHILL appear as you type (capital letters and accents don't matter, and Czech words are matched to the English track names). Tap a track to jump straight to its playlist in the main window, where it scrolls into view and lights up for a moment, or tap the ▶ next to it to play it right away. Press Enter to open the first result. If no track contains all your words, the closest matches are shown. In FOCUS 2 (player only) the same search is built in right above the player window - type a word and tap a result to play it straight away.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_eq">Equalizer</h4>
+      <p data-i18n="p_eq"></p>
     </div>
 
     <div class="main-guide-section">
@@ -4532,6 +4594,29 @@
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_witch_n"></span><span class="su-desc" data-i18n="su_witch_d"></span></div><div class="su-seg" data-season="witches" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
     <div class="su-sec" data-i18n="su_sec_focus">FOCUS BUTTON</div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_focus_n"></span><span class="su-desc" data-i18n="su_focus_d"></span></div><div class="su-seg su-seg-focus" data-focusbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
+  </div>
+</div>
+
+<div class="tm-overlay" id="eq-window" role="dialog" aria-modal="true" aria-labelledby="eq-title" hidden>
+  <div class="tm-window eq-window">
+    <div class="tm-head"><span class="tm-title" id="eq-title" data-i18n="eq_title">🎚 EQUALIZER</span><button type="button" class="tm-close" onclick="toggleEq()" aria-label="Close" title="Close">✕</button></div>
+    <div class="su-row su-main"><div class="su-txt"><span class="su-name" data-i18n="eq_on_n">EQUALIZER</span><span class="su-desc" data-i18n="eq_on_d">Shape the sound of the music: bass, mids and treble.</span></div><button type="button" class="su-sw" id="eq-sw" role="switch" aria-checked="false"></button></div>
+    <div class="su-sec" data-i18n="eq_sec_pre">PRESETS</div>
+    <div class="eq-presets" id="eq-presets" role="group">
+      <button type="button" data-p="flat" data-i18n="eq_p_flat">FLAT</button>
+      <button type="button" data-p="bass" data-i18n="eq_p_bass">BASS BOOST</button>
+      <button type="button" data-p="vocal" data-i18n="eq_p_vocal">VOCAL</button>
+      <button type="button" data-p="treble" data-i18n="eq_p_treble">TREBLE BOOST</button>
+      <button type="button" data-p="warm" data-i18n="eq_p_warm">WARM</button>
+      <button type="button" data-p="soft" data-i18n="eq_p_soft">SOFT</button>
+      <button type="button" data-p="piano" data-i18n="eq_p_piano">PIANO</button>
+      <button type="button" data-p="asmr" data-i18n="eq_p_asmr">ASMR</button>
+      <button type="button" data-p="custom" data-i18n="eq_p_custom">CUSTOM</button>
+    </div>
+    <div class="su-sec" data-i18n="eq_sec_bands">BANDS (dB)</div>
+    <div class="eq-bands" id="eq-bands"></div>
+    <div class="eq-presets"><button type="button" id="eq-reset" data-i18n="eq_reset">RESET</button></div>
+    <div class="su-note" data-i18n="eq_note">Drag a slider up or down (or use the arrow keys); double-tap it to reset it to 0 dB. The equalizer shapes the music of the player - the BINAURAL tones stay untouched. Your settings are remembered.</div>
   </div>
 </div>
 
@@ -10848,6 +10933,24 @@
     focus_menu_3: { en: "TALL PLAYLIST", cz: "DLOUHÝ SEZNAM" },
     focus_menu_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
     su_title: { en: "⚙ SETUP", cz: "⚙ NASTAVENÍ" },
+    eq_title: { en: "🎚 EQUALIZER", cz: "🎚 EKVALIZÉR" },
+    eq_on_n: { en: "EQUALIZER", cz: "EKVALIZÉR" },
+    eq_on_d: { en: "Shape the sound of the music: bass, mids and treble.", cz: "Upravte zvuk hudby: basy, středy a výšky." },
+    eq_sec_pre: { en: "PRESETS", cz: "PŘEDVOLBY" },
+    eq_sec_bands: { en: "BANDS (dB)", cz: "PÁSMA (dB)" },
+    eq_p_flat: { en: "FLAT", cz: "PLOCHÝ" },
+    eq_p_bass: { en: "BASS BOOST", cz: "VÍC BASŮ" },
+    eq_p_vocal: { en: "VOCAL", cz: "HLAS" },
+    eq_p_treble: { en: "TREBLE BOOST", cz: "VÍC VÝŠEK" },
+    eq_p_warm: { en: "WARM", cz: "TEPLÝ" },
+    eq_p_soft: { en: "SOFT", cz: "JEMNÝ" },
+    eq_p_piano: { en: "PIANO", cz: "KLAVÍR" },
+    eq_p_asmr: { en: "ASMR", cz: "ASMR" },
+    eq_p_custom: { en: "CUSTOM", cz: "VLASTNÍ" },
+    eq_reset: { en: "RESET", cz: "RESET" },
+    eq_note: { en: "Drag a slider up or down (or use the arrow keys); double-tap it to reset it to 0 dB. The equalizer shapes the music of the player - the BINAURAL tones stay untouched. Your settings are remembered.", cz: "Tažením posuvníku nahoru nebo dolů (nebo šipkami) nastavíte pásmo, dvojitým klepnutím ho vrátíte na 0 dB. Ekvalizér upravuje hudbu přehrávače - tóny BINAURAL zůstávají beze změny. Nastavení se pamatuje." },
+    h_eq: { en: "Equalizer", cz: "Ekvalizér" },
+    p_eq: { en: "Tap EXPLORE and then EQUALIZER to shape the sound of the music. Switch it on, pick a preset (FLAT, BASS BOOST, VOCAL, TREBLE BOOST, WARM, SOFT, PIANO or ASMR) or move the five sliders yourself - BASS (60 Hz), LOW-MID (250 Hz), MID (1 kHz), HI-MID (4 kHz) and TREBLE (10 kHz), each from -12 to +12 dB. Your own setting is kept as CUSTOM, RESET returns everything to flat. The settings are remembered the next time you open the player. When you boost a band, the overall level is lowered a little automatically so the sound does not distort.", cz: "Klepněte na EXPLORE a potom na EQUALIZER a upravte zvuk hudby. Zapněte ho, vyberte předvolbu (PLOCHÝ, VÍC BASŮ, HLAS, VÍC VÝŠEK, TEPLÝ, JEMNÝ, KLAVÍR nebo ASMR) nebo si sami posuňte pět posuvníků - BASS (60 Hz), LOW-MID (250 Hz), MID (1 kHz), HI-MID (4 kHz) a TREBLE (10 kHz), každý od -12 do +12 dB. Vlastní nastavení se uloží jako VLASTNÍ, RESET vrátí vše na plochou křivku. Nastavení se pamatuje i po dalším otevření přehrávače. Když pásmo zesílíte, celková hlasitost se kousek automaticky sníží, aby zvuk nezkresloval." },
     su_sec_gfx: { en: "GRAPHICS", cz: "GRAFIKA" },
     su_lite: { en: "LITE MODE", cz: "ÚSPORNÝ REŽIM" },
     su_lite_d: { en: "Smoother on slower devices. Switches off:\n• glow effects\n• animations (pulsing, background blobs and dots)\n• 2 COLORS mix\n• VISUAL panel slide animation\n• the ✨ button next to the logo\n• seasonal atmospheres (Christmas, All Souls, witches)\n• blur (behind windows and panels, background orbs)\n• the AURORA theme\n• WEATHER: only SUN works, SUNSET is off", cz: "Plynulejší chod na pomalejších zařízeních. Vypne:\n• záři (glow)\n• animace (pulzování, plovoucí koule a kuličky v pozadí)\n• 2 BARVY (mix)\n• animaci vysunutí panelu VISUAL\n• tlačítko ✨ vedle loga\n• sezónní atmosféry (Vánoce, Dušičky, čarodějnice)\n• rozostření (za okny a panely, koule v pozadí)\n• motiv AURORA\n• WEATHER: půjde jen SUN, SUNSET bude vypnutý" },
@@ -18506,6 +18609,186 @@
     };
     applyClasses();
     window.addEventListener('load', function () { setTimeout(applyClasses, 800); }); // uložený 2COLORS mix se po načtení zruší, když je vypnutý
+  })();
+</script>
+<script>
+  /* EQUALIZER (EXPLORE > EQUALIZER): 5 pásem (BASS 60 Hz, LOW-MID 250 Hz, MID 1 kHz, HI-MID 4 kHz, TREBLE 10 kHz), předvolby
+     a ukládání do localStorage ('sl-eq'). Web Audio graf se vytvoří líně až při zapnutí: tři <audio> prvky -> společný vstup ->
+     předzesilovač (automaticky ubírá při zesílení pásem) -> 5 filtrů -> limiter -> výstup. Hlasitost, MUTE a crossfade dál řídí
+     samotné <audio> prvky, takže zůstávají beze změny. Binaurální stránka má vlastní AudioContext a EQ se jí netýká. */
+  (function () {
+    var m = document.getElementById('eq-window');
+    if (!m) return;
+    var KEY = 'sl-eq', R2 = 'https://pub-d03f98e0a05747929b6ecd9ffc0e9b20.r2.dev/';
+    var IDS = ['audio-player', 'audio-player-crossfade', 'audio-player-layer'];
+    var FREQ = [60, 250, 1000, 4000, 10000], TYPES = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
+    var HZ = ['60', '250', '1k', '4k', '10k'], NM = ['BASS', 'LOW-MID', 'MID', 'HI-MID', 'TREBLE'];
+    var PRESETS = { flat: [0, 0, 0, 0, 0], bass: [7, 4, 1, 0, 0], vocal: [-2, 0, 3, 4, 1], treble: [0, 0, 0, 4, 7], warm: [3, 2, 0, -2, -4], soft: [2, 1, 0, -3, -6], piano: [1, -1, 0, 2, 2], asmr: [-1, -1, 1, 3, 3] };
+    var MAXDB = 12;
+    var st = { on: false, preset: 'flat', gains: [0, 0, 0, 0, 0], custom: [0, 0, 0, 0, 0] };
+
+    function clampArr(a) {
+      if (!Array.isArray(a) || a.length !== 5) return null;
+      var o = [];
+      for (var i = 0; i < 5; i++) { var v = Number(a[i]); if (!isFinite(v)) return null; o.push(Math.max(-MAXDB, Math.min(MAXDB, Math.round(v * 2) / 2))); }
+      return o;
+    }
+    try {
+      var j = JSON.parse(localStorage.getItem(KEY));
+      if (j && typeof j === 'object') {
+        var g = clampArr(j.gains), c = clampArr(j.custom);
+        if (g) st.gains = g;
+        if (c) st.custom = c;
+        st.on = j.on === true;
+        st.preset = (j.preset === 'custom' || PRESETS[j.preset]) ? j.preset : 'custom';
+      }
+    } catch (e) { /* výchozí hodnoty */ }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify({ v: 1, on: st.on, preset: st.preset, gains: st.gains, custom: st.custom })); } catch (e) { /* ignore */ } }
+
+    /* ---------- zvuk ---------- */
+    var ctx = null, input = null, pre = null, lim = null, filters = [], srcs = {};
+    function safe(el) {
+      var s = el.currentSrc || el.src || '';
+      return !s || s.indexOf(R2) === 0 || s.indexOf('blob:') === 0 || s.indexOf(location.origin) === 0;
+    }
+    function ensureGraph() {
+      if (ctx) return true;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      try { ctx = new AC(); } catch (e) { ctx = null; return false; }
+      input = ctx.createGain(); pre = ctx.createGain();
+      filters = FREQ.map(function (f, i) {
+        var b = ctx.createBiquadFilter(); b.type = TYPES[i]; b.frequency.value = f;
+        b.Q.value = TYPES[i] === 'peaking' ? 0.9 : 0.707; b.gain.value = 0; return b;
+      });
+      lim = ctx.createDynamicsCompressor();
+      lim.threshold.value = 0; lim.knee.value = 0; lim.ratio.value = 1; lim.attack.value = 0.003; lim.release.value = 0.2; // vypnuto = průchod beze změny, limiter se zapíná v applyAudio
+      input.connect(pre);
+      var prev = pre; filters.forEach(function (f) { prev.connect(f); prev = f; });
+      prev.connect(lim); lim.connect(ctx.destination);
+      ctx.onstatechange = function () {
+        if (ctx.state === 'running' || !st.on) return;
+        var playing = IDS.some(function (id) { var e = document.getElementById(id); return e && !e.paused; });
+        if (playing) { try { var p = ctx.resume(); if (p && p.catch) p.catch(function () { /* čeká na gesto */ }); } catch (e) { /* ignore */ } }
+      };
+      return true;
+    }
+    function connectEl(id) {
+      if (srcs[id] || !ctx) return;
+      var el = document.getElementById(id);
+      if (!el || !safe(el)) return; // zdroj bez CORS by v grafu hrál potichu - takový necháme jít přímo
+      try { srcs[id] = ctx.createMediaElementSource(el); srcs[id].connect(input); } catch (e) { /* už připojeno / nepodporováno */ }
+    }
+    function applyAudio() {
+      if (!ctx) return;
+      var g = st.on ? st.gains : [0, 0, 0, 0, 0];
+      var mx = Math.max(0, Math.max.apply(null, g)), t = ctx.currentTime;
+      filters.forEach(function (f, i) { f.gain.setTargetAtTime(g[i], t, 0.03); });
+      pre.gain.setTargetAtTime(Math.pow(10, (-0.6 * mx) / 20), t, 0.03);
+      lim.threshold.setTargetAtTime(st.on ? -3 : 0, t, 0.03);
+      lim.ratio.setTargetAtTime(st.on ? 20 : 1, t, 0.03);
+    }
+    function ensureOn() {
+      if (!st.on) return;
+      if (!ensureGraph()) return;
+      IDS.forEach(connectEl);
+      if (ctx.state !== 'running') { try { var p = ctx.resume(); if (p && p.catch) p.catch(function () { /* čeká na gesto */ }); } catch (e) { /* ignore */ } }
+      applyAudio();
+    }
+    IDS.forEach(function (id) {
+      var el = document.getElementById(id); if (!el) return;
+      el.addEventListener('play', ensureOn);
+      el.addEventListener('loadstart', ensureOn);
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && ctx && st.on && ctx.state !== 'running') { try { ctx.resume(); } catch (e) { /* ignore */ } }
+    });
+
+    /* ---------- UI ---------- */
+    var bandsEl = document.getElementById('eq-bands'), sw = document.getElementById('eq-sw'), btn = document.getElementById('btn-eq');
+    var bandEls = [];
+    function build() {
+      bandsEl.innerHTML = '';
+      var sc = document.createElement('div'); sc.className = 'eq-band eq-scalecol';
+      sc.innerHTML = '<span class="eq-val eq-ghost">0</span><div class="eq-scale"><span style="top:0%">+12</span><span style="top:25%">+6</span><span style="top:50%">0</span><span style="top:75%">\u22126</span><span style="top:100%">\u221212</span></div><span class="eq-hz">&nbsp;</span><span class="eq-nm">&nbsp;</span>';
+      bandsEl.appendChild(sc);
+      for (var i = 0; i < 5; i++) {
+        var b = document.createElement('div'); b.className = 'eq-band';
+        b.innerHTML = '<span class="eq-val"></span><div class="eq-track" role="slider" tabindex="0" aria-orientation="vertical" aria-valuemin="-' + MAXDB + '" aria-valuemax="' + MAXDB + '" aria-label="' + NM[i] + ' ' + HZ[i] + ' Hz"><div class="eq-tk eq-tkl"></div><div class="eq-tk eq-tkr"></div><div class="eq-zero"></div><div class="eq-fill"></div><div class="eq-thumb"></div></div><span class="eq-hz">' + HZ[i] + '</span><span class="eq-nm">' + NM[i] + '</span>';
+        bandsEl.appendChild(b);
+        bandEls.push({ val: b.querySelector('.eq-val'), track: b.querySelector('.eq-track'), fill: b.querySelector('.eq-fill'), thumb: b.querySelector('.eq-thumb') });
+        wire(i);
+      }
+    }
+    function fmt(v) { return (v > 0 ? '+' : '') + (v % 1 ? v.toFixed(1) : String(v)); }
+    function paint() {
+      sw.setAttribute('aria-checked', st.on ? 'true' : 'false');
+      m.querySelector('.eq-window').classList.toggle('eq-off', !st.on);
+      if (btn) btn.classList.toggle('eq-on', st.on);
+      m.querySelectorAll('#eq-presets button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-p') === st.preset ? 'true' : 'false'); });
+      bandEls.forEach(function (e, i) {
+        var v = st.gains[i], pos = (MAXDB - v) / (2 * MAXDB) * 100;
+        e.val.textContent = fmt(v);
+        e.val.classList.toggle('eq-nz', v !== 0);
+        e.thumb.style.top = pos + '%';
+        e.fill.style.top = Math.min(pos, 50) + '%';
+        e.fill.style.height = Math.abs(pos - 50) + '%';
+        e.track.setAttribute('aria-valuenow', String(v));
+        e.track.setAttribute('aria-valuetext', fmt(v) + ' dB');
+      });
+    }
+    function setOn(v) { st.on = !!v; save(); paint(); if (st.on) ensureOn(); else applyAudio(); }
+    function setGain(i, v) {
+      v = Math.max(-MAXDB, Math.min(MAXDB, Math.round(v * 2) / 2));
+      st.gains[i] = v; st.preset = 'custom'; st.custom = st.gains.slice();
+      if (!st.on) st.on = true;
+      save(); paint(); ensureOn(); applyAudio();
+    }
+    function setPreset(p) {
+      st.gains = (p === 'custom' ? st.custom : PRESETS[p]).slice(); st.preset = p;
+      if (!st.on) st.on = true;
+      save(); paint(); ensureOn(); applyAudio();
+    }
+    function wire(i) {
+      var tr = bandEls[i].track, drag = false, lastTap = 0;
+      function fromY(y) { var r = tr.getBoundingClientRect(); setGain(i, MAXDB - ((y - r.top) / r.height) * 2 * MAXDB); }
+      tr.addEventListener('pointerdown', function (e) {
+        var now = Date.now();
+        if (now - lastTap < 350) { lastTap = 0; setGain(i, 0); e.preventDefault(); return; }
+        lastTap = now; drag = true;
+        try { tr.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+        fromY(e.clientY); e.preventDefault(); tr.focus();
+      });
+      tr.addEventListener('pointermove', function (e) { if (drag) fromY(e.clientY); });
+      function end() { drag = false; }
+      tr.addEventListener('pointerup', end); tr.addEventListener('pointercancel', end); tr.addEventListener('lostpointercapture', end);
+      tr.addEventListener('keydown', function (e) {
+        var d = 0, k = e.key;
+        if (k === 'ArrowUp' || k === 'ArrowRight') d = 1; else if (k === 'ArrowDown' || k === 'ArrowLeft') d = -1;
+        else if (k === 'PageUp') d = 3; else if (k === 'PageDown') d = -3;
+        else if (k === 'Home') { setGain(i, 0); e.preventDefault(); return; }
+        else return;
+        setGain(i, st.gains[i] + d); e.preventDefault();
+      });
+    }
+    m.addEventListener('click', function (e) {
+      if (e.target === m) { window.toggleEq(); return; }
+      var pb = e.target.closest && e.target.closest('#eq-presets button');
+      if (pb) { setPreset(pb.getAttribute('data-p')); return; }
+      if (e.target.closest && e.target.closest('#eq-reset')) { st.gains = PRESETS.flat.slice(); st.preset = 'flat'; save(); paint(); applyAudio(); return; }
+      if (e.target.closest && e.target.closest('#eq-sw')) setOn(!st.on);
+    });
+    m.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') return;
+      if (e.code === 'Space' || (e.key && e.key.indexOf('Arrow') === 0)) e.stopPropagation(); // globální zkratky přehrávače jsou na document
+    });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !m.hidden) window.toggleEq(); });
+    window.toggleEq = function () {
+      var open = m.hidden; m.hidden = !open;
+      if (btn) btn.classList.toggle('active', open);
+      if (open) paint();
+    };
+    build(); paint();
   })();
 </script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
