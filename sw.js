@@ -78,9 +78,14 @@
 // Cache zvýšena na v1116.
 // v44 - do LAZY_ASSETS přidány fotky player-bg-sun-9.jpg a player-bg-sun-10.jpg (9 tam dosud
 // chyběla, takže se offline necachovala). Cache zvýšena na v1233.
+// v45 - skladby se přestěhovaly z GitHub Releases na Cloudflare R2 (CORS_AUDIO_HOSTS).
+// Z R2 se skladby stahují čitelně (kontrola stavu, částí souboru 206); běžné přehrávání
+// jde rovnou ze sítě s původní Range hlavičkou a do offline cache se neukládá (jen DOWNLOAD
+// OFFLINE). Při aktivaci se z audio cache smažou staré kopie z GitHubu - po změně adres
+// by je nic nepoužilo a zbytečně zabíraly místo. Cache zvýšena na v1252.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1251';
+const APP_CACHE_NAME = 'synthlucida-app-v1253';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -127,6 +132,15 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  // v45: staré kopie skladeb z GitHub Releases už nikdo nepoužije (adresy se změnily).
+  event.waitUntil(
+    caches.open(AUDIO_CACHE_NAME).then(async (audioCache) => {
+      const reqs = await audioCache.keys();
+      await Promise.all(reqs
+        .filter((r) => r.url.startsWith('https://github.com/Synthlucida/'))
+        .map((r) => audioCache.delete(r)));
+    }).catch((err) => console.log('[SW] Audio cache cleanup failed:', err))
+  );
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -302,9 +316,9 @@ const IS_APPLE_WEBKIT = (() => {
 // Servery s MP3, které posílají CORS hlavičku (Access-Control-Allow-Origin).
 // Z nich se skladby stahují čitelně - SW pak ověří, že je soubor v pořádku
 // (ne chybová stránka), a umí vracet části souboru (206) pro Safari.
-// GitHub Releases CORS neposílá, proto je seznam zatím prázdný. Po případném
-// přesunu MP3 na server s CORS sem stačí doplnit jeho doménu.
-const CORS_AUDIO_HOSTS = [];
+// GitHub Releases CORS neposílá. Aktuálně skladby leží na Cloudflare R2 (r2.dev);
+// po přidání vlastní domény (např. media.synthlucida.com) sem stačí doplnit i ji.
+const CORS_AUDIO_HOSTS = ['pub-d03f98e0a05747929b6ecd9ffc0e9b20.r2.dev'];
 
 function offlineAudioResponse() {
   return new Response('Offline - this track is not cached.', {
@@ -374,6 +388,16 @@ async function handleAudioRequest(event) {
 
   if (cached) {
     return cached;
+  }
+
+  // Běžné přehrávání z CORS serveru (R2): rovnou ze sítě s původní Range hlavičkou (přetáčení,
+  // postupné načítání), nic se neukládá - offline cache plní jen DOWNLOAD OFFLINE.
+  if (isMedia && url.origin !== self.location.origin && CORS_AUDIO_HOSTS.includes(url.hostname)) {
+    try {
+      return await fetch(request);
+    } catch (err) {
+      return offlineAudioResponse();
+    }
   }
 
   try {
