@@ -4572,7 +4572,11 @@ data-i18n="privacy-link">Zásady ochrany osobních údajů</a>
     var ph = cur * 1.7;
     var beat = Math.pow(Math.max(0, Math.sin((t + ph) * Math.PI * 2 * 1.95)), 5) * 0.24;
     var swell = 0.5 + 0.13 * Math.sin(t * 0.7 + ph) + 0.07 * Math.sin(t * 2.3 + 1);
-    var base = swell + beat;
+    /* follow the volume knob: 0 dB at the default position (vol 0.5), louder above, quieter below, silent at 0 */
+    var g = curve(vol);
+    if (g < 0.002) return [0, 0];
+    var shift = 20 * Math.log(g / 0.25) / Math.LN10 / 39;
+    var base = swell + beat + shift;
     return [clamp(base + (Math.random() - 0.5) * 0.12, 0, 0.97), clamp(base + (Math.random() - 0.5) * 0.12 - 0.02, 0, 0.97)];
   }
 
