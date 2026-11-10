@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.4.7">
+<meta name="app-version" content="2.4.8">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1987,7 +1987,7 @@
     transition: background 0.4s linear;
   }
   /* Vše kromě overlaye zmizí ze scény - jedno pravidlo pokryje i budoucí sekce */
-  body.breathing-active > *:not(.breathing-overlay):not(#rain-canvas) { display: none !important; }
+  body.breathing-active > *:not(.breathing-overlay):not(#rain-canvas):not(.sp-overlay) { display: none !important; }
   body.breathing-active::before { display: none; }
   /* WEATHER uvnitr dechoveho cviceni: canvas s pocasim (#rain-canvas) zustava viditelny pod overlayem,
      overlay proto dostane pruhledne pozadi (jinak by canvas zakryl svym gradientem) */
@@ -2565,6 +2565,27 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent);
   }
 
+  /* ===== Děkovné okno (support popup): po spuštění přehrávače, OK = znovu za 5 min, kód RELAXPLAYER = už nikdy ===== */
+  .sp-overlay { z-index: 10060; }
+  .sp-window { max-width: 400px; padding: 14px 18px 18px; gap: 12px; }
+  .sp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .sp-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 12px; letter-spacing: 1.5px; line-height: 1.4; color: var(--accent-color, #fff); text-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color, transparent) var(--glow-pct), transparent); }
+  /* Přepínač CZ/EN uvnitř okna: stejná třída jako jinde (text i funkce řeší stávající přepínání jazyka), jen není připíchnutý k rohu obrazovky */
+  .sp-window .lang-toggle-btn { position: static; flex: none; z-index: auto; opacity: 0.8; }
+  .sp-text { display: flex; flex-direction: column; gap: 9px; font-size: 12.5px; line-height: 1.65; opacity: 0.92; }
+  .sp-text p { margin: 0; }
+  .sp-sign { text-align: right; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 12px; letter-spacing: 1.5px; color: var(--accent-color, #fff); }
+  .sp-hint { margin: 0; font-size: 10.5px; line-height: 1.55; opacity: 0.6; }
+  .sp-row { display: flex; align-items: stretch; gap: 8px; }
+  .sp-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.06); color: #fff; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 16px; letter-spacing: 2px; text-transform: uppercase; text-align: center; outline: none; }
+  .sp-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 2px; }
+  .sp-input:focus { border-color: var(--accent-color, #fff); box-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color, #fff) var(--glow-pct), transparent); }
+  .sp-input.sp-bad { border-color: #ff7a7a; }
+  .sp-ok { flex: none; min-width: 64px; padding: 0 16px; font-size: 13px; letter-spacing: 2px; }
+  .sp-err { margin: 0; font-size: 10.5px; line-height: 1.5; color: #ffb4b4; }
+  .sp-err[hidden] { display: none; }
+  @media (max-width: 380px) { .sp-window { padding: 12px 14px 16px; } .sp-text { font-size: 12px; } .sp-input { letter-spacing: 1px; } }
+
   /* ===== Opravy: spodni okraj kulatych tlacitek a tlacitka u nazvu SYNTHLUCIDA ===== */
   /* Radek .focus-mode-left ma overflow:hidden a vysku presne jako tlacitka - pri stisku (posun o 1 px dolu) se spodni okraj
      orizl. Vnitrni odsazeni + stejne zaporne okraje: obsah ma misto navic, ale rozmery a rozlozeni zustavaji stejne. */
@@ -2756,7 +2777,7 @@
   .binaural-overlay.bm-open { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 142px); }
   body.binaural-active { overflow: hidden; }
   body.binaural-active .binaural-overlay { display: flex; }
-  body.binaural-active > *:not(.binaural-overlay):not(#rain-canvas) { display: none !important; }
+  body.binaural-active > *:not(.binaural-overlay):not(#rain-canvas):not(.sp-overlay) { display: none !important; }
   .bn-main { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 360px; box-sizing: border-box; padding: 0 12px; margin: auto 0; }
   .bn-title {
     margin: 0 0 6px; display: flex; align-items: center; justify-content: center; gap: 12px;
@@ -4361,6 +4382,11 @@
       <p data-i18n="p_tarot">Tap EXPLORE and then CARD to open a small tarot card draw on its own page. Every time you open it, a card is pulled truly at random from the full 78-card deck and shown upright or reversed, with its meaning explained in both English and Czech - a quiet, atmospheric moment offered just for reflection, not prediction. Tap 🔀 there for a fresh card, or ✕ to come straight back to the player.</p>
     </div>
 
+    <div class="main-guide-section">
+      <h4 data-i18n="h_support">Thank-you window</h4>
+      <p data-i18n="p_support">A thank-you window with a note about supporting the project appears shortly after the player starts. Press OK to close it; it will appear again after 5 minutes, and so on. If you don't want to see it any more, type RELAXPLAYER into the box next to OK and confirm: the choice is saved on this device (in your browser's storage) and the window no longer appears. The CZ/EN button inside the window switches the language, just like elsewhere in the player. If you clear your browser data, the window may appear again.</p>
+    </div>
+
     <p class="main-guide-note">SYNTHLUCIDA · www.SYNTHLUCIDA.com</p>
     <p class="main-guide-note" id="app-version-note" style="margin-top:6px;"></p>
     <script>
@@ -4519,6 +4545,27 @@
       <button type="button" class="btn-feature" id="tm-swap" onclick="swapThemeMix()" data-i18n="theme_mix_swap">⇄ SWAP</button>
       <button type="button" class="btn-feature" id="tm-off" onclick="clearThemeMix()" data-i18n="theme_mix_off">✕ OFF</button>
     </div>
+  </div>
+</div>
+
+<div class="tm-overlay sp-overlay" id="support-popup" role="dialog" aria-modal="true" aria-labelledby="sp-title" hidden>
+  <div class="tm-window sp-window">
+    <div class="sp-head">
+      <span class="sp-title" id="sp-title" data-i18n="sp_title">THANK YOU FOR VISITING</span>
+      <button class="lang-toggle-btn" type="button" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
+    </div>
+    <div class="sp-text">
+      <p data-i18n="sp_p1">Thank you so much for visiting and using the RELAXPLAYER player. It is completely free, without ads, and I run it as a hobby project out of love for electronic music.</p>
+      <p data-i18n="sp_p2">Running and developing it costs some money, and to keep the project going I would be very grateful for any voluntary contribution via the DONATE button (the coffee cup ☕) in the top left corner.</p>
+      <p data-i18n="sp_p3">Thank you for your time, and I wish you a pleasant and undisturbed listening experience.</p>
+      <p class="sp-sign">Dave</p>
+    </div>
+    <p class="sp-hint" data-i18n="sp_hint">If you don't want this window to appear again, type RELAXPLAYER into the box and confirm with OK. If you press just OK, the window will appear again in 5 minutes.</p>
+    <div class="sp-row">
+      <input type="text" class="sp-input" id="sp-input" maxlength="30" placeholder="RELAXPLAYER" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" data-i18n-aria="sp_input_aria" aria-label="Type RELAXPLAYER to hide this window permanently">
+      <button type="button" class="btn-feature sp-ok" id="sp-ok">OK</button>
+    </div>
+    <p class="sp-err" id="sp-err" role="alert" data-i18n="sp_err" hidden>The text doesn't match. Please type exactly RELAXPLAYER, or leave the box empty and press OK.</p>
   </div>
 </div>
 
@@ -10556,6 +10603,15 @@
   let guideLang = 'en';
 
   const i18nText = {
+    sp_title: { en: "THANK YOU FOR VISITING", cz: "DĚKUJI ZA NÁVŠTĚVU" },
+    sp_p1: { en: "Thank you so much for visiting and using the RELAXPLAYER player. It is completely free, without ads, and I run it as a hobby project out of love for electronic music.", cz: "Moc děkuji za návštěvu a používání přehrávače RELAXPLAYER. Je naprosto zdarma, bez reklam a provozuji ho jako hobby projekt z lásky k elektronické hudbě." },
+    sp_p2: { en: "Running and developing it costs some money, and to keep the project going I would be very grateful for any voluntary contribution via the DONATE button (the coffee cup ☕) in the top left corner.", cz: "Provoz i vývoj stojí nějaké peníze, a abych mohl projekt udržet v chodu, budu velmi rád za jakýkoli dobrovolný příspěvek prostřednictvím tlačítka DONATE (hrneček kávy ☕) v levém horním rohu." },
+    sp_p3: { en: "Thank you for your time, and I wish you a pleasant and undisturbed listening experience.", cz: "Děkuji za váš čas a přeji příjemný a nerušený poslech." },
+    sp_hint: { en: "If you don't want this window to appear again, type RELAXPLAYER into the box and confirm with OK. If you press just OK, the window will appear again in 5 minutes.", cz: "Pokud nechcete, aby se toto okno znovu zobrazovalo, opište do políčka text RELAXPLAYER a potvrďte tlačítkem OK. Stisknete-li jen OK, okno se za 5 minut zobrazí znovu." },
+    sp_input_aria: { en: "Type RELAXPLAYER to hide this window permanently", cz: "Opište RELAXPLAYER, aby se okno už nezobrazovalo" },
+    sp_err: { en: "The text doesn't match. Please type exactly RELAXPLAYER, or leave the box empty and press OK.", cz: "Text nesouhlasí. Opište prosím přesně RELAXPLAYER, nebo nechte políčko prázdné a stiskněte OK." },
+    h_support: { en: "Thank-you window", cz: "Děkovné okno" },
+    p_support: { en: "A thank-you window with a note about supporting the project appears shortly after the player starts. Press OK to close it; it will appear again after 5 minutes, and so on. If you don't want to see it any more, type RELAXPLAYER into the box next to OK and confirm: the choice is saved on this device (in your browser's storage) and the window no longer appears. The CZ/EN button inside the window switches the language, just like elsewhere in the player. If you clear your browser data, the window may appear again.", cz: "Krátce po spuštění přehrávače se zobrazí okno s poděkováním a zmínkou o možnosti podpořit projekt. Stisknete-li jen OK, okno se zavře a za 5 minut se zobrazí znovu, a tak stále dokola. Pokud ho už vidět nechcete, opište do políčka vedle tlačítka OK text RELAXPLAYER a potvrďte: volba se uloží v tomto zařízení (v úložišti prohlížeče) a okno se už nezobrazuje. Tlačítkem CZ/EN v okně přepnete jazyk stejně jako jinde v přehrávači. Po smazání dat prohlížeče se okno může zobrazit znovu." },
     about_title: { en: "About SYNTHLUCIDA Player", cz: "O přehrávači SYNTHLUCIDA" },
     about_p1: { en: "Relax Player is a quiet place for ambient music — a continuous stream of ASMR, piano and chillout that you open in your browser and simply let play. No account, no sign-up, nothing to set up. It rests on one idea: listening should be effortless, and the screen can be as calming as the sound coming from it.", cz: "Relax Player je tiché místo pro ambientní hudbu — nepřetržitý proud ASMR, piana a chilloutu, který otevřeš v prohlížeči a necháš prostě hrát. Žádný účet, žádná registrace, nic k nastavování. Stojí na jedné myšlence: poslech má být bezstarostný a obrazovka může uklidňovat stejně jako zvuk, který z ní jde." },
     about_p2: { en: "Three moods, one stream. ASMR brings rain, waves, crackling fire and birdsong. Piano is slow and spacious, with room between every note. Chill adds warm synth pads and a gentle downtempo pulse. Switch between moods without interrupting the music, and the player remembers where you left off.", cz: "Tři nálady, jeden proud. ASMR přináší déšť, vlny, praskající oheň a ptačí zpěv. Piano je pomalé a prostorné, s místem mezi každým tónem. Chill přidává teplé syntezátorové plochy a jemný downtempo pulz. Mezi náladami můžeš přepínat, aniž by se hudba přerušila, a přehrávač si příště pamatuje, kde jsi skončil." },
@@ -15578,6 +15634,17 @@
     });
     // Časovač spánku: když vyprší, ztiší se i tóny (stránka zůstane otevřená)
     window.binauralOnSleepTimer = function() { if (modeIdx !== 0) setMode(0); };
+    // Děkovné okno: tóny se na chvíli ztiší a po zavření okna se vrátí stejná vlna (vrací číslo vlny, nebo 0 = nic nehrálo)
+    window.binauralPopupPause = function() {
+      if (modeIdx === 0) return 0;
+      const prev = modeIdx;
+      modeIdx = 0; paintModes(); stopTone(0.3, 1800);
+      return prev;
+    };
+    window.binauralPopupResume = function(prev) {
+      if (!prev || modeIdx !== 0 || !binauralActive) return; // kdyby mezitím uživatel stránku zavřel nebo vlnu změnil, nic neobnovujeme
+      setMode(prev);
+    };
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && binauralActive && !e.defaultPrevented) window.stopBinaural();
     });
@@ -18596,6 +18663,125 @@
     };
     applyClasses();
     window.addEventListener('load', function () { setTimeout(applyClasses, 800); }); // uložený 2COLORS mix se po načtení zruší, když je vypnutý
+  })();
+</script>
+<script>
+  /* ☕ DĚKOVNÉ OKNO: zobrazí se krátce po spuštění přehrávače.
+     - jen OK (nebo Esc)       -> okno se zavře a za 5 minut se zobrazí znovu, pořád dokola
+     - opsaný text RELAXPLAYER -> uloží se do paměti prohlížeče a okno se už nezobrazí
+     Texty a přepínání CZ/EN řeší stávající překladový systém (data-i18n). */
+  (function () {
+    var box = document.getElementById('support-popup');
+    var input = document.getElementById('sp-input');
+    var okBtn = document.getElementById('sp-ok');
+    var err = document.getElementById('sp-err');
+    if (!box || !input || !okBtn || !err) return;
+
+    var KEY = 'sl-support-dismissed';
+    var CODE = 'RELAXPLAYER';
+    var FIRST_MS = 1500;               // první zobrazení po spuštění přehrávače
+    var REPEAT_MS = 5 * 60 * 1000;     // opakování po stisku samotného OK
+    var timer = null, waitVisible = false, dismissedInMemory = false;
+    var pausedByPopup = false;         // hudbu zastavilo toto okno (po zavření ji zase pustíme)
+    var pausedTone = 0;                // binaurální vlnu ztišilo toto okno (po zavření ji vrátíme)
+
+    // Hudbu ovládáme stejným tlačítkem ▶/⏸, jaké mačká uživatel - přehrávač si tak sám správně
+    // zastaví prolnutí skladeb i druhou ASMR vrstvu a nesahá se do jeho vnitřku.
+    function playBtnEl() { return document.getElementById('btn-play'); }
+    function musicPlaying() {
+      var b = playBtnEl();
+      return !!b && b.innerText.indexOf('\u23F8') !== -1; // ⏸ = hudba hraje
+    }
+    function pauseMusic() {
+      try {
+        var b = playBtnEl();
+        if (b && musicPlaying()) { b.click(); pausedByPopup = true; }
+      } catch (e) { /* okno nesmí nic rozbít */ }
+      try { // ztiší i binaurální tóny (pokud nějaké znějí)
+        if (typeof window.binauralPopupPause === 'function') pausedTone = window.binauralPopupPause() || 0;
+      } catch (e) { /* ignore */ }
+    }
+    function resumeMusic() {
+      if (pausedByPopup) {
+        pausedByPopup = false;
+        try {
+          var b = playBtnEl();
+          if (b && !musicPlaying()) b.click();
+        } catch (e) { /* ignore */ }
+      }
+      if (pausedTone) {
+        var w = pausedTone; pausedTone = 0;
+        try { if (typeof window.binauralPopupResume === 'function') window.binauralPopupResume(w); } catch (e) { /* ignore */ }
+      }
+    }
+
+    function isDismissed() {
+      if (dismissedInMemory) return true;
+      try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+    }
+    function saveDismissed() {
+      dismissedInMemory = true; // když úložiště nejde, aspoň do konce této návštěvy se okno nevrátí
+      try { localStorage.setItem(KEY, '1'); } catch (e) { /* bez úložiště se uloží jen do konce návštěvy */ }
+    }
+    function schedule(ms) {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(show, ms);
+    }
+    function isOpen() { return !box.hidden; }
+
+    function show() {
+      timer = null;
+      if (isDismissed() || isOpen()) return;
+      if (document.hidden) { waitVisible = true; return; } // na skryté záložce počkáme, až se vrátí uživatel
+      input.value = '';
+      input.classList.remove('sp-bad');
+      err.hidden = true;
+      pauseMusic();
+      box.hidden = false;
+      try { okBtn.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+    function hide() { box.hidden = true; resumeMusic(); }
+
+    function closeAndRepeat() {
+      hide();
+      schedule(REPEAT_MS);
+    }
+    function submit() {
+      var v = input.value.trim().toUpperCase();
+      if (v === '') { closeAndRepeat(); return; }
+      if (v === CODE) { saveDismissed(); hide(); if (timer) { clearTimeout(timer); timer = null; } return; }
+      err.hidden = false;
+      input.classList.add('sp-bad');
+      input.focus();
+      input.select();
+    }
+
+    okBtn.addEventListener('click', submit);
+    input.addEventListener('input', function () { input.classList.remove('sp-bad'); err.hidden = true; });
+    // Klávesy, dokud je okno otevřené. Posluchač je na window v zachytávací fázi, takže běží dřív než
+    // všechny ostatní (zkratky přehrávače, Esc u průvodců): mezerník a šipky tak nepustí hudbu ani nezmění
+    // hlasitost za oknem. Výchozí chování (psaní do políčka, stisk tlačítka) zůstává beze změny.
+    window.addEventListener('keydown', function (e) {
+      if (!isOpen()) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeAndRepeat(); return; }
+      if (e.key === 'Enter' && e.target === input) { e.preventDefault(); e.stopImmediatePropagation(); submit(); return; }
+      if (e.key === 'Tab') { // fokus zůstává uvnitř okna
+        var items = Array.prototype.slice.call(box.querySelectorAll('button, input')).filter(function (el) { return !el.disabled; });
+        if (items.length) {
+          var first = items[0], last = items[items.length - 1];
+          if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+          else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      }
+      e.stopPropagation();
+    }, true);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && waitVisible) { waitVisible = false; show(); }
+    });
+
+    if (isDismissed()) return;
+    schedule(FIRST_MS);
   })();
 </script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
