@@ -83,9 +83,13 @@
 // jde rovnou ze sítě s původní Range hlavičkou a do offline cache se neukládá (jen DOWNLOAD
 // OFFLINE). Při aktivaci se z audio cache smažou staré kopie z GitHubu - po změně adres
 // by je nic nepoužilo a zbytečně zabíraly místo. Cache zvýšena na v1252.
+// v46 - OPRAVA: úklid starých kopií skladeb z GitHubu v activate mazal při KAŽDÉ nové verzi
+// sw.js všechny stažené skladby (player.html je pořád na GitHub adresách). Teď se GitHub
+// kopie smaže jen tehdy, když už je v audio cache stejný soubor stažený z R2. Do té doby
+// (a u skladeb bez R2 kopie) zůstávají stažené skladby nedotčené. Cache zvýšena na v1269.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1268';
+const APP_CACHE_NAME = 'synthlucida-app-v1271';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -132,12 +136,18 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // v45: staré kopie skladeb z GitHub Releases už nikdo nepoužije (adresy se změnily).
+  // v46: kopie skladeb z GitHub Releases se mažou JEN když už existuje stejný soubor
+  // stažený z R2 (CORS_AUDIO_HOSTS). Dřív se mazaly VŠECHNY při každé aktivaci SW,
+  // takže kdokoli měl stažené skladby z GitHubu o ně přišel po každé nové verzi sw.js.
   event.waitUntil(
     caches.open(AUDIO_CACHE_NAME).then(async (audioCache) => {
       const reqs = await audioCache.keys();
+      const fileName = (r) => new URL(r.url).pathname.split('/').pop();
+      const r2Files = new Set(
+        reqs.filter((r) => CORS_AUDIO_HOSTS.includes(new URL(r.url).hostname)).map(fileName)
+      );
       await Promise.all(reqs
-        .filter((r) => r.url.startsWith('https://github.com/Synthlucida/'))
+        .filter((r) => r.url.startsWith('https://github.com/Synthlucida/') && r2Files.has(fileName(r)))
         .map((r) => audioCache.delete(r)));
     }).catch((err) => console.log('[SW] Audio cache cleanup failed:', err))
   );
