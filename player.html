@@ -7951,6 +7951,7 @@
   // Přepnutí techniky dechu - kdykoliv, i za běhu cvičení
   window.selectBreathTechnique = function(techId) {
     if (!BREATH_TECHNIQUES[techId]) return;
+    try { if (typeof window.bpSwitchTech === 'function') window.bpSwitchTech(techId); } catch (e) { /* záznam je jen doplněk */ }
     currentBreathTechnique = techId;
     updateBreathTechniqueUI();
     breathPhaseIndex = 0;
@@ -8214,6 +8215,10 @@
     try { if (!bpState.liveOff) bpLiveWrite(ms, tech); } finally { bpState.liveT = null; bpState.liveOff = false; }
   };
   window.bpLiveReset = function() { bpState.liveT = null; bpState.liveOff = false; };
+  // Přepnutí techniky za běhu: dosavadní úsek se uzavře jako samostatný záznam (liveOff se zachová) a další úsek začne novým záznamem
+  window.bpLiveSegmentEnd = function(ms, tech) {
+    try { if (!bpState.liveOff) bpLiveWrite(ms, tech); } finally { bpState.liveT = null; }
+  };
 
   function bpLang() { try { return guideLang === 'cz' ? 'cz' : 'en'; } catch (e) { return 'en'; } }
   function bpTr(k) { const e = i18nText[k]; return e ? (e[bpLang()] || e.en) : k; }
@@ -9341,20 +9346,30 @@
     bpLiveTick(true);
   }
   function breathElapsedReset() {
-    breathElapsedMs = 0; breathElapsedStamp = null; bpLiveLastTick = 0;
+    breathElapsedMs = 0; breathElapsedStamp = null; bpLiveLastTick = 0; bpSegBaseMs = 0; bpSegTech = null;
     clearInterval(breathElapsedInterval); breathElapsedInterval = null;
     renderBreathElapsed();
   }
   // Průběžné ukládání do TVŮJ PROGRES (viz bpLiveSync): od 30. sekundy cvičení každých ~5 s, při STOP, při otevření panelu a při zavření stránky
   let bpLiveLastTick = 0;
+  // Úseky: každá technika se do progresu zapisuje zvlášť (bpSegBaseMs = celkový čas cvičení při začátku aktuálního úseku)
+  let bpSegBaseMs = 0, bpSegTech = null;
+  window.bpSwitchTech = function(newTech) {
+    if (!breathingActive) return;
+    const oldTech = bpSegTech || currentBreathTechnique;
+    if (oldTech === newTech) return;
+    const total = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0);
+    try { if (typeof window.bpLiveSegmentEnd === 'function') window.bpLiveSegmentEnd(total - bpSegBaseMs, oldTech); } catch (e) { /* záznam je jen doplněk */ }
+    bpSegBaseMs = total; bpSegTech = newTech; bpLiveLastTick = 0;
+  };
   function bpLiveTick(force) {
     if (typeof window.bpLiveSync !== 'function' || !breathingActive) return;
-    const ms = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0);
+    const ms = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0) - bpSegBaseMs;
     if (ms < 29500) return;                                  // pod 30 s se nezapisuje (stejně jako dřív)
     const now = Date.now();
     if (!force && now - bpLiveLastTick < 5000) return;
     bpLiveLastTick = now;
-    try { window.bpLiveSync(ms, currentBreathTechnique); } catch (e) { /* záznam je jen doplněk */ }
+    try { window.bpLiveSync(ms, bpSegTech || currentBreathTechnique); } catch (e) { /* záznam je jen doplněk */ }
   }
   window.bpLiveNow = function() { bpLiveTick(true); };
   window.addEventListener('pagehide', function() { bpLiveTick(true); });
@@ -9365,9 +9380,10 @@
     breathingActive = false;
     breathingPaused = false;
     breathCycleStarted = false;
-    const bpSessionMs = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0);
+    const bpSessionMs = breathElapsedMs + (breathElapsedStamp ? Date.now() - breathElapsedStamp : 0) - bpSegBaseMs;
+    const bpFinishTech = bpSegTech || currentBreathTechnique;
     breathElapsedReset();
-    try { window.bpLiveFinish(bpSessionMs, currentBreathTechnique); } catch (e) { /* zaznam je jen doplnek */ }
+    try { window.bpLiveFinish(bpSessionMs, bpFinishTech); } catch (e) { /* zaznam je jen doplnek */ }
 
     // XP za dokončené cvičení - jen pokud reálně trvalo aspoň BREATHING_XP_MIN_SECONDS,
     // aby nešlo nasbírat XP rychlým klikáním start/stop
