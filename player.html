@@ -498,6 +498,8 @@
   .myfiles-pl-picker .btn-feature { font-size: 10px; padding: 4px 9px; min-width: 0; }
   .myfiles-pl-picker .myfiles-pl-picker-note { font-size: 10px; opacity: 0.6; align-self: center; }
   .myfiles-pl-picker .btn-feature.in-pl { opacity: 0.55; }
+  /* MY PLAYLIST v pickeru (＋): svítí barvou motivu, dokud je soubor v MY PLAYLIST (přidaný srdíčkem) */
+  .myfiles-pl-picker .btn-feature.in-queue { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); }
   .myfiles-add-track-row .myfiles-text-input { flex: 1 1 auto; }
   select.myfiles-text-input { -webkit-appearance: none; appearance: none; }
   select.myfiles-text-input option { background: #1a0033; color: #fff; }
@@ -1987,7 +1989,7 @@
     transition: background 0.4s linear;
   }
   /* Vše kromě overlaye zmizí ze scény - jedno pravidlo pokryje i budoucí sekce */
-  body.breathing-active > *:not(.breathing-overlay):not(#rain-canvas):not(.sp-overlay) { display: none !important; }
+  body.breathing-active > *:not(.breathing-overlay):not(.together-overlay):not(#rain-canvas):not(.sp-overlay) { display: none !important; }
   body.breathing-active::before { display: none; }
   /* WEATHER uvnitr dechoveho cviceni: canvas s pocasim (#rain-canvas) zustava viditelny pod overlayem,
      overlay proto dostane pruhledne pozadi (jinak by canvas zakryl svym gradientem) */
@@ -11616,6 +11618,12 @@
         btn.classList.toggle('active', liked);
         btn.title = liked ? 'Remove from My Playlist' : 'Add to My Playlist';
       });
+      // tlačítko MY PLAYLIST v rozbaleném pickeru (＋) svítí, dokud je soubor ve frontě
+      document.querySelectorAll('#myfiles-list [data-file-queue-btn]').forEach(btn => {
+        const liked = isMyFileInQueue(btn.dataset.fileQueueBtn);
+        btn.textContent = (liked ? '♥' : '♡') + ' MY PLAYLIST';
+        btn.classList.toggle('in-queue', liked);
+      });
     } catch (e) { /* jen vzhled */ }
   }
 
@@ -11649,8 +11657,13 @@
       b.textContent = label;
       b.addEventListener('click', (e) => { e.stopPropagation(); handler(); });
       box.appendChild(b);
+      return b;
     };
-    addTo('♥ MY PLAYLIST', () => toggleMyFileInQueue(f.id), false);
+    const queueBtn = addTo('♥ MY PLAYLIST', () => toggleMyFileInQueue(f.id), false);
+    queueBtn.dataset.fileQueueBtn = f.id;
+    const inQueue = isMyFileInQueue(f.id);
+    queueBtn.textContent = (inQueue ? '♥' : '♡') + ' MY PLAYLIST';
+    queueBtn.classList.toggle('in-queue', inQueue);
     if (!myPlaylists.length) {
       const note = document.createElement('span');
       note.className = 'myfiles-pl-picker-note';
