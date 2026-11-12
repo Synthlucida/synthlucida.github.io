@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.4.7">
+<meta name="app-version" content="2.4.8">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1068,6 +1068,7 @@
   .queue-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: center; flex-wrap: wrap; }
   /* My Playlist a S (statistiky): ovládací tlačítka jsou nahoře nad obsahem, ať se k nim nemusí scrollovat na konec dlouhého playlistu */
   #queue-panel .queue-actions, #main-stats .queue-actions { margin: 6px 0 18px; }
+  #history-panel .queue-actions { margin: 6px 0 14px; }
   /* My Playlist: tlačítka v pevné mřížce 2 x 3 stejně velkých buněk - po přepnutí EN/CZ se nezmění zalamování ani výška řádků,
      takže nic neposkakuje (texty jsou jen jednořádkové a v buňce se vejdou i v češtině). */
   /* Sekce S: všechna čtyři tlačítka na jednom řádku (RESET PLAYER první zleva); písmo se přizpůsobí šířce displeje */
@@ -1409,6 +1410,10 @@
   .track-time-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 8px; margin-bottom: 5px; }
   .track-time-row .track-time { grid-column: 2; }
   .track-time-side-left { grid-column: 1; justify-self: end; display: flex; align-items: center; }
+  /* Počet skladeb v zobrazeném playlistu - vlevo od času, vedle tlačítka zpět do My Playlist */
+  .track-time-side-left { gap: 6px; }
+  /* Pevná šířka (až 5 číslic), vlevo od tlačítka s notou, zarovnání doprava - číslo při změně neposouvá okolní prvky, ani když je prázdné */
+  .track-count { display: inline-block; flex: 0 0 auto; min-width: 8ch; text-align: right; font-size: 10px; color: var(--accent-color); opacity: 0.8; letter-spacing: 0.5px; white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; text-shadow: 0 0 calc(5px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); }
   .track-time-side { grid-column: 3; justify-self: start; display: flex; align-items: center; gap: 6px; }
   /* Lupa vedle času: skočí v hlavním okně na právě hrající skladbu (i do jiného playlistu) */
   .track-locate-btn {
@@ -3980,6 +3985,7 @@
   </div>
   <div class="track-time-row">
     <div class="track-time-side-left">
+      <span class="track-count" id="track-count" title="Tracks in this playlist" aria-label="Tracks in this playlist"></span>
       <button class="track-locate-btn track-queue-btn" id="btn-back-queue" type="button" onclick="backToMyPlaylist()" disabled title="Back to the playing MY PLAYLIST" aria-label="Back to the playing MY PLAYLIST"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg></button>
     </div>
     <div class="track-time" id="track-time">00:00 / 00:00</div>
@@ -4126,12 +4132,12 @@
   <button class="main-guide-close" onclick="toggleHistory()" aria-label="Close history">✖</button>
   <div class="main-guide-inner">
     <h3>Playback History</h3>
-    <p class="main-guide-note" id="history-empty-note" style="display:none;">No tracks played yet.</p>
-    <ul class="history-list" id="history-list"></ul>
     <div class="queue-actions">
       <button class="btn-feature" onclick="exportHistory()">📄 EXPORT TXT</button>
       <button class="btn-feature" onclick="clearHistory()">CLEAR HISTORY</button>
     </div>
+    <p class="main-guide-note" id="history-empty-note" style="display:none;">No tracks played yet.</p>
+    <ul class="history-list" id="history-list"></ul>
   </div>
 </div>
 
@@ -4449,10 +4455,6 @@
       <button class="btn-feature" onclick="openHistoryFromFiles()">🕘 HISTORY</button>
     </div>
 
-    <h4 class="myfiles-subhead">Your Files</h4>
-    <p class="main-guide-note" id="myfiles-empty-note" style="display:none;">No files added yet.</p>
-    <ul class="history-list" id="myfiles-list"></ul>
-
     <h4 class="myfiles-subhead">Your Playlists</h4>
     <div class="myfiles-create-row">
       <input type="text" id="myfiles-playlist-name" class="myfiles-text-input" placeholder="New playlist name" maxlength="40">
@@ -4460,6 +4462,10 @@
     </div>
     <p class="main-guide-note" id="myfiles-playlists-empty-note" style="display:none;">No playlists yet. Create one above, then add your files and SYNTHLUCIDA tracks to it.</p>
     <div id="myfiles-playlists"></div>
+
+    <h4 class="myfiles-subhead">Your Files</h4>
+    <p class="main-guide-note" id="myfiles-empty-note" style="display:none;">No files added yet.</p>
+    <ul class="history-list" id="myfiles-list"></ul>
 
     <p class="main-guide-note">Uploaded files and playlists are stored locally in your browser and are never sent anywhere.</p>
   </div>
@@ -12953,6 +12959,28 @@
 
   audio.addEventListener('timeupdate', updateTrackTime);
   audio.addEventListener('loadedmetadata', updateTrackTime);
+
+  // Počet skladeb v právě zobrazeném playlistu (ASMR / PIANO / CHILL, My Playlist, playlisty z My Files).
+  // Jen čte seznam #playlist a nic v přehrávání nemění; při jakékoli chybě se číslo prostě nezobrazí.
+  (function initTrackCount() {
+    try {
+      const listEl = document.getElementById('playlist');
+      const countEl = document.getElementById('track-count');
+      if (!listEl || !countEl || typeof MutationObserver === 'undefined') return;
+      let raf = 0;
+      const refresh = () => {
+        raf = 0;
+        try {
+          const n = listEl.querySelectorAll(':scope > li').length;
+          const txt = n > 0 ? n + ' \u266A' : '';
+          if (countEl.textContent !== txt) countEl.textContent = txt;
+        } catch (e) { /* ignore */ }
+      };
+      const schedule = () => { if (!raf) raf = requestAnimationFrame(refresh); };
+      new MutationObserver(schedule).observe(listEl, { childList: true });
+      refresh();
+    } catch (e) { /* ignore */ }
+  })();
 
   // Ambientní ekvalizér - reaguje na skutečný stav přehrávání (play/pause),
   // ne na reálnou frekvenční analýzu (ta by u cross-origin MP3 stejně nešla spolehlivě).
