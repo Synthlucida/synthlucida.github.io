@@ -14267,7 +14267,10 @@
       exported: now.toISOString(),
       moods: queueMoods.slice(),
       tracks: customQueue.map(e => {
-        const o = { title: e.title, src: e.src, playlist: e.playlist, index: e.index };
+        // Vlastní soubor z F (My Files): ukládá se jen odkaz fileId (žádná dočasná blob: adresa, žádný obsah souboru)
+        const o = (typeof e.fileId === 'string' && e.fileId)
+          ? { title: e.title, playlist: e.playlist, index: e.index, fileId: e.fileId }
+          : { title: e.title, src: e.src, playlist: e.playlist, index: e.index };
         if (e.mood) o.mood = e.mood;
         return o;
       })
@@ -14290,7 +14293,7 @@
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const data = JSON.parse(reader.result);
         const importedTracks = Array.isArray(data) ? data : data.tracks;
@@ -14298,9 +14301,29 @@
           alert('This file does not contain a valid playlist.');
           return;
         }
-        const valid = importedTracks.filter(t => t && typeof t.title === 'string' && t.title.length <= 200 && typeof t.src === 'string' && isSafeTrackSrc(t.src) && typeof t.playlist === 'string' && t.playlist.length <= 100 && typeof t.index === 'number').slice(0, QUEUE_IMPORT_MAX);
+        // Vlastní soubory (sekce F): přijme se jen odkaz fileId na AUDIO soubor, který už v tomto zařízení v My Files je.
+        // Žádná adresa ze souboru se u nich nepoužije - blob: URL si appka vytvoří sama z uložené knihovny.
+        try { await refreshMyFilesLibrary(); } catch (e) { /* knihovna se nenačetla - vlastní soubory se přeskočí */ }
+        const libById = new Map((myFilesLibraryOk ? myFilesLibrary : []).map(f => [f.id, f]));
+        let skippedFiles = 0;
+        const valid = [];
+        for (const t of importedTracks) {
+          if (valid.length >= QUEUE_IMPORT_MAX) break;
+          if (!t || typeof t !== 'object' || typeof t.title !== 'string' || t.title.length > 200 ||
+              typeof t.playlist !== 'string' || t.playlist.length > 100 || typeof t.index !== 'number') continue;
+          if (typeof t.fileId === 'string' && t.fileId) {
+            const rec = /^[A-Za-z0-9_-]{1,80}$/.test(t.fileId) ? libById.get(t.fileId) : null;
+            const okType = rec && (!rec.type || rec.type.indexOf('audio/') === 0 || rec.type === 'application/octet-stream');
+            if (!okType) { skippedFiles++; continue; }
+            valid.push({ title: String(rec.name || t.title).slice(0, 200), src: '', playlist: 'custom:file:' + rec.id, index: t.index, fileId: rec.id, mood: t.mood });
+            continue;
+          }
+          if (typeof t.src === 'string' && isSafeTrackSrc(t.src)) valid.push(t);
+        }
         if (!valid.length) {
-          alert('This file does not contain a valid playlist.');
+          alert(skippedFiles
+            ? mt('None of the tracks could be imported: they are your own files (My Files) that are not on this device.', 'Žádnou skladbu nešlo načíst: jsou to vlastní soubory (My Files), které v tomto zařízení nejsou.')
+            : 'This file does not contain a valid playlist.');
           return;
         }
         const appendInstead = customQueue.length
@@ -14308,6 +14331,7 @@
           : false;
         const cleanTracks = valid.map(t => {
           const o = { title: t.title, src: t.src, playlist: t.playlist, index: t.index };
+          if (typeof t.fileId === 'string' && t.fileId) o.fileId = t.fileId;
           const mood = cleanMoodName(t.mood);
           if (mood) o.mood = mood;
           return o;
@@ -14330,6 +14354,13 @@
         refreshPlaylistHeartIcons();
         syncMainListWithQueue();
         showToast('Playlist imported', '📂');
+        // doplní platné blob: adresy vlastních souborů z IndexedDB
+        if (cleanTracks.some(o => o.fileId)) { try { repairCustomQueueBlobUrls(); } catch (e) { /* ignore */ } }
+        if (skippedFiles > 0) {
+          setTimeout(() => alert(mt(
+            skippedFiles + ' of your own file(s) (My Files) are not on this device, so they were skipped. Upload them in F first, then import again.',
+            skippedFiles + ' vlastních souborů (My Files) v tomto zařízení není, proto se přeskočily. Nahraj je nejdřív v sekci F a import zopakuj.')), 50);
+        }
         if (lostMoods > 0) {
           setTimeout(() => alert(mt(
             'The maximum is ' + MOOD_MAX_COUNT + ' sections, so ' + lostMoods + ' section(s) from the file were not added. Their tracks were imported without a section.',
