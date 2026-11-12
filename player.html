@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.4.8">
+<meta name="app-version" content="2.4.9">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -503,6 +503,18 @@
   .myfiles-add-track-row .myfiles-text-input { flex: 1 1 auto; }
   select.myfiles-text-input { -webkit-appearance: none; appearance: none; }
   select.myfiles-text-input option { background: #1a0033; color: #fff; }
+  /* Hromadný výběr souborů v "Your Files" */
+  .myfiles-bulk { margin: 6px 0 8px; }
+  .myfiles-bulk-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .myfiles-bulk .btn-feature { font-size: 10px; padding: 4px 9px; min-width: 0; }
+  .myfiles-bulk .btn-feature:disabled { opacity: 0.35; cursor: default; }
+  .myfiles-bulk .btn-feature.active { color: var(--accent-color); border-color: var(--accent-color); }
+  .myfiles-bulk-count { font-size: 10px; opacity: 0.7; margin-left: 2px; }
+  .myfiles-bulk-label { font-size: 10px; opacity: 0.6; }
+  .myfiles-sel-box { flex-shrink: 0; width: 16px; height: 16px; margin: 0 4px 0 0; accent-color: var(--accent-color); cursor: pointer; }
+  #myfiles-list li.myfiles-selected, #queue-list li.myfiles-selected { background: rgba(255,255,255,0.06); }
+  #queue-bulk { max-width: 360px; margin: 0 auto 10px; }
+  #queue-bulk .myfiles-bulk-row { justify-content: center; }
 
   .stats-grid {
     display: flex; flex-direction: column; gap: 10px; margin: 4px 0 22px;
@@ -4156,7 +4168,7 @@
   <button class="lang-toggle-btn" onclick="toggleGuideLanguage()" aria-label="Switch language">CZ</button>
   <div class="main-guide-inner">
     <h3 class="section-title-row"><span class="title-eq-anchor"><span data-i18n="queue_title">My Playlist</span><span class="title-eq-abs"><span class="eq" id="myplaylist-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span><span class="eq-notes" aria-hidden="true"><span class="eq-note">♪</span><span class="eq-note">♫</span></span></span></span></h3>
-    <p class="main-guide-intro" data-i18n="queue_intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼ (or drag tracks with the mouse), then hit PLAY to listen through your own list, in exactly the order you built it.</p>
+    <p class="main-guide-intro" data-i18n="queue_intro">Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼ (or drag tracks with the mouse), then hit PLAY to listen through your own list, in exactly the order you built it. To sort or tidy many tracks at once, tap ☑ SELECT TRACKS, tick the tracks (or ☑ ALL) and move them to a section, to the top or bottom, or remove them in one go.</p>
     <p class="main-guide-note" id="queue-empty-note" style="display:none;" data-i18n="queue_empty">Your playlist is empty. Add tracks from HISTORY.</p>
     <div class="queue-actions">
       <button class="btn-feature" id="queue-btn-play" aria-pressed="false" data-i18n="queue_btn_play" onclick="playCustomQueueFromStart()">▶ PLAY</button>
@@ -4179,6 +4191,7 @@
       </div>
       <p class="main-guide-note" id="mood-hint" style="display:none;"></p>
     </div>
+    <div class="myfiles-bulk" id="queue-bulk"></div>
     <ul class="history-list" id="queue-list"></ul>
     <input type="file" id="queue-import-input" accept=".json,application/json" style="display:none;" onchange="importCustomQueueFile(event)">
   </div>
@@ -4465,6 +4478,7 @@
 
     <h4 class="myfiles-subhead">Your Files</h4>
     <p class="main-guide-note" id="myfiles-empty-note" style="display:none;">No files added yet.</p>
+    <div class="myfiles-bulk" id="myfiles-bulk"></div>
     <ul class="history-list" id="myfiles-list"></ul>
 
     <p class="main-guide-note">Uploaded files and playlists are stored locally in your browser and are never sent anywhere.</p>
@@ -4513,7 +4527,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_myfiles_quick">2. Quick add with ♥ and ＋</h4>
-      <p data-i18n="p_myfiles_quick">Every file under &quot;Your Files&quot; has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under &quot;Your Playlists&quot; and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds.</p>
+      <p data-i18n="p_myfiles_quick">Every file under &quot;Your Files&quot; has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under &quot;Your Playlists&quot; and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds. To add many files at once, tap ☑ SELECT FILES above the list, tick the files you want (or tap ☑ ALL), then tap ♥ MY PLAYLIST or ＋ and a playlist name in the bar - every ticked file is added in one go, and files that are already there are skipped. Tap ✕ DONE to leave selecting.</p>
     </div>
 
     <div class="main-guide-section">
@@ -10746,7 +10760,7 @@
     h_myfiles_step1: { en: "1. Add your own audio files", cz: "1. Přidání vlastních audio souborů" },
     p_myfiles_step1: { en: "Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under \"Your Files\". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to).", cz: "Otevřete panel F a klepněte na ＋ ADD AUDIO FILES. Vyberte jeden nebo více audio souborů ze svého zařízení - nahrají se okamžitě a nikam se přitom neodesílají; každý soubor se uloží pouze lokálně ve vašem prohlížeči a objeví se v seznamu „Your Files\". Klepnutím na název souboru ho rovnou samostatně přehrajete, klepnutím na ✕ ho smažete (tím se odebere i ze všech playlistů, kam byl přidán)." },
     h_myfiles_quick: { en: "2. Quick add with ♥ and ＋", cz: "2. Rychlé přidání pomocí ♥ a ＋" },
-    p_myfiles_quick: { en: "Every file under \"Your Files\" has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under \"Your Playlists\" and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds.", cz: "U každého souboru v sekci „Your Files\" jsou vedle ▶ dvě malá tlačítka. Klepnutím na ♥ soubor rovnou přidáte do MY PLAYLIST - dalším klepnutím ho zase odeberete a srdíčko zůstává v souladu s MY PLAYLIST. Klepnutím na ＋ se pod souborem rozbalí krátký seznam: nahoře ♥ MY PLAYLIST a pod ním všechny vámi vytvořené playlisty - klepnutím na název tam soubor přidáte (✓ značí playlisty, které ho už obsahují, takže se nikdy nepřidá dvakrát). Pokud ještě žádný playlist nemáte, vytvořte si ho v sekci „Your Playlists\" a seznam ＋ ho nabídne. Hned po nahrání tak můžete nové soubory roztřídit během pár vteřin." },
+    p_myfiles_quick: { en: "Every file under \"Your Files\" has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under \"Your Playlists\" and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds. To add many files at once, tap ☑ SELECT FILES above the list, tick the files you want (or tap ☑ ALL), then tap ♥ MY PLAYLIST or ＋ and a playlist name in the bar - every ticked file is added in one go, and files that are already there are skipped. Tap ✕ DONE to leave selecting.", cz: "U každého souboru v sekci „Your Files\" jsou vedle ▶ dvě malá tlačítka. Klepnutím na ♥ soubor rovnou přidáte do MY PLAYLIST - dalším klepnutím ho zase odeberete a srdíčko zůstává v souladu s MY PLAYLIST. Klepnutím na ＋ se pod souborem rozbalí krátký seznam: nahoře ♥ MY PLAYLIST a pod ním všechny vámi vytvořené playlisty - klepnutím na název tam soubor přidáte (✓ značí playlisty, které ho už obsahují, takže se nikdy nepřidá dvakrát). Pokud ještě žádný playlist nemáte, vytvořte si ho v sekci „Your Playlists\" a seznam ＋ ho nabídne. Hned po nahrání tak můžete nové soubory roztřídit během pár vteřin. Chcete-li přidat více souborů najednou, klepněte nad seznamem na ☑ SELECT FILES, zaškrtněte požadované soubory (nebo klepněte na ☑ ALL) a v liště klepněte na ♥ MY PLAYLIST nebo na ＋ a název playlistu - všechny zaškrtnuté soubory se přidají naráz a ty, které tam už jsou, se přeskočí. Výběr ukončíte tlačítkem ✕ DONE." },
     h_myfiles_step2: { en: "3. Build a playlist that mixes your files with SYNTHLUCIDA", cz: "3. Vytvoření playlistu mixujícího vaše soubory se SYNTHLUCIDA" },
     p_myfiles_step2: { en: "Under \"Your Playlists\", type a name and tap CREATE. Open the new playlist card and use the dropdown to add items to it one at a time - it lists both your uploaded files and every SYNTHLUCIDA track, so you can freely interleave your own audio with ASMR, PIANO, or CHILL tracks in any order. Reorder items with ▲▼ (or drag them with the mouse) or remove them with ✕. Tap ▶ PLAY on the playlist card to play it straight through your own list, start to finish.", cz: "V sekci „Your Playlists\" napište název a klepněte na CREATE. Otevřete kartu nového playlistu a pomocí rozbalovací nabídky do něj postupně přidávejte položky - nabídka obsahuje jak vaše nahrané soubory, tak všechny skladby SYNTHLUCIDA, takže si vlastní zvuky můžete libovolně prokládat se skladbami z ASMR, PIANO nebo CHILL v libovolném pořadí. Pořadí položek změníte pomocí ▲▼ (nebo je přetáhnete myší) či je odeberete tlačítkem ✕. Klepnutím na ▶ PLAY na kartě playlistu ho spustíte přesně v pořadí, jak jste si ho poskládali." },
     h_myfiles_step3: { en: "4. Mix your files into MY PLAYLIST with ♥", cz: "4. Namixování vlastních souborů do MY PLAYLIST pomocí ♥" },
@@ -10903,7 +10917,7 @@
     bq_note: { en: "General relaxation information only — not medical advice. Stop if anything hurts or you feel unwell.", cz: "Pouze obecné informace pro uvolnění — nejde o zdravotní radu. Pokud něco bolí nebo se necítíš dobře, přestaň." },
     tarot_btn: { en: "Card of the day", cz: "Karta dne" },
     queue_title: { en: "My Playlist", cz: "Můj playlist" },
-    queue_intro: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼ (or drag tracks with the mouse), then hit PLAY to listen through your own list, in exactly the order you built it.", cz: "Klepni na ♥ vedle libovolné skladby v playlistu, nebo na + vedle skladby v HISTORY, a přidáš ji sem. Pořadí změníš pomocí ▲▼ (nebo skladby přetáhni myší), pak stiskni PŘEHRÁT a poslechni si vlastní seznam přesně v pořadí, v jakém sis ho poskládal." },
+    queue_intro: { en: "Tap the ♥ next to any track in the playlist, or the + next to a track in HISTORY, to add it here. Reorder with ▲▼ (or drag tracks with the mouse), then hit PLAY to listen through your own list, in exactly the order you built it. To sort or tidy many tracks at once, tap ☑ SELECT TRACKS, tick the tracks (or ☑ ALL) and move them to a section, to the top or bottom, or remove them in one go.", cz: "Klepni na ♥ vedle libovolné skladby v playlistu, nebo na + vedle skladby v HISTORY, a přidáš ji sem. Pořadí změníš pomocí ▲▼ (nebo skladby přetáhni myší), pak stiskni PŘEHRÁT a poslechni si vlastní seznam přesně v pořadí, v jakém sis ho poskládal. Chceš-li víc skladeb roztřídit nebo upravit najednou, klepni na ☑ VYBRAT SKLADBY, zaškrtni skladby (nebo ☑ VŠE) a přesuň je naráz do sekce, nahoru či dolů, nebo je odeber." },
     queue_empty: { en: "Your playlist is empty. Add tracks from HISTORY.", cz: "Tvůj playlist je prázdný. Přidej skladby z HISTORY." },
     queue_btn_play: { en: "▶ PLAY", cz: "▶ PŘEHRÁT" },
     queue_btn_stop: { en: "■ STOP", cz: "■ STOP" },
@@ -11715,18 +11729,201 @@
     showToast(`Added to ${pl.name}: ${record.name}`, '＋');
   };
 
+  // ---- F: HROMADNÝ VÝBĚR souborů -> MY PLAYLIST nebo vytvořený playlist ----
+  let myFilesSelectMode = false;
+  const myFilesSelected = new Set();
+
+  // Řazení A-Z (čeština, čísla přirozeně: "2" před "10"; velikost písmen a diakritika se při srovnání ignorují)
+  const azCollator = (function () {
+    try { return new Intl.Collator(['cs', 'en'], { numeric: true, sensitivity: 'base' }); } catch (e) { return null; }
+  })();
+  function azCompare(a, b) {
+    const x = String(a == null ? '' : a), y = String(b == null ? '' : b);
+    return azCollator ? azCollator.compare(x, y) : (x.toLowerCase() < y.toLowerCase() ? -1 : (x.toLowerCase() > y.toLowerCase() ? 1 : 0));
+  }
+
+  // Seznam "Your Files": jen zobrazení A-Z (nic se nemaže ani nepřesouvá, volba se pamatuje)
+  const MYFILES_SORT_KEY = 'synthlucida_myfiles_sort_az';
+  let myFilesSortAZ = false;
+  try { myFilesSortAZ = localStorage.getItem(MYFILES_SORT_KEY) === '1'; } catch (e) { /* ignore */ }
+  function getMyFilesDisplayOrder() {
+    return myFilesSortAZ ? myFilesLibrary.slice().sort((a, b) => azCompare(a.name, b.name)) : myFilesLibrary;
+  }
+  window.toggleMyFilesSortAZ = function() {
+    myFilesSortAZ = !myFilesSortAZ;
+    try { localStorage.setItem(MYFILES_SORT_KEY, myFilesSortAZ ? '1' : '0'); } catch (e) { /* ignore */ }
+    renderMyFiles();
+  };
+
+  // Playlist z panelu F: trvale seřadí položky podle názvu (potom jdou dál upravit ▲▼ / tažením)
+  window.sortMyPlaylistAZ = function(playlistId) {
+    const pl = myPlaylists.find(p => p.id === playlistId);
+    if (!pl || pl.items.length < 2) return;
+    if (!confirm('Sort "' + pl.name + '" A–Z? The current order will be replaced.')) return;
+    pl.items.sort((a, b) => azCompare(displayTrackTitle(a && a.title), displayTrackTitle(b && b.title)));
+    saveMyPlaylistsToStorage();
+    renderMyFiles();
+    syncMyPlaylistToMainWindow(playlistId);
+    showToast('Sorted A–Z: ' + pl.name, '🔤');
+  };
+
+  window.toggleMyFilesSelectMode = function() {
+    myFilesSelectMode = !myFilesSelectMode;
+    if (!myFilesSelectMode) myFilesSelected.clear();
+    renderMyFiles();
+  };
+
+  window.toggleMyFileSelected = function(fileId, on) {
+    if (on) myFilesSelected.add(fileId); else myFilesSelected.delete(fileId);
+    renderMyFiles();
+  };
+
+  window.selectAllMyFiles = function(all) {
+    myFilesSelected.clear();
+    if (all) myFilesLibrary.forEach(f => myFilesSelected.add(f.id));
+    renderMyFiles();
+  };
+
+  // Vybrané soubory v pořadí, v jakém jsou vidět v seznamu
+  function getSelectedMyFiles() {
+    return getMyFilesDisplayOrder().filter(f => myFilesSelected.has(f.id));
+  }
+
+  // Hromadně do MY PLAYLIST (♥) - co už tam je, se přeskočí
+  let bulkQueueBusy = false;
+  window.bulkAddSelectedToQueue = async function() {
+    if (bulkQueueBusy) return;
+    const files = getSelectedMyFiles();
+    if (!files.length) return;
+    bulkQueueBusy = true;
+    let added = 0, skipped = 0;
+    try {
+    for (const f of files) {
+      if (isMyFileInQueue(f.id)) { skipped++; continue; }
+      const url = await getMyFileBlobUrl(f.id);
+      if (!url) continue;
+      const key = 'custom:file:' + f.id;
+      if (!tracks[key]) tracks[key] = [{ title: f.name, src: url }];
+      const track = tracks[key][0];
+      customQueue.push({ title: track.title, src: track.src, playlist: key, index: 0, fileId: fileIdForQueueEntry(key, track) });
+      added++;
+    }
+    } catch (e) { console.error(e); } finally { bulkQueueBusy = false; }
+    if (added) {
+      saveCustomQueue();
+      updateQueueCountBadge();
+      try { renderCustomQueue(); } catch (e) { console.error(e); }
+      updateQueueCountBadge();
+      refreshPlaylistHeartIcons();
+      syncMainListWithQueue();
+      animateMyPlaylistAdded();
+    }
+    showToast(added ? `Added to My Playlist: ${added}` + (skipped ? ` (already there: ${skipped})` : '') : 'All selected files are already in My Playlist', '✓');
+  };
+
+  // Hromadně do vytvořeného playlistu - duplicity se přeskočí
+  window.bulkAddSelectedToPlaylist = function(playlistId) {
+    const pl = myPlaylists.find(p => p.id === playlistId);
+    const files = getSelectedMyFiles();
+    if (!pl || !files.length) return;
+    let added = 0, skipped = 0;
+    files.forEach(f => {
+      if (pl.items.some(it => it && it.type === 'file' && it.fileId === f.id)) { skipped++; return; }
+      pl.items.push({ type: 'file', fileId: f.id, title: f.name });
+      added++;
+    });
+    if (added) {
+      saveMyPlaylistsToStorage();
+      renderMyFiles();
+      syncMyPlaylistToMainWindow(playlistId);
+    }
+    showToast(added ? `Added to ${pl.name}: ${added}` + (skipped ? ` (already there: ${skipped})` : '') : `All selected files are already in ${pl.name}`, added ? '＋' : '✓');
+  };
+
+  // Lišta nad seznamem souborů: SELECT / ALL / NONE / DONE + cílové playlisty
+  function renderMyFilesBulkBar() {
+    const bar = document.getElementById('myfiles-bulk');
+    if (!bar) return;
+    bar.innerHTML = '';
+    if (!myFilesLibrary.length) { myFilesSelectMode = false; myFilesSelected.clear(); return; }
+    // zmizelé (smazané) soubory z výběru pryč
+    Array.from(myFilesSelected).forEach(id => { if (!myFilesLibrary.some(f => f.id === id)) myFilesSelected.delete(id); });
+    const mk = (parent, label, handler, opts) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-feature' + (opts && opts.active ? ' active' : '');
+      b.textContent = label;
+      if (opts && opts.disabled) b.disabled = true;
+      b.addEventListener('click', (e) => { e.stopPropagation(); handler(); });
+      parent.appendChild(b);
+      return b;
+    };
+    const row1 = document.createElement('div');
+    row1.className = 'myfiles-bulk-row';
+    if (!myFilesSelectMode) {
+      mk(row1, '☑ SELECT FILES', toggleMyFilesSelectMode);
+      mk(row1, myFilesSortAZ ? '🔤 A–Z ✓' : '🔤 A–Z', toggleMyFilesSortAZ, { active: myFilesSortAZ });
+      bar.appendChild(row1);
+      return;
+    }
+    mk(row1, '☑ ALL', () => selectAllMyFiles(true), { disabled: myFilesSelected.size === myFilesLibrary.length });
+    mk(row1, '☐ NONE', () => selectAllMyFiles(false), { disabled: !myFilesSelected.size });
+    mk(row1, '✕ DONE', toggleMyFilesSelectMode);
+    mk(row1, myFilesSortAZ ? '🔤 A–Z ✓' : '🔤 A–Z', toggleMyFilesSortAZ, { active: myFilesSortAZ });
+    const cnt = document.createElement('span');
+    cnt.className = 'myfiles-bulk-count';
+    cnt.textContent = `${myFilesSelected.size} / ${myFilesLibrary.length} selected`;
+    row1.appendChild(cnt);
+    bar.appendChild(row1);
+
+    const row2 = document.createElement('div');
+    row2.className = 'myfiles-bulk-row';
+    const lbl = document.createElement('span');
+    lbl.className = 'myfiles-bulk-label';
+    lbl.textContent = 'Add selected to:';
+    row2.appendChild(lbl);
+    const none = !myFilesSelected.size;
+    mk(row2, '♥ MY PLAYLIST', bulkAddSelectedToQueue, { disabled: none });
+    myPlaylists.forEach(pl => mk(row2, '＋ ' + pl.name, () => bulkAddSelectedToPlaylist(pl.id), { disabled: none }));
+    if (!myPlaylists.length) {
+      const note = document.createElement('span');
+      note.className = 'myfiles-bulk-label';
+      note.textContent = '(create a playlist below to add files to it too)';
+      row2.appendChild(note);
+    }
+    bar.appendChild(row2);
+  }
+
   // Vykreslení celého panelu My Files (seznam souborů + seznam playlistů)
   function renderMyFiles() {
     const listEl = document.getElementById('myfiles-list');
     const emptyNote = document.getElementById('myfiles-empty-note');
+    try { renderMyFilesBulkBar(); } catch (e) { console.error(e); }
     if (listEl) {
       listEl.innerHTML = '';
       if (!myFilesLibrary.length) {
         if (emptyNote) emptyNote.style.display = '';
       } else {
         if (emptyNote) emptyNote.style.display = 'none';
-        myFilesLibrary.forEach(f => {
+        getMyFilesDisplayOrder().forEach(f => {
           const li = document.createElement('li');
+          if (myFilesSelectMode) {
+            const selBox = document.createElement('input');
+            selBox.type = 'checkbox';
+            selBox.className = 'myfiles-sel-box';
+            selBox.checked = myFilesSelected.has(f.id);
+            selBox.setAttribute('aria-label', 'Select ' + f.name);
+            selBox.addEventListener('click', (e) => e.stopPropagation());
+            selBox.addEventListener('change', () => {
+              // seznam se překreslí, tak se fokus vrátí na stejný řádek (ovládání klávesnicí)
+              const k = Array.prototype.indexOf.call(listEl.children, li);
+              toggleMyFileSelected(f.id, selBox.checked);
+              const nb = listEl.children[k] && listEl.children[k].querySelector('.myfiles-sel-box');
+              if (nb) nb.focus();
+            });
+            li.appendChild(selBox);
+            if (selBox.checked) li.classList.add('myfiles-selected');
+          }
 
           const nameSpan = document.createElement('span');
           nameSpan.className = 'history-name';
@@ -11896,6 +12093,7 @@
           ['▶ PLAY', () => playMyPlaylist(pl.id)],
           ['■ STOP', () => stopPlayback()],
           ['RENAME', () => renameMyPlaylist(pl.id)],
+          ['🔤 SORT A–Z', () => sortMyPlaylistAZ(pl.id)],
           ['DELETE', () => deleteMyPlaylist(pl.id)]
         ].forEach(([label, handler]) => {
           const actionBtn = document.createElement('button');
@@ -14689,12 +14887,179 @@
     });
   })();
 
+  // ---- MY PLAYLIST: HROMADNÝ VÝBĚR (přesun do sekce, nahoru/dolů, odebrání) ----
+  // Výběr se drží podle samotných položek fronty (ne podle pozic), takže ho nerozbije přesun ani odebrání.
+  let queueSelectMode = false;
+  const queueSelected = new Set();
+
+  window.toggleQueueSelectMode = function() {
+    queueSelectMode = !queueSelectMode;
+    if (!queueSelectMode) queueSelected.clear();
+    renderCustomQueue();
+  };
+
+  function queueVisibleEntries() {
+    return customQueue.filter(e => e && (!queueMoodView || e.mood === queueMoodView));
+  }
+
+  function selectedQueueEntries() {
+    return customQueue.filter(e => e && queueSelected.has(e));
+  }
+
+  // Po změně fronty: přehrávaná skladba zůstane přehrávaná (hledá se podle položky, ne podle čísla)
+  function replaceQueueKeepingPlayback(newQueue) {
+    let newIdx = customQueueIndex;
+    if (customQueueActive && customQueueIndex >= 0) {
+      const cur = customQueue[customQueueIndex];
+      const ni = cur ? newQueue.indexOf(cur) : -1;
+      if (ni >= 0) newIdx = ni;
+      else {
+        // přehrávaná položka byla odebrána: index zůstane ukazovat před ní (další bude skladba, co následovala)
+        let before = 0;
+        for (let i = 0; i < customQueueIndex; i++) if (newQueue.indexOf(customQueue[i]) >= 0) before++;
+        newIdx = before - 1;
+      }
+    }
+    customQueue = newQueue;
+    customQueueIndex = newIdx;
+  }
+
+  function afterQueueBulkChange() {
+    saveCustomQueue();
+    renderCustomQueue();
+    updateQueueCountBadge();
+    refreshPlaylistHeartIcons();
+    syncMainListWithQueue();
+  }
+
+  function bulkSetSection(name) {
+    const sel = selectedQueueEntries();
+    if (!sel.length) return;
+    sel.forEach(e => { if (name) e.mood = name; else delete e.mood; });
+    afterQueueBulkChange();
+    showToast(name
+      ? mt('Moved to: ' + name + ' (' + sel.length + ')', 'Přesunuto do: ' + name + ' (' + sel.length + ')')
+      : mt('Removed from section (' + sel.length + ')', 'Odebráno ze sekce (' + sel.length + ')'), '📁');
+  }
+
+  function bulkNewSection() {
+    if (!selectedQueueEntries().length) return;
+    const raw = prompt(mt('Name of the new section, e.g. Sleeping', 'Název nové sekce, např. Spánek'), '');
+    if (raw === null) return;
+    const name = cleanMoodName(raw);
+    if (!name) { showToast(mt('Type a name first', 'Nejdřív napiš název'), '✎'); return; }
+    let m = findMood(name);
+    if (!m) {
+      if (queueMoods.length >= MOOD_MAX_COUNT) { showToast(mt('Up to ' + MOOD_MAX_COUNT + ' sections', 'Maximálně ' + MOOD_MAX_COUNT + ' sekcí'), '📁'); return; }
+      queueMoods.push(name);
+      m = name;
+      saveQueueMoods();
+    }
+    bulkSetSection(m);
+  }
+
+  // Vybrané skladby na začátek / na konec celého MY PLAYLISTU (jejich vzájemné pořadí zůstane)
+  function bulkMoveSelected(toTop) {
+    const sel = selectedQueueEntries();
+    if (!sel.length) return;
+    const rest = customQueue.filter(e => !(e && queueSelected.has(e)));
+    replaceQueueKeepingPlayback(toTop ? sel.concat(rest) : rest.concat(sel));
+    afterQueueBulkChange();
+    showToast(toTop ? mt('Moved to the top (' + sel.length + ')', 'Přesunuto nahoru (' + sel.length + ')')
+                    : mt('Moved to the bottom (' + sel.length + ')', 'Přesunuto dolů (' + sel.length + ')'), toTop ? '⬆' : '⬇');
+  }
+
+  // Seřadí MY PLAYLIST A-Z. Při zobrazené sekci se řadí jen její skladby (zůstanou na svých místech v celku).
+  function sortQueueAZ() {
+    const vis = [];
+    customQueue.forEach((e, p) => { if (e && (!queueMoodView || e.mood === queueMoodView)) vis.push(p); });
+    if (vis.length < 2) return;
+    const what = queueMoodView ? mt('section "' + queueMoodView + '"', 'sekci „' + queueMoodView + '“') : mt('the whole My Playlist', 'celý My Playlist');
+    if (!confirm(mt('Sort ' + what + ' A–Z? The current order will be replaced.', 'Seřadit ' + what + ' podle abecedy? Současné pořadí se nahradí.'))) return;
+    const sorted = vis.map(p => customQueue[p]).sort((a, b) => azCompare(displayTrackTitle(a.title), displayTrackTitle(b.title)));
+    const nq = customQueue.slice();
+    vis.forEach((p, i) => { nq[p] = sorted[i]; });
+    replaceQueueKeepingPlayback(nq);
+    afterQueueBulkChange();
+    showToast(mt('Sorted A–Z', 'Seřazeno A–Z'), '🔤');
+  }
+
+  function bulkRemoveSelected() {
+    const sel = selectedQueueEntries();
+    if (!sel.length) return;
+    if (!confirm(mt('Remove ' + sel.length + ' selected track(s) from My Playlist?', 'Odebrat vybrané skladby (' + sel.length + ') z My Playlist?'))) return;
+    const rest = customQueue.filter(e => !(e && queueSelected.has(e)));
+    replaceQueueKeepingPlayback(rest);
+    queueSelected.clear();
+    if (!customQueue.length) { customQueueActive = false; customQueueIndex = -1; }
+    animateMyPlaylistRemoved();
+    afterQueueBulkChange();
+    showToast(mt('Removed from My Playlist (' + sel.length + ')', 'Odebráno z My Playlist (' + sel.length + ')'), '✓');
+  }
+
+  function renderQueueBulkBar() {
+    const bar = document.getElementById('queue-bulk');
+    if (!bar) return;
+    bar.innerHTML = '';
+    if (!customQueue.length) { queueSelectMode = false; queueSelected.clear(); return; }
+    // vybrané, ale už neexistující nebo právě nezobrazené (jiná sekce) skladby z výběru pryč
+    const visible = queueVisibleEntries();
+    Array.from(queueSelected).forEach(e => { if (visible.indexOf(e) < 0) queueSelected.delete(e); });
+    const mk = (parent, label, handler, disabled) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-feature';
+      b.textContent = label;
+      if (disabled) b.disabled = true;
+      b.addEventListener('click', (e) => { e.stopPropagation(); handler(); });
+      parent.appendChild(b);
+      return b;
+    };
+    const row1 = document.createElement('div');
+    row1.className = 'myfiles-bulk-row';
+    if (!queueSelectMode) {
+      mk(row1, mt('☑ SELECT TRACKS', '☑ VYBRAT SKLADBY'), toggleQueueSelectMode);
+      mk(row1, mt('🔤 SORT A–Z', '🔤 ŘADIT A–Z'), sortQueueAZ, visible.length < 2);
+      bar.appendChild(row1);
+      return;
+    }
+    mk(row1, mt('☑ ALL', '☑ VŠE'), () => { visible.forEach(e => queueSelected.add(e)); renderCustomQueue(); }, queueSelected.size === visible.length);
+    mk(row1, mt('☐ NONE', '☐ NIC'), () => { queueSelected.clear(); renderCustomQueue(); }, !queueSelected.size);
+    mk(row1, mt('✕ DONE', '✕ HOTOVO'), toggleQueueSelectMode);
+    mk(row1, mt('🔤 SORT A–Z', '🔤 ŘADIT A–Z'), sortQueueAZ, visible.length < 2);
+    const cnt = document.createElement('span');
+    cnt.className = 'myfiles-bulk-count';
+    cnt.textContent = mt(queueSelected.size + ' / ' + visible.length + ' selected', queueSelected.size + ' / ' + visible.length + ' vybráno');
+    row1.appendChild(cnt);
+    bar.appendChild(row1);
+
+    const none = !queueSelected.size;
+    const row2 = document.createElement('div');
+    row2.className = 'myfiles-bulk-row';
+    const lbl2 = document.createElement('span');
+    lbl2.className = 'myfiles-bulk-label';
+    lbl2.textContent = mt('Selected → section:', 'Vybrané → sekce:');
+    row2.appendChild(lbl2);
+    queueMoods.forEach(m => mk(row2, '📁 ' + m, () => bulkSetSection(m), none));
+    if (queueMoods.length < MOOD_MAX_COUNT) mk(row2, mt('＋ NEW SECTION…', '＋ NOVÁ SEKCE…'), bulkNewSection, none);
+    mk(row2, mt('✕ NO SECTION', '✕ BEZ SEKCE'), () => bulkSetSection(null), none);
+    bar.appendChild(row2);
+
+    const row3 = document.createElement('div');
+    row3.className = 'myfiles-bulk-row';
+    mk(row3, mt('⬆ TO TOP', '⬆ NAHORU'), () => bulkMoveSelected(true), none);
+    mk(row3, mt('⬇ TO BOTTOM', '⬇ DOLŮ'), () => bulkMoveSelected(false), none);
+    mk(row3, mt('🗑 REMOVE', '🗑 ODEBRAT'), bulkRemoveSelected, none);
+    bar.appendChild(row3);
+  }
+
   function renderCustomQueue() {
     const listEl = document.getElementById('queue-list');
     const emptyNote = document.getElementById('queue-empty-note');
     if (!listEl) return;
 
     renderMoodBar();
+    try { renderQueueBulkBar(); } catch (e) { console.error(e); }
     const view = queueMoodView;
     listEl.classList.toggle('mood-filtered', !!view);
     const visible = [];
@@ -14724,6 +15089,23 @@
       li.dataset.qpos = String(pos);
       if (customQueueActive && pos === customQueueIndex) li.classList.add('active');
       if (isSpecialTrack(entry)) li.classList.add('track-special');
+      if (queueSelectMode) {
+        const selBox = document.createElement('input');
+        selBox.type = 'checkbox';
+        selBox.className = 'myfiles-sel-box';
+        selBox.checked = queueSelected.has(entry);
+        selBox.setAttribute('aria-label', 'Select ' + displayTrackTitle(entry.title));
+        selBox.addEventListener('click', (e) => e.stopPropagation());
+        selBox.addEventListener('change', () => {
+          const k = Array.prototype.indexOf.call(listEl.children, li);
+          if (selBox.checked) queueSelected.add(entry); else queueSelected.delete(entry);
+          renderCustomQueue();
+          const nb = listEl.children[k] && listEl.children[k].querySelector('.myfiles-sel-box');
+          if (nb) nb.focus();
+        });
+        li.appendChild(selBox);
+        if (selBox.checked) li.classList.add('myfiles-selected');
+      }
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'history-name';
@@ -18328,7 +18710,7 @@
 
     list.addEventListener('pointerdown', function (e) {
       if (e.pointerType !== 'mouse' || e.button !== 0 || st) return;
-      if (e.target.closest && e.target.closest('button')) return; // tlacitka (sipky, stazeni, odebrani) se netahaji
+      if (e.target.closest && e.target.closest('button, input')) return; // tlacitka (sipky, stazeni, odebrani) a zaškrtávátko výběru se netahaji
       var li = e.target.closest ? e.target.closest('li') : null;
       if (!li || li.parentNode !== list || list.children.length < 2) return;
       st = { from: items().indexOf(li), x: e.clientX, y: e.clientY, lastY: e.clientY, dragging: false, to: 0, after: false, timer: null };
