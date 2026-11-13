@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.5.1">
+<meta name="app-version" content="2.5.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -513,6 +513,10 @@
   .myfiles-bulk-label { font-size: 10px; opacity: 0.6; }
   .myfiles-sel-box { flex-shrink: 0; width: 16px; height: 16px; margin: 0 4px 0 0; accent-color: var(--accent-color); cursor: pointer; }
   #myfiles-list li.myfiles-selected, #queue-list li.myfiles-selected { background: rgba(255,255,255,0.06); }
+  /* Hledání v panelu F (nahoře): pole + zvýraznění nalezených skladeb v otevřeném playlistu */
+  #myfiles-search { width: 100%; box-sizing: border-box; padding: 9px 12px; margin: 0 0 10px; }
+  #myfiles-search::placeholder { color: rgba(255,255,255,0.4); }
+  #myfiles-list li.myfiles-hit .history-name, .myfiles-playlist-body li.myfiles-hit .history-name { color: var(--accent-color); }
   #queue-bulk { max-width: 360px; margin: 0 auto 10px; }
   #queue-bulk .myfiles-bulk-row { justify-content: center; }
 
@@ -4465,6 +4469,9 @@
     <h3 class="section-title-row"><span data-i18n="mf_title">My Files &amp; Playlists</span><span class="eq" id="myfiles-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span></h3>
     <p class="main-guide-intro" data-i18n="myfiles_intro">Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.</p>
 
+    <input type="search" class="myfiles-text-input" id="myfiles-search" placeholder="Search files &amp; playlists…" data-i18n-placeholder="mf_ph_search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search files and playlists" data-i18n-aria="mf_aria_search">
+    <p class="main-guide-note" id="myfiles-search-empty" style="display:none;"></p>
+
     <input type="file" id="myfiles-input" accept="audio/*" multiple style="display:none;" onchange="handleMyFilesUpload(event)">
     <div class="queue-actions">
       <button class="btn-feature" data-i18n="mf_btn_add" onclick="document.getElementById('myfiles-input').click()">＋ ADD AUDIO FILES</button>
@@ -5422,6 +5429,11 @@
   let timeRemaining = 0;
   let timerInterval;
   let timerEndsAt = 0; // review 09/2026: konec časovače spánku podle skutečných hodin
+  // Plynulé ztišení na konci časovače spánku: posledních SLEEP_FADE_SEC sekund se hudba (hlavní skladba, druhá
+  // ASMR vrstva) i binaurální tóny postupně ztiší až do ticha. sleepFadeMul = 1 (normál) .. 0 (ticho) se násobí
+  // do mainVol() a layerTargetVolume(), takže ho respektuje i nově spuštěná skladba nebo crossfade.
+  const SLEEP_FADE_SEC = 60;
+  let sleepFadeMul = 1;
 
   const audio = document.getElementById('audio-player');
   const crossfadeAudio = document.getElementById('audio-player-crossfade');
@@ -7038,7 +7050,7 @@
   function mainGainMul() { return Math.pow(2, (mainGainPos - 0.5) * 2); }
   function mainVol() {
     const v = parseFloat(volumeSlider.value);
-    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * mainGainMul()));
+    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * mainGainMul() * sleepFadeMul));
   }
   audio.volume = Math.min(1, initialVolume * mainGainMul());
   // Plynulá změna hlasitosti (proti "prskání" / zipper noise): audio.volume se při tažení posuvníku nebo knobu
@@ -10075,7 +10087,7 @@
 
   // Hlasitost druhé stopy určuje JEN knob - hlavní posuvník hlasitosti ji neovlivňuje.
   function layerTargetVolume() {
-    return Math.min(1, Math.max(0, layerKnobVal));
+    return Math.min(1, Math.max(0, layerKnobVal * sleepFadeMul));
   }
 
   function paintLayerKnob() {
@@ -10935,6 +10947,8 @@
     mf_h_playlists: { en: "Your Playlists", cz: "Vaše playlisty" },
     mf_h_files: { en: "Your Files", cz: "Vaše soubory" },
     mf_ph_name: { en: "New playlist name", cz: "Název nového playlistu" },
+    mf_ph_search: { en: "Search files & playlists…", cz: "Hledat v souborech a playlistech…" },
+    mf_aria_search: { en: "Search files and playlists", cz: "Hledat v souborech a playlistech" },
     mf_btn_create: { en: "CREATE", cz: "VYTVOŘIT" },
     mf_pl_empty: { en: "No playlists yet. Create one above, then add your files and SYNTHLUCIDA tracks to it.", cz: "Zatím žádné playlisty. Nahoře si nějaký vytvořte a pak do něj přidejte své soubory a skladby SYNTHLUCIDA." },
     mf_files_empty: { en: "No files added yet.", cz: "Zatím nejsou přidány žádné soubory." },
@@ -11976,7 +11990,7 @@
 
   window.selectAllMyFiles = function(all) {
     myFilesSelected.clear();
-    if (all) myFilesLibrary.forEach(f => myFilesSelected.add(f.id));
+    if (all) myFilesLibrary.forEach(f => { if (myFilesMatch(f.name)) myFilesSelected.add(f.id); }); // při hledání jen nalezené
     renderMyFiles();
   };
 
@@ -12091,7 +12105,7 @@
   }
 
   // Vykreslení celého panelu My Files (seznam souborů + seznam playlistů)
-  function renderMyFiles() {
+  function renderMyFilesCore() {
     const listEl = document.getElementById('myfiles-list');
     const emptyNote = document.getElementById('myfiles-empty-note');
     try { renderMyFilesBulkBar(); } catch (e) { console.error(e); }
@@ -12306,6 +12320,60 @@
       playlistsEl.appendChild(card);
     });
   }
+
+  // Hledání v panelu F: filtruje soubory (podle názvu) a playlisty (podle názvu nebo skladby uvnitř). Řádky se jen
+  // skrývají (display), nikdy se nemažou z DOM, takže tažení skladeb, výběr souborů i nabídka playlistů fungují dál.
+  let myFilesQuery = '';
+  function myFilesMatch(text) {
+    const q = searchNorm(myFilesQuery);
+    if (!q) return true;
+    const hay = searchNorm(text);
+    return q.split(' ').every(w => hay.indexOf(w) !== -1);
+  }
+  function applyMyFilesFilter() {
+    const active = !!searchNorm(myFilesQuery);
+    const listEl = document.getElementById('myfiles-list');
+    const playlistsEl = document.getElementById('myfiles-playlists');
+    const note = document.getElementById('myfiles-search-empty');
+    let shown = 0;
+    if (listEl) {
+      const order = getMyFilesDisplayOrder();
+      let k = 0, lastShow = true;
+      Array.from(listEl.children).forEach(li => {
+        let show;
+        if (li.classList.contains('myfiles-pl-picker')) show = lastShow; // nabídka "přidat do playlistu" patří k souboru nad ní
+        else { const f = order[k++]; show = !active || !!(f && myFilesMatch(f.name)); lastShow = show; if (show) shown++; }
+        li.style.display = show ? '' : 'none';
+      });
+    }
+    if (playlistsEl) {
+      Array.from(playlistsEl.children).forEach((card, i) => {
+        const pl = myPlaylists[i];
+        if (!pl) return;
+        const hits = pl.items.map(it => !!active && !!it && myFilesMatch(displayTrackTitle(it.title)));
+        const show = !active || myFilesMatch(pl.name) || hits.some(Boolean);
+        card.style.display = show ? '' : 'none';
+        if (show) shown++;
+        const ul = card.querySelector('ul[data-plid]');
+        if (ul) Array.from(ul.children).forEach((li, pos) => li.classList.toggle('myfiles-hit', !!hits[pos]));
+      });
+    }
+    if (note) {
+      const any = (myFilesLibrary && myFilesLibrary.length) || (myPlaylists && myPlaylists.length);
+      const none = active && any && !shown;
+      note.textContent = none ? mfT('No matches.', 'Nic nenalezeno.') : '';
+      note.style.display = none ? '' : 'none';
+    }
+  }
+  function renderMyFiles() {
+    renderMyFilesCore();
+    try { applyMyFilesFilter(); } catch (e) { console.error(e); }
+  }
+  (function initMyFilesSearch() {
+    const inp = document.getElementById('myfiles-search');
+    if (!inp) return;
+    inp.addEventListener('input', () => { myFilesQuery = inp.value; try { applyMyFilesFilter(); } catch (e) { console.error(e); } });
+  })();
 
   // ==========================================
   // EXPORT DO TXT (My Playlist i historie)
@@ -15834,7 +15902,9 @@
     // Výchozí GAIN (+12 dB) a TONES 0-50 % zní stejně jako dřív (vol * 0.15); 50-100 %: geometrický (po dB plynulý) nárůst ke stropu.
     const gainDb = () => gainPos * GAIN_MAX_DB;
     const LOW_K = MAX_GAIN * Math.pow(10, (GAIN_MAX_DB - DEFAULT_GAIN * GAIN_MAX_DB) / 20); // sklon dolní poloviny při GAIN +15 dB
-    const level = () => {
+    let sleepMul = 1; // plynulé ztišení na konci časovače spánku (1 = normál, 0 = ticho), viz window.binauralSleepFade
+    const level = () => levelBase() * sleepMul;
+    const levelBase = () => {
       const m = Math.pow(10, (gainDb() - GAIN_MAX_DB) / 20); // 1 při +15 dB, 0.18 při 0 dB
       if (vol <= 0.5) return vol * LOW_K * m;
       const half = 0.5 * LOW_K;
@@ -16327,6 +16397,14 @@
     });
     // Časovač spánku: když vyprší, ztiší se i tóny (stránka zůstane otevřená)
     window.binauralOnSleepTimer = function() { if (modeIdx !== 0) setMode(0); };
+    // Postupné ztišení tónů před koncem časovače (mul 1..0); když tóny nehrají, jen se zapamatuje hodnota
+    window.binauralSleepFade = function(mul) {
+      sleepMul = Math.min(1, Math.max(0, mul));
+      if (ctx && gainL && gainR && modeIdx !== 0) {
+        const now = ctx.currentTime;
+        gainL.gain.setTargetAtTime(level(), now, 0.5); gainR.gain.setTargetAtTime(level(), now, 0.5);
+      }
+    };
     // Děkovné okno: tóny se na chvíli ztiší a po zavření okna se vrátí stejná vlna (vrací číslo vlny, nebo 0 = nic nehrálo)
     window.binauralPopupPause = function() {
       if (modeIdx === 0) return 0;
@@ -16485,12 +16563,27 @@
   // review 09/2026: časovač počítá podle skutečných hodin, ne podle počtu "tiknutí" - telefon
   // může appce na pozadí / se zhasnutou obrazovkou časovače zpomalit a hudba by pak hrála
   // déle. Kontroluje se každou sekundu i při každém posunu přehrávání (timeupdate).
+  // Nastaví hlasitost podle násobiče ztišení (1 = normál, 0 = ticho): hlavní hudba plynule (rampMainVolume),
+  // druhá ASMR vrstva se přizpůsobí do 0,5 s (layerTick) a binaurální tóny přes svůj vlastní hook.
+  function applySleepFade(mul) {
+    mul = Math.min(1, Math.max(0, mul));
+    if (mul === sleepFadeMul) return;
+    if (Math.abs(mul - sleepFadeMul) < 0.004 && mul !== 0 && mul !== 1) return; // drobné změny se přeskočí
+    sleepFadeMul = mul;
+    try { rampMainVolume(false); } catch (e) { /* ignore */ }
+    try { if (typeof window.binauralSleepFade === 'function') window.binauralSleepFade(mul); } catch (e) { /* ignore */ }
+  }
+
   function checkSleepTimer() {
     if (!timerEndsAt) return;
     timeRemaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
     updateTimerDisplay();
-    if (timeRemaining <= 0) {
-      cancelTimer();
+    if (timeRemaining > 0) {
+      // posledních SLEEP_FADE_SEC sekund: plynulé ztišení (kvadratická křivka zní přirozeněji než lineární)
+      const left = Math.max(0, (timerEndsAt - Date.now()) / 1000);
+      if (left < SLEEP_FADE_SEC) applySleepFade(Math.pow(left / SLEEP_FADE_SEC, 2));
+    } else {
+      cancelTimer(true); // true = vypršel sám, hlasitost se nevrací nahoru před zastavením
       if (typeof window.binauralOnSleepTimer === 'function') window.binauralOnSleepTimer(); // ztiší i binaurální tóny
       if (isPlaying) {
         cancelCrossfade(); // review 09/2026: časovač musí zastavit i právě prolínanou další skladbu
@@ -16498,13 +16591,18 @@
         isPlaying = false;
         playBtn.innerText = "▶";
       }
+      // Až teď (hudba už stojí) se hlasitost vrátí na normál, aby další přehrání nezačalo v tichu
+      sleepFadeMul = 1;
+      try { if (typeof window.binauralSleepFade === 'function') window.binauralSleepFade(1); } catch (e) { /* ignore */ }
+      try { if (!asmrFadeTimer && !crossfadeActive) audio.volume = mainVol(); } catch (e) { /* ignore */ }
     }
   }
 
-  window.cancelTimer = function() {
+  window.cancelTimer = function(expired) {
     clearInterval(timerInterval);
     timerEndsAt = 0;
     timeRemaining = 0;
+    if (expired !== true) applySleepFade(1); // zrušení / nové nastavení během ztišování: hlasitost se plynule vrátí
     document.getElementById('timer-display').innerText = "⏱ Off";
     const bnT = document.getElementById('bn-timer-display'); if (bnT) bnT.innerText = "⏱ Off";
     highlightActiveTimer(0);
