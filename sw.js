@@ -87,9 +87,11 @@
 // sw.js všechny stažené skladby (player.html je pořád na GitHub adresách). Teď se GitHub
 // kopie smaže jen tehdy, když už je v audio cache stejný soubor stažený z R2. Do té doby
 // (a u skladeb bez R2 kopie) zůstávají stažené skladby nedotčené. Cache zvýšena na v1269.
+// auto - přidána fotka player-bg-sun-11.jpg do LAZY_ASSETS, cache zvýšena na v1278.
+// auto - přidána fotka player-bg-sun-12.jpg do LAZY_ASSETS, cache zvýšena na v1279.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1277';
+const APP_CACHE_NAME = 'synthlucida-app-v1279';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -200,7 +202,9 @@ const LAZY_ASSETS = [
   './player-bg-moon.jpg',
   './player-bg-sun-1.jpg', './player-bg-sun-2.jpg', './player-bg-sun-3.jpg', './player-bg-sun-4.jpg',
   './player-bg-sun-5.jpg', './player-bg-sun-6.jpg', './player-bg-sun-7.jpg', './player-bg-sun-8.jpg',
-  './player-bg-sun-9.jpg', './player-bg-sun-10.jpg'
+  './player-bg-sun-9.jpg', './player-bg-sun-10.jpg',
+  './player-bg-sun-11.jpg',
+  './player-bg-sun-12.jpg'
 ];
 LAZY_ASSETS.forEach((u) => SHELL_PATHS.add(new URL(u, self.registration.scope).pathname));
 
