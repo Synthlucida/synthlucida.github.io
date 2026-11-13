@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.5.0">
+<meta name="app-version" content="2.5.1">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3568,6 +3568,9 @@
   .focus-menu button:hover, .focus-menu button:focus-visible { opacity: 1; border-color: var(--accent-color); outline: none; }
   .focus-menu button.on { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   body.opt-lite .su-seg.su-seg-focus { opacity: 1; pointer-events: auto; }
+  body.opt-lite .su-seg.su-seg-weather, body.opt-lite .su-seg.su-seg-sunset { opacity: 1; pointer-events: auto; }
+  /* Nabídka WEATHER (stejný vzhled jako nabídka FOCUS); nedostupná volba je ztlumená */
+  .focus-menu button:disabled, .focus-menu button:disabled:hover { opacity: 0.35; cursor: not-allowed; border-color: rgba(255,255,255,0.14); }
   /* ===== SETUP (EXPLORE > SETUP): úsporný režim, volby grafiky a sezónní atmosféry ===== */
   .su-window { max-width: 360px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
   .su-sec { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1.5px; opacity: 0.6; text-align: center; margin-top: 6px; }
@@ -3578,7 +3581,7 @@
   .su-txt { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; min-width: 0; flex: 1 1 auto; }
   .su-name { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px; }
   .su-main .su-desc { white-space: pre-line; opacity: 0.75; }
-  .su-desc[data-i18n="su_anim_d"], .su-desc[data-i18n="su_focus_d"] { white-space: pre-line; opacity: 0.75; }
+  .su-desc[data-i18n="su_anim_d"], .su-desc[data-i18n="su_focus_d"], .su-desc[data-i18n="su_weather_d"], .su-desc[data-i18n="su_sunset_d"] { white-space: pre-line; opacity: 0.75; }
   .su-desc { font-size: 9px; line-height: 1.3; opacity: 0.6; }
   .su-sw { flex: none; position: relative; width: 38px; height: 20px; padding: 0; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); cursor: pointer; transition: background 0.2s, border-color 0.2s; -webkit-tap-highlight-color: transparent; }
   .su-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; opacity: 0.7; transition: transform 0.2s, background 0.2s; }
@@ -3937,10 +3940,10 @@
 
 <div class="effects-container">
   <button class="btn-feature btn-birds" id="btn-birds" onclick="toggleBirds()" aria-pressed="false" disabled title="Flying birds in WEATHER: SUN (turn on WEATHER: SUN first)" aria-label="Flying birds on/off (WEATHER: SUN)"><svg class="ico-inline bird-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="bi-w1" d="M2 9c3-1 5.500-.5 7.500 2 1.500-3 4.500-4 7.500-3.500"/><path class="bi-w2" d="M12.500 13.500c2-2.500 4.500-3 8-2"/><path class="bi-b" d="M9.500 11c-1 3.500-3 5.500-6 6.500"/></svg></button>
-  <button class="btn-feature" id="btn-weather" onclick="toggleWeather()">WEATHER: OFF</button>
+  <button class="btn-feature" id="btn-weather" onclick="weatherButtonClick(event)" aria-haspopup="menu">WEATHER: OFF</button>
   <button class="btn-feature" id="btn-sun-photo" onclick="toggleSunPhotosPanel()" title="Add, remove or reorder your own photos in the WEATHER: SUN rotation"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg>PHOTO</button>
   <input type="file" id="sun-photo-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
-  <button class="btn-feature" id="btn-sunset" onclick="toggleSunset()">SUNSET: OFF</button>
+  <button class="btn-feature" id="btn-sunset" onclick="sunsetButtonClick(event)" aria-haspopup="menu">SUNSET: OFF</button>
   <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>MY PLAYLIST <span id="queue-count-badge"></span></button>
   <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
   <button class="btn-feature" id="btn-install" onclick="installApp()" style="display:none;">📲 INSTALL APP</button>
@@ -4597,6 +4600,19 @@
   <button type="button" role="menuitem" data-focus-stage="3"><span>FOCUS 3</span><small data-i18n="focus_menu_3">TALL PLAYLIST</small></button>
   <button type="button" role="menuitem" data-focus-stage="0" id="focus-menu-off"><span data-i18n="focus_menu_off">✕ OFF</span></button>
 </div>
+<div class="focus-menu" id="weather-menu" role="menu" aria-label="Weather" hidden>
+  <button type="button" role="menuitem" data-weather-mode="1"><span>SUN</span><small data-i18n="weather_menu_1">YOUR PHOTOS</small></button>
+  <button type="button" role="menuitem" data-weather-mode="2"><span>RAIN</span><small data-i18n="weather_menu_2">RAINFALL</small></button>
+  <button type="button" role="menuitem" data-weather-mode="3"><span>WINTER 1</span><small data-i18n="weather_menu_3">SNOWFALL</small></button>
+  <button type="button" role="menuitem" data-weather-mode="4"><span>WINTER 2</span><small data-i18n="weather_menu_4">BLIZZARD</small></button>
+  <button type="button" role="menuitem" data-weather-mode="0" id="weather-menu-off"><span data-i18n="weather_menu_off">✕ OFF</span></button>
+</div>
+<div class="focus-menu" id="sunset-menu" role="menu" aria-label="Sunset" hidden>
+  <button type="button" role="menuitem" data-sunset-mode="1"><span>SUNSET</span><small data-i18n="sunset_menu_1">WARM GRADIENT</small></button>
+  <button type="button" role="menuitem" data-sunset-mode="2"><span>SUNSET II</span><small data-i18n="sunset_menu_2">SECOND VARIANT</small></button>
+  <button type="button" role="menuitem" data-sunset-mode="3"><span>NIGHT</span><small data-i18n="sunset_menu_3">STARRY SKY</small></button>
+  <button type="button" role="menuitem" data-sunset-mode="0" id="sunset-menu-off"><span data-i18n="sunset_menu_off">✕ OFF</span></button>
+</div>
 <div class="tm-overlay" id="setup-window" role="dialog" aria-modal="true" aria-labelledby="su-title" hidden>
   <div class="tm-window su-window">
     <div class="tm-head"><span class="tm-title" id="su-title" data-i18n="su_title">⚙ SETUP</span><button type="button" class="tm-close" onclick="toggleSetup()" aria-label="Close" title="Close">✕</button></div>
@@ -4614,6 +4630,10 @@
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_witch_n"></span><span class="su-desc" data-i18n="su_witch_d"></span></div><div class="su-seg" data-season="witches" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
     <div class="su-sec" data-i18n="su_sec_focus">FOCUS BUTTON</div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_focus_n"></span><span class="su-desc" data-i18n="su_focus_d"></span></div><div class="su-seg su-seg-focus" data-focusbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
+    <div class="su-sec" data-i18n="su_sec_weather">WEATHER BUTTON</div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_weather_n"></span><span class="su-desc" data-i18n="su_weather_d"></span></div><div class="su-seg su-seg-weather" data-weatherbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
+    <div class="su-sec" data-i18n="su_sec_sunset">SUNSET BUTTON</div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_sunset_n"></span><span class="su-desc" data-i18n="su_sunset_d"></span></div><div class="su-seg su-seg-sunset" data-sunsetbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
   </div>
 </div>
 
@@ -7757,6 +7777,65 @@
       showWeatherStage();
   };
 
+  // Tlačítko WEATHER (hlavní okno): podle volby v SETUP buď přepíná scény jako dřív (výchozí), nebo otevře malou nabídku SUN / RAIN / WINTER 1 / WINTER 2 / OFF.
+  // Pravidla kombinací zůstávají jako u přepínání: SUN vypne SUNSET / NIGHT, déšť a sníh vypnou SUNSET / SUNSET II (NIGHT zůstane); v úsporném režimu jen SUN a OFF.
+  const WEATHER_BTN_KEY = 'synthlucida_weather_btn';
+  window.weatherBtnMode = {
+      get: function() { try { return localStorage.getItem(WEATHER_BTN_KEY) === 'menu' ? 'menu' : 'cycle'; } catch (e) { return 'cycle'; } },
+      set: function(v) { try { localStorage.setItem(WEATHER_BTN_KEY, v === 'menu' ? 'menu' : 'cycle'); } catch (e) { /* ignore */ } closeWeatherMenu(); }
+  };
+  function hideOtherMenus(keep) { ['focus-menu', 'weather-menu', 'sunset-menu'].forEach(function(id) { if (id === keep) return; const x = document.getElementById(id); if (x) x.hidden = true; }); }
+  function closeWeatherMenu() { const m = document.getElementById('weather-menu'); if (m) m.hidden = true; }
+  // Přímá volba scény z nabídky (stejná logika jako v toggleWeather, jen bez cyklení)
+  function setWeatherTo(t) {
+      if (document.body.classList.contains('opt-lite') && t >= 2) t = 0;
+      if (t === 1 && navigator.onLine === false && !customSunPhotoEntries.length) {
+          sunBuiltinsReachable().then((reachable) => {
+              if (reachable) { weatherMode = 1; applyWeatherUI(); showWeatherStage(); }
+              else showSunOfflineNotice(); // dosavadní scéna zůstane
+          });
+          return;
+      }
+      weatherMode = t;
+      applyWeatherUI();
+      showWeatherStage();
+  }
+  window.weatherButtonClick = function(ev) {
+      if (window.weatherBtnMode.get() !== 'menu') { closeWeatherMenu(); window.toggleWeather(); return; }
+      const m = document.getElementById('weather-menu'), btn = document.getElementById('btn-weather');
+      if (!m || !btn) { window.toggleWeather(); return; }
+      if (!m.hidden) { closeWeatherMenu(); return; }
+      const lite = document.body.classList.contains('opt-lite');
+      m.querySelectorAll('[data-weather-mode]').forEach(function(b) {
+          const k = Number(b.getAttribute('data-weather-mode'));
+          b.style.display = (k === 0) ? (weatherMode ? '' : 'none') : ((lite && k >= 2) ? 'none' : '');
+          b.disabled = false; b.title = '';
+          b.classList.toggle('on', k === weatherMode && k > 0);
+      });
+      hideOtherMenus('weather-menu');
+      m.hidden = false;
+      const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+      let left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+      let top = r.bottom + 8;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+      m.style.left = left + 'px'; m.style.top = top + 'px';
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+  };
+  document.addEventListener('click', function(e) {
+      const m = document.getElementById('weather-menu');
+      if (!m || m.hidden) return;
+      const b = e.target.closest && e.target.closest('[data-weather-mode]');
+      if (b && m.contains(b)) {
+          if (b.disabled) return;
+          const t = Number(b.getAttribute('data-weather-mode'));
+          closeWeatherMenu(); setWeatherTo(t); return;
+      }
+      if (!m.contains(e.target)) closeWeatherMenu();
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeWeatherMenu(); });
+  window.addEventListener('resize', closeWeatherMenu);
+  window.addEventListener('scroll', closeWeatherMenu, true);
+
   function applySunsetUI() {
       let btn = document.getElementById('btn-sunset');
       if (sunsetMode === 0) {
@@ -7793,6 +7872,68 @@
       if (weatherMode >= 2) { weatherMode = 0; applyWeatherUI(); }
       if (sunsetMode !== 0) { sunsetMode = 0; applySunsetUI(); }
   };
+
+  // Tlačítko SUNSET (hlavní okno): stejný princip jako WEATHER - podle volby v SETUP buď přepíná (výchozí), nebo otevře nabídku SUNSET / SUNSET II / NIGHT / OFF.
+  // Pravidla kombinací zůstávají jako u přepínání: SUNSET / NIGHT vypne WEATHER: SUN, SUNSET / SUNSET II vypnou déšť a sníh; v úsporném režimu je SUNSET vypnuté (tlačítko je zamčené).
+  const SUNSET_BTN_KEY = 'synthlucida_sunset_btn';
+  window.sunsetBtnMode = {
+      get: function() { try { return localStorage.getItem(SUNSET_BTN_KEY) === 'menu' ? 'menu' : 'cycle'; } catch (e) { return 'cycle'; } },
+      set: function(v) { try { localStorage.setItem(SUNSET_BTN_KEY, v === 'menu' ? 'menu' : 'cycle'); } catch (e) { /* ignore */ } closeSunsetMenu(); }
+  };
+  function closeSunsetMenu() { const m = document.getElementById('sunset-menu'); if (m) m.hidden = true; }
+  function sunsetBlocked(k) {
+      if (k === 0) return false;
+      return false; // nabídka nic neblokuje, nekompatibilní WEATHER se při výběru vypne
+  }
+  function setSunsetTo(t) {
+      if (document.body.classList.contains('opt-lite')) { if (sunsetMode !== 0) { sunsetMode = 0; applySunsetUI(); } return; }
+      // SUN nejde s žádným SUNSET / NIGHT, déšť a sníh jen s NIGHT -> nekompatibilní WEATHER se vypne (stejně jako při přepínání)
+      if (t !== 0 && (weatherMode === 1 || (weatherMode >= 2 && t !== 3))) { weatherMode = 0; applyWeatherUI(); }
+      sunsetMode = t;
+      applySunsetUI();
+      const sb = document.getElementById('btn-sunset');
+      if (sb) {
+          sb.setAttribute('data-stage', (sunsetMode + 1) + '/4');
+          sb.classList.add('show-stage');
+          clearTimeout(window._sunsetStageTimer);
+          window._sunsetStageTimer = setTimeout(function() { sb.classList.remove('show-stage'); }, 1600);
+      }
+  }
+  window.sunsetButtonClick = function(ev) {
+      if (window.sunsetBtnMode.get() !== 'menu') { closeSunsetMenu(); window.toggleSunset(); return; }
+      const m = document.getElementById('sunset-menu'), btn = document.getElementById('btn-sunset');
+      if (!m || !btn) { window.toggleSunset(); return; }
+      if (!m.hidden) { closeSunsetMenu(); return; }
+      if (document.body.classList.contains('opt-lite')) return;
+      m.querySelectorAll('[data-sunset-mode]').forEach(function(b) {
+          const k = Number(b.getAttribute('data-sunset-mode'));
+          b.style.display = (k === 0 && !sunsetMode) ? 'none' : '';
+          b.disabled = false; b.title = '';
+          b.classList.toggle('on', k === sunsetMode && k > 0);
+      });
+      hideOtherMenus('sunset-menu');
+      m.hidden = false;
+      const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+      let left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+      let top = r.bottom + 8;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+      m.style.left = left + 'px'; m.style.top = top + 'px';
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+  };
+  document.addEventListener('click', function(e) {
+      const m = document.getElementById('sunset-menu');
+      if (!m || m.hidden) return;
+      const b = e.target.closest && e.target.closest('[data-sunset-mode]');
+      if (b && m.contains(b)) {
+          if (b.disabled) return;
+          const t = Number(b.getAttribute('data-sunset-mode'));
+          closeSunsetMenu(); setSunsetTo(t); return;
+      }
+      if (!m.contains(e.target)) closeSunsetMenu();
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeSunsetMenu(); });
+  window.addEventListener('resize', closeSunsetMenu);
+  window.addEventListener('scroll', closeSunsetMenu, true);
 
   window.toggleSunset = function() {
       if (document.body.classList.contains('opt-lite')) { if (sunsetMode !== 0) { sunsetMode = 0; applySunsetUI(); } return; }
@@ -8961,6 +9102,7 @@
     const st = focusStageNow();
     m.querySelectorAll('[data-focus-stage]').forEach(function(b) { b.classList.toggle('on', Number(b.getAttribute('data-focus-stage')) === st && st > 0); });
     const off = document.getElementById('focus-menu-off'); if (off) off.style.display = st ? '' : 'none';
+    ['weather-menu', 'sunset-menu'].forEach(function(id) { const x = document.getElementById(id); if (x) x.hidden = true; });
     m.hidden = false;
     const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
     let left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
@@ -10970,6 +11112,24 @@
     focus_menu_2: { en: "PLAYER ONLY", cz: "JEN PŘEHRÁVAČ" },
     focus_menu_3: { en: "TALL PLAYLIST", cz: "DLOUHÝ SEZNAM" },
     focus_menu_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
+    su_sec_weather: { en: "WEATHER BUTTON", cz: "TLAČÍTKO WEATHER" },
+    su_weather_n: { en: "WEATHER BUTTON MODE", cz: "REŽIM TLAČÍTKA WEATHER" },
+    su_weather_d: { en: "SWITCH = each tap goes to the next scene (SUN, RAIN, WINTER 1, WINTER 2, off).\nWINDOW = a tap opens a small menu to pick the scene.", cz: "PŘEPÍNÁNÍ = každé klepnutí přejde na další scénu (SUN, RAIN, WINTER 1, WINTER 2, vypnuto).\nOKNO = klepnutím se otevře malá nabídka, kde scénu vybereš." },
+    weather_menu_1: { en: "YOUR PHOTOS", cz: "VAŠE FOTKY" },
+    weather_menu_2: { en: "RAINFALL", cz: "DÉŠŤ" },
+    weather_menu_3: { en: "SNOWFALL", cz: "SNĚŽENÍ" },
+    weather_menu_4: { en: "BLIZZARD", cz: "VÁNICE" },
+    weather_menu_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
+    su_sec_sunset: { en: "SUNSET BUTTON", cz: "TLAČÍTKO SUNSET" },
+    su_sunset_n: { en: "SUNSET BUTTON MODE", cz: "REŽIM TLAČÍTKA SUNSET" },
+    su_sunset_d: { en: "SWITCH = each tap goes to the next step (SUNSET, SUNSET II, NIGHT, off).\nWINDOW = a tap opens a small menu to pick it.", cz: "PŘEPÍNÁNÍ = každé klepnutí přejde na další krok (SUNSET, SUNSET II, NIGHT, vypnuto).\nOKNO = klepnutím se otevře malá nabídka, kde vybereš." },
+    sunset_menu_1: { en: "WARM GRADIENT", cz: "TEPLÝ GRADIENT" },
+    sunset_menu_2: { en: "SECOND VARIANT", cz: "DRUHÁ VARIANTA" },
+    sunset_menu_3: { en: "STARRY SKY", cz: "HVĚZDNÁ OBLOHA" },
+    sunset_menu_off: { en: "✕ OFF", cz: "✕ VYPNOUT" },
+    sunset_menu_blocked_sun: { en: "Turn WEATHER: SUN off first", cz: "Nejdřív vypněte WEATHER: SUN" },
+    sunset_menu_blocked_wx: { en: "Only NIGHT works with RAIN / WINTER", cz: "S deštěm / sněhem jde jen NIGHT" },
+    weather_menu_blocked: { en: "Turn SUNSET / NIGHT off first", cz: "Nejdřív vypněte SUNSET / NIGHT" },
     su_title: { en: "⚙ SETUP", cz: "⚙ NASTAVENÍ" },
     su_sec_gfx: { en: "GRAPHICS", cz: "GRAFIKA" },
     su_lite: { en: "LITE MODE", cz: "ÚSPORNÝ REŽIM" },
@@ -19134,6 +19294,14 @@
       var cur = window.focusBtnMode ? window.focusBtnMode.get() : 'cycle';
       m.querySelectorAll('.su-seg[data-focusbtn] button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'); });
     }
+    function renderWeatherBtn() {
+      var cur = window.weatherBtnMode ? window.weatherBtnMode.get() : 'cycle';
+      m.querySelectorAll('.su-seg[data-weatherbtn] button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'); });
+    }
+    function renderSunsetBtn() {
+      var cur = window.sunsetBtnMode ? window.sunsetBtnMode.get() : 'cycle';
+      m.querySelectorAll('.su-seg[data-sunsetbtn] button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'); });
+    }
     function applyClasses() {
       B.classList.toggle('opt-noanim', !st.anim);
       B.classList.toggle('opt-noblur', !st.blur);
@@ -19157,6 +19325,10 @@
       }
       var fb = e.target.closest && e.target.closest('.su-seg[data-focusbtn] button');
       if (fb) { if (window.focusBtnMode) window.focusBtnMode.set(fb.getAttribute('data-v')); renderFocusBtn(); return; }
+      var wb = e.target.closest && e.target.closest('.su-seg[data-weatherbtn] button');
+      if (wb) { if (window.weatherBtnMode) window.weatherBtnMode.set(wb.getAttribute('data-v')); renderWeatherBtn(); return; }
+      var ub = e.target.closest && e.target.closest('.su-seg[data-sunsetbtn] button');
+      if (ub) { if (window.sunsetBtnMode) window.sunsetBtnMode.set(ub.getAttribute('data-v')); renderSunsetBtn(); return; }
       var sb = e.target.closest && e.target.closest('.su-seg[data-season] button');
       if (sb && window.setupSeason) { window.setupSeason.set(sb.parentNode.getAttribute('data-season'), sb.getAttribute('data-v')); render(); }
     });
@@ -19165,7 +19337,7 @@
     window.toggleSetup = function () {
       var open = m.hidden; m.hidden = !open;
       var b = document.getElementById('btn-setup'); if (b) b.classList.toggle('active', open);
-      if (open) { render(); renderFocusBtn(); }
+      if (open) { render(); renderFocusBtn(); renderWeatherBtn(); renderSunsetBtn(); }
     };
     applyClasses();
     window.addEventListener('load', function () { setTimeout(applyClasses, 800); }); // uložený 2COLORS mix se po načtení zruší, když je vypnutý
