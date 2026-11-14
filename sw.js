@@ -102,7 +102,7 @@
 //    Teď se kopie z R2 PŘESUNE pod GitHub adresu a nic se nemaže. Cache zvýšena na v1287.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1288';
+const APP_CACHE_NAME = 'synthlucida-app-v1290';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -353,7 +353,7 @@ const IS_APPLE_WEBKIT = (() => {
 // (ne chybová stránka), a umí vracet části souboru (206) pro Safari.
 // GitHub Releases CORS neposílá. Aktuálně skladby leží na Cloudflare R2 (r2.dev);
 // po přidání vlastní domény (např. media.synthlucida.com) sem stačí doplnit i ji.
-const CORS_AUDIO_HOSTS = ['pub-f2ec372bf0f54283b80e15f90090d46a.r2.dev'];
+const CORS_AUDIO_HOSTS = ['pub-f2ec372bf0f54283b80e15f90090d46a.r2.dev', 'pub-d03f98e0a05747929b6ecd9ffc0e9b20.r2.dev'];
 
 // ==========================================
 // ZÁLOHA R2 (v47) - nastavení

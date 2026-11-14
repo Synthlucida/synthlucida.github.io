@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.5.4">
+<meta name="app-version" content="2.5.5">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13893,13 +13893,24 @@
     function sendMode() { post({ type: 'MIRROR_MODE', mode: mode }); }
     function reloadSame(resume) {
       const t = audio.currentTime || 0;
+      const src0 = audio.currentSrc || audio.src; // musí to být pořád TA SAMÁ skladba
+      let done = false;
+      const stop = () => { if (!done) { done = true; audio.removeEventListener('loadedmetadata', onMeta); } };
       const onMeta = () => {
+        if (done) return;
+        done = true;
         audio.removeEventListener('loadedmetadata', onMeta);
+        if ((audio.currentSrc || audio.src) !== src0) return; // mezitím se přepnulo jinam - nikam neskákat
         try { if (t > 1) audio.currentTime = t; } catch (e) { /* ignore */ }
         if (resume) { try { const pr = audio.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* ignore */ } }
       };
       audio.addEventListener('loadedmetadata', onMeta);
-      setTimeout(() => { try { audio.load(); } catch (e) { /* ignore */ } }, 250); // SW si mezitím zpracuje zprávu o přepnutí
+      setTimeout(() => { // SW si mezitím zpracuje zprávu o přepnutí
+        if (done) return;
+        if ((audio.currentSrc || audio.src) !== src0) { stop(); return; } // uživatel mezitím přepnul skladbu
+        try { audio.load(); } catch (e) { /* ignore */ }
+      }, 250);
+      setTimeout(stop, 30000); // kdyby se skladba nenačetla vůbec, ať tu čekání nezůstane viset
     }
     function reportBad(url) {
       // SW podle adresy skladby ví, odkud ji podal; "from" je jen záloha, když si to nepamatuje.
