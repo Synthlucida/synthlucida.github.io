@@ -8,8 +8,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.7.2">
+<meta name="app-version" content="2.7.3">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
+<script>
+/* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
+(function () {
+  var c = { ios: false, noVolume: false, noFullscreen: false, noWakeLock: false, noNotify: false };
+  try {
+    var ua = navigator.userAgent || '';
+    c.ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (c.ios) {
+      try { var t = new Audio(); t.volume = 0.5; c.noVolume = Math.abs(t.volume - 0.5) > 0.01; } catch (e) { c.noVolume = true; }
+      c.noFullscreen = typeof document.documentElement.requestFullscreen !== 'function';
+      c.noWakeLock = !('wakeLock' in navigator);
+      c.noNotify = !('Notification' in window);
+      if (c.noVolume) document.documentElement.classList.add('ios-novol');
+    }
+  } catch (e) { /* ignore */ }
+  window.__slCaps = c;
+})();
+</script>
+<script>/* koule na pozadí: výchozí je původní vzhled, DISCO jen když si ho uživatel zapne v SETUP */ (function () { var disco = false; try { disco = localStorage.getItem('sl-orbs-style') === 'disco'; } catch (e) { /* ignore */ } if (!disco) document.documentElement.classList.add('orbs-classic'); })();</script>
 <script>try { window.__slReturningUser = ['synthlucida_stats', 'synthlucida_settings', 'sl-volume', 'synthlucida_last_playlist', 'sl-app-version-seen'].some(function (k) { return localStorage.getItem(k) !== null; }); } catch (e) { window.__slReturningUser = false; }</script>
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -196,12 +215,26 @@
   /* Kuličky co se otáčí */
   body::before {
     content: ""; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
-    background: radial-gradient(circle, var(--accent-color) 0%, transparent 9%),
-                radial-gradient(circle, var(--accent-glow) 0%, transparent 9%);
-    background-size: 260px 260px;
+    /* odlesky jako od diskokoule: měkké tečky různé velikosti, nepravidelně rozmístěné v jedné společné dlaždici
+       (600 x 560 px), takže nestojí v řadě a nikdy se nepřekryjí. Kreslí se jednou do textury, otáčení běží na grafické kartě. */
+    background:
+      radial-gradient(circle 22px at 70px 90px, var(--accent-color) 0%, transparent 100%),
+      radial-gradient(circle 19px at 330px 60px, var(--accent-glow) 0%, transparent 100%),
+      radial-gradient(circle 25px at 500px 210px, var(--accent-color) 0%, transparent 100%),
+      radial-gradient(circle 20px at 190px 270px, var(--accent-glow) 0%, transparent 100%),
+      radial-gradient(circle 23px at 400px 400px, var(--accent-color) 0%, transparent 100%),
+      radial-gradient(circle 18px at 90px 460px, var(--accent-color) 0%, transparent 100%);
+    background-size: 600px 560px;
     opacity: 0.12;
     animation: move 110s linear infinite;
     z-index: -2;
+  }
+
+  /* SETUP > ORBS STYLE = CLASSIC: původní vzhled (pravidelná mřížka menších plných teček) */
+  html.orbs-classic body::before {
+    background: radial-gradient(circle, var(--accent-color) 0%, transparent 9%),
+                radial-gradient(circle, var(--accent-glow) 0%, transparent 9%);
+    background-size: 260px 260px;
   }
 
   @keyframes move { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -1004,17 +1037,17 @@
   .search-results li { padding: 9px 4px; }
   .search-results .search-play { margin-left: 2px; }
 
-  /* ---- SEARCH: jemnější vzhled okna (vše omezeno na #search-panel, ostatní panely se nemění) ---- */
-  #search-panel {
+  /* ---- SEARCH: jemnější vzhled okna (vše omezeno na :is(#search-panel, #plfind-panel), ostatní panely se nemění) ---- */
+  :is(#search-panel, #plfind-panel) {
     background: radial-gradient(ellipse 80% 38% at 50% 0%, color-mix(in srgb, var(--accent-color) 11%, transparent), transparent 70%), rgba(5, 2, 10, 0.95);
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
-  #search-panel .main-guide-inner { max-width: 460px; width: 100%; }
-  #search-panel .main-guide-inner h3 {
+  :is(#search-panel, #plfind-panel) .main-guide-inner { max-width: 460px; width: 100%; }
+  :is(#search-panel, #plfind-panel) .main-guide-inner h3 {
     font-size: clamp(13px, 3.8vw, 15px); letter-spacing: 0.3em; margin-bottom: 18px;
   }
   /* Vyhledávací pole: zaoblené "skleněné" s lupou, jemný akcentový okraj po zaměření */
-  #search-panel .search-input {
+  :is(#search-panel, #plfind-panel) .search-input {
     width: 100%; box-sizing: border-box; margin: 0; min-height: 48px;
     font-family: 'Exo 2', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
     font-size: 16px; font-weight: 500; letter-spacing: 0.03em; color: #fff;
@@ -1026,58 +1059,58 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 18px rgba(0,0,0,0.25);
     -webkit-appearance: none; appearance: none;
   }
-  #search-panel .search-input::placeholder { color: rgba(255,255,255,0.42); font-weight: 400; }
-  #search-panel .search-input:focus {
+  :is(#search-panel, #plfind-panel) .search-input::placeholder { color: rgba(255,255,255,0.42); font-weight: 400; }
+  :is(#search-panel, #plfind-panel) .search-input:focus {
     background-color: rgba(255,255,255,0.09);
     border-color: color-mix(in srgb, var(--accent-color) 60%, transparent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 16%, transparent),  0 6px 18px rgba(0,0,0,0.25);
   }
-  #search-panel .search-input::-webkit-search-cancel-button { -webkit-appearance: none; height: 18px; width: 18px; margin-left: 8px; cursor: pointer; opacity: 0.55;
+  :is(#search-panel, #plfind-panel) .search-input::-webkit-search-cancel-button { -webkit-appearance: none; height: 18px; width: 18px; margin-left: 8px; cursor: pointer; opacity: 0.55;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / 12px no-repeat; }
-  #search-panel .search-input::-webkit-search-cancel-button:hover { opacity: 0.95; }
+  :is(#search-panel, #plfind-panel) .search-input::-webkit-search-cancel-button:hover { opacity: 0.95; }
   /* Nápověda / počet nalezených */
-  #search-panel .main-guide-note#search-hint {
+  :is(#search-panel, #plfind-panel) .main-guide-note:is(#search-hint, #plfind-hint) {
     margin: 12px 4px 4px; text-align: center; opacity: 0.6;
     font-family: 'Exo 2', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
     font-size: 12px; font-weight: 500; letter-spacing: 0.04em; line-height: 1.5;
   }
   /* Výsledky: samostatné jemné karty */
-  #search-panel .search-results { margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
-  #search-panel .search-results li {
+  :is(#search-panel, #plfind-panel) .search-results { margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
+  :is(#search-panel, #plfind-panel) .search-results li {
     display: flex; align-items: center; gap: 10px; box-sizing: border-box;
     padding: 10px 10px 10px 14px; border-radius: 12px;
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-bottom: 1px solid rgba(255,255,255,0.09);
     font-family: 'Exo 2', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
     transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
   }
-  #search-panel .search-results li:hover, #search-panel .search-results li:focus-within {
+  :is(#search-panel, #plfind-panel) .search-results li:hover, :is(#search-panel, #plfind-panel) .search-results li:focus-within {
     background: rgba(255,255,255,0.10); padding-left: 14px;
     border-color: color-mix(in srgb, var(--accent-color) 40%, rgba(255,255,255,0.12)); color: #fff;
   }
-  #search-panel .search-results li:active { transform: scale(0.99); }
-  #search-panel .search-results .history-name { font-size: 14px; font-weight: 500; letter-spacing: 0.02em; }
+  :is(#search-panel, #plfind-panel) .search-results li:active { transform: scale(0.99); }
+  :is(#search-panel, #plfind-panel) .search-results .history-name { font-size: 14px; font-weight: 500; letter-spacing: 0.02em; }
   /* Štítek playlistu jako malá "pilulka" */
-  #search-panel .search-results .history-meta {
+  :is(#search-panel, #plfind-panel) .search-results .history-meta {
     font-size: 9.5px; font-weight: 600; letter-spacing: 0.12em; opacity: 1; padding: 3px 8px; border-radius: 999px;
     color: color-mix(in srgb, var(--accent-color) 70%, #fff);
     background: color-mix(in srgb, var(--accent-color) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent-color) 28%, transparent);
   }
   /* Kulaté tlačítko přehrání */
-  #search-panel .search-results .search-play {
+  :is(#search-panel, #plfind-panel) .search-results .search-play {
     width: 32px; height: 32px; border-radius: 50%; margin-left: 0; font-size: 11px; opacity: 1; padding-left: 2px;
     background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.18);
   }
-  #search-panel .search-results .search-play:hover, #search-panel .search-results .search-play:focus-visible {
+  :is(#search-panel, #plfind-panel) .search-results .search-play:hover, :is(#search-panel, #plfind-panel) .search-results .search-play:focus-visible {
     color: var(--accent-color); border-color: var(--accent-color); background: color-mix(in srgb, var(--accent-color) 14%, transparent);
     box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, color-mix(in srgb, var(--accent-color) 30%, transparent) var(--glow-pct), transparent);
   }
   @media (max-width: 360px) {
-    #search-panel { padding-left: 12px; padding-right: 12px; }
-    #search-panel .search-results li { gap: 8px; padding: 9px 8px 9px 11px; }
-    #search-panel .search-results .history-name { font-size: 13px; }
-    #search-panel .search-results .history-meta { font-size: 8.5px; padding: 3px 6px; letter-spacing: 0.08em; }
-    #search-panel .search-results .search-play { width: 30px; height: 30px; }
+    :is(#search-panel, #plfind-panel) { padding-left: 12px; padding-right: 12px; }
+    :is(#search-panel, #plfind-panel) .search-results li { gap: 8px; padding: 9px 8px 9px 11px; }
+    :is(#search-panel, #plfind-panel) .search-results .history-name { font-size: 13px; }
+    :is(#search-panel, #plfind-panel) .search-results .history-meta { font-size: 8.5px; padding: 3px 6px; letter-spacing: 0.08em; }
+    :is(#search-panel, #plfind-panel) .search-results .search-play { width: 30px; height: 30px; }
   }
   .history-list .history-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; cursor: pointer; }
   .history-list .history-meta { font-size: 8px; opacity: 0.5; flex-shrink: 0; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
@@ -3828,6 +3861,37 @@
   .pl-sb:hover .pl-sb-thumb, .pl-sb.dragging .pl-sb-thumb { background: var(--accent-color); }
   .pl-sb.dragging .pl-sb-thumb { cursor: grabbing; }
   body.focus-mode-2 .pl-sb { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* ---- Hledání v právě zobrazeném playlistu: malé tlačítko vlevo u seznamu (zrcadlově k vypínači záře vpravo) ---- */
+  .pl-find-btn {
+    position: absolute; top: 2px; left: -4px; width: 5%; min-width: 11px; max-width: 15px; aspect-ratio: 1; height: auto; z-index: 2;
+    padding: 0; margin: 0; border: 0; background: none; cursor: pointer; color: var(--accent-color); opacity: 0.85;
+    filter: drop-shadow(0 0 calc(3px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent));
+    transition: opacity 0.2s ease, visibility 0s; -webkit-tap-highlight-color: transparent;
+  }
+  .pl-find-btn::after { content: ""; position: absolute; inset: -9px -2px -9px -9px; } /* větší plocha pro prst, nezasahuje do seznamu */
+  .pl-find-btn:hover, .pl-find-btn:focus-visible { opacity: 1; outline: none; }
+  .pl-find-btn svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  body.focus-mode-2 .pl-find-btn { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.6s ease, visibility 0s linear 0.95s; }
+  #plfind-panel .plfind-scope { color: var(--accent-color); }
+  /* ---- Skladba "special": SYNTHLUCIDA se zrcadlově otočí a RelaxPlayer2 se na 60 s změní na DancePlayer2 ---- */
+  .brand-wordmark .brand-name { transition: transform 0.9s cubic-bezier(.3,.7,.2,1); }
+  .brand-wordmark .brand-name.brand-mirror { transform: scaleX(-1); }
+  .brand-sub.brand-evap { animation: brandSubEvap 0.65s ease-in forwards; }
+  .brand-sub.brand-born { animation: brandSubBorn 0.85s cubic-bezier(.2,.9,.3,1.25); }
+  @keyframes brandSubEvap { to { opacity: 0; transform: translateY(-9px) scale(1.18); filter: blur(3px); } }
+  @keyframes brandSubBorn { from { opacity: 0; transform: scale(0.3); filter: blur(2px); } to { opacity: 0.9; transform: none; filter: none; } }
+  @media (prefers-reduced-motion: reduce) { .brand-wordmark .brand-name { transition: none; } .brand-sub.brand-evap, .brand-sub.brand-born { animation-duration: 0.01s; } }
+  body.opt-noanim .brand-wordmark .brand-name { transition: none; }
+  body.opt-noanim .brand-sub.brand-evap, body.opt-noanim .brand-sub.brand-born { animation-duration: 0.01s; }
+  /* ÚSPORNÝ REŽIM: koule na pozadí (otáčející se tečky i velké plynoucí koule) úplně zmizí */
+  body.opt-lite::before, body.opt-lite .ambient-blobs { display: none !important; }
+  /* ---- iPhone / iPad: nepodporované funkce zašedlé ---- */
+  .ios-off { opacity: 0.32 !important; cursor: not-allowed !important; filter: grayscale(0.6); }
+  .ios-off * { pointer-events: none !important; }
+  .ios-vol-note { display: none; font-size: 10px; line-height: 1.35; color: #ffb4b4; opacity: 0.9; text-align: center; margin: -2px 14px 8px; }
+  html.ios-novol .ios-vol-note { display: block; }
+  body.focus-mode .ios-vol-note, body.is-fullscreen .ios-vol-note { display: none !important; }
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
         async src="https://gc.zgo.at/count.js"></script>
@@ -4154,6 +4218,7 @@
   <div class="pl-name-banner" id="pl-name-banner" hidden></div>
   <div class="playlist-wrap" id="playlist-wrap">
   <ul class="playlist" id="playlist"></ul>
+  <button type="button" class="pl-find-btn" id="pl-find-btn" onclick="togglePlFind()" aria-label="Search in this playlist" title="Search in this playlist" data-i18n-aria="plfind_btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.500h12M3 11h5.500M3 16.500h5"/><circle cx="15" cy="14" r="4.300"/><path d="M18.200 17.200l3.300 3.300"/></svg></button>
   <div class="f3-grip" id="f3-grip" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Drag to resize the playlist" title="Drag to resize · double-tap = automatic height"><span></span></div>
   <div class="pl-sb" id="pl-sb" aria-hidden="true"><div class="pl-sb-thumb" id="pl-sb-thumb"></div></div>
   <div class="glow-fader" id="glow-fader" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Glow intensity" aria-valuemin="1" aria-valuemax="3" aria-valuenow="2" aria-valuetext="2 / 3" title="Glow intensity: 3 levels (drag up/down, scroll or arrow keys; tap the sun to reset)">
@@ -4263,6 +4328,7 @@
     </div>
     <button type="button" class="btn-vol-mode" id="btn-vol-mode" aria-pressed="false" aria-label="Switch volume control to knob" title="Fader / knob"><span class="vm-thumb" aria-hidden="true"></span><svg class="vm-ico vm-ico-fader" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 12h17" class="vm-track"/><rect x="9.500" y="7.500" width="5.500" height="9" rx="1.800"/></svg><svg class="vm-ico vm-ico-knob" viewBox="0 0 24 24" aria-hidden="true"><path class="vm-track" d="M5.600 18.400A9 9 0 1 1 18.400 18.400"/><circle cx="12" cy="12.500" r="5"/><path d="M12 12.500V8.800"/></svg></button>
   </div>
+  <div class="ios-vol-note" id="ios-vol-note" data-i18n="ios_vol_note">On iPhone and iPad the volume is set with the buttons on your device.</div>
 
   <div class="timer-section">
     <span id="timer-display">⏱ Off</span>
@@ -4289,6 +4355,16 @@
     </div>
     <p class="main-guide-note" id="history-empty-note" style="display:none;">No tracks played yet.</p>
     <ul class="history-list" id="history-list"></ul>
+  </div>
+</div>
+
+<div class="main-guide" id="plfind-panel">
+  <button class="main-guide-close" onclick="togglePlFind()" aria-label="Close search">✖</button>
+  <div class="main-guide-inner">
+    <h3><span data-i18n="plfind_title">Search in</span> <span class="plfind-scope" id="plfind-scope"></span></h3>
+    <input type="search" class="myfiles-text-input search-input" id="plfind-input" placeholder="Track name… / Název skladby…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search in this playlist">
+    <p class="main-guide-note" id="plfind-hint"></p>
+    <ul class="history-list search-results" id="plfind-results"></ul>
   </div>
 </div>
 
@@ -4797,6 +4873,7 @@
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_blur"></span><span class="su-desc" data-i18n="su_blur_d"></span></div><button type="button" class="su-sw" data-opt="blur" role="switch" aria-checked="false"></button></div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_mix"></span><span class="su-desc" data-i18n="su_mix_d"></span></div><button type="button" class="su-sw" data-opt="mix" role="switch" aria-checked="false"></button></div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_slide"></span><span class="su-desc" data-i18n="su_slide_d"></span></div><button type="button" class="su-sw" data-opt="slide" role="switch" aria-checked="false"></button></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_orbs_n">ORBS STYLE</span><span class="su-desc" data-i18n="su_orbs_d"></span></div><div class="su-seg" data-orbstyle role="group"><button type="button" data-v="classic" aria-pressed="true" data-i18n="su_orbs_classic">CLASSIC</button><button type="button" data-v="disco" aria-pressed="false">DISCO</button></div></div>
     <div class="su-sec" data-i18n="su_sec_season">SEASONAL ATMOSPHERES</div>
     <div class="su-note" data-i18n="su_season_note"></div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_xmas_n"></span><span class="su-desc" data-i18n="su_xmas_d"></span></div><div class="su-seg" data-season="xmas" role="group"><button type="button" data-v="auto">AUTO</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
@@ -5386,6 +5463,7 @@
       { title: "SYNTHLUCIDA - Before the Dawn", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/before_the_dawn.mp3", added: "2026-10-21" },
       { title: "SYNTHLUCIDA - Walking In The Rain", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/walking_in_the_rain.mp3" },
       { title: "SYNTHLUCIDA - Fading Into Silence", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Fading_Into_Silence.mp3" },
+      { title: "SYNTHLUCIDA - Morning Smile", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Morning_Smile.mp3" },
     ],
     chill: [
       { title: "SYNTHLUCIDA - Spirits Of Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spirits_of_summer.mp3" },
@@ -5615,6 +5693,7 @@
   const audio = document.getElementById('audio-player');
   const crossfadeAudio = document.getElementById('audio-player-crossfade');
   let crossfadeDuration = 0; // 0 = vypnuto, jinak 3/6/8/10/15 sekund
+  const IOS_NO_VOLUME = !!(window.__slCaps && window.__slCaps.noVolume); // iPhone/iPad: audio.volume se ignoruje
   let crossfadeActive = false;
   let cfHandoff = null; // probíhající předání zvuku z druhého prvku na hlavní na konci prolnutí (viz beginCrossfadeHandoff)
   let crossfadeInterval = null;
@@ -10674,7 +10753,7 @@
     const keep = (key && key === lastPlaylistUIKey && playlistEl) ? playlistEl.scrollTop : null;
     lastPlaylistUIKey = key;
     const r = buildPlaylistUI();
-    if (keep !== null && playlistEl) playlistEl.scrollTop = keep;
+    if (playlistEl) playlistEl.scrollTop = (keep !== null) ? keep : 0; // jiný playlist/sekce -> vždy od začátku
     return r;
   }
 
@@ -11087,7 +11166,7 @@
       if (remindersEnabled) {
         key = 'reminders_status_on';
       } else if (!('Notification' in window)) {
-        key = 'reminders_status_unsupported';
+        key = (window.__slCaps && window.__slCaps.ios) ? 'ios_no_notify' : 'reminders_status_unsupported';
       } else if (Notification.permission === 'denied') {
         key = 'reminders_status_denied';
       } else {
@@ -11379,6 +11458,14 @@
     mf_btn_add: { en: "＋ ADD AUDIO FILES", cz: "＋ PŘIDAT AUDIO SOUBORY" },
     mf_btn_history: { en: "🕘 HISTORY", cz: "🕘 HISTORIE" },
     mf_gain_label: { en: "MY FILES VOLUME", cz: "HLASITOST MÝCH SOUBORŮ" },
+    plfind_btn: { en: "Search in this playlist", cz: "Hledat v tomto playlistu" },
+    plfind_title: { en: "Search in", cz: "Hledat v" },
+    ios_vol_note: { en: "On iPhone and iPad the volume is set with the buttons on your device.", cz: "Na iPhonu a iPadu se hlasitost nastavuje tlačítky na zařízení." },
+    ios_no_volume: { en: "iPhone and iPad don't let a web page change the volume. Use the volume buttons on your device.", cz: "iPhone a iPad nedovolují webové stránce měnit hlasitost. Použij tlačítka hlasitosti na zařízení." },
+    ios_no_crossfade: { en: "Crossfade isn't available on iPhone and iPad - the volume can't be faded there.", cz: "Prolínání skladeb na iPhonu a iPadu nefunguje - hlasitost tam nejde plynule měnit." },
+    ios_no_fullscreen: { en: "iPhone doesn't support fullscreen for web pages. Tip: add the player to your Home Screen.", cz: "iPhone nepodporuje celou obrazovku u webových stránek. Tip: přidej si player na plochu." },
+    ios_no_wakelock: { en: "This iPhone or iPad can't keep the screen on from a web page (needs iOS 16.4 or newer).", cz: "Tento iPhone nebo iPad neumí z webu držet obrazovku zapnutou (je potřeba iOS 16.4 nebo novější)." },
+    ios_no_notify: { en: "On iPhone and iPad reminders work only after you add the player to your Home Screen (iOS 16.4 or newer).", cz: "Na iPhonu a iPadu fungují připomínky až po přidání playeru na plochu (iOS 16.4 nebo novější)." },
     mf_gain_ios: { en: "iPhone and iPad don't allow a web page to change playback volume, so this setting isn't available here. Use the volume buttons on your device.", cz: "iPhone a iPad nedovolují webové stránce měnit hlasitost přehrávání, proto tu toto nastavení není dostupné. Hlasitost ovládej tlačítky na telefonu." },
     mf_gain_note: { en: "Your own files are often louder than SYNTHLUCIDA tracks. Turn them down here so everything plays at a similar level – then use the main volume as usual. Applies only to your own files.", cz: "Vlastní soubory bývají hlasitější než skladby SYNTHLUCIDA. Tady je ztlum, ať hraje všechno podobně nahlas – pak už jen ladíš hlavní hlasitost jako obvykle. Platí jen pro vlastní soubory." },
     mf_h_playlists: { en: "Your Playlists", cz: "Vaše playlisty" },
@@ -11616,6 +11703,9 @@
     su_blur_d: { en: "Frosted-glass blur behind windows and panels, and the soft blurred orbs in the background.", cz: "Rozostření pozadí za okny a panely a měkké rozostřené koule v pozadí." },
     su_mix: { en: "2 COLORS MIX", cz: "2 BARVY (MIX)" },
     su_mix_d: { en: "Two-colour blend across the player. When off, the 2 COLORS button is hidden.", cz: "Prolnutí dvou barev přes celý přehrávač. Po vypnutí se tlačítko 2 BARVY skryje." },
+    su_orbs_n: { en: "ORBS STYLE", cz: "VZHLED KOULÍ NA POZADÍ" },
+    su_orbs_d: { en: "CLASSIC = the original small dots in a regular grid. DISCO = bigger soft dots scattered like disco-ball reflections.", cz: "PŮVODNÍ = menší tečky v pravidelné mřížce. DISCO = větší měkké tečky rozházené jako odlesky diskokoule." },
+    su_orbs_classic: { en: "CLASSIC", cz: "PŮVODNÍ" },
     su_slide: { en: "VISUAL SLIDE ANIMATION", cz: "ANIMACE VYSUNUTÍ VISUALU" },
     su_slide_d: { en: "Sliding the VISUAL panel out and back in.", cz: "Vysouvání a zasouvání panelu VISUAL." },
     su_sec_season: { en: "SEASONAL ATMOSPHERES", cz: "SEZÓNNÍ ATMOSFÉRY" },
@@ -13833,6 +13923,173 @@
     }
   };
 
+  // SETUP > ORBS STYLE: CLASSIC (původní vzhled, výchozí) nebo DISCO. Ukládá se hned; třídu na <html> nastavuje už skript v <head>.
+  (function initOrbsStyle() {
+    const KEY = 'sl-orbs-style';
+    const root = document.documentElement;
+    const paint = () => {
+      const cur = root.classList.contains('orbs-classic') ? 'classic' : 'disco';
+      document.querySelectorAll('.su-seg[data-orbstyle] button').forEach((b) => b.setAttribute('aria-pressed', b.getAttribute('data-v') === cur ? 'true' : 'false'));
+    };
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest && e.target.closest('.su-seg[data-orbstyle] button');
+      if (!b) return;
+      const classic = b.getAttribute('data-v') === 'classic';
+      root.classList.toggle('orbs-classic', classic);
+      try { if (classic) localStorage.removeItem(KEY); else localStorage.setItem(KEY, 'disco'); } catch (err) { /* ignore */ }
+      paint();
+    });
+    paint();
+  })();
+
+  // ------------------------------------------------------------------
+  // SKLADBA "SPECIAL": při jejím spuštění se nápis SYNTHLUCIDA zrcadlově otočí a malý nápis RelaxPlayer2
+  // se "vypaří" a narodí se DancePlayer2. Po 60 s (nebo když začne hrát běžná skladba) se vše vrátí zpět.
+  // ------------------------------------------------------------------
+  (function initDanceBrand() {
+    const sub = document.querySelector('.brand-sub');
+    const name = document.querySelector('.brand-wordmark .brand-name');
+    if (!sub || !name) return;
+    const ORIG_HTML = sub.innerHTML;
+    const DANCE_HTML = 'DancePlayer<span class="brand-sub-num">2</span>';
+    const DANCE_MS = 60000;
+    let on = false, offTimer = null, swapTimer = null;
+    function swap(html) {
+      clearTimeout(swapTimer);
+      sub.classList.remove('brand-born');
+      sub.classList.add('brand-evap');
+      swapTimer = setTimeout(() => {
+        sub.innerHTML = html;
+        sub.classList.remove('brand-evap');
+        void sub.offsetWidth; // restart animace
+        sub.classList.add('brand-born');
+        swapTimer = setTimeout(() => sub.classList.remove('brand-born'), 900);
+      }, 650);
+    }
+    function set(v) {
+      if (v === on) return;
+      on = v;
+      name.classList.toggle('brand-mirror', v);
+      swap(v ? DANCE_HTML : ORIG_HTML);
+    }
+    window.__slDanceBrand = function (special) {
+      clearTimeout(offTimer); offTimer = null;
+      if (special) { set(true); offTimer = setTimeout(() => set(false), DANCE_MS); }
+      else set(false);
+    };
+  })();
+
+  // ------------------------------------------------------------------
+  // RYCHLÉ HLEDÁNÍ V PRÁVĚ ZOBRAZENÉM PLAYLISTU (malé tlačítko vlevo u seznamu).
+  // Prohledává řádky, které jsou právě v hlavním seznamu (ASMR/PIANO/CHILL…, My Playlist i vlastní playlisty),
+  // takže nic nepřepíná: klepnutí na výsledek skladbu v seznamu ukáže, ▶ ji přehraje stejně jako klepnutí na řádek.
+  // ------------------------------------------------------------------
+  (function initPlaylistFind() {
+    const panel = document.getElementById('plfind-panel');
+    const input = document.getElementById('plfind-input');
+    const listEl = document.getElementById('plfind-results');
+    const hint = document.getElementById('plfind-hint');
+    const scope = document.getElementById('plfind-scope');
+    if (!panel || !input || !listEl || !hint) { window.togglePlFind = function () {}; return; }
+    const MAX = 80;
+    const rows = () => Array.prototype.slice.call(playlistEl.children).filter((li) => li.tagName === 'LI' && li.querySelector('.track-name'));
+    const rowTitle = (li) => { const n = li.querySelector('.track-name'); return n ? (n.textContent || '').trim() : ''; };
+    function scopeName() {
+      try {
+        const b = document.getElementById('pl-name-banner');
+        if (b && !b.hidden && b.textContent.trim()) return b.textContent.trim();
+        if (mainListShowsQueue) return 'MY PLAYLIST';
+        const k = String(currentPlaylistKey || '');
+        return k.indexOf('custom:') === 0 ? (guideLang === 'cz' ? 'MOJE SOUBORY' : 'MY FILES') : k.toUpperCase();
+      } catch (e) { return ''; }
+    }
+    function close() { panel.classList.remove('visible'); }
+    // najde řádek znovu až při klepnutí (seznam se mezitím mohl překreslit)
+    function findRow(pos, title) {
+      const all = rows();
+      if (all[pos] && rowTitle(all[pos]) === title) return all[pos];
+      return all.find((li) => rowTitle(li) === title) || null;
+    }
+    function showRow(row) {
+      const listRect = playlistEl.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const target = playlistEl.scrollTop + (rowRect.top - listRect.top) - (listRect.height - rowRect.height) / 2;
+      playlistEl.scrollTo({ top: Math.max(0, target), behavior: 'auto' });
+      row.classList.remove('locate-flash');
+      void row.offsetWidth;
+      row.classList.add('locate-flash');
+      row.addEventListener('animationend', () => row.classList.remove('locate-flash'), { once: true });
+    }
+    function pick(pos, title, play) {
+      close();
+      try { input.blur(); } catch (e) { /* ignore */ }
+      const row = findRow(pos, title);
+      if (!row) return;
+      if (play) { try { row.click(); } catch (e) { /* ignore */ } }
+      // po přehrání se seznam může překreslit - řádek se proto dohledá znovu
+      setTimeout(() => { const r = findRow(pos, title); if (r) showRow(r); }, play ? 120 : 0);
+    }
+    function render() {
+      const cz = guideLang === 'cz';
+      listEl.innerHTML = '';
+      const all = rows();
+      const tokens = searchNorm(input.value).split(' ').filter(Boolean);
+      if (!all.length) { hint.textContent = cz ? 'Tento playlist je prázdný.' : 'This playlist is empty.'; return; }
+      if (!tokens.length) {
+        hint.textContent = cz ? `Napište část názvu skladby. V playlistu je ${all.length} skladeb.` : `Type part of a track name. This playlist has ${all.length} tracks.`;
+        return;
+      }
+      const found = [];
+      all.forEach((li, pos) => {
+        const title = rowTitle(li);
+        const hay = ' ' + searchNorm(title);
+        if (tokens.every((t) => hay.indexOf(t) !== -1)) found.push({ pos, title, starts: tokens.some((t) => hay.indexOf(' ' + t) !== -1) ? 1 : 0, active: li.classList.contains('active') });
+      });
+      if (!found.length) {
+        hint.textContent = cz ? 'V tomto playlistu nic nenalezeno.' : 'Nothing found in this playlist.';
+        return;
+      }
+      found.sort((a, b) => (b.starts - a.starts) || (a.pos - b.pos));
+      hint.textContent = (cz ? `Nalezeno: ${found.length}` : `Found: ${found.length}`) + (found.length > MAX ? (cz ? ` (zobrazeno ${MAX})` : ` (showing ${MAX})`) : '');
+      found.slice(0, MAX).forEach((r) => {
+        const li = document.createElement('li');
+        const name = document.createElement('span');
+        name.className = 'history-name';
+        name.textContent = r.title;
+        const meta = document.createElement('span');
+        meta.className = 'history-meta';
+        meta.textContent = r.active ? '♪ ' + (r.pos + 1) : String(r.pos + 1);
+        const playBtn = document.createElement('button');
+        playBtn.type = 'button';
+        playBtn.className = 'icon-btn search-play';
+        playBtn.textContent = '▶';
+        playBtn.title = cz ? 'Přehrát' : 'Play';
+        playBtn.setAttribute('aria-label', (cz ? 'Přehrát: ' : 'Play: ') + r.title);
+        playBtn.addEventListener('click', (e) => { e.stopPropagation(); pick(r.pos, r.title, true); });
+        li.addEventListener('click', () => pick(r.pos, r.title, false));
+        li.appendChild(name);
+        li.appendChild(meta);
+        li.appendChild(playBtn);
+        listEl.appendChild(li);
+      });
+    }
+    window.togglePlFind = function () {
+      const willShow = !panel.classList.contains('visible');
+      panel.classList.toggle('visible', willShow);
+      if (willShow) {
+        if (scope) scope.textContent = scopeName();
+        input.value = '';
+        render();
+        setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 50);
+      }
+    };
+    input.addEventListener('input', render);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); close(); }
+      else if (e.key === 'Enter') { const first = listEl.querySelector('li'); if (first) first.click(); }
+    });
+  })();
+
   (function initSearchInput() {
     const input = document.getElementById('search-input');
     if (!input) return;
@@ -14137,7 +14394,7 @@
     progressBar.style.width = `${pct}%`;
 
     // Prolnutí (crossfade) do další skladby, pokud je zapnuté a blížíme se ke konci
-    if (crossfadeDuration > 0 && !crossfadeActive && isPlaying && isFinite(duration) &&
+    if (crossfadeDuration > 0 && !IOS_NO_VOLUME && !crossfadeActive && isPlaying && isFinite(duration) &&
         duration > crossfadeDuration * 1.5 && remaining <= crossfadeDuration) {
       startCrossfade();
     }
@@ -14761,7 +15018,7 @@
   }
 
   function startCrossfade() {
-    if (crossfadeActive || crossfadeDuration <= 0) return;
+    if (crossfadeActive || crossfadeDuration <= 0 || IOS_NO_VOLUME) return; // iOS: hlasitost nejde měnit -> bez prolnutí
     const target = getNextCrossfadeTarget();
     if (!target) return;
     crossfadeActive = true;
@@ -15299,6 +15556,7 @@
 
   function addToHistory(track, playlistKey, explicitIndex) {
     rememberRecentTrack(track && track.title); // pro náhodné přehrávání (viz pickNotRecent)
+    try { if (window.__slDanceBrand) window.__slDanceBrand(isSpecialTrack(track)); } catch (e) { /* jen ozdoba nadpisu */ }
     try {
       let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
       if (!Array.isArray(history)) history = [];
@@ -17623,8 +17881,63 @@
     }, 2000);
   };
 
+  // ==========================================
+  // iPhone / iPad: funkce, které zařízení neumí, jsou zašedlé a po klepnutí vysvětlí proč.
+  // Na ostatních zařízeních se nestane nic (window.__slCaps je tam samé false).
+  // ==========================================
+  (function initIosUnsupported() {
+    const caps = window.__slCaps || {};
+    if (!caps.ios) return;
+    const mark = (sel, msg) => {
+      document.querySelectorAll(sel).forEach((el) => {
+        el.classList.add('ios-off');
+        el.setAttribute('data-ios-msg', msg);
+        el.setAttribute('aria-disabled', 'true');
+        el.querySelectorAll('[tabindex], button, input').forEach((c) => { try { c.setAttribute('tabindex', '-1'); } catch (e) { /* ignore */ } });
+        if (el.hasAttribute('tabindex') || el.tagName === 'BUTTON') el.setAttribute('tabindex', '-1');
+      });
+    };
+    if (caps.noVolume) {
+      mark('.volume-controls-row .vol-icon, #btn-vol-down, #btn-vol-up, #vol-knob-wrap, #vol-percent, #gain-mini, #vol-slider-row, #btn-vol-mode', 'ios_no_volume');
+      mark('#layer-knob-wrap, .layer-vol-label, #bm-vol', 'ios_no_volume');
+      const mk = document.getElementById('bn-mknob-wrap');
+      if (mk && mk.closest('.bn-knob-group')) { mk.closest('.bn-knob-group').classList.add('ios-mark-tmp'); mark('.ios-mark-tmp', 'ios_no_volume'); }
+      mark('#crossfade-main .crossfade-label, #crossfade-main .crossfade-group', 'ios_no_crossfade');
+    }
+    if (caps.noFullscreen) mark('#btn-fullscreen-toggle', 'ios_no_fullscreen');
+    if (caps.noWakeLock) mark('#btn-wakelock', 'ios_no_wakelock');
+    if (caps.noNotify) mark('#reminders-toggle-btn, #reminders-interval-group', 'ios_no_notify');
+    let lastToast = 0;
+    let touchAt = null;
+    const block = (e) => {
+      const t = e.target && e.target.closest ? e.target.closest('.ios-off') : null;
+      if (!t) return;
+      if (e.type === 'keydown' && e.key === 'Tab') return;
+      e.stopPropagation();
+      if (e.cancelable && e.type !== 'touchstart' && e.type !== 'touchend' && e.type !== 'wheel') e.preventDefault();
+      if (e.type === 'touchstart') { const p0 = e.touches && e.touches[0]; touchAt = p0 ? [p0.clientX, p0.clientY] : null; }
+      if (e.type === 'touchend') { // posun stránky prstem není klepnutí -> bez hlášky
+        const p1 = e.changedTouches && e.changedTouches[0];
+        if (!touchAt || !p1 || Math.abs(p1.clientX - touchAt[0]) > 10 || Math.abs(p1.clientY - touchAt[1]) > 10) return;
+      }
+      if (e.type === 'click' || e.type === 'touchend' || (e.type === 'keydown' && (e.key === 'Enter' || e.key === ' '))) {
+        const now = Date.now();
+        if (now - lastToast < 1500) return;
+        lastToast = now;
+        try {
+          const m = i18nText[t.getAttribute('data-ios-msg')];
+          if (m && typeof showToast === 'function') showToast(m[guideLang] || m.en, '\uD83D\uDCF1');
+        } catch (err) { /* ignore */ }
+      }
+    };
+    ['click', 'dblclick', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'keydown', 'wheel'].forEach((ev) => {
+      document.addEventListener(ev, block, true);
+    });
+  })();
+
   // Fullscreen logika
   window.toggleFullscreen = function() {
+    if (typeof document.documentElement.requestFullscreen !== 'function') return; // např. iPhone - fullscreen neexistuje
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
             console.log(`Chyba fullscreenu: ${err.message}`);
@@ -17656,7 +17969,7 @@
   try {
     if (localStorage.getItem('synthlucida_fullscreen_pref') === '1') {
       const restoreFullscreenOnGesture = () => {
-        if (!document.fullscreenElement) {
+        if (!document.fullscreenElement && typeof document.documentElement.requestFullscreen === 'function') {
             document.documentElement.requestFullscreen().catch(err => {
                 console.log(`Chyba obnovení fullscreenu: ${err.message}`);
             });
