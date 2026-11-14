@@ -694,6 +694,23 @@ async function handleAudioRequest(event) {
     return rangeResponse(request, cached);
   }
 
+  // Stažení MP3 do zařízení (odemčená skladba za XP): stránka chce soubor PŘEČÍST (mode 'cors').
+  // GitHub to nikdy nedovolí (nemá CORS) a ani "opaque" kopie z cache se přečíst nedá - proto rovnou R2.
+  // Čitelná kopie se uloží pod GitHub adresu (jako u DOWNLOAD OFFLINE). Když R2 nejde nebo je
+  // záloha vypnutá (režim GITHUB), vrátí se chyba a stránka jako poslední záchranu otevře odkaz na GitHub.
+  if (mUrl && request.mode === 'cors') {
+    if (!r2Allowed()) return offlineAudioResponse();
+    try {
+      const resp = await fetch(mUrl, { mode: 'cors', credentials: 'omit' });
+      if (resp.status !== 200) return offlineAudioResponse();
+      try { await cache.put(request.url, resp.clone()); } catch (e) { /* plná paměť - stažení i tak proběhne */ }
+      markServed(request.url, 'r2');
+      return resp;
+    } catch (err) {
+      return offlineAudioResponse();
+    }
+  }
+
   // Safari / iPhone: online přímo ze sítě s původní Range hlavičkou, cache jen offline.
   if (IS_APPLE_WEBKIT && isMedia) {
     try {

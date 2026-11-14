@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.6.1">
+<meta name="app-version" content="2.6.2">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13088,9 +13088,21 @@
 
   // ==========================================
   // GAMIFIKACE — skutečné stažení MP3 souboru odemčené skladby z MY PLAYLIST.
-  // Stáhne skladbu jako blob (funguje i mimo appku, přímo do zařízení uživatele).
-  // Pokud fetch selže (např. offline nebo CORS), otevře se alespoň přímý odkaz.
+  // Stáhne skladbu jako blob (funguje i mimo appku, přímo do zařízení uživatele). Pořadí zdrojů:
+  //   1) čitelná kopie uložená offline (funguje i bez internetu),
+  //   2) záloha R2 přes sw.js (GitHub čtení souboru stránkou nedovoluje - nemá CORS),
+  //   3) poslední záchrana: přímý odkaz na GitHub v novém panelu (stáhne ho prohlížeč sám).
   // ==========================================
+  async function readableCachedTrack(src) {
+    try {
+      if (!('caches' in window) || src.indexOf('blob:') === 0) return null;
+      const cache = await caches.open(AUDIO_CACHE_NAME);
+      const r = await cache.match(src);
+      if (!r || r.type === 'opaque' || !r.ok) return null; // "opaque" kopii z GitHubu přečíst nejde
+      const b = await r.blob();
+      return b && b.size > 1024 ? b : null;
+    } catch (e) { return null; }
+  }
   window.downloadTrackFile = async function(src, title) {
     if (!isSafeDownloadSrc(src)) {
       showToast(guideLang === 'cz' ? 'Neplatná adresa skladby' : 'Invalid track address', '⚠');
@@ -13099,9 +13111,14 @@
     const safeName = (title || 'synthlucida-track').replace(/[\\/:*?"<>|]+/g, '').trim() || 'synthlucida-track';
     try {
       showToast(guideLang === 'cz' ? 'Stahuji…' : 'Downloading…', '⬇');
-      const res = await fetch(src);
-      if (!res.ok) throw new Error('network');
-      const blob = await res.blob();
+      let blob = await readableCachedTrack(src);
+      if (!blob) {
+        const res = await fetch(src);
+        if (!res.ok) throw new Error('network');
+        blob = await res.blob();
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if (blob.size < 1024 || ct.indexOf('text/html') !== -1) throw new Error('bad file'); // chybová stránka místo MP3
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -13112,7 +13129,11 @@
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       showToast(guideLang === 'cz' ? 'Staženo' : 'Downloaded', '✓');
     } catch (e) {
-      window.open(src, '_blank', 'noopener,noreferrer');
+      if (navigator.onLine === false && src.indexOf('blob:') !== 0) {
+        showToast(guideLang === 'cz' ? 'Bez internetu teď stáhnout nejde – zkus to znovu online' : "Can't download while offline – try again when you're online", '⚠');
+        return;
+      }
+      window.open(src, '_blank', 'noopener,noreferrer'); // poslední záchrana: přímo z GitHubu
     }
   };
 
