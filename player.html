@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.5.5">
+<meta name="app-version" content="2.6.0">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -315,6 +315,43 @@
     opacity: 1; border-color: var(--accent-color); color: var(--accent-color); box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent);
   }
   .main-guide-btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  /* RYCHLÝ PRŮVODCE: blikající ⓘ + bublina při první návštěvě */
+  @keyframes tourAttention { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-color) 70%, transparent); opacity: 1; border-color: var(--accent-color); color: var(--accent-color); }
+    50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent-color) 0%, transparent), 0 0 16px var(--accent-color); opacity: 1; border-color: var(--accent-color); color: #fff; } }
+  .main-guide-btn.tour-attention { animation: tourAttention 1.3s ease-in-out infinite; opacity: 1; }
+  .tour-hint { position: fixed; z-index: 60; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(58px + env(safe-area-inset-left, 0px));
+    width: max-content; max-width: min(250px, calc(100vw - 120px)); box-sizing: border-box; padding: 9px 11px; border-radius: 12px;
+    background: linear-gradient(180deg, #1c1c1f 0%, #0d0d0f 100%); border: 1px solid var(--accent-color); color: #fff; text-align: left;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 calc(12px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent);
+    animation: tourHintIn 0.35s ease-out; }
+  .tour-hint[hidden] { display: none; }
+  .tour-hint::before { content: ""; position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; transform: rotate(45deg);
+    background: #1a1a1d; border-left: 1px solid var(--accent-color); border-bottom: 1px solid var(--accent-color); }
+  @keyframes tourHintIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+  .tour-hint-text { font-size: 11px; line-height: 1.45; }
+  .tour-hint-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  body.is-fullscreen .tour-hint { display: none; }
+  .tour-btn { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1px; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.25); color: #fff; -webkit-tap-highlight-color: transparent; }
+  .tour-btn:hover, .tour-btn:focus-visible { border-color: var(--accent-color); color: var(--accent-color); outline: none; }
+  .tour-btn-main { border-color: var(--accent-color); color: var(--accent-color); background: color-mix(in srgb, var(--accent-color) 14%, transparent); }
+  .tour-btn:disabled { opacity: 0.3; cursor: default; }
+  /* průvodce: ztmavená stránka s "okénkem" na zvýrazněný prvek a kartou s popisem */
+  .tour { position: fixed; inset: 0; z-index: 10080; }
+  .tour[hidden] { display: none; }
+  .tour-hole { position: fixed; border-radius: 12px; pointer-events: none; transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease, opacity 0.2s;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.72), 0 0 0 2px var(--accent-color), 0 0 18px var(--accent-color); }
+  .tour-card { position: fixed; width: min(300px, calc(100vw - 24px)); box-sizing: border-box; padding: 12px 14px; border-radius: 14px; text-align: left;
+    background: linear-gradient(180deg, #1c1c1f 0%, #0d0d0f 100%); border: 1px solid color-mix(in srgb, var(--accent-color) 70%, transparent); color: #fff;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.7), 0 0 calc(14px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent);
+    transition: left 0.25s ease, top 0.25s ease; }
+  .tour-step { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 8px; letter-spacing: 1px; opacity: 0.55; }
+  .tour-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 11px; letter-spacing: 1.5px; color: var(--accent-color); margin: 4px 0 6px; }
+  .tour-text { font-size: 12px; line-height: 1.5; opacity: 0.92; }
+  .tour-actions { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+  .tour-spacer { flex: 1 1 auto; }
+  .guide-tour .guide-tour-btn { align-self: flex-start; margin-top: 6px; padding: 6px 12px; }
+  @media (prefers-reduced-motion: reduce) { .main-guide-btn.tour-attention, .tour-hint { animation: none; } .tour-hole, .tour-card { transition: none; } }
 
   /* ============================================
      DONATE (☕) — tlačítko pod info tlačítkem v levém horním rohu hlavní stránky
@@ -474,6 +511,29 @@
   }
   .myfiles-text-input:focus { border-color: var(--accent-color); box-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); }
   .myfiles-create-row { display: flex; gap: 8px; align-items: stretch; }
+  /* HLASITOST VLASTNÍCH SOUBORŮ (jen ztišení, bez Web Audio) */
+  .myfiles-gain { margin: 12px 0 2px; padding: 8px 10px 7px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; background: rgba(255,255,255,0.03); }
+  .myfiles-gain-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+  .myfiles-gain-label { flex: 1 0 100%; min-width: 0; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px; color: var(--accent-color); text-align: left; }
+  #myfiles-gain { -webkit-appearance: none; appearance: none; flex: 1 1 auto; min-width: 70px; height: 18px; margin: 0; padding: 0; background: transparent; cursor: pointer; touch-action: pan-y; --vol: 1; }
+  #myfiles-gain:focus { outline: none; }
+  #myfiles-gain::-webkit-slider-runnable-track { height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, var(--accent-color) 0, var(--accent-color) calc(7px + (100% - 14px) * var(--vol)), rgba(255,255,255,0.14) calc(7px + (100% - 14px) * var(--vol)), rgba(255,255,255,0.14) 100%);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08); }
+  #myfiles-gain::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin-top: -4px; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent-color) 88%, #fff) 0%, color-mix(in srgb, var(--accent-color) 78%, #000) 40%, color-mix(in srgb, var(--accent-color) 35%, #000) 100%);
+    box-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent), 0 1px 3px rgba(0,0,0,0.5); }
+  #myfiles-gain::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.14); }
+  #myfiles-gain::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent-color); }
+  #myfiles-gain::-moz-range-thumb { width: 12px; height: 12px; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%; background: var(--accent-color); }
+  .myfiles-gain-val { flex: none; min-width: 34px; text-align: right; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; color: var(--accent-color); font-variant-numeric: tabular-nums; }
+  .myfiles-gain-reset { flex: none; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: none; color: #fff; opacity: 0.7; font-size: 11px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .myfiles-gain-reset:hover, .myfiles-gain-reset:focus-visible { opacity: 1; border-color: var(--accent-color); color: var(--accent-color); outline: none; }
+  .myfiles-gain-note { margin: 6px 0 0; font-size: 9px; line-height: 1.4; opacity: 0.55; text-align: left; }
+  /* iPhone / iPad: hlasitost nejde z webu měnit - posuvník zašedlý, vysvětlení výrazněji */
+  .myfiles-gain.is-unsupported .myfiles-gain-row { opacity: 0.35; }
+  .myfiles-gain.is-unsupported #myfiles-gain, .myfiles-gain.is-unsupported .myfiles-gain-reset { cursor: not-allowed; pointer-events: none; }
+  .myfiles-gain.is-unsupported .myfiles-gain-note { opacity: 0.85; color: #ffb4b4; }
   .myfiles-create-row .myfiles-text-input { flex: 1 1 auto; }
   .myfiles-file-size { font-size: 8px; opacity: 0.45; flex-shrink: 0; margin-right: 4px; }
   .myfiles-playlist-card {
@@ -1508,6 +1568,21 @@
     50% { box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); border-color: var(--accent-color); color: var(--accent-color); }
   }
   #btn-download.needs-download { animation: downloadNeedsAttention 1.4s ease-in-out infinite; }
+  /* DOWNLOAD OFFLINE: okno pro výběr jednotlivých skladeb ke stažení */
+  .dl-pick-window { gap: 10px; }
+  .dl-pick-note { font-size: 9px; line-height: 1.35; opacity: 0.7; text-align: center; }
+  .dl-pick-tools { display: flex; gap: 8px; justify-content: center; }
+  .dl-pick-tools .btn-feature { padding: 4px 10px; font-size: 8px; }
+  .dl-pick-list { list-style: none; margin: 0; padding: 0; max-height: min(52vh, 360px); max-height: min(52dvh, 360px); overflow-y: auto; overflow-x: hidden; text-align: left; border-top: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08); -webkit-overflow-scrolling: touch; }
+  .dl-pick-list li { border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .dl-pick-list li:last-child { border-bottom: none; }
+  .dl-pick-list label { display: flex; align-items: center; gap: 9px; padding: 8px 4px; cursor: pointer; min-width: 0; -webkit-tap-highlight-color: transparent; }
+  .dl-pick-list input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent-color); cursor: pointer; }
+  .dl-pick-name { flex: 1 1 auto; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dl-pick-state { flex: none; font-size: 8px; letter-spacing: 0.5px; color: var(--accent-color); opacity: 0.85; }
+  .dl-pick-list li.dl-done label { cursor: default; opacity: 0.5; }
+  .dl-pick-list li.dl-done input { cursor: default; }
+  .dl-pick-list li.dl-on .dl-pick-name { color: var(--accent-color); }
 
   /* Playlist - ZVĚTŠENO pro zobrazení 5-6 skladeb */
   .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; height: clamp(90px, 22vh, 160px); /* pevná výška: krátký playlist hlavní okno nezmenší, přepínání playlistů neskáče */ overflow-y: auto; overflow-x: hidden; text-align: left; }
@@ -1652,6 +1727,23 @@
     .net-speed-badge { display: none; }
     .net-status-badge #net-status-text { display: none; }
     .net-status-badge { gap: 0; }
+  }
+  /* Úzké telefony: levý blok (zpráva, historie, online, displej, LED) se dřív nevešel - LED dioda se zmáčkla
+     na okraj rámečku a byla napůl uříznutá (s tlačítkem admina se uřízlo i to). Menší mezery a odsazení,
+     LED se už nikdy nezmáčkne. Velikost tlačítek se nemění. */
+  @media (max-width: 400px) {
+    .net-status-badge { flex-shrink: 0; }
+    .focus-mode-row { gap: 5px; }
+    .focus-mode-left { gap: 5px; padding-left: 8px; padding-right: 8px; }
+    .focus-mode-right { gap: 5px; padding-left: 7px; padding-right: 7px; }
+    .online-count-badge { padding: 2px 5px; }
+  }
+  @media (max-width: 340px) {
+    .focus-mode-left { gap: 4px; padding-left: 6px; padding-right: 6px; }
+    .focus-mode-right { gap: 4px; padding-left: 6px; padding-right: 6px; }
+    .online-count-badge { padding: 2px 4px; font-size: 8px; }
+    /* přihlášený admin (🔓) - na nejužších displejích místo pro něj uvolní počet posluchačů */
+    .focus-mode-left:has(.admin-logout-btn.visible) .online-count-badge { display: none; }
   }
 
   /* Odhlašovací tlačítko admin režimu - skryté, dokud nejsi přihlášený přes 666 v chatu.
@@ -2620,7 +2712,11 @@
   .sp-ok { flex: none; min-width: 64px; padding: 0 16px; font-size: 13px; letter-spacing: 2px; }
   .sp-err { margin: 0; font-size: 10.5px; line-height: 1.5; color: #ffb4b4; }
   .sp-err[hidden] { display: none; }
-  @media (max-width: 380px) { .sp-window { padding: 12px 14px 16px; } .sp-text { font-size: 12px; } .sp-input { letter-spacing: 1px; } }
+  /* Fotka autora dole v okně (vložená přímo v souboru, funguje i offline) */
+  .sp-photo { display: block; align-self: center; width: 92px; height: 92px; object-fit: cover; border-radius: 50%; margin-top: 2px;
+    border: 2px solid color-mix(in srgb, var(--accent-color, #fff) 70%, transparent);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.55), 0 0 calc(10px * var(--gb)) color-mix(in srgb, var(--accent-color, #fff) var(--glow-pct), transparent); }
+  @media (max-width: 380px) { .sp-window { padding: 12px 14px 16px; } .sp-text { font-size: 12px; } .sp-input { letter-spacing: 1px; } .sp-photo { width: 80px; height: 80px; } }
 
   /* ===== Opravy: spodni okraj kulatych tlacitek a tlacitka u nazvu SYNTHLUCIDA ===== */
   /* Radek .focus-mode-left ma overflow:hidden a vysku presne jako tlacitka - pri stisku (posun o 1 px dolu) se spodni okraj
@@ -3493,6 +3589,14 @@
     .extra-features .vol-percent { font-size: 8px; min-width: 0; letter-spacing: 0; display: none; }
     .extra-features .vol-icon { font-size: 10px; }
   }
+  /* Úzké telefony (do 380 px): MUTE jen jako ikona (stav dál ukazuje barva a přeškrtnutý reproduktor), GAIN se posune
+     doprava a posuvník se zkrátí - dřív na malém displeji GAIN zasahoval do tlačítka ＋ a do posuvníku. */
+  @media (max-width: 380px) {
+    .extra-features .btn-mute { width: 30px; }
+    .extra-features .btn-mute .mute-txt { display: none; }
+    .extra-features .gain-mini { right: 34px; }
+    .vol-slider-wrap { width: min(130px, 46vw, calc(100vw - 210px)); }
+  }
 
   /* About + FAQ uvnitř návodu (ⓘ vlevo nahoře) - indexovatelný text v HTML */
   .guide-about details { border-top: 1px solid rgba(255,255,255,0.14); padding: 8px 0; text-align: left; }
@@ -3592,6 +3696,12 @@
   body.opt-lite .su-seg.su-seg-weather, body.opt-lite .su-seg.su-seg-sunset { opacity: 1; pointer-events: auto; }
   body.opt-lite .su-seg.su-seg-music, body.opt-lite .su-seg.su-seg-r2test { opacity: 1; pointer-events: auto; }
   #su-r2-result { white-space: pre-line; }
+  .su-desc[data-i18n="su_music_d"] { white-space: pre-line; }
+  /* ADMIN SEKCE v SETUP: režim "jen R2" je zamčený, dokud není v chatu přihlášený admin */
+  .su-row.su-locked { opacity: 0.5; }
+  .su-check-result { white-space: pre-line; opacity: 0.9; max-height: 180px; overflow-y: auto; word-break: break-word; }
+  .su-check-result:empty { display: none; }
+  .su-seg button:disabled { cursor: not-allowed; opacity: 0.45; }
   /* Nabídka WEATHER (stejný vzhled jako nabídka FOCUS); nedostupná volba je ztlumená */
   .focus-menu button:disabled, .focus-menu button:disabled:hover { opacity: 0.35; cursor: not-allowed; border-color: rgba(255,255,255,0.14); }
   /* ===== SETUP (EXPLORE > SETUP): úsporný režim, volby grafiky a sezónní atmosféry ===== */
@@ -3968,7 +4078,7 @@
   <input type="file" id="sun-photo-input" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,.png,.jpg,.jpeg,.webp,.gif,.avif" multiple style="display:none;" onchange="handleSunPhotoUpload(event)">
   <button class="btn-feature" id="btn-sunset" onclick="sunsetButtonClick(event)" aria-haspopup="menu">SUNSET: OFF</button>
   <button class="btn-feature" id="btn-my-playlist" onclick="toggleCustomQueue()"><svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>MY PLAYLIST <span id="queue-count-badge"></span></button>
-  <button class="btn-feature" id="btn-download" onclick="downloadCurrentPlaylist()">⬇ DOWNLOAD OFFLINE</button>
+  <button class="btn-feature" id="btn-download" onclick="downloadButtonClick(event)" aria-haspopup="menu">⬇ DOWNLOAD OFFLINE</button>
   <button class="btn-feature" id="btn-install" onclick="installApp()" style="display:none;">📲 INSTALL APP</button>
   <span class="offline-status" id="offline-status"></span>
 </div>
@@ -4268,6 +4378,12 @@
     <p class="main-guide-note" id="app-version-top" style="margin: -6px 0 14px;"></p>
     <p class="main-guide-intro" data-i18n="guide_intro">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.</p>
 
+    <div class="guide-tip guide-tour" role="note">
+      <span class="guide-tip-title" data-i18n="tour_card_title">Quick tour</span>
+      <span class="guide-tip-text" data-i18n="tour_card_text">New here? In about a minute the quick tour shows you the most important buttons, step by step.</span>
+      <button type="button" class="btn-feature guide-tour-btn" data-tour-start data-i18n="tour_card_btn">▶ START THE TOUR</button>
+    </div>
+
     <div class="guide-tip" role="note">
       <span class="guide-tip-title" data-i18n="guide_tip_title">Smooth performance on slower devices</span>
       <span class="guide-tip-text" data-i18n="guide_tip_text">If playback stutters or the interface feels sluggish on an older or less powerful device, open EXPLORE &gt; SETUP and turn on LITE MODE. It disables the most demanding visual effects for smoother, more reliable performance.</span>
@@ -4412,7 +4528,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_offline">Offline listening</h4>
-      <p data-i18n="p_offline">⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback. Offline listening works only inside the app, not in a regular browser tab.</p>
+      <p data-i18n="p_offline">⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback – all tracks at once, or only the ones you pick. Offline listening works only inside the app, not in a regular browser tab.</p>
     </div>
 
     <div class="main-guide-section">
@@ -4496,6 +4612,15 @@
     <div class="queue-actions">
       <button class="btn-feature" data-i18n="mf_btn_add" onclick="document.getElementById('myfiles-input').click()">＋ ADD AUDIO FILES</button>
       <button class="btn-feature" data-i18n="mf_btn_history" onclick="openHistoryFromFiles()">🕘 HISTORY</button>
+    </div>
+    <div class="myfiles-gain" id="myfiles-gain-box">
+      <div class="myfiles-gain-row">
+        <label class="myfiles-gain-label" for="myfiles-gain" data-i18n="mf_gain_label">MY FILES VOLUME</label>
+        <input type="range" id="myfiles-gain" min="10" max="100" step="1" value="100" aria-describedby="myfiles-gain-note">
+        <span class="myfiles-gain-val" id="myfiles-gain-val">100%</span>
+        <button type="button" class="myfiles-gain-reset" id="myfiles-gain-reset" title="100%" aria-label="Reset to 100%">↺</button>
+      </div>
+      <p class="myfiles-gain-note" id="myfiles-gain-note" data-i18n="mf_gain_note">Your own files are often louder than SYNTHLUCIDA tracks. Turn them down here so everything plays at a similar level – then use the main volume as usual. Applies only to your own files.</p>
     </div>
 
     <h4 class="myfiles-subhead" data-i18n="mf_h_playlists">Your Playlists</h4>
@@ -4624,6 +4749,7 @@
       <button type="button" class="btn-feature sp-ok" id="sp-ok">OK</button>
     </div>
     <p class="sp-err" id="sp-err" role="alert" data-i18n="sp_err" hidden>The text doesn't match. Please type exactly RELAXPLAYER in capital letters, or leave the box empty and press OK.</p>
+    <img class="sp-photo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wgARCADIAMgDASIAAhEBAxEB/8QAGwAAAQUBAQAAAAAAAAAAAAAAAwABAgQFBgf/xAAZAQADAQEBAAAAAAAAAAAAAAABAgMABAX/2gAMAwEAAhADEAAAAc3arh7/ADdbN0NCF+ebp0dy1nQyunmThVYtAmztjR66pK3PFs078s5zupZJqsurYgK5C+djdXgdfnZyIurk2ndvF92ZacSNDPrlokixgdVfRuPLD0ysrkjSETcq25lRX6aSiyzEtHQOChKtQFtuzzqStpplHWJw+rdJnWNiX891OL5/33Dw69j0by7bL942JPq8/RVWzg1mm2MpiiyWJVCgnzjVnmWJotGCdEinXNz9jmqTItjq7StS4f1Olzdnk/b6ttxFBe3HMgVsmQSpxvBtGJRlYMZEMeqxBVXRGVZJq8Xdhx6AbIDTjUDgzoVunXLvKsletlwdvlt1g87p68eNLdGZZFToaxGMTUIwwp7EcMJ9cTDIWqmUDPLxPdi5bDzuZuhkd3PSDbxeyIc/Mhw26Kjbqc/W/Yi3nhoxpweRgQbAQ7xdsol9tq9sgCLiy0BnkgTy/XUoyK7ebW5Tv4uk86vZloJ362TLJ0Da2jp4nWzrnnLDTC5IYiiRzhDNBhTsPXeegsxEHJA3ievGUAUm3E9oXo5vOH9Dp2jSNOqDjGsSvIXUYAFb0NwG4Ox4OmA3I7EA7TMtWN2DLRVtYZgg4PH26djKvWhc1qNmbQcI2WNe1WdFVs2GXJLrRBz9PCondtDnTc/T0ZMjQjScVBg71pXmZRRGHz3YRhbFPn3eiG3DPEms1TWHQ0QjU2pUKDDTHQqMiCt2iZXZRs8PdAjSjV3ZDMCwzaorKdaBB2ee9TB6Pj+vmDBid/nni5UcK07c6cvPsSI3Na2oWFxGk0ayi58IMMgLsmBkouckywy7NcgoQaFsRDciTxntKUZgIqYaTwli45o6UhSwkooabM2zsmOmhLalNItGSQymls7pAKSWEmS2d0sXdLZklskkcnS2UUhopI7/xAAoEAACAgMAAQQCAgIDAAAAAAABAgADBBESEwUQFCEgIiMxFTIwNEH/2gAIAQEAAQUCCmLi18HCqKvh3LBh3kWY70xVQzxVkGhdKhAYEnmeNtlSCFnCzhItSMfAgVVXqFO5bhkKwmoOuWsaUPqsWQNC8fErtj0vW83OtyjGg0supW2PjWKIuMzRcKW9VCu3ZDdRARHtFQvYWNqD6Gg0C6gEZ+Qbot2j/ubFftca1wta6pbULQNOrbGfHsJx9KoeXnoD6akLyzBJc/b/ANzU3PJqNfqDIMewmJjM8bGKCrLqUd+SU9rOTsqVjWmeSVH9f3aeHouOB3Kl8jc8S07PjWeNZxGugZWh44rUBPESUPK+uZT10ixt4uSdY+YLKg+yzz/YsimcQOEU3/fnUhShKc7uuHOxNQ/U/qfCsM+C6zx8kEzZnknqy+XHRNkJo+ltbvu0Ty2GLYZ5oLPveyUEKzj7UCWqBByIIRP9Z5SYrkT9niiGzQGnN2GbqsnAfEsIPfolFvDaLhUnjDwVDRqgo++OYQwBB1+whUvPFE2hNonmJPep5SR2Z3v2xsYKC8dq+a8bGRi7idDfc8rQ3uR5Wi6DFgYorE2uhoTaz9IeTPoCU05l1fxcyGrLnGWJi49vdjkm7K5jZPUFkS9ljXhp3PK08tk87xbbGYtkCNluIMi1ibbxPlPv5MbLfYyiI+XZKMgoFsRo3jM1WZWoRLDLf2ZlmtPkszQ5NlZT1EiUepETGzaMioPQsZqGm6Y6YkSvHJOFjMf8ZW0PpaT/ABdcbAqEOJSo9umEFrRG/gtYwhmLfUe4bGUC5x0hRSzrZWvpY8eKM2oKbsZg1KODi3gNj2rGFgnULSu41BM0z5tc37Dmbqmv4radzjUy7a6wzFzMTvIqx/s+nKrjxKAFUQ1rs1Lv9wBfcs+VYIcuvfeGSaMdgcDoti2iffuJX/17nWWqhqdja/t6Iu4amxb/AEnZssqyegLFgK8+SvZdCGHJ399kQ/sCp0n0fkWIAPwuyzjYz+p1IbvUsi8QAk43p1dWP6cyVP6pZVfPSnCv410U/XxzmcDXH1xOBph1G+1UcnSxZo+39DIKvXfhW1NwwgQk4XxMeZ+UhBq4nxLOLbrzV6bnNenYnW5/c1Ne5E4nEKRRP6nY6t20I7iI+7SrR8VOj6cnTYJSGiIpqUXNuvDD2Vg8amp9+2x7a/AR7l0NhxZ2wOzoifsJYyJHs8avrkVqAUIniXZFywZdlEoy/OPK4ny9Rbw06hM8vM8k7+u5dYKkrt5Clop3KU6jWDs2Wba0GVc2I9VUDBXSs2MKgDYX3kXK7gtWUu7A6aUhgB7FZorOvpTM2rygg1nj6VxK2FalzVHs8orDBKVYJ9u4q8kWxKqrBbbHc1Vufths4qs16pr8SIV92rDCyl62qQbscdjKVit7M1baZ7yCbjXX8j+Pzfb5SAPd0URr3q9NldS1gCa/IrFmo6bV2FY7IiXcnto+TPL3Gu0fOxCpbZKvTbTK/Tali1hQPbsdfmvs39XsUYU3NBh3NPhXbGA8XAXS4NMWmtPbR0izUDLBZP2CgEH8gfvqbE0s0s0JqACb1NzUC/XvqLCSfy37ATmf+ff4ag9tzf4f1N/nv2Bm5vY17/U3+G/x3/w//8QAIxEAAgICAgMBAQADAAAAAAAAAAECEQMSITEEEBNBFCIwQP/aAAgBAwEBPwFRUez5RkPx4k4OP4WiGPd8EvE44HBx7IYW/wAOE6OzyccV0UUjZIc76Kb4Z/Or5I49R5UaKXZH/FDezJT1RJN8mpz6VIxrbozxajZ9Dhl10bsTMls1NCyyNyZjyaGXNZaLice69WPAfEUdfUMWxLxMUumZPEcf0WEeE+LPjI+Mj5SNSURoZGTQpJmS7oo1NTQ1ZyUamVUyhRshJXwS7KNTQeMcGUyiTJ49j4jTqjQjwzRHzNWNFFGSVce2Uamgp6sUrKHGxwNDJg25KdjZVlo3S6HJEccp9GLFovdFevI4VlTfSNMn4j+eYvEf6yOCESv+Nf7f/8QAJBEAAgICAgICAwEBAAAAAAAAAAECEQMSEyEEMRBBIjBhFFH/2gAIAQIBAT8BlJy9HLODF5MrIzUjslk0RHybfYpX6JZUvsptWejBOT9lnZo2Rgo+xte0czoc9hYzZx9DSkxfihR2YmkbFRHH/g02TVMx03RxnY1ZqhogkkWWUUSqKKchQKKkdi+LKKR/oYs7L2dsjEyS1OeSFnOb+Cz/AMOdHNE54nMjYjIxMTMk9mMidfFs2Non4mwpGGXVkp30WTg0XRsbG4pikjo2IkMmoswnG7Nyb2Rys5jkQpGxsYoX2MsQmbUcg4KSHChkZ0KZuY8+vTHVWKJ6KZq2KLJTUPZly7Mv4UjkGeN30XFe2bw+2PPBD8tfSJeRJ/Zd/N/LF+x/t//EADoQAAEDAgMHAgQEAgsAAAAAAAEAAhEhMRASQQMiMlFhcYEgkRMwQqEjUpKxYtEEM0BDUHJzgqLB4f/aAAgBAQAGPwIUuhN1RWnsuGFvCnMK8LjCmVQquEZSoIw1WquVRDCFuAU98d2ytRR6JbulZb4wgTfCgqpgYCq4j6ZUhsYQoj1SGZit9pBUtYVDplRmnCVDLc1LgAq4wqeuioFVAo1UfGa13dcQcqYSAFbC6rbHXC6urriV8KlZQrqtlCDBO9dUKGaczbEFNcNcaqiuo9BUeiqvTurq59E/lXRRLgtpsyS7ULhK4SqhW9Fsa1VsLLeV1MqbqtF9OBG63uq8J1QAaXdAnu2mycwSOOiNirFURoo1wqVIiFJjCFxI0Dlwoy0Knp+I+/LCrQi/Zwx5XMLgCnI2VdRbDMZXAq5lZV3lRsKysfdRXBr25IdZf3Ur6CuEeyB2p2UDQYQq0VD9lxUW591xD9K0/SrD2KsPZQGk/wC1cAhfQtPZVDV9Kg7QNP8AplQCD1yrfnpAW6RHVBpFFZy4VqEY1wurqZQLdoafSoc774D6hyWaOikEhcbj3WX4keFdzuzVVzwOy3X/AHX9Z91xriPhX/4qjj7Y3KvKaVwu8VWvsqlcu6iw5qSoC3Zg0lNzNuSVlOzBCqwNX4e1Z2UtaD2Kq1/hcLvK59AVZbubsFvsDlXZT5xqFYDwmkWUrRTSVJwj8lypT2u7rphw0VDRbpNOS4j5QJr4VdgT1DUJaQrx0JW6+VQA9j6RSVBa7wITnB1tJUnFzI4gnbF92lPtw6qRtw3spc5jusBDNtB4KvRQKnoqmPMri/dansrV6riXHtD5UB7v39LuXaVuMO1dzeoL8reTaYQBJT3f0jiI/Sg9rnGD2TNvs3SQcpGqdnFIutFCsrQuEKgooinKVr7q3myyu8I0X8sLYSTCyu3QRVUa5w7Ky5Kc8v5lfDo7ZOuQagr8PaTPJMdsznBqsgaR2UOdLm3GuF/lWwi55LK7KSNF01W7PdZKOP8AEt5rTOipurdkjRVaiWvOXUGyDtebaLNs9u7Zu/iTZOYxfn8wgP8AY1RgZQo82VBRDogbjtdBk733WWg/zXQdnpPOFuzPZQRnohBBJ5KGbIEd1r5CkP8AC0KqFTCilX9l/wCYSTHJOtVTWUKUQEUWkcpqrUGrqLKPus+o5KnGVkZusjS65tN5VCG9gsrXNWWhW6Sr4V9MX8qC6nRCI7rKOFSSFlVRUqWNvWEZGbksoZU/mVacyUc1a6q/nmso3o6Kc2XoomqPNVQDR3+VBCpZVrCaC6P+1vE0RJykfsprOoJToG6eqH1nmFw0aqx3W7BPZSSFDAh8R09At0AfLOidFQEDmqgRQ9EDTysswrmdaK57FZRQTKpsnFS90KSM3dQBjlrPyrotBXA6FaO5Wg8qrvsoJcqsHlUaPbD+a3nT4xoAiYE9Pl2HpoPXT+1VEf4F/8QAJxABAAICAgEEAgMBAQEAAAAAAQARITFBUWFxgZGhENHB4fCxIPH/2gAIAQEAAT8hX8CBb1m5czSmyC2VxcvYWplmfYTduCoPch6r+ksU8wM9UMYil6loA9Mt4+4nuv3BIrMKrb1gGLuGqYWTNy7u2YyNxgJouGgKFKjL3jPEwTDLK2+2tT30FS3mFd3FYP8AsEGnLUOiKqBvdb9Yrb+kfQl6Bkv0iYYXJWDSxsnEXSc7LwT0lPid1zGK0jEpFFHEHQjXCln3HwMz4K4lpac5KjFgIRCA9ZJe3TxHNwqbSwMA5URHDk5jpLMGoDiWQF0xyTVKh2WKzmorDOHEA8lQeyI2LG6FMEw09Rco1xL/AOkTmPGdzjNRXh3M+/eL2i/MThi0exyzC2oIyOSYoYrqMhSeWYrpUw7YnMv4jwWiek6mOQbkQGzG4eEwTglcLkOupmUuZICZAvxELoHxAtfXMbZMXG4nhUCNRlK6ndqVBepbWo7FldTcIaf5/AdpdLjArJBkNpfIHrKlGZXy/EKy5pbl7TOV5SgtE1Bgq7OAjQgYyU6ZEVHQi9UGWhAdFIHlqc5qZYE2CsoLaltybUj+ml1ZF/aYgGSRomnrHwF8TbMxFYq8DU6KoG2XHDUyCGkC7GA2jxTcLNNclYjaL42MV7eBGwV9CNCDT3BCVeYQpbQDDBv5iNhPeU4p54meelcyhZT1gA0tMpoCNAg1rxPHR4ihVfcQXBUBD2OBCC6PaXQ4eHmHxuUMfE3j6BiKNgAaeZUtq1jjhiDD0EqKv4l2CXzUusKe9y2QnjMqRy7hey+DMtipdJG72Iugw9Yg9y9OF2K/mcNkZq/7gtHtf3Lmf9vWWeMytt+ZdBx1O2uX+jmO6fYfqAWo5Lg/5FhxOeD6RdY+d+5adq1b9yrcJ4/kxXi12PP3BRTXLX7llixMdAErNOv93K6P1/uGZywP7oD4sYO2S6GHusJfjql/UBLUoo1KhU8WVOVjHHH/AH6y9N9qh8RaEeLhhb7pbIATSobGPaCzD1G3yRZjlzNIoLs3Df8AtvuYJ5mVwbJDWjDK3vBiU72BgAwPGDPGHFTwS+GpY1bi2n6m/furmBt1ialR0Pkg90eZtAXBZfXxRA19UIbPHF3DMXSNvriRCFvcquDMWXAA29XErAOCbNfxDhDirwTGBdOGJcLm1Q32CCnKb5RClTtS2BvgoqK7wOCURgu1sQh6AtXLQCXgSmJiVcsxSErB6IS4MqLvDsI3R0hhY5T+vxcnQfABC3crCKukEcw5fc0PXREho9q1KioHDArANLBUCpTraZALb1lxmoqBc8S2BbqjDuK0KZCQHmXUoyhgjkuudlyy4fkf+mpRQquBX4/cWbn6/KvOUahaVU9ThngqxauYkCHdDHzH8tMILfZmMfbVjfllSG/Lx9Qejb4EwYQJzArpqHFH/olbHwAmEuN8P9zeWB2INKl4MU95kLnGrgMCZRQc6riR9GR8T0pCp+DSkwBzKUrd+P7ii2iCQFuMPJ638zdRrh5i2nwlPqa4lDi94lOAvGIjS/uyNEUeLKB0tsGLaGuIzsnx/gQVcGw7+INi7VZzHEZ9kbesxLcAzhw7uKAti2WopLnhMvciilj0wwOHLVw1C1x0nocQHhGX/pSm2jsp/uKhTVrCPNTaghZzfXiM9LNo9wTslVp7xDgnmKXFsvdVAxHEulq1PbEu6+IV4Eo2qGff8MRGbAStH+6g5X28nqENFn2Ewzu0PqCBlmBT9aIFAetK/wD2HlkdNw8XHF1AB1pCmbEw3W+f3M6UvEH5GAA6F93cymOlgdrmeSVbsIU3ecYbjQziYCNRqNHcQGXToRnABy5YwceRh7kpzwTx5iQNZYO50IDcMCLGCDDg7yTG2ZMjKy4WDGVZ6QTHFpdSBrT+pjWDYLglUfGBj0oeUajJ5M5C8pV5iGVM2xKjla5TLlfUWj8ieUy9TkUZIhUqtI8eI2IgzYVbXmA6hjZ3CvHBTJ7Q6o0Y+gdwXLRl2CYBXsL/AN5geTrxv5JRo4hbe/Ex3K2H8cYlE3TeGIt5eXmOsAzfmEUT3xM8CJKBWYgrq5aVLtblJOHxCtmHqqUOL7wzDtrz4S6yhrJubMkd6mAsaNalB7qjJ5iFx4B9rxMYclWdXUeourhQ+M3B1m3+H1Civ8n4jCwXkUV7swHehdlIQADn9pZjv2V8VLQ1yuIlq8Xcuk1pXEHTEohCYlk62ZB16Qy4jMSeYqL+dYihaggW+OQz7JmxFq1P+5gPcBvNoIZA6CoyE5GDUbPBmZgoFeZ6ZzpnuPQaRsToGpmXB7rBDq0DwErV71z+DGH/AJBieCNuoWZkVcyTsHWZyhRHMRwg4jlEcHb+ZaAHaxZpuxthCG0xtY4F0EPyK3dYlSLx2xu0/OUYB0FQVLhzYFtGp8kWsy5czLl1LL4lQ2tLiKnPvPoNFMv3ENbxQ/WXuoCFitXubyI0F9IDGCvuGlh7EU+sV/n8Mim/SdEb3L8HGn3LxYXshHH4v8MaCLmqmW8npGXQStSxKa0LeZdbr5mxMBUuXE0GHUVHD6k2j/X4v8MuZtZ1upeZm1Abz86nTTLglvzKYJ1A8kDJPQRtD1/GH+pgXYHMFnANWy5dmIsv8OJpqXfEz/jiaYdqvxEPWBAGcY/C7q6/A2eJT+Jeagy/yuXPeHrLlzqFjc//2gAMAwEAAgADAAAAEG9XNZqSL3eKSwPCDpmdyEauo3fbwFccip4hVowgb+xP/Pdd1GgIcP2o7TB4nh8i1sH81NUqq0P9snDk/deIcsNbnrAzX/W0Mzef8YKBvyPhSBDWkAuvhsN+XW5tIxWqTfAa8eZXL7kiZ1vPF1j7hrqlDBp4fXIoPfXHwYnYX/f/xAAeEQADAAIDAQEBAAAAAAAAAAAAAREhMRBBUSBxYf/aAAgBAwEBPxDOJSNOQSWHk2NIdsKDYBypqxxEJT0E1ohEseh/Xz5waC6DXgWKFthuoQGrWKh0hSYftj9sNxt9oTTdaFZUMRBRjKH0FLIl4h7ei3JQj/TI2fgGulUZKmGOlF3Ibdoc0h40R6VrCKEoaC0iGI74EmhmU0IbZ4MbFhiQOg1djEOjMXYLYiSktmQL7Gj6JH4ZPQ15GWMMzajgklEvAklknhwJDMNC82N1piOLgrwKlilokQ5VugnWSEQbtUzwhyh/ohSVCpUTyVEOMSIkF2EPaQx4UUbSeRhgMg8shB8KyNiFGQTMAm7iZvH1lMNDqFSEGhMauyE4RIQnZBIhPgxnZ19//8QAHhEBAQEBAQEBAQEBAQAAAAAAAQARITEQQVEgYXH/2gAIAQIBAT8Q4Sy0DdJfRy81xgx12LRuYOR9q5E0tbd7/Yznnya8gWsNrhkpcZeRuUIybD9jxfI9PyMAswJg3DFGYyYMdCM9kDyX1EBntwEd2L/kl+T1ftp1mHlrMn8I59tesP8AyGeSHr8O3M+AVAB5YukI6Q/yf5n9oA9JbyEMj+fyj+wObEGvk+h5a9s4Nn4tfxmjPpbel/7+MY2FH8SDjAC+ML1ah2/mq35BfbykL6Su8Fi6OSDkH9hv20+NymjCdOEFYRz9v2bptxmN4mOPJlafGULklg7P7anMtO/2ORvEnIbrt3iZsh5EXY7Z+IkehLf34Pb8S+mM/ZQ8+NtsWjy7/ZbS34M/S2E8/wAZZ/h+N//EACYQAQEAAgICAgICAwEBAAAAAAERACExQVFhcYGRobHB0eHw8RD/2gAIAQEAAT8QFVRRci4bAwKIF7wGDWat/wB4/OV51nw/1jwWHhr5yPoLUofD2Zo3Pi4qQesKqFkRrLhEtuczj28YDl/TECKEGqedYnM+QifWHPPfcYbu7vQB+8e2j2wuXgD8fvCOI5VXeAzEhvRjdjWHw6MNhdQ2v8/GIsI3eA2uEVHYhJ7xrQTXL7zdTm9N4AXAtI4A7E7MGqHkHqcH1iRg0puJ59YioInJxHH1C+HIdCwKucTJu09OM4ZPL5wyzsQ14/ywYKFR1PrFqUPS5rA2Jv8A2wWgDbwNxNqIoly4YPbzmk3vZmx2u8akOHFSK0p7ffvDHkcHpFJrFk6gGjBrH3iDOJi8ubxwcScTiEW97C+fGH5URQ+zznKgbi/h3nMCQMwrpFm4Q/vLuxcIiMkT44J/n4wYIJrnsGKpbgPQes3AiYGZusNBZimp/nGgMmp3lOGVjHQODApAkMS4rQeaJLHkD7dXC0jei48fl82Gqh5wC8yIlP6yPM0/hGQRw2R8hOMNCfNLiVhV2feeFhAixxjTp1MR6S+MMKFafWRK7cmjByHndYwwjoguIeRw0KA3GZ2N8MCx9DxlgCuuD/eH/Ukwpwfd/jDeI95+V2TiF3TzhIYHUwHd4Es9YYjDQXGWrquRcHZC7qTBsXkJHlP+ckFNR2rhH4cUIX8mVn6sebz55mKNtnHBjXQGtYIVPLCEgHjjGNKrHtykgFY+8ZIc4NYRoF14xKCq612/GAzQeb1znLD1O8HJThUV+uc3Z9O8JHrRMQQQa1ke4nWH0VH3hm3dLKucA4SjtsL1hB3ooOGeOOz1gMAGKwR3wXXzHG0sBCNwwFBzOc1qz6zjUeNYKW1N46335wi9v5ycuGDCOM4A5XjAMQeTNNB9pMqnrRzrKQ5PPOITVDl0P3kwfam+PziDGfLjN4bNC6XEELG1QD8uaHpNOx+8sLG82/zmsdpKwHDxyWXei/syWF0D5eHw/OEkwuPIwMiPIMBnZd976/eTQO0037NYzYnYQe5gjeKLxXnDJ1BsR8u8G6PPHPg5+cKg2ChueY4pIYim/EmbPudlbfEweBPJG/8Ad4hXYaS5xbKnl9GAvJNUsPzh0kG/7mzBBFFn+Zgy4UaG9G9OGh+Aw5084PgGbAAHQNuQCR58vnBSMdHGB6XtgD0p2/xiEAX5YLnAARvF84Y5Jw7lCtHo5xMkbyov0THDv9Tv/ucTmVQnWOtIlQH2H+MJoDAZJP5w2JolAV8vnFYWVHXzOfjFzTs4Ph6zTUNCC+8SEvYSnplyFI8JAyPKyb4x0nvWLv1NZpggaMhDhpvbz94c1voShkC+kSRu4hyIohSKp6NJ94uFAuh+PjgAXvXTDi5a+9AVAu34mQJRxSfxjvSH/esSA7K2fw47tYjIzOBD3cGsIbFU88EPn9ZuXIWc74Nv3MWY8oQ18YXkN90/GDohvw/vCzwB5JeQEnK95SokYD6wuEOQR/zvJ8p2CRdTa08YXHi7Sp8GGbCcxr8TF1cKhD4eX8YjGltB6gq49S75KUM+jEEzsP8AgpisAgkg4i2YyPLVIvnVwLqA6hE+xM1ovQP1hvjV0D97c3VFORysCnwfvEck50PrXODgDKEl8UMQSATUs5jv5H5ySo9SnzvT6cMDUmyOH2TbZB8TY/HOI3lCaE3pW9n3fGJ61ggo+F/Tm/Em2w9adGMUwogfUBf/ADApZioF9hl1Tf0a06/GJlGnAP4/nIEAPRf1MKBD7F8zeDQkQKh6al9YCU+bo+8VsUoHWuZ/7lm6fnNG6HAIIOhGOxPs/vOWMLtha99frLXqAG/CP84RT+Yn2usZP7IIH45cO2VN0pwu/nIBwhsR8zo984XNN0258Ia/1gnqJBV08pPe8pSQEgw1KXbXnAMIQGk4iYfeu2T6nGGjzpT8PM+MJDQ0mnkuQoAlpy8xhi5/4TpdGTShI0uq751hQQKCKzotIfnGKxAd5vz6xZ8CQfHO36M5K40B/n1rjOAs+e3E/LHUArtm568ZYAg8hfyZUEUOAbdH+sf0tu0B+ab/ADg+khZ/KJiMi1Sz6f3j5lXQqg8F/wDgsym/lD5Xg/1mg+0v9ZDgLoMdl3okN5soLXVjzxv+MYDUefF6cQ/dM6cob384JaQAW3vSA8fjEEOV8Iho+XExXUJU+ZPWKAZaCg6eefjnFuKUQVHyp/eKCaCqX1p/rWaw0EgnmO24Ynm40T47Nc+seCTVA+tjnFB97xXt8Zw6W6vjGvIzNIDGAVFE0u5FjxgCN0bn2n5AzLFaKgBQ1SuDWrrDgeD0Yf8AwOFMTyCD2Vi6x4kh4TYPYiOag6VimdaGvqYgurG9NIHx/WD7kAkCRRJez9YXkOMaNADrnR++uJjFCoroFVL1DvNI8lCl8Xo+pcCjtQqPssfRjHsitk+5cY3TVZPybjH4MBTX5v1kU780oPN/tMDoZKgh7HLFcYfGpEPnJNpPJvHoGJ4DGbA2+bc5dB8axJS86pRp43752TFCva+zyC489KQfZt/OO3EaCA1TwAcuSNFJBIXT3cqfB3dqGQNBI0nEXvLGL0FDBN6G3jwxQSLkgxN9W842N/Ao0/jA9ThNTm+BuOkUfBhuGnY/CGcya0N+k2YO3oogD+v+MHK0KqH3w/GJJzHgnBtL+MeoQkRB8pM0FQ7A+yFX5xiRNFg+nvLFE9R0+G4FAhMpNerg9QHzj2cfOSwjygas1dYA0DI0tvCT2eT1joyhGfQcOHFZkI34cMt5KIPMN4+IKPvA6H794yw8HAKlDwB4f6TKE3kD6Z8NOaSTFW4BdxOm02ZbAFsVZEcu7ib6UwuYRhkUeEjPe7xxgFf931goqrPb4xbaeUNA+H/OMCQ3skPfjGJbvB3iCEl6uUpJN6zwD5ywQYotP+fWbUP0/jBhYu185yAHotwUwEEO1ePk/rNSdNyhRetX+Tg+gMbs2ivRzC+XQGEe5MbO5V4OGXz6wylYtANqBIq8A2esjlC0RHlYIOv7xAtJoJ29vLxnA6qqi/D/ABhkQNnzbwa59Y+NL5IAJR9m/nCCVqIT1y19jO7DABWqFH8fWE3JEBALBorv7ydIZ0A+HBageExvsnY4UlwBOk8XcxnWfhP1vJjybL3kClnFOLlnlxNl17MEVh8YV2iu57AmmTd1aNMeRmKPlbyw8b+ceLpxFQVQNq7B7lMsiglZ2tHd2vn9CnZDiA1dePZyHW8ig0rtGxl60btYUmXqeBRCzmvvjVcEjTeIUWzjW5PHzlCAASlbNJ67RdQmTZyg8B5bJfIvfFxShSlVdCqcjtrOpqYjB1Gofan7b7x0JK6DXeoR644x0CpSRN633RveOQXjb4OuR8msApL1p/nHQ6HWXX0zZiXwx3Qf5waCkibD9YG2XoU9N/ZgSj4xVPm/1g/H7hgO4TlrMFjk7D/RcKmlSGibdX6m8HTR2hAs5Hvdp24NIUDGtihs5n3vAqI4AJ3EbC3rYe8MiiQJuoC1cAvB5caCxGJVuFHWpMLiFQXpWBEBeL0ZyZaa4ADgbtDXG+5HvGNgQzgdz2Ig74xlVCDRHoAOjuMxdPwCAaK053dMLOeWIMIiWRlu2Lp189IFK03e5GEHf6zb8ggJ7S34pesmpLyDY5UrcALjQfbQRwQC84qY5qQdv8Ygc8KHfnZr5JjIyCziF8DMBEJVa+gTJIBdGBE+/wC8axA0Aduzj+bkpgEUsAbpxYx8WcuGsCAC9rYnvxyDnCZ0aDa13oQ8Yv1VN2RtCwdc7e3BUqg9jgFm9L1xdmGiAXYhJsBGqasE2ZsybsKMYlB5Aa4zU0lIsDF8A6/PWKUAJBAAkCk63svnNquDws4Dg3oDFkk1pU7RwoB2Be8eU9NAT0RwTiF884exsJ26u6esSLXdaCeZJm6SHQHtXo+cJAbdSfiYWUL+sDrqZ0zbfJhhu/WIJQD1QwXmF1Gn5TxgZihj7Gaio+TLYd+UnlXep1+cKVpAGh5rdPMfrDYFFY3LBxdm6aZuuPh1RoV0IfgTn1mwTBEIEBA082wL7xajx1Ci3Z1xxzMMdh2GCVQgolN8ed5KE6ID4SN2HLw/OFZuHKjWQHZ/hPLlARusBAOCddba4YRICgQLG23+XBAgR1cXYNddYSGkURo7eD7/ABiNbipR+eUxeUVY2p324nNnq4Jr14w054yU1vODeKd/jEpxzhKT784p0Rxt1GAArkIp3Y6zf2Qtod65f7epkYPeBBvNej/riUTR3t23+X1gERQZ9QU52e7esSGmxY50jp3gQmqAxDneufAeuMJwX9iunvXf5w1SpBoahq34794YKqNifNdfeJiu9JL54/nAhPA3BPRr84UF9QD8GDoflxXl3w931lkAQUS+BTQvjmYLwiHTlPh/Dixh1nKTKOzeO1Of5xksxj0vDXOIB54/GGOEEnN84ztGNA8Um4N494tRlBWmdhcqioHQ/H+sQte9jOL13MrhSu0v24WDQCD2gYBvA0pX9uD/AAsj+sB015dvxjuNuLvyCZtAQf7asAWd9Yo0eyoS8QXX84kEGEDX1tfzl1shp2vKuDE7ortfiK6xa4PgxRpcHqfnAeJMYb1P6ymmGFUPWR1T+M45vPnF5AqqEb8znKE5wn/JrKrr74wG7SdH/TElD7da/txd3Z0Qw3eT4e8oHDU8FyWHWI4J41lm+zswEaZHIT11ibvLQ/rnItE3Dr4HGCdnHPVygXV9Z3P5wTZZ+813pnrjCUj5dBEJfPrC+D8vGaYUb7wapa7ip8DrGiGhd268uSXZF67ypv8AG8abdjmcYQ6OlebjyBXVhnt3g3/WRSNF4Up4zrGmjmb9HP8AvNyt71/3GCUKSTu5dhA9v/bxirtxVMDaesaJWbAqHos+K5Ep/vDsM7Jr0/GG20C7X/vWLe+cp2ubejzgqdP8ZDlaea4Lzbzhom8aWT5x07nQ/wA4PfbuYpFEPLc0gr6N+8oNkdrHrAbCHWuVw2WG+K51H5c4OMaCpTh8a+cIoNl35wTljw+8CF0HXvCiP1vlx6WJrGd7kvO8tEQErvz4w3p99ZQRFeg6w8ndNObaRuqzFLWlvL+8E5XZB/6/+Z//2Q==" alt="Dave" width="200" height="200" decoding="async">
   </div>
 </div>
 
@@ -4645,6 +4771,19 @@
   <button type="button" role="menuitem" data-sunset-mode="2"><span>SUNSET II</span><small data-i18n="sunset_menu_2">SECOND VARIANT</small></button>
   <button type="button" role="menuitem" data-sunset-mode="3"><span>NIGHT</span><small data-i18n="sunset_menu_3">STARRY SKY</small></button>
   <button type="button" role="menuitem" data-sunset-mode="0" id="sunset-menu-off"><span data-i18n="sunset_menu_off">✕ OFF</span></button>
+</div>
+<div class="focus-menu" id="download-menu" role="menu" aria-label="Download offline" hidden>
+  <button type="button" role="menuitem" data-dl-choice="all"><span data-i18n="dl_menu_all">ALL TRACKS</span><small data-i18n="dl_menu_all_d">WHOLE TRACKLIST</small></button>
+  <button type="button" role="menuitem" data-dl-choice="pick"><span data-i18n="dl_menu_pick">SELECT TRACKS</span><small data-i18n="dl_menu_pick_d">CHOOSE ONE BY ONE</small></button>
+</div>
+<div class="tm-overlay" id="dl-pick-window" role="dialog" aria-modal="true" aria-labelledby="dl-pick-title" hidden>
+  <div class="tm-window dl-pick-window">
+    <div class="tm-head"><span class="tm-title" id="dl-pick-title" data-i18n="dl_pick_title">⬇ SELECT TRACKS</span><button type="button" class="tm-close" data-dl-close aria-label="Close" title="Close">✕</button></div>
+    <div class="dl-pick-note" id="dl-pick-note"></div>
+    <div class="dl-pick-tools"><button type="button" class="btn-feature" id="dl-pick-all" data-i18n="dl_pick_all">SELECT ALL</button><button type="button" class="btn-feature" id="dl-pick-none" data-i18n="dl_pick_none">CLEAR</button></div>
+    <ul class="dl-pick-list" id="dl-pick-list"></ul>
+    <div class="tm-actions"><button type="button" class="btn-feature" data-dl-close data-i18n="dl_pick_cancel">CANCEL</button><button type="button" class="btn-feature" id="dl-pick-go" disabled>⬇ DOWNLOAD</button></div>
+  </div>
 </div>
 <div class="tm-overlay" id="setup-window" role="dialog" aria-modal="true" aria-labelledby="su-title" hidden>
   <div class="tm-window su-window">
@@ -4669,8 +4808,12 @@
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_sunset_n"></span><span class="su-desc" data-i18n="su_sunset_d"></span></div><div class="su-seg su-seg-sunset" data-sunsetbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
     <div class="su-sec" data-i18n="su_sec_music">MUSIC SOURCE</div>
     <div class="su-note" data-i18n="su_music_note"></div>
-    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_music_n"></span><span class="su-desc" data-i18n="su_music_d"></span></div><div class="su-seg su-seg-music" data-musicsrc role="group"><button type="button" data-v="auto" aria-pressed="true">AUTO</button><button type="button" data-v="github" aria-pressed="false">GITHUB</button><button type="button" data-v="r2" aria-pressed="false">R2</button></div></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_music_n"></span><span class="su-desc" data-i18n="su_music_d"></span></div><div class="su-seg su-seg-music" data-musicsrc role="group"><button type="button" data-v="auto" aria-pressed="true">AUTO</button><button type="button" data-v="github" aria-pressed="false">GITHUB</button></div></div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_r2test_n"></span><span class="su-desc" id="su-r2-result"></span></div><div class="su-seg su-seg-r2test" role="group"><button type="button" id="su-r2-test" data-i18n="su_r2test_b">TEST R2</button></div></div>
+    <div class="su-sec" data-i18n="su_sec_admin">ADMIN SECTION</div>
+    <div class="su-note" id="su-admin-note"></div>
+    <div class="su-row su-locked" id="su-admin-r2-row"><div class="su-txt"><span class="su-name" data-i18n="su_r2mode_n">R2 ONLY</span><span class="su-desc" data-i18n="su_r2mode_d"></span></div><div class="su-seg su-seg-music" data-musicsrc-admin role="group"><button type="button" id="su-r2-mode" data-v="r2" aria-pressed="false" disabled>🔒 R2</button></div></div>
+    <div class="su-row su-locked" id="su-admin-check-row"><div class="su-txt"><span class="su-name" data-i18n="su_r2check_n">CHECK ALL TRACKS ON R2</span><span class="su-desc" data-i18n="su_r2check_d"></span><span class="su-desc su-check-result" id="su-r2-check-result"></span></div><div class="su-seg su-seg-music" role="group"><button type="button" id="su-r2-check" disabled>🔒 CHECK</button></div></div>
   </div>
 </div>
 
@@ -7079,9 +7222,19 @@
   let mainGainPos = 0.5; // 0..1 -> gain 0.5x .. 1.0x (střed) .. 2.0x
   try { const g = parseFloat(localStorage.getItem(GAIN_STORE_KEY)); if (isFinite(g)) mainGainPos = Math.min(1, Math.max(0, g)); } catch (e) { /* výchozí 1.0x */ }
   function mainGainMul() { return Math.pow(2, (mainGainPos - 0.5) * 2); }
-  function mainVol() {
+  // HLASITOST VLASTNÍCH SOUBORŮ (sekce F): vlastní nahrané soubory bývají hlasitější než skladby SYNTHLUCIDA.
+  // Bez Web Audio - jen se násobí audio.volume (10 % .. 100 %), takže umí jen ztišit, nikdy nezesílí ani nezkreslí.
+  // Platí jen pro vlastní soubory (hrají z blob: adres), skladby SYNTHLUCIDA hrají beze změny.
+  const OWN_GAIN_KEY = 'sl-myfiles-gain';
+  let ownFilesGain = 1;
+  try { const og = parseFloat(localStorage.getItem(OWN_GAIN_KEY)); if (isFinite(og)) ownFilesGain = Math.min(1, Math.max(0.1, og)); } catch (e) { /* výchozí 100 % */ }
+  function isOwnFileSrc(s) { return typeof s === 'string' && s.indexOf('blob:') === 0; }
+  // src = adresa skladby, pro kterou se hlasitost počítá (bez parametru = to, co je v hlavním přehrávači)
+  function mainVol(src) {
     const v = parseFloat(volumeSlider.value);
-    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * mainGainMul() * sleepFadeMul));
+    const s = typeof src === 'string' ? src : audio.src;
+    const own = isOwnFileSrc(s) ? ownFilesGain : 1;
+    return Math.min(1, Math.max(0, (isFinite(v) ? v : 0.3) * mainGainMul() * sleepFadeMul * own));
   }
   audio.volume = Math.min(1, initialVolume * mainGainMul());
   // Plynulá změna hlasitosti (proti "prskání" / zipper noise): audio.volume se při tažení posuvníku nebo knobu
@@ -7102,6 +7255,56 @@
   volumeSlider.value = initialVolume;
   volumeSlider.style.setProperty('--vol', initialVolume);
   { const vp = document.getElementById('vol-percent'); if (vp) vp.textContent = Math.round(parseFloat(volumeSlider.value) * 100) + '%'; }
+
+  // Posuvník HLASITOST MÝCH SOUBORŮ (sekce F)
+  (function initOwnFilesGain() {
+    const el = document.getElementById('myfiles-gain');
+    const val = document.getElementById('myfiles-gain-val');
+    const reset = document.getElementById('myfiles-gain-reset');
+    if (!el) return;
+    const paint = () => {
+      const pct = Math.round(ownFilesGain * 100);
+      el.value = String(pct);
+      el.style.setProperty('--vol', (pct - 10) / 90);
+      el.setAttribute('aria-valuetext', pct + '%');
+      if (val) val.textContent = pct + '%';
+    };
+    const apply = (pct, save) => {
+      const p = Math.min(100, Math.max(10, Math.round(Number(pct) || 100)));
+      ownFilesGain = p / 100;
+      paint();
+      if (save) { try { localStorage.setItem(OWN_GAIN_KEY, String(ownFilesGain)); } catch (e) { /* ignore */ } }
+      // hraje-li právě vlastní soubor, změna je slyšet hned (plynule, bez lupnutí); během prolnutí se nesahá
+      if (isOwnFileSrc(audio.src) && !crossfadeActive && !asmrFadeTimer) { try { rampMainVolume(); } catch (e) { /* ignore */ } }
+    };
+    el.addEventListener('input', () => apply(el.value, true)); // ukládá se hned při posunu (i kdyby se appka zavřela uprostřed)
+    el.addEventListener('change', () => apply(el.value, true));
+    if (reset) reset.addEventListener('click', () => apply(100, true));
+    paint();
+    // iPhone / iPad: Apple nedovoluje webové stránce měnit hlasitost přehrávání (audio.volume se ignoruje),
+    // posuvník by tam nic nedělal - proto se zašedne a ukáže se vysvětlení. Ostatní zařízení beze změny.
+    try {
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      let locked = false;
+      if (isIOS) {
+        try { const t = new Audio(); t.volume = 0.5; locked = Math.abs(t.volume - 0.5) > 0.01; } catch (e) { locked = true; }
+      }
+      if (locked) {
+        el.disabled = true;
+        if (reset) reset.disabled = true;
+        const box = document.getElementById('myfiles-gain-box');
+        if (box) box.classList.add('is-unsupported');
+        const note = document.getElementById('myfiles-gain-note');
+        if (note) {
+          note.setAttribute('data-i18n', 'mf_gain_ios'); // i po přepnutí jazyka zůstane text pro iPhone
+          note.textContent = "iPhone and iPad don't allow a web page to change playback volume, so this setting isn't available here. Use the volume buttons on your device.";
+          // překlady (i18nText, guideLang) jsou ve skriptu definované až níž - jazyk se doplní hned po načtení
+          setTimeout(() => { try { const t = i18nText.mf_gain_ios; note.textContent = t[guideLang] || t.en; } catch (e) { /* ignore */ } }, 0);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  })();
 
   function initEffects() {
       canvas.width = window.innerWidth;
@@ -9844,7 +10047,9 @@
       const vu = document.getElementById('vu-box');
       const cur = row.getAttribute('data-vol-mode');
       if (cur !== 'fader') row.setAttribute('data-vol-mode', 'fader');
-      const rowLeft = ctrl.getBoundingClientRect().left - bx.left;
+      let rowLeft = ctrl.getBoundingClientRect().left - bx.left;
+      const sw = row.querySelector('.vol-slider-wrap'); // posuvník bývá širší než řádek VOL - přepínač nesmí zasahovat ani do něj
+      if (sw && sw.offsetParent !== null) rowLeft = Math.min(rowLeft, sw.getBoundingClientRect().left - bx.left);
       if (cur !== 'fader') row.setAttribute('data-vol-mode', cur);
       const vuRight = (vu && vu.offsetParent !== null) ? vu.getBoundingClientRect().right - bx.left : 14;
       const w = modeBtn.offsetWidth || 20;
@@ -10456,7 +10661,21 @@
     } catch (e) { /* ignore */ }
   })();
 
-  async function updatePlaylistUI() {
+  // Překreslení seznamu v hlavním okně. Když se překresluje POŘÁD TENTÝŽ seznam (např. klepnutí na skladbu
+  // v My Playlist / v sekci My Playlist), zůstane seznam posunutý tam, kde byl - dřív při přehrávání
+  // sekce poskočil na začátek. Při přepnutí na jiný playlist nebo sekci začíná seznam nahoře jako dřív.
+  var lastPlaylistUIKey = ''; // var (ne let): funkce se může volat i dřív, než skript dojde k tomuto řádku
+  function updatePlaylistUI() {
+    let key = '';
+    try { key = mainListShowsQueue ? 'q:' + (activeMoodFilter() || '') : 'p:' + currentPlaylistKey; } catch (e) { key = ''; }
+    const keep = (key && key === lastPlaylistUIKey && playlistEl) ? playlistEl.scrollTop : null;
+    lastPlaylistUIKey = key;
+    const r = buildPlaylistUI();
+    if (keep !== null && playlistEl) playlistEl.scrollTop = keep;
+    return r;
+  }
+
+  async function buildPlaylistUI() {
     playlistEl.innerHTML = '';
     updatePlaylistNameBanner();
 
@@ -10585,7 +10804,8 @@
     } catch (e) { /* ignore */ }
   }
 
-  window.downloadCurrentPlaylist = async function() {
+  // Stáhne offline vybrané skladby aktuálního playlistu (indexy v playlistu). Bez parametru = celý playlist.
+  async function runOfflineDownload(indices) {
     const btn = document.getElementById('btn-download');
     const progWrap = document.getElementById('download-progress-wrap');
     const progBar = document.getElementById('download-progress-bar');
@@ -10594,6 +10814,10 @@
       alert('This browser does not support offline downloads.');
       return;
     }
+    const list = playlist; // playlist se během stahování může přepnout - stahuje se ten, ze kterého se vybíralo
+    const order = (Array.isArray(indices) ? indices : list.map((t, i) => i))
+      .filter((i, k, a) => Number.isInteger(i) && i >= 0 && i < list.length && a.indexOf(i) === k);
+    if (!order.length) return;
     const originalText = btn.innerText;
     btn.disabled = true;
     progWrap.classList.add('active');
@@ -10607,9 +10831,10 @@
 
     let failedCount = 0;
 
-    for (let i = 0; i < playlist.length; i++) {
-      const track = playlist[i];
-      btn.innerText = `DOWNLOADING ${Math.round((i / playlist.length) * 100)}%`;
+    for (let n = 0; n < order.length; n++) {
+      const i = order[n];
+      const track = list[i];
+      btn.innerText = `DOWNLOADING ${Math.round((n / order.length) * 100)}%`;
       let trackOk = false;
 
       try {
@@ -10651,14 +10876,14 @@
           trackOk = true; // 'ok', nebo 'unknown' (ověření se nepovedlo - raději nic nemažeme)
         }
 
-        const badge = document.getElementById(`offline-badge-${i}`);
+        const badge = playlist === list ? document.getElementById(`offline-badge-${i}`) : null;
         if (badge) badge.innerText = trackOk ? '✓ OFFLINE' : '';
         updateOfflineStatus();
       } catch (e) {
         console.log('Failed to download:', track.title, e);
       } finally {
         if (!trackOk) failedCount++;
-        const pct = Math.round(((i + 1) / playlist.length) * 100);
+        const pct = Math.round(((n + 1) / order.length) * 100);
         progBar.style.width = `${pct}%`;
         btn.innerText = `DOWNLOADING ${pct}%`;
       }
@@ -10674,7 +10899,137 @@
       progBar.style.width = '0%';
       progLabel.classList.remove('active');
     }, 2000);
-  };
+  }
+
+  // DOWNLOAD ALL - celý playlist (dřívější chování tlačítka)
+  window.downloadCurrentPlaylist = function() { return runOfflineDownload(); };
+
+  // ==========================================
+  // DOWNLOAD OFFLINE - nabídka (celý tracklist / výběr skladeb) a okno pro výběr
+  // ==========================================
+  (function downloadChooser() {
+    const cz = () => { try { return guideLang === 'cz'; } catch (e) { return false; } };
+    const menu = () => document.getElementById('download-menu');
+    const win = () => document.getElementById('dl-pick-window');
+    let pickList = null; // playlist, ze kterého se vybírá
+
+    function closeMenu() { const m = menu(); if (m) m.hidden = true; }
+    function closePick() { const w = win(); if (w) w.hidden = true; pickList = null; }
+
+    window.downloadButtonClick = function(ev) {
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      const m = menu(), btn = document.getElementById('btn-download');
+      if (!m || !btn) { runOfflineDownload(); return; }
+      if (btn.disabled) return;
+      if (!m.hidden) { closeMenu(); return; }
+      ['focus-menu', 'weather-menu', 'sunset-menu'].forEach((id) => { const x = document.getElementById(id); if (x) x.hidden = true; });
+      m.hidden = false;
+      const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+      const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+      let top = r.bottom + 8;
+      if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+      m.style.left = left + 'px'; m.style.top = top + 'px';
+    };
+
+    function selectedIdx() {
+      return Array.from(document.querySelectorAll('#dl-pick-list input:checked:not(:disabled)')).map((x) => Number(x.getAttribute('data-i')));
+    }
+    function refreshPick() {
+      const sel = selectedIdx();
+      const go = document.getElementById('dl-pick-go');
+      if (go) {
+        go.disabled = sel.length === 0;
+        go.textContent = (cz() ? '⬇ STÁHNOUT' : '⬇ DOWNLOAD') + (sel.length ? ' (' + sel.length + ')' : '');
+      }
+      document.querySelectorAll('#dl-pick-list li').forEach((li) => {
+        const inp = li.querySelector('input');
+        li.classList.toggle('dl-on', !!(inp && inp.checked && !inp.disabled));
+      });
+    }
+
+    async function openPick() {
+      const w = win(), ul = document.getElementById('dl-pick-list'), note = document.getElementById('dl-pick-note');
+      if (!w || !ul) { runOfflineDownload(); return; }
+      if (!('caches' in window)) { alert(cz() ? 'Tento prohlížeč neumí stahovat offline.' : 'This browser does not support offline downloads.'); return; }
+      const list = playlist;
+      pickList = list;
+      const cached = await Promise.all(list.map((t) => isTrackCached(t.src).catch(() => false)));
+      if (pickList !== list) return; // mezitím zavřeno
+      ul.innerHTML = '';
+      let missing = 0;
+      list.forEach((track, i) => {
+        const li = document.createElement('li');
+        const lab = document.createElement('label');
+        const inp = document.createElement('input');
+        inp.type = 'checkbox';
+        inp.setAttribute('data-i', String(i));
+        const name = document.createElement('span');
+        name.className = 'dl-pick-name';
+        name.textContent = displayTrackTitle(track.title);
+        name.title = name.textContent;
+        lab.appendChild(inp);
+        lab.appendChild(name);
+        if (cached[i]) {
+          inp.checked = true; inp.disabled = true;
+          li.classList.add('dl-done');
+          const st = document.createElement('span');
+          st.className = 'dl-pick-state';
+          st.textContent = '✓ OFFLINE';
+          lab.appendChild(st);
+        } else {
+          missing++;
+        }
+        li.appendChild(lab);
+        ul.appendChild(li);
+      });
+      if (note) {
+        const name = String(currentPlaylistKey || '').toUpperCase();
+        note.textContent = missing === 0
+          ? (cz() ? `Všechny skladby (${list.length}) v ${name} už jsou stažené offline.` : `All ${list.length} tracks in ${name} are already downloaded offline.`)
+          : (cz() ? `${name}: staženo ${list.length - missing} z ${list.length}. Zaškrtni skladby, které chceš mít offline, a klikni na STÁHNOUT.`
+                  : `${name}: ${list.length - missing} of ${list.length} downloaded. Tick the tracks you want offline and tap DOWNLOAD.`);
+      }
+      const allB = document.getElementById('dl-pick-all'), noneB = document.getElementById('dl-pick-none');
+      if (allB) allB.disabled = missing === 0;
+      if (noneB) noneB.disabled = missing === 0;
+      refreshPick();
+      w.hidden = false;
+      ul.scrollTop = 0;
+    }
+
+    document.addEventListener('click', (e) => {
+      const m = menu();
+      if (m && !m.hidden) {
+        const c = e.target.closest && e.target.closest('[data-dl-choice]');
+        if (c && m.contains(c)) {
+          closeMenu();
+          if (c.getAttribute('data-dl-choice') === 'all') runOfflineDownload(); else openPick();
+          return;
+        }
+        if (!m.contains(e.target)) closeMenu();
+      }
+      const w = win();
+      if (!w || w.hidden) return;
+      if (e.target === w || (e.target.closest && e.target.closest('[data-dl-close]'))) { closePick(); return; }
+      if (e.target.id === 'dl-pick-all' || e.target.id === 'dl-pick-none') {
+        const on = e.target.id === 'dl-pick-all';
+        document.querySelectorAll('#dl-pick-list input:not(:disabled)').forEach((x) => { x.checked = on; });
+        refreshPick();
+        return;
+      }
+      if (e.target.id === 'dl-pick-go') {
+        const sel = selectedIdx();
+        const list = pickList;
+        closePick();
+        if (!sel.length || list !== playlist) return; // playlist se mezitím změnil - raději nic
+        runOfflineDownload(sel);
+      }
+    });
+    document.addEventListener('change', (e) => { if (e.target && e.target.closest && e.target.closest('#dl-pick-list')) refreshPick(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMenu(); const w = win(); if (w && !w.hidden) closePick(); } });
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+  })();
 
   // ==========================================
   // TOAST — krátká potvrzovací hláška dole na obrazovce (např. přidání skladby do My Playlist)
@@ -10928,6 +11283,9 @@
     contact_error: { en: "Something went wrong, please try again.", cz: "Něco se pokazilo, zkuste to prosím znovu." },
     guide_title: { en: "SYNTHLUCIDA — User Guide", cz: "SYNTHLUCIDA — Uživatelská příručka" },
     guide_intro: { en: "Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.", cz: "Nepřetržité vysílání 24 hodin denně, 7 dní v týdnu. Užívejte si nekonečný, bezplatný poslech. Ať už potřebujete hudbu na pozadí pro soustředění, hluboké uvolnění nebo běžné činnosti, tento stream nabízí dokonalý atmosférický doprovod. Více informací na www.SYNTHLUCIDA.com." },
+    tour_card_title: { en: "Quick tour", cz: "Rychlý průvodce" },
+    tour_card_text: { en: "New here? In about a minute the quick tour shows you the most important buttons, step by step.", cz: "Jsi tu nový? Rychlý průvodce ti asi za minutu postupně ukáže nejdůležitější tlačítka." },
+    tour_card_btn: { en: "▶ START THE TOUR", cz: "▶ SPUSTIT PRŮVODCE" },
     guide_tip_title: { en: "Smooth performance on slower devices", cz: "Plynulý chod i na slabších zařízeních" },
     guide_tip_text: { en: "If playback stutters or the interface feels sluggish on an older or less powerful device, open EXPLORE > SETUP and turn on LITE MODE. It disables the most demanding visual effects for smoother, more reliable performance.", cz: "Pokud se přehrávání na starším nebo méně výkonném zařízení zasekává či aplikace reaguje se zpožděním, otevřete EXPLORE > SETUP (NASTAVENÍ) a zapněte ÚSPORNÝ REŽIM. Ten vypne nejnáročnější vizuální efekty a zajistí plynulejší a spolehlivější chod." },
     h_links: { en: "Links", cz: "Odkazy" },
@@ -11017,6 +11375,9 @@
     mf_title: { en: "My Files & Playlists", cz: "Vlastní soubory a playlisty" },
     mf_btn_add: { en: "＋ ADD AUDIO FILES", cz: "＋ PŘIDAT AUDIO SOUBORY" },
     mf_btn_history: { en: "🕘 HISTORY", cz: "🕘 HISTORIE" },
+    mf_gain_label: { en: "MY FILES VOLUME", cz: "HLASITOST MÝCH SOUBORŮ" },
+    mf_gain_ios: { en: "iPhone and iPad don't allow a web page to change playback volume, so this setting isn't available here. Use the volume buttons on your device.", cz: "iPhone a iPad nedovolují webové stránce měnit hlasitost přehrávání, proto tu toto nastavení není dostupné. Hlasitost ovládej tlačítky na telefonu." },
+    mf_gain_note: { en: "Your own files are often louder than SYNTHLUCIDA tracks. Turn them down here so everything plays at a similar level – then use the main volume as usual. Applies only to your own files.", cz: "Vlastní soubory bývají hlasitější než skladby SYNTHLUCIDA. Tady je ztlum, ať hraje všechno podobně nahlas – pak už jen ladíš hlavní hlasitost jako obvykle. Platí jen pro vlastní soubory." },
     mf_h_playlists: { en: "Your Playlists", cz: "Vaše playlisty" },
     mf_h_files: { en: "Your Files", cz: "Vaše soubory" },
     mf_ph_name: { en: "New playlist name", cz: "Název nového playlistu" },
@@ -11036,7 +11397,7 @@
     h_save: { en: "Save & fullscreen", cz: "Uložení a celá obrazovka" },
     p_save: { en: "SAVE stores your current theme, effects and other preferences so they load automatically the next time you visit. FULLSCREEN hides the browser interface for a cleaner, distraction-free view.", cz: "SAVE uloží aktuální motiv, efekty a další předvolby, které se při příští návštěvě automaticky načtou. FULLSCREEN skryje rozhraní prohlížeče pro čistší zobrazení bez rušivých prvků." },
     h_offline: { en: "Offline listening", cz: "Poslech offline" },
-    p_offline: { en: "⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback. Offline listening works only inside the app, not in a regular browser tab.", cz: "⬇ DOWNLOAD OFFLINE uloží aktuální playlist pro přehrávání offline. Poslech offline funguje pouze uvnitř aplikace, ne v běžné záložce prohlížeče." },
+    p_offline: { en: "⬇ DOWNLOAD OFFLINE saves the current playlist for offline playback – all tracks at once, or only the ones you pick. Offline listening works only inside the app, not in a regular browser tab.", cz: "⬇ DOWNLOAD OFFLINE uloží aktuální playlist pro přehrávání offline – buď všechny skladby najednou, nebo jen ty, které si vybereš. Poslech offline funguje pouze uvnitř aplikace, ne v běžné záložce prohlížeče." },
     h_community: { en: "Community messages", cz: "Zprávy pro ostatní posluchače" },
     p_community: { en: "Tap 💬 below the slogans to send a short message (up to 60 characters) to everyone currently listening. It appears live in place of the next slogan for everyone, for about 10 seconds, alongside your own — and other listeners can react to it with 🔥❤️🙏✨👍👎 (no replies, just reactions). You can send one message per minute. Messages aren't tied to any account and aren't stored on your device.", cz: "Klepnutím na 💬 pod slogany pošlete krátkou zprávu (max. 60 znaků) všem, kdo právě poslouchají. Zprávě se na chvíli (asi 10 sekund) zobrazí všem místo dalšího sloganu, a to i vám — a ostatní posluchači na ni mohou reagovat pomocí 🔥❤️🙏✨👍👎 (bez psaní odpovědí, jen reakce emoji). Poslat lze jednu zprávu za minutu. Zprávy nejsou vázané na žádný účet a neukládají se do vašeho zařízení." },
     community_toggle_btn: { en: "Message everyone", cz: "Napsat ostatním" },
@@ -11207,6 +11568,14 @@
     su_weather_n: { en: "WEATHER BUTTON MODE", cz: "REŽIM TLAČÍTKA WEATHER" },
     su_weather_d: { en: "SWITCH = each tap goes to the next scene (SUN, RAIN, WINTER 1, WINTER 2, off).\nWINDOW = a tap opens a small menu to pick the scene.", cz: "PŘEPÍNÁNÍ = každé klepnutí přejde na další scénu (SUN, RAIN, WINTER 1, WINTER 2, vypnuto).\nOKNO = klepnutím se otevře malá nabídka, kde scénu vybereš." },
     weather_menu_1: { en: "YOUR PHOTOS", cz: "VAŠE FOTKY" },
+    dl_menu_all: { en: "ALL TRACKS", cz: "VŠECHNY SKLADBY" },
+    dl_menu_all_d: { en: "WHOLE TRACKLIST", cz: "CELÝ TRACKLIST" },
+    dl_menu_pick: { en: "SELECT TRACKS", cz: "VYBRAT SKLADBY" },
+    dl_menu_pick_d: { en: "CHOOSE ONE BY ONE", cz: "VYBEREŠ JEDNOTLIVĚ" },
+    dl_pick_title: { en: "⬇ SELECT TRACKS", cz: "⬇ VÝBĚR SKLADEB" },
+    dl_pick_all: { en: "SELECT ALL", cz: "VYBRAT VŠE" },
+    dl_pick_none: { en: "CLEAR", cz: "ZRUŠIT VÝBĚR" },
+    dl_pick_cancel: { en: "CANCEL", cz: "ZAVŘÍT" },
     weather_menu_2: { en: "RAINFALL", cz: "DÉŠŤ" },
     weather_menu_3: { en: "SNOWFALL", cz: "SNĚŽENÍ" },
     weather_menu_4: { en: "BLIZZARD", cz: "VÁNICE" },
@@ -11225,7 +11594,12 @@
     su_sec_music: { en: "MUSIC SOURCE", cz: "ZDROJ HUDBY" },
     su_music_note: { en: "Music normally streams from GitHub. If GitHub is down or slow, the backup server (R2) takes over automatically and the same track keeps playing.", cz: "Hudba se normálně streamuje z GitHubu. Když GitHub vypadne nebo je pomalý, převezme to automaticky záložní server (R2) a stejná skladba hraje dál." },
     su_music_n: { en: "SOURCE", cz: "ZDROJ" },
-    su_music_d: { en: "AUTO: GitHub first, R2 as backup\nGITHUB: never use R2\nR2: always use R2 (for testing)", cz: "AUTO: nejdřív GitHub, R2 jako záloha\nGITHUB: R2 se nepoužije\nR2: vždy R2 (na zkoušku)" },
+    su_music_d: { en: "AUTO: GitHub first, R2 as backup\nGITHUB: never use R2", cz: "AUTO: nejdřív GitHub, R2 jako záloha\nGITHUB: R2 se nepoužije" },
+    su_sec_admin: { en: "ADMIN SECTION", cz: "ADMIN SEKCE" },
+    su_r2mode_n: { en: "R2 ONLY", cz: "JEN R2" },
+    su_r2check_n: { en: "CHECK ALL TRACKS ON R2", cz: "KONTROLA SKLADEB NA R2" },
+    su_r2check_d: { en: "Checks that every track from GitHub is also on R2 (same file name). Nothing is downloaded.", cz: "Ověří, že každá skladba z GitHubu je i na R2 (stejný název souboru). Nic se nestahuje." },
+    su_r2mode_d: { en: "Always play and download from R2 (for testing the backup). Tap again to go back to AUTO.", cz: "Hudba i stahování vždy jen z R2 (na vyzkoušení zálohy). Dalším klepnutím zpět na AUTO." },
     su_r2test_n: { en: "TEST BACKUP", cz: "TEST ZÁLOHY" },
     su_r2test_b: { en: "TEST R2", cz: "TEST R2" },
     su_sec_gfx: { en: "GRAPHICS", cz: "GRAFIKA" },
@@ -13882,14 +14256,52 @@
     const STALL_MS = 8000;      // tak dlouho smí skladba "bufferovat", než se zkusí druhý zdroj
     const RETRY_GAP_MS = 45000; // nejdřív za 45 s znovu přepnout (ať se to nepřepíná sem a tam)
     let mode = 'auto', r2First = false, stallTimer = null, lastRetryAt = 0, lastRetrySrc = '', lastToastAt = 0;
-    try { const v = localStorage.getItem(MODE_KEY); if (v === 'github' || v === 'r2') mode = v; } catch (e) { /* ignore */ }
+    // Uložená volba (AUTO / GITHUB). "JEN R2" smí jen přihlášený admin (ADMIN SEKCE) a neukládá se -
+    // po obnovení stránky se vždy začíná zase na AUTO (záloha je defaultně pod zámkem).
+    let wanted = 'auto';
+    try { const v = localStorage.getItem(MODE_KEY); if (v === 'github') wanted = v; } catch (e) { /* ignore */ }
+    const isAdmin = () => window.__slIsAdmin === true;
+    let checkRunning = false, checkTitles = {}, checkRunId = 0, testRunId = 0;
+    function effectiveMode() { return (wanted === 'r2' && !isAdmin()) ? 'auto' : wanted; }
+    mode = effectiveMode();
     const isCz = () => { try { return guideLang === 'cz'; } catch (e) { return false; } };
     const isGh = (u) => typeof u === 'string' && u.indexOf(TRACK_SRC_PREFIX) === 0;
     function ctl() { try { return (navigator.serviceWorker && navigator.serviceWorker.controller) || null; } catch (e) { return null; } }
     function post(msg) { const c = ctl(); if (!c) return false; try { c.postMessage(msg); return true; } catch (e) { return false; } }
     function renderSeg() {
       document.querySelectorAll('.su-seg[data-musicsrc] button').forEach((b) => b.setAttribute('aria-pressed', b.getAttribute('data-v') === mode ? 'true' : 'false'));
+      const admin = isAdmin();
+      const rb = document.getElementById('su-r2-mode');
+      if (rb) {
+        rb.disabled = !admin;
+        rb.textContent = admin ? 'R2' : '🔒 R2';
+        rb.setAttribute('aria-pressed', mode === 'r2' ? 'true' : 'false');
+        rb.title = admin ? '' : (isCz() ? 'Jen pro admina (přihlášení v chatu)' : 'Admin only (log in via the chat)');
+      }
+      const row = document.getElementById('su-admin-r2-row');
+      if (row) row.classList.toggle('su-locked', !admin);
+      const cb = document.getElementById('su-r2-check'), crow = document.getElementById('su-admin-check-row');
+      if (cb && !checkRunning) { cb.disabled = !admin; cb.textContent = admin ? (isCz() ? 'OVĚŘIT' : 'CHECK') : (isCz() ? '🔒 OVĚŘIT' : '🔒 CHECK'); }
+      if (crow) crow.classList.toggle('su-locked', !admin);
+      const note = document.getElementById('su-admin-note');
+      if (note) note.textContent = admin
+        ? (isCz() ? '🔓 Odemčeno – jsi přihlášený jako admin.' : '🔓 Unlocked – you are logged in as admin.')
+        : (isCz() ? '🔒 Zamčeno – odemkne se po přihlášení admina v chatu.' : '🔒 Locked – unlocks after the admin logs in via the chat.');
     }
+    // Přihlášení / odhlášení admina (chat): bez admina se "jen R2" vypne a jede se zase AUTO.
+    document.addEventListener('sladminchange', () => {
+      if (!isAdmin() && wanted === 'r2') wanted = 'auto';
+      const next = effectiveMode();
+      const changed = next !== mode;
+      mode = next;
+      renderSeg();
+      if (changed) sendMode();
+    });
+    // Jazyk se mohl přepnout - texty ADMIN SEKCE se obnoví při každém otevření SETUP
+    try {
+      const sw = document.getElementById('setup-window');
+      if (sw && window.MutationObserver) new MutationObserver(() => { if (!sw.hidden) renderSeg(); }).observe(sw, { attributes: true, attributeFilter: ['hidden'] });
+    } catch (e) { /* ignore */ }
     function sendMode() { post({ type: 'MIRROR_MODE', mode: mode }); }
     function reloadSame(resume) {
       const t = audio.currentTime || 0;
@@ -13968,6 +14380,32 @@
       L.push(g && g.ok ? ('GitHub: OK · ' + g.ms + ' ms') : (cz ? 'GitHub: nedostupný' : 'GitHub: unreachable'));
       return L.join('\n');
     }
+    function fmtCheck(d) {
+      const cz = isCz();
+      if (!d.configured) return cz ? 'R2 není v sw.js nastaveno.' : 'R2 is not set up in sw.js.';
+      const res = Array.isArray(d.results) ? d.results : [];
+      const name = (r) => { const f = String(r.url || '').slice(String(r.url || '').lastIndexOf('/') + 1); const t = checkTitles[r.url]; return t ? f + ' (' + displayTrackTitle(t) + ')' : f; };
+      const ok = res.filter((r) => r.status === 200 && r.size >= 50000);
+      const small = res.filter((r) => r.status === 200 && r.size < 50000);
+      const missing = res.filter((r) => r.status === 404 || r.status === 403);
+      const other = res.filter((r) => r.status !== 200 && r.status !== 404 && r.status !== 403);
+      const L = [];
+      if (ok.length === res.length) {
+        const mb = ok.reduce((a, r) => a + (r.size || 0), 0) / 1048576;
+        L.push((cz ? '✓ Všech ' + res.length + ' skladeb je na R2' : '✓ All ' + res.length + ' tracks are on R2') + (mb ? ' (' + mb.toFixed(0) + ' MB)' : '') + '.');
+        return L.join('\n');
+      }
+      L.push(cz ? 'Na R2 v pořádku: ' + ok.length + ' z ' + res.length : 'OK on R2: ' + ok.length + ' of ' + res.length);
+      const list = (arr) => arr.slice(0, 40).map((r) => '• ' + name(r)).join('\n') + (arr.length > 40 ? '\n… ' + (cz ? 'a dalších ' : 'and ') + (arr.length - 40) + (cz ? '' : ' more') : '');
+      if (missing.length) L.push((cz ? '✗ CHYBÍ na R2 (' : '✗ MISSING on R2 (') + missing.length + '):\n' + list(missing));
+      if (small.length) L.push((cz ? '⚠ Podezřele malé soubory – nahraj znovu (' : '⚠ Suspiciously small files – upload again (') + small.length + '):\n' + list(small));
+      if (other.length) {
+        const cors = other.every((r) => r.status === 0);
+        L.push((cors ? (cz ? '⚠ Neodpovědělo (síť, CORS nebo limit r2.dev) – zkus znovu (' : '⚠ No answer (network, CORS or r2.dev limit) – try again (')
+                     : (cz ? '⚠ Jiná chyba (' : '⚠ Other error (')) + other.length + '):\n' + list(other) );
+      }
+      return L.join('\n\n');
+    }
     function setResult(t) { const el = document.getElementById('su-r2-result'); if (el) el.textContent = t; }
 
     function onMsg(e) {
@@ -13979,6 +14417,14 @@
           lastToastAt = Date.now();
           try { showToast(isCz() ? 'GitHub je pomalý nebo nedostupný – hraje záloha (R2)' : 'GitHub is slow or unavailable – playing from backup (R2)', '🛟'); } catch (err) { /* ignore */ }
         }
+      } else if (d.type === 'MIRROR_CHECK_PROGRESS') {
+        const el = document.getElementById('su-r2-check-result');
+        if (el && checkRunning) el.textContent = (isCz() ? 'Kontroluji… ' : 'Checking… ') + d.done + ' / ' + d.total;
+      } else if (d.type === 'MIRROR_CHECK_RESULT') {
+        checkRunning = false;
+        const el = document.getElementById('su-r2-check-result');
+        if (el) el.textContent = fmtCheck(d);
+        renderSeg();
       } else if (d.type === 'MIRROR_TEST_RESULT') {
         setResult(fmtTest(d.report || {}));
         const tb = document.getElementById('su-r2-test'); if (tb) tb.disabled = false;
@@ -13993,12 +14439,39 @@
     } catch (e) { /* ignore */ }
 
     document.addEventListener('click', (e) => {
-      const sb = e.target.closest && e.target.closest('.su-seg[data-musicsrc] button');
+      const ab = e.target.closest && e.target.closest('#su-r2-mode');
+      const sb = ab || (e.target.closest && e.target.closest('.su-seg[data-musicsrc] button'));
       if (sb) {
-        mode = sb.getAttribute('data-v');
-        try { localStorage.setItem(MODE_KEY, mode); } catch (err) { /* ignore */ }
+        let v = sb.getAttribute('data-v');
+        if (ab) { if (!isAdmin() || ab.disabled) return; v = mode === 'r2' ? 'auto' : 'r2'; } // jen admin; druhé klepnutí = zpět AUTO
+        if (v !== 'auto' && v !== 'github' && v !== 'r2') return;
+        wanted = v;
+        mode = effectiveMode();
+        try { localStorage.setItem(MODE_KEY, wanted === 'r2' ? 'auto' : wanted); } catch (err) { /* ignore */ }
         renderSeg(); sendMode();
         setResult(mode === 'r2' ? (isCz() ? 'Hudba teď jede z R2. Další skladba/načtení půjde z R2.' : 'Music now comes from R2. The next track/load will use R2.') : '');
+        return;
+      }
+      const cb = e.target.closest && e.target.closest('#su-r2-check');
+      if (cb) {
+        if (!isAdmin() || cb.disabled || checkRunning) return;
+        const el = document.getElementById('su-r2-check-result');
+        if (!ctl()) { if (el) el.textContent = isCz() ? 'Kontrola potřebuje aktivní Service Worker – obnov stránku a zkus znovu.' : 'The check needs an active Service Worker – reload the page and try again.'; return; }
+        // všechny skladby ze všech vestavěných playlistů (ASMR, PIANO, CHILL…), každá adresa jen jednou
+        const urls = []; checkTitles = {};
+        try {
+          Object.keys(tracks).forEach((k) => {
+            if (k.indexOf('custom:') === 0 || !Array.isArray(tracks[k])) return;
+            tracks[k].forEach((t) => { if (t && isGh(t.src) && !checkTitles[t.src]) { checkTitles[t.src] = t.title || ''; urls.push(t.src); } });
+          });
+        } catch (err) { /* ignore */ }
+        if (!urls.length) { if (el) el.textContent = isCz() ? 'Nenašel jsem žádné skladby z GitHubu.' : 'No GitHub tracks found.'; return; }
+        checkRunning = true;
+        const runId = ++checkRunId; // pojistka níž smí zasáhnout jen do TÉHLE kontroly, ne do pozdější
+        cb.disabled = true;
+        if (el) el.textContent = (isCz() ? 'Kontroluji… 0 / ' : 'Checking… 0 / ') + urls.length;
+        post({ type: 'MIRROR_CHECK', urls: urls });
+        setTimeout(() => { if (checkRunning && runId === checkRunId) { checkRunning = false; renderSeg(); if (el) el.textContent = isCz() ? 'Kontrola neodpověděla (starší sw.js? nahraj nový a obnov stránku).' : 'No answer (old sw.js? upload the new one and reload).'; } }, 180000);
         return;
       }
       const tb = e.target.closest && e.target.closest('#su-r2-test');
@@ -14007,8 +14480,9 @@
         let file = '';
         try { const t = (tracks.asmr || tracks.piano || [])[0]; file = t && t.src ? t.src.slice(t.src.lastIndexOf('/') + 1) : ''; } catch (err) { /* ignore */ }
         tb.disabled = true; setResult(isCz() ? 'Testuji…' : 'Testing…');
+        const testId = ++testRunId;
         post({ type: 'MIRROR_TEST', file: file });
-        setTimeout(() => { if (tb.disabled) { tb.disabled = false; setResult(isCz() ? 'Test neodpověděl (starší sw.js? nahraj nový a obnov stránku).' : 'No answer (old sw.js? upload the new one and reload).'); } }, 15000);
+        setTimeout(() => { if (tb.disabled && testId === testRunId) { tb.disabled = false; setResult(isCz() ? 'Test neodpověděl (starší sw.js? nahraj nový a obnov stránku).' : 'No answer (old sw.js? upload the new one and reload).'); } }, 15000);
       }
     });
     renderSeg();
@@ -14274,7 +14748,7 @@
     const fadeInPromise = crossfadeAudio.play();
     if (fadeInPromise !== undefined) fadeInPromise.catch(() => {});
 
-    const targetVolume = mainVol();
+    const targetVolume = mainVol(target.src); // nová skladba může být vlastní soubor (jiná hlasitost)
     const startVolume = audio.volume;
     const steps = Math.max(30, Math.round(crossfadeDuration * 20));
     const stepMs = (crossfadeDuration * 1000) / steps;
@@ -17588,6 +18062,9 @@
         isAdminUser = !!user;
         const logoutBtn = document.getElementById('admin-logout-btn');
         if (logoutBtn) logoutBtn.classList.toggle('visible', isAdminUser);
+        // ADMIN SEKCE v SETUP (např. odemknutí režimu "jen R2")
+        window.__slIsAdmin = isAdminUser;
+        try { document.dispatchEvent(new CustomEvent('sladminchange')); } catch (e) { /* ignore */ }
       });
     } catch (e) { /* auth not available */ }
   }
@@ -20034,6 +20511,188 @@
 
     if (isDismissed()) return;
     schedule(FIRST_MS);
+  })();
+</script>
+<div class="tour-hint" id="tour-hint" role="dialog" aria-live="polite" hidden>
+  <div class="tour-hint-text" id="tour-hint-text"></div>
+  <div class="tour-hint-actions"><button type="button" class="tour-btn tour-btn-main" id="tour-hint-go">SHOW ME</button><button type="button" class="tour-btn" id="tour-hint-skip">SKIP</button></div>
+</div>
+<div class="tour" id="tour" hidden>
+  <div class="tour-hole" id="tour-hole"></div>
+  <div class="tour-card" id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-live="polite">
+    <div class="tour-step" id="tour-step"></div>
+    <div class="tour-title" id="tour-title"></div>
+    <div class="tour-text" id="tour-text"></div>
+    <div class="tour-actions"><button type="button" class="tour-btn" id="tour-close">CLOSE</button><span class="tour-spacer"></span><button type="button" class="tour-btn" id="tour-prev">BACK</button><button type="button" class="tour-btn tour-btn-main" id="tour-next">NEXT</button></div>
+  </div>
+</div>
+<script>
+  /* RYCHLÝ PRŮVODCE (návod ⓘ): při úplně první návštěvě zabliká tlačítko ⓘ a ukáže se bublina
+     "Jsi tu poprvé?". PŘESKOČIT / UKÁZAT / klik na ⓘ = už se nikdy nezobrazí (localStorage).
+     Průvodce postupně zvýrazní hlavní ovládací prvky; jde kdykoli spustit znovu z návodu. */
+  (function () {
+    var SEEN_KEY = 'sl-tour-seen';
+    var seenMem = false;
+    function isSeen() { if (seenMem) return true; try { return localStorage.getItem(SEEN_KEY) === '1'; } catch (e) { return false; } }
+    function markSeen() { seenMem = true; try { localStorage.setItem(SEEN_KEY, '1'); } catch (e) { /* ignore */ } }
+    function cz() { try { return guideLang === 'cz'; } catch (e) { return false; } }
+    function T(o) { return cz() ? o.cz : o.en; }
+
+    var STEPS = [
+      { sel: '#btn-play', t: { en: 'PLAY', cz: 'PŘEHRÁVÁNÍ' },
+        x: { en: 'Starts and pauses the music. Next to it: next track ⏭, shuffle 🔀 and repeat 🔁.', cz: 'Spustí a zastaví hudbu. Vedle je další skladba ⏭, náhodné pořadí 🔀 a opakování 🔁.' } },
+      { sel: '#atmos-toggle-music', t: { en: 'MUSIC', cz: 'MUSIC – PLAYLISTY' },
+        x: { en: 'Pick a playlist here – ASMR, PIANO or CHILL. The small 🎲 next to it plays a random track.', cz: 'Tady vybíráš playlist – ASMR, PIANO nebo CHILL. Malá kostka 🎲 vedle pustí náhodnou skladbu.' } },
+      { sel: '#playlist', t: { en: 'TRACK LIST', cz: 'SEZNAM SKLADEB' },
+        x: { en: 'Tap a track to play it. The ♡ adds it to MY PLAYLIST.', cz: 'Klepnutím na skladbu ji pustíš. Srdíčkem ♡ ji přidáš do MY PLAYLIST.' } },
+      { sel: '.player-section .extra-features', t: { en: 'VOLUME', cz: 'HLASITOST' },
+        x: { en: 'Volume fader (or knob), GAIN for fine-tuning and MUTE to silence everything.', cz: 'Posuvník (nebo knob) hlasitosti, GAIN na jemné doladění a MUTE pro úplné ztišení.' } },
+      { sel: '.player-section .timer-section', t: { en: 'SLEEP TIMER', cz: 'ČASOVAČ USÍNÁNÍ' },
+        x: { en: 'After 15, 30 or 60 minutes the music slowly fades out and stops. ✖ cancels the timer.', cz: 'Po 15, 30 nebo 60 minutách se hudba pomalu ztiší a vypne. ✖ časovač zruší.' } },
+      { sel: '#btn-my-playlist', t: { en: 'MY PLAYLIST', cz: 'MY PLAYLIST' },
+        x: { en: 'Your favourite tracks in one place – reorder them and sort them into sections by mood.', cz: 'Tvoje oblíbené skladby na jednom místě – můžeš je řadit a dělit do sekcí podle nálady.' } },
+      { sel: '#btn-download', t: { en: 'OFFLINE', cz: 'OFFLINE' },
+        x: { en: 'Downloads the tracks to your device so they play without internet (in the installed app). All at once or just the ones you pick.', cz: 'Stáhne skladby do zařízení, takže hrají i bez internetu (v nainstalované aplikaci). Všechny najednou, nebo jen vybrané.' } },
+      { sel: '#atmos-toggle-explore', t: { en: 'EXPLORE', cz: 'EXPLORE' },
+        x: { en: 'More to discover: game, relax, drawing, breathing, binaural beats, search – and SETUP with settings (e.g. LITE MODE for slower phones).', cz: 'Další části: hra, relaxace, kreslení, dýchání, binaurální tóny, vyhledávání – a SETUP s nastavením (např. ÚSPORNÝ REŽIM pro slabší telefony).' } },
+      { sel: '.main-files-btn', t: { en: 'F – MY FILES', cz: 'F – MOJE SOUBORY' },
+        x: { en: 'Add your own music from your device and build playlists mixing it with SYNTHLUCIDA tracks.', cz: 'Přidej vlastní hudbu ze zařízení a skládej z ní playlisty spolu se skladbami SYNTHLUCIDA.' } },
+      { sel: '.main-guide-btn', t: { en: 'GUIDE', cz: 'NÁVOD' },
+        x: { en: 'The full guide lives here – and you can start this tour again any time. Enjoy listening!', cz: 'Tady najdeš kompletní návod a tohoto průvodce kdykoli znovu. Příjemný poslech!' } }
+    ];
+    var L = {
+      next: { en: 'NEXT', cz: 'DALŠÍ' }, prev: { en: 'BACK', cz: 'ZPĚT' }, done: { en: 'DONE', cz: 'HOTOVO' },
+      close: { en: 'CLOSE', cz: 'UKONČIT' },
+      hint: { en: 'First time here? Take a look – a quick tour shows you the basics in a minute.', cz: 'Jsi tu poprvé? Podívej se sem – rychlý průvodce ti za minutu ukáže to hlavní.' },
+      hintGo: { en: 'SHOW ME', cz: 'UKÁZAT' }, hintSkip: { en: 'SKIP', cz: 'PŘESKOČIT' }
+    };
+
+    var tour = document.getElementById('tour');
+    var hole = document.getElementById('tour-hole');
+    var card = document.getElementById('tour-card');
+    var hint = document.getElementById('tour-hint');
+    var guideBtn = document.querySelector('.main-guide-btn');
+    if (!tour || !hole || !card) return;
+
+    function visible(el) {
+      if (!el) return false;
+      var r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return false;
+      var cs = getComputedStyle(el);
+      return cs.visibility !== 'hidden' && cs.display !== 'none';
+    }
+
+    // ---------- průvodce
+    var steps = [], idx = 0, active = false, raf = 0;
+    function place() {
+      if (!active) return;
+      var s = steps[idx]; if (!s) return;
+      var el = document.querySelector(s.sel);
+      var hr = null, pad = 6; // cílová poloha okénka (ne jeho právě animovaná poloha)
+      if (!visible(el)) { hole.style.opacity = '0'; } else {
+        var r = el.getBoundingClientRect();
+        hr = { left: r.left - pad, top: r.top - pad, width: r.width + pad * 2, height: r.height + pad * 2 };
+        hr.right = hr.left + hr.width; hr.bottom = hr.top + hr.height;
+        hole.style.opacity = '1';
+        hole.style.left = hr.left + 'px'; hole.style.top = hr.top + 'px';
+        hole.style.width = hr.width + 'px'; hole.style.height = hr.height + 'px';
+      }
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var cw = card.offsetWidth, ch = card.offsetHeight;
+      var gap = 12;
+      var top;
+      if (!hr) top = (vh - ch) / 2;
+      else if (hr.bottom + gap + ch <= vh - 8) top = hr.bottom + gap;
+      else if (hr.top - gap - ch >= 8) top = hr.top - gap - ch;
+      else top = Math.max(8, vh - ch - 8); // velký prvek: karta dole přes něj
+      var cx = !hr ? vw / 2 : hr.left + hr.width / 2;
+      var left = Math.min(Math.max(8, cx - cw / 2), vw - cw - 8);
+      card.style.left = left + 'px'; card.style.top = Math.max(8, top) + 'px';
+    }
+    function schedulePlace() { cancelAnimationFrame(raf); raf = requestAnimationFrame(place); }
+    function render() {
+      var s = steps[idx]; if (!s) return;
+      document.getElementById('tour-step').textContent = (idx + 1) + ' / ' + steps.length;
+      document.getElementById('tour-title').textContent = T(s.t);
+      document.getElementById('tour-text').textContent = T(s.x);
+      var prev = document.getElementById('tour-prev'), next = document.getElementById('tour-next'), close = document.getElementById('tour-close');
+      prev.textContent = T(L.prev); prev.disabled = idx === 0;
+      next.textContent = idx === steps.length - 1 ? T(L.done) : T(L.next);
+      close.textContent = T(L.close);
+      var el = document.querySelector(s.sel);
+      if (el && el.scrollIntoView) { try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { el.scrollIntoView(); } }
+      place(); setTimeout(place, 60); setTimeout(place, 250);
+      try { next.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+    function startTour() {
+      markSeen(); hideHint();
+      var g = document.getElementById('main-guide');
+      if (g && g.classList.contains('visible') && window.toggleMainGuide) window.toggleMainGuide(); // průvodce běží na hlavní stránce
+      steps = STEPS.filter(function (s) { return visible(document.querySelector(s.sel)); });
+      if (!steps.length) return;
+      idx = 0; active = true;
+      tour.hidden = false;
+      document.body.classList.add('tour-on');
+      render();
+    }
+    function endTour() {
+      active = false; tour.hidden = true;
+      document.body.classList.remove('tour-on');
+      try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+    }
+    function go(d) {
+      var n = idx + d;
+      if (n < 0) return;
+      if (n >= steps.length) { endTour(); return; }
+      idx = n; render();
+    }
+    window.startQuickTour = startTour;
+    document.getElementById('tour-next').addEventListener('click', function () { go(1); });
+    document.getElementById('tour-prev').addEventListener('click', function () { go(-1); });
+    document.getElementById('tour-close').addEventListener('click', endTour);
+    document.addEventListener('keydown', function (e) {
+      if (!active) return;
+      if (e.key === 'Escape') { e.preventDefault(); endTour(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    });
+    window.addEventListener('resize', schedulePlace);
+    window.addEventListener('scroll', schedulePlace, true);
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-tour-start]');
+      if (b) { e.preventDefault(); startTour(); }
+    });
+
+    // ---------- bublina "Jsi tu poprvé?" + blikající ⓘ
+    function hideHint() {
+      if (hint) hint.hidden = true;
+      if (guideBtn) guideBtn.classList.remove('tour-attention');
+    }
+    function blocked() { // nesmí rušit jiné okno (děkovné okno, návod, SETUP...) ani FOCUS / fullscreen
+      if (!visible(guideBtn)) return true;
+      if (Array.prototype.some.call(document.querySelectorAll('.tm-overlay'), visible)) return true;
+      if (document.querySelector('.main-guide.visible')) return true;
+      return false;
+    }
+    function fillHint() {
+      if (!hint) return;
+      document.getElementById('tour-hint-text').textContent = T(L.hint);
+      document.getElementById('tour-hint-go').textContent = T(L.hintGo);
+      document.getElementById('tour-hint-skip').textContent = T(L.hintSkip);
+    }
+    if (hint && guideBtn && !isSeen()) {
+      var tries = 0;
+      var waitT = setInterval(function () {
+        if (isSeen()) { clearInterval(waitT); return; }
+        if (++tries > 600) { clearInterval(waitT); return; } // max 10 min čekání
+        if (blocked()) { if (!hint.hidden) hideHint(); return; }
+        if (hint.hidden) { fillHint(); hint.hidden = false; guideBtn.classList.add('tour-attention'); }
+        else fillHint(); // jazyk se mohl přepnout
+      }, 1000);
+      document.getElementById('tour-hint-go').addEventListener('click', function () { clearInterval(waitT); startTour(); });
+      document.getElementById('tour-hint-skip').addEventListener('click', function () { clearInterval(waitT); markSeen(); hideHint(); });
+      guideBtn.addEventListener('click', function () { if (!isSeen()) { clearInterval(waitT); markSeen(); hideHint(); } });
+    }
   })();
 </script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">

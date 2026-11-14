@@ -99,10 +99,10 @@
 //  - přepínač v SETUP (AUTO / GITHUB / R2) a test R2 posílají zprávy tomuto SW (viz 'message' níže).
 //  - OPRAVA úklidu při aktivaci: dřív se při nové verzi SW MAZALY stažené skladby z GitHubu, jakmile
 //    v cache existovala R2 kopie (player ale hledá GitHub adresu, takže by "OFFLINE" zmizelo).
-//    Teď se kopie z R2 PŘESUNE pod GitHub adresu a nic se nemaže. Cache zvýšena na v1287.
+//    Teď se kopie z R2 PŘESUNE pod GitHub adresu a nic se nemaže. Cache zvýšena na v1300.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1290';
+const APP_CACHE_NAME = 'synthlucida-app-v1301';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -564,9 +564,47 @@ self.addEventListener('message', (event) => {
     } else if (d.type === 'MIRROR_TEST') {
       const report = await testMirror(typeof d.file === 'string' ? d.file : '');
       if (event.source) event.source.postMessage({ type: 'MIRROR_TEST_RESULT', report });
+    } else if (d.type === 'MIRROR_CHECK') {
+      const results = await checkAllOnMirror(Array.isArray(d.urls) ? d.urls : [], event.source);
+      if (event.source) event.source.postMessage({ type: 'MIRROR_CHECK_RESULT', configured: !!R2_BASE, results });
     }
   })());
 });
+
+// ADMIN SEKCE: ověří, že KAŽDÁ skladba z GitHubu leží i na R2 (stejné mapování jako skutečná záloha).
+// Jen dotaz HEAD (nic se nestahuje), 6 souběžně. Vrací pro každou adresu stav HTTP a velikost.
+async function checkAllOnMirror(urls, client) {
+  const list = urls.filter((u) => typeof u === 'string').slice(0, 2000);
+  const out = new Array(list.length);
+  let next = 0, done = 0, lastProgress = 0;
+  const one = async (i) => {
+    const url = list[i];
+    const mUrl = mirrorUrlFor(url);
+    if (!mUrl) { out[i] = { url, r2: '', status: -1 }; return; }
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 15000);
+    try {
+      const r = await fetch(mUrl, { method: 'HEAD', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: ac.signal });
+      out[i] = { url, r2: mUrl, status: r.status, size: Number(r.headers.get('content-length') || 0), type: r.headers.get('content-type') || '' };
+    } catch (e) {
+      out[i] = { url, r2: mUrl, status: 0, err: (e && e.name === 'AbortError') ? 'timeout' : 'network' };
+    } finally { clearTimeout(t); }
+  };
+  const worker = async () => {
+    while (next < list.length) {
+      const i = next++;
+      await one(i);
+      done++;
+      const now = Date.now();
+      if (client && (now - lastProgress > 300 || done === list.length)) {
+        lastProgress = now;
+        try { client.postMessage({ type: 'MIRROR_CHECK_PROGRESS', done, total: list.length }); } catch (e) { /* ignore */ }
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  return out;
+}
 
 async function testMirror(file) {
   const rep = { configured: !!R2_BASE, base: R2_BASE + R2_FOLDER, file: file };
