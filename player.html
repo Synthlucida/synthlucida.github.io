@@ -8,7 +8,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.6.2">
+<meta name="app-version" content="2.7.1">
+<!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
+<script>try { window.__slReturningUser = ['synthlucida_stats', 'synthlucida_settings', 'sl-volume', 'synthlucida_last_playlist', 'sl-app-version-seen'].some(function (k) { return localStorage.getItem(k) !== null; }); } catch (e) { window.__slReturningUser = false; }</script>
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -5358,6 +5360,7 @@
       { title: "SYNTHLUCIDA - ASMR Thunderstorm With Rain", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/asmr_big_thunderstorm.mp3" },
       { title: "SYNTHLUCIDA - Tattoo Artist", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/tattoo_artist.mp3", added: "2026-10-25" },
       { title: "SYNTHLUCIDA - ASMR Nature Forest", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/ASMR_nature_forest.mp3", added: "2026-11-13" },
+      { title: "SYNTHLUCIDA - Drone For ASMR3", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Drone_For_ASMR3.mp3", added: "2026-11-14" },
     ],
     piano: [
       { title: "SYNTHLUCIDA - Nebula Piano 1", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/nebula_piano1.mp3" },
@@ -15062,8 +15065,27 @@
     const trackXP = (s.xpEligibleTracksPlayed || 0) * XP_PER_TRACK_PLAYED;
     const breathXP = (s.breathingSessions || 0) * XP_PER_BREATHING_SESSION;
     const dayXP = (s.daysVisited || 0) * XP_PER_DAY_VISITED;
-    return listenXP + trackXP + breathXP + dayXP;
+    const adminXP = (typeof s.adminBonusXP === 'number' && isFinite(s.adminBonusXP)) ? Math.max(0, Math.floor(s.adminBonusXP)) : 0;
+    return listenXP + trackXP + breathXP + dayXP + adminXP;
   }
+
+  // ADMIN SEKCE: po přihlášení admina (chat 666) se XP k utracení dobije na 1000 - na vyzkoušení stahování
+  // za XP. Dobíjí se jen do 1000 (ne při každém spuštění znovu +1000), level se podle toho zvedne sám.
+  // Týká se jen zařízení, kde je admin přihlášený; běžní uživatelé nic nedostanou.
+  const ADMIN_TEST_XP = 1000;
+  document.addEventListener('sladminchange', () => {
+    if (window.__slIsAdmin !== true) return;
+    try {
+      const avail = computeAvailableXP(stats);
+      if (avail >= ADMIN_TEST_XP) return;
+      const add = ADMIN_TEST_XP - avail;
+      stats.adminBonusXP = ((typeof stats.adminBonusXP === 'number' && isFinite(stats.adminBonusXP)) ? stats.adminBonusXP : 0) + add;
+      saveStats();
+      try { renderStats(); } catch (e) { /* panel S nemusí být otevřený */ }
+      try { renderCustomQueue(); } catch (e) { /* ignore */ }
+      try { showToast((guideLang === 'cz' ? 'Admin: +' + add + ' XP na vyzkoušení stahování' : 'Admin: +' + add + ' XP for testing downloads'), '⭐'); } catch (e) { /* ignore */ }
+    } catch (e) { /* jen pomůcka pro admina - nesmí nic rozbít */ }
+  });
 
   function xpLevelInfo(xp) {
     const level = Math.floor(xp / XP_PER_LEVEL) + 1;
@@ -17976,6 +17998,7 @@
     try {
       const now = new Date();
       if (now.getDay() !== 5) return; // jen pátek (místní čas zařízení)
+      if (fridayGreetingActive) return; // právě svítí jiný text (např. oznámení o aktualizaci)
       if (!motivationTextsEnabled) return; // MOTIVATION: OFF = přání se nezobrazuje (a nezapočítá)
       if (currentCommunityMsgId) return; // zpráva od komunity má přednost, přání se nezapočítá
       const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
@@ -17996,7 +18019,7 @@
       setTimeout(() => {
         fridayGreetingActive = false;
         // když mezitím naskočila zpráva od komunity, nechat ji být
-        if (!currentCommunityMsgId && sloganEl.innerText === text) sloganEl.classList.remove('visible');
+        if (!currentCommunityMsgId && sloganEl.textContent === text) sloganEl.classList.remove('visible');
       }, FRIDAY_GREET_MS);
     } catch (e) { fridayGreetingActive = false; /* přání je jen bonus, nesmí nic rozbít */ }
   }
@@ -18031,6 +18054,7 @@
     try {
       const now = new Date();
       if (now.getDay() !== 0) return; // jen neděle (místní čas zařízení)
+      if (fridayGreetingActive) return; // právě svítí jiný text (např. oznámení o aktualizaci)
       if (now.getHours() < SUNDAY_GREET_FROM_HOUR) return; // jen večer
       if (!motivationTextsEnabled) return; // MOTIVATION: OFF = text se nezobrazuje (a nezapočítá)
       if (currentCommunityMsgId) return; // zpráva od komunity má přednost, text se nezapočítá
@@ -18053,11 +18077,73 @@
       sloganEl.classList.add('visible');
       setTimeout(() => {
         fridayGreetingActive = false;
-        if (!currentCommunityMsgId && sloganEl.innerText === text) sloganEl.classList.remove('visible');
+        if (!currentCommunityMsgId && sloganEl.textContent === text) sloganEl.classList.remove('visible');
       }, SUNDAY_GREET_MS);
     } catch (e) { fridayGreetingActive = false; /* text je jen bonus, nesmí nic rozbít */ }
   }
   setTimeout(showSundayGreeting, 800);
+
+  // ==========================================
+  // OZNÁMENÍ O AKTUALIZACI - když se zvedne verze appky (meta app-version), uživatel, který tu byl už se
+  // starší verzí, uvidí v poli motivačních textů na 12 s "SYNTHLUCIDA byla aktualizována na verzi X".
+  // Zobrazí se VŽDY (i při MOTIVATION: OFF), jen jednou pro každou verzi. Úplně nový návštěvník ho nedostane.
+  // Počká, až je appka vidět a nic ji nepřekrývá (děkovné okno, návod, průvodce...).
+  // ==========================================
+  const UPDATE_SEEN_KEY = 'sl-app-version-seen';
+  const UPDATE_NOTICE_MS = 12000;
+  let updateNoticeActive = false;
+  (function updateNotice() {
+    try {
+      const meta = document.querySelector('meta[name="app-version"]');
+      const cur = meta ? String(meta.getAttribute('content') || '').trim() : '';
+      if (!/^\d+(\.\d+)*$/.test(cur)) return;
+      let seen = null;
+      try { seen = localStorage.getItem(UPDATE_SEEN_KEY); } catch (e) { return; } // bez úložiště by se ukazovalo pořád
+      const cmp = (a, b) => { // 1 = a novější, 0 = stejné, -1 = starší
+        const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+        for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? 1 : -1; }
+        return 0;
+      };
+      const remember = () => { try { localStorage.setItem(UPDATE_SEEN_KEY, cur); } catch (e) { /* ignore */ } };
+      if (seen === null) {
+        // první spuštění téhle funkce: dřívější návštěvník (má uložená data) oznámení dostane, nový ne
+        if (window.__slReturningUser !== true) { remember(); return; } // zjištěno v <head>, než appka cokoli uložila
+      } else if (!/^\d+(\.\d+)*$/.test(seen) || cmp(cur, seen) <= 0) {
+        if (seen !== cur) remember(); // stejná nebo starší verze (návrat zpět) = nic neukazovat
+        return;
+      }
+      let tries = 0;
+      const blocked = () => {
+        if (document.hidden) return true;
+        if (Array.prototype.some.call(document.querySelectorAll('.tm-overlay, .main-guide'), (el) => {
+          const r = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+          return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden';
+        })) return true;
+        if (document.body.classList.contains('tour-on') || document.body.classList.contains('focus-mode')) return true; // FOCUS skrývá pole textů
+        if (typeof currentCommunityMsgId !== 'undefined' && currentCommunityMsgId) return true;
+        return false;
+      };
+      const tryShow = () => {
+        if (++tries > 900) return; // max cca 15 min čekání, pak příště
+        if (blocked() || fridayGreetingActive) { setTimeout(tryShow, 1000); return; }
+        const text = guideLang === 'cz'
+          ? 'SYNTHLUCIDA byla aktualizována na verzi ' + cur + '.'
+          : 'SYNTHLUCIDA has been updated to version ' + cur + '.';
+        updateNoticeActive = true;
+        fridayGreetingActive = true; // běžné slogany ho po dobu zobrazení nepřepíšou
+        sloganEl.classList.remove('community-msg', 'community-msg-admin');
+        sloganEl.innerText = text;
+        sloganEl.classList.add('visible');
+        remember();
+        setTimeout(() => {
+          updateNoticeActive = false;
+          fridayGreetingActive = false;
+          if (!currentCommunityMsgId && sloganEl.textContent === text) sloganEl.classList.remove('visible');
+        }, UPDATE_NOTICE_MS);
+      };
+      setTimeout(tryShow, 2000); // až po případném děkovném okně (to naskočí po 1,5 s)
+    } catch (e) { /* oznámení je jen bonus, nesmí nic rozbít */ }
+  })();
 
   // ==========================================
   // KOMUNITNÍ ZPRÁVY V REÁLNÉM ČASE (přes Firebase Realtime Database)
