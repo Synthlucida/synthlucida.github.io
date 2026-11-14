@@ -89,9 +89,20 @@
 // (a u skladeb bez R2 kopie) zůstávají stažené skladby nedotčené. Cache zvýšena na v1269.
 // auto - přidána fotka player-bg-sun-11.jpg do LAZY_ASSETS, cache zvýšena na v1278.
 // auto - přidána fotka player-bg-sun-12.jpg do LAZY_ASSETS, cache zvýšena na v1279.
+// v47 - ZÁLOHA R2 pro skladby z GitHubu. Player dál používá adresy z GitHub Releases (kontrola
+// importů, fronta, historie i offline cache zůstávají beze změny); tenhle SW ale skladbu při
+// výpadku nebo zpomalení GitHubu tiše vezme z Cloudflare R2 (stejný název souboru):
+//  - přehrávání: GitHub neodpoví do HEDGE_MS -> paralelně se zkusí R2, vyhraje rychlejší;
+//    GitHub spadne úplně -> rovnou R2. Po výpadku se na R2 přepne na BREAKER_MS (R2 první, GitHub záloha).
+//  - DOWNLOAD OFFLINE: stejné. Stažená skladba se uloží pod GitHub adresou (ať player vidí "✓ OFFLINE"
+//    a vše funguje jako dřív), z R2 navíc jako čitelná kopie s ověřeným stavem 200.
+//  - přepínač v SETUP (AUTO / GITHUB / R2) a test R2 posílají zprávy tomuto SW (viz 'message' níže).
+//  - OPRAVA úklidu při aktivaci: dřív se při nové verzi SW MAZALY stažené skladby z GitHubu, jakmile
+//    v cache existovala R2 kopie (player ale hledá GitHub adresu, takže by "OFFLINE" zmizelo).
+//    Teď se kopie z R2 PŘESUNE pod GitHub adresu a nic se nemaže. Cache zvýšena na v1287.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1286';
+const APP_CACHE_NAME = 'synthlucida-app-v1288';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -138,20 +149,30 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // v46: kopie skladeb z GitHub Releases se mažou JEN když už existuje stejný soubor
-  // stažený z R2 (CORS_AUDIO_HOSTS). Dřív se mazaly VŠECHNY při každé aktivaci SW,
-  // takže kdokoli měl stažené skladby z GitHubu o ně přišel po každé nové verzi sw.js.
+  // v47: kopie skladeb uložené pod ADRESOU R2 (z doby, kdy player používal R2 adresy) se přesunou pod
+  // adresu z GitHubu, kterou používá player. Nic se nemaže (jen duplicitní R2 klíč po úspěšném přesunu).
   event.waitUntil(
     caches.open(AUDIO_CACHE_NAME).then(async (audioCache) => {
       const reqs = await audioCache.keys();
-      const fileName = (r) => new URL(r.url).pathname.split('/').pop();
-      const r2Files = new Set(
-        reqs.filter((r) => CORS_AUDIO_HOSTS.includes(new URL(r.url).hostname)).map(fileName)
-      );
-      await Promise.all(reqs
-        .filter((r) => r.url.startsWith('https://github.com/Synthlucida/') && r2Files.has(fileName(r)))
-        .map((r) => audioCache.delete(r)));
-    }).catch((err) => console.log('[SW] Audio cache cleanup failed:', err))
+      for (const r of reqs) {
+        const u = new URL(r.url);
+        if (!CORS_AUDIO_HOSTS.includes(u.hostname) || !/\.mp3$/i.test(u.pathname)) continue;
+        const file = u.pathname.split('/').pop();
+        const ghKey = GITHUB_AUDIO_PREFIX + file;
+        try {
+          const have = await audioCache.match(ghKey);
+          if (!have) {
+            const resp = await audioCache.match(r);
+            if (resp && resp.type !== 'opaque' && resp.status === 200) {
+              await audioCache.put(ghKey, resp.clone());
+              await audioCache.delete(r);
+            }
+          } else {
+            await audioCache.delete(r); // GitHub kopie už existuje, R2 klíč je zbytečný duplikát
+          }
+        } catch (e) { /* ignore */ }
+      }
+    }).catch((err) => console.log('[SW] Audio cache migration failed:', err))
   );
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -332,7 +353,247 @@ const IS_APPLE_WEBKIT = (() => {
 // (ne chybová stránka), a umí vracet části souboru (206) pro Safari.
 // GitHub Releases CORS neposílá. Aktuálně skladby leží na Cloudflare R2 (r2.dev);
 // po přidání vlastní domény (např. media.synthlucida.com) sem stačí doplnit i ji.
-const CORS_AUDIO_HOSTS = ['pub-d03f98e0a05747929b6ecd9ffc0e9b20.r2.dev'];
+const CORS_AUDIO_HOSTS = ['pub-f2ec372bf0f54283b80e15f90090d46a.r2.dev'];
+
+// ==========================================
+// ZÁLOHA R2 (v47) - nastavení
+// ==========================================
+// Adresa skladeb z GitHub Releases, které má SW umět nahradit kopií z R2 (stejný název souboru).
+const GITHUB_AUDIO_PREFIX = 'https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/';
+// Veřejná adresa R2 bucketu (musí končit lomítkem). Po přidání vlastní domény (např. media.synthlucida.com)
+// stačí změnit tady A přidat doménu do CORS_AUDIO_HOSTS výše. Prázdný řetězec = záloha vypnutá.
+const R2_BASE = 'https://pub-f2ec372bf0f54283b80e15f90090d46a.r2.dev/';
+// Pokud jsou soubory v bucketu ve složce (např. audio/skladba.mp3), napiš sem 'audio/'.
+const R2_FOLDER = '';
+const HEDGE_MS = 2500;                     // GitHub neodpověděl do 2,5 s -> paralelně se zkusí R2
+const GH_DOWNLOAD_DEADLINE_MS = 40000;     // stažení jedné skladby z GitHubu max. 40 s, pak se zkusí R2
+const BREAKER_MS = 10 * 60 * 1000;         // po výpadku GitHubu se 10 minut jede z R2 první
+const MIRROR_CACHE = 'synthlucida-mirror-v1';
+
+let mirrorMode = 'auto';   // 'auto' | 'github' | 'r2' (nastavuje přepínač v SETUP)
+let mirrorUntil = 0;       // do kdy je R2 první (po výpadku GitHubu)
+let ghPreferredUntil = 0;  // do kdy je GitHub první (po problému s R2)
+let mirrorStateLoaded = null; // Promise načtení uloženého stavu
+let lastBroadcast = 0;
+const servedBy = new Map(); // adresa skladby (GitHub) -> 'gh' | 'r2' = odkud ji SW naposledy podal (pro hlášení o selhání)
+function markServed(url, by) {
+  servedBy.delete(url);
+  servedBy.set(url, by);
+  if (servedBy.size > 300) servedBy.delete(servedBy.keys().next().value);
+}
+
+function mirrorUrlFor(u) {
+  if (!R2_BASE || typeof u !== 'string' || !u.startsWith(GITHUB_AUDIO_PREFIX)) return '';
+  const file = u.slice(GITHUB_AUDIO_PREFIX.length).split(/[?#]/)[0];
+  if (!file || file.indexOf('/') !== -1) return '';
+  return R2_BASE + R2_FOLDER + file;
+}
+
+function loadMirrorState() {
+  if (!mirrorStateLoaded) mirrorStateLoaded = loadMirrorStateNow();
+  return mirrorStateLoaded; // souběžné požadavky počkají na dokončení, ne na výchozí hodnoty
+}
+async function loadMirrorStateNow() {
+  try {
+    const c = await caches.open(MIRROR_CACHE);
+    const r = await c.match('/__mirror_state');
+    if (r) {
+      const d = await r.json();
+      if (d && (d.mode === 'auto' || d.mode === 'github' || d.mode === 'r2')) mirrorMode = d.mode;
+      if (d && typeof d.until === 'number') mirrorUntil = d.until;
+      if (d && typeof d.ghUntil === 'number') ghPreferredUntil = d.ghUntil;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function saveMirrorState() {
+  try {
+    const c = await caches.open(MIRROR_CACHE);
+    await c.put('/__mirror_state', new Response(JSON.stringify({ mode: mirrorMode, until: mirrorUntil, ghUntil: ghPreferredUntil }), { headers: { 'Content-Type': 'application/json' } }));
+  } catch (e) { /* ignore */ }
+}
+
+function r2Allowed() { return !!R2_BASE && mirrorMode !== 'github'; }
+function r2First() {
+  if (!r2Allowed()) return false;
+  if (mirrorMode === 'r2') return true;
+  const now = Date.now();
+  if (now < ghPreferredUntil) return false;
+  return now < mirrorUntil;
+}
+
+async function broadcastMirror(served) {
+  try {
+    const now = Date.now();
+    if (served) {
+      if (now - lastBroadcast < 20000) return; // hlášení "hraje se z R2" nejvýš jednou za 20 s
+      lastBroadcast = now;
+    }
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    all.forEach((c) => c.postMessage({ type: 'MIRROR_STATE', mode: mirrorMode, r2First: r2First(), served: served || '', until: mirrorUntil }));
+  } catch (e) { /* ignore */ }
+}
+
+// Čitelné stažení z R2 (CORS). Přehrávání s Range: vrátí 200/206; chybí-li u 206 hlavička Content-Range
+// (R2 CORS bez ExposeHeaders), použije se průchozí (opaque) požadavek, který hlavičky nezkresluje.
+async function fetchR2Media(mUrl, range, signal) {
+  const headers = {};
+  if (range) headers.Range = range;
+  let resp;
+  try {
+    resp = await fetch(mUrl, { mode: 'cors', credentials: 'omit', headers, signal });
+  } catch (e) {
+    if (signal && signal.aborted) throw e;
+    // R2 bez CORS: přehrát jde i průchozím (opaque) požadavkem, jen nejde ověřit stav
+    return fetch(new Request(mUrl, { mode: 'no-cors', credentials: 'omit', headers }), { signal });
+  }
+  if (resp.status !== 200 && resp.status !== 206) throw new Error('R2 HTTP ' + resp.status);
+  if (resp.status === 206 && !resp.headers.get('content-range')) {
+    try { if (resp.body) resp.body.cancel(); } catch (e) { /* ignore */ }
+    return fetch(new Request(mUrl, { mode: 'no-cors', credentials: 'omit', headers }), { signal });
+  }
+  return resp;
+}
+
+// Přehrávání skladby z GitHubu se zálohou na R2.
+async function fetchMediaWithFailover(request, mUrl) {
+  const range = request.headers.get('range');
+  const ghLeg = (signal) => IS_APPLE_WEBKIT
+    ? fetch(request, { signal })
+    : fetch(new Request(request.url, { method: 'GET', mode: request.mode, credentials: request.credentials, redirect: 'follow' }), { signal });
+  if (!r2Allowed()) return ghLeg();
+
+  if (r2First()) {
+    try {
+      const r = await fetchR2Media(mUrl, range);
+      markServed(request.url, 'r2');
+      broadcastMirror('r2');
+      return r;
+    } catch (e) { /* R2 selhalo -> GitHub */ }
+    const g = await ghLeg();
+    markServed(request.url, 'gh');
+    return g;
+  }
+
+  // GitHub první; když neodpoví do HEDGE_MS (nebo spadne), paralelně se zkusí R2 a vyhraje rychlejší.
+  const acGh = new AbortController();
+  const acR2 = new AbortController();
+  return new Promise((resolve, reject) => {
+    let settled = false, ghFailed = false, r2Started = false, r2Failed = false, timer = null;
+    const finish = (resp, by) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      (by === 'gh' ? acR2 : acGh).abort();
+      markServed(request.url, by);
+      if (by === 'r2') broadcastMirror('r2');
+      resolve(resp);
+    };
+    const failIfBoth = () => { if (!settled && ghFailed && (r2Failed || !r2Started)) { settled = true; clearTimeout(timer); reject(new Error('GitHub i R2 selhaly')); } };
+    const startR2 = () => {
+      if (r2Started || settled) return;
+      r2Started = true;
+      fetchR2Media(mUrl, range, acR2.signal).then((r) => finish(r, 'r2')).catch(() => { r2Failed = true; failIfBoth(); });
+    };
+    ghLeg(acGh.signal).then((r) => finish(r, 'gh')).catch(() => { ghFailed = true; if (!r2Started) startR2(); failIfBoth(); });
+    timer = setTimeout(startR2, HEDGE_MS);
+  });
+}
+
+// DOWNLOAD OFFLINE skladby z GitHubu se zálohou na R2. Ukládá se vždy pod GitHub adresou.
+async function downloadWithFailover(cache, request, mUrl) {
+  const viaR2 = async () => {
+    const resp = await fetch(mUrl, { mode: 'cors', credentials: 'omit' });
+    if (resp.status !== 200) throw new Error('R2 HTTP ' + resp.status);
+    await cache.put(request.url, resp.clone());
+    markServed(request.url, 'r2');
+    return resp;
+  };
+  const viaGh = async () => {
+    const ac = new AbortController();
+    // 40 s na to, aby GitHub vůbec začal odpovídat; pak na dotažení celé skladby (pomalé připojení) až 3 minuty.
+    let t = setTimeout(() => ac.abort(), GH_DOWNLOAD_DEADLINE_MS);
+    try {
+      const clean = new Request(request.url, { method: 'GET', mode: request.mode, credentials: request.credentials, redirect: 'follow' });
+      const resp = await fetch(clean, { signal: ac.signal });
+      clearTimeout(t);
+      t = setTimeout(() => ac.abort(), 180000);
+      if (resp.type !== 'opaque' && resp.status !== 200) return resp; // čitelná chyba se neukládá
+      await cache.put(request.url, resp.clone());
+      markServed(request.url, 'gh');
+      return resp;
+    } finally { clearTimeout(t); }
+  };
+  if (!r2Allowed()) return viaGh();
+  if (r2First()) {
+    try { const r = await viaR2(); broadcastMirror('r2'); return r; } catch (e) { /* GitHub */ }
+    return viaGh();
+  }
+  try {
+    return await viaGh();
+  } catch (e) {
+    const r = await viaR2(); // GitHub selhal / vypršel limit -> R2 (když selže i to, chyba jde výš)
+    broadcastMirror('r2');
+    return r;
+  }
+}
+
+// Zprávy z playeru (SETUP přepínač, hlášení zadrhnutí, test R2).
+self.addEventListener('message', (event) => {
+  const d = event.data || {};
+  if (!d || typeof d.type !== 'string' || d.type.indexOf('MIRROR_') !== 0) return;
+  event.waitUntil((async () => {
+    await loadMirrorState();
+    if (d.type === 'MIRROR_MODE') {
+      if (d.mode === 'auto' || d.mode === 'github' || d.mode === 'r2') {
+        mirrorMode = d.mode;
+        if (d.mode === 'auto') { mirrorUntil = 0; ghPreferredUntil = 0; }
+        await saveMirrorState();
+      }
+      broadcastMirror('');
+    } else if (d.type === 'MIRROR_FAIL') {
+      const now = Date.now();
+      const known = typeof d.url === 'string' ? servedBy.get(d.url) : '';
+      if (known === 'r2') d.from = 'r2'; else if (known === 'gh') d.from = 'github';
+      if (d.from === 'r2') { ghPreferredUntil = now + BREAKER_MS; mirrorUntil = 0; }
+      else { mirrorUntil = now + BREAKER_MS; ghPreferredUntil = 0; }
+      await saveMirrorState();
+      broadcastMirror('');
+    } else if (d.type === 'MIRROR_STATUS') {
+      if (event.source) event.source.postMessage({ type: 'MIRROR_STATE', mode: mirrorMode, r2First: r2First(), served: '', until: mirrorUntil, configured: !!R2_BASE });
+    } else if (d.type === 'MIRROR_TEST') {
+      const report = await testMirror(typeof d.file === 'string' ? d.file : '');
+      if (event.source) event.source.postMessage({ type: 'MIRROR_TEST_RESULT', report });
+    }
+  })());
+});
+
+async function testMirror(file) {
+  const rep = { configured: !!R2_BASE, base: R2_BASE + R2_FOLDER, file: file };
+  if (!R2_BASE) return rep;
+  const safe = /^[A-Za-z0-9_.%-]+\.mp3$/.test(file) ? file : '';
+  if (!safe) { rep.error = 'bad file'; return rep; }
+  const mUrl = R2_BASE + R2_FOLDER + safe;
+  const timed = async (fn) => { const t0 = Date.now(); try { const v = await fn(); return { ok: true, ms: Date.now() - t0, v }; } catch (e) { return { ok: false, ms: Date.now() - t0, err: String(e && e.message || e) }; } };
+  // R2 s CORS a Range (to, co skutečně používá přehrávání a stahování)
+  const c = await timed(async () => {
+    const r = await fetch(mUrl, { mode: 'cors', credentials: 'omit', headers: { Range: 'bytes=0-1023' } });
+    const info = { status: r.status, type: r.headers.get('content-type') || '', range: r.headers.get('content-range') || '', len: r.headers.get('content-length') || '' };
+    try { if (r.body) r.body.cancel(); } catch (e) { /* ignore */ }
+    return info;
+  });
+  rep.cors = c;
+  if (!c.ok) {
+    const n = await timed(async () => { const r = await fetch(new Request(mUrl, { mode: 'no-cors', credentials: 'omit' })); try { if (r.body) r.body.cancel(); } catch (e) { /* ignore */ } return r.type; });
+    rep.reachable = n; // soubor je k dosažení, ale bez CORS
+  }
+  // GitHub (jen dosažitelnost, stav HTTP nejde přečíst)
+  const ac = new AbortController();
+  const tm = setTimeout(() => ac.abort(), 8000);
+  rep.github = await timed(async () => { const r = await fetch(new Request(GITHUB_AUDIO_PREFIX + safe, { mode: 'no-cors' }), { signal: ac.signal }); try { if (r.body) r.body.cancel(); } catch (e) { /* ignore */ } return r.type; });
+  clearTimeout(tm);
+  return rep;
+}
 
 function offlineAudioResponse() {
   return new Response('Offline - this track is not cached.', {
@@ -379,9 +640,13 @@ async function handleAudioRequest(event) {
   const url = new URL(request.url);
   const cache = await caches.open(AUDIO_CACHE_NAME);
 
+  // v47: adresa téhož souboru na R2 (prázdná, pokud to není skladba z GitHub Releases nebo je záloha vypnutá).
+  const mUrl = mirrorUrlFor(request.url);
+  if (mUrl) await loadMirrorState();
+
   // Always match by plain URL, ignoring any Range header on the incoming request,
   // so we always find (and return) the full cached file if we have it.
-  const cached = await cache.match(request.url);
+  const cached = (await cache.match(request.url)) || (mUrl ? await cache.match(mUrl) : undefined);
 
   // Požadavek přímo od přehrávače (<audio>), ne stažení tlačítkem DOWNLOAD OFFLINE.
   const isMedia = request.destination === 'audio' || request.destination === 'video' || request.headers.has('range');
@@ -394,7 +659,7 @@ async function handleAudioRequest(event) {
   // Safari / iPhone: online přímo ze sítě s původní Range hlavičkou, cache jen offline.
   if (IS_APPLE_WEBKIT && isMedia) {
     try {
-      return await fetch(request);
+      return mUrl ? await fetchMediaWithFailover(request, mUrl) : await fetch(request);
     } catch (err) {
       return cached || offlineAudioResponse();
     }
@@ -402,6 +667,15 @@ async function handleAudioRequest(event) {
 
   if (cached) {
     return cached;
+  }
+
+  // v47: skladba z GitHubu se zálohou na R2 (přehrávání i DOWNLOAD OFFLINE).
+  if (mUrl) {
+    try {
+      return isMedia ? await fetchMediaWithFailover(request, mUrl) : await downloadWithFailover(cache, request, mUrl);
+    } catch (err) {
+      return offlineAudioResponse();
+    }
   }
 
   // Běžné přehrávání z CORS serveru (R2): rovnou ze sítě s původní Range hlavičkou (přetáčení,

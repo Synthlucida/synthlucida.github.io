@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.5.3">
+<meta name="app-version" content="2.5.4">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2582,6 +2582,10 @@
     .app-toast { font-size: 10px; padding: 9px 15px; max-width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
   }
 
+  /* Hláška níž a menší (aby nekryla poslední řádek seznamu) + pod seznamy rezerva, ať jde poslední skladba odscrollovat nad hlášku */
+  .app-toast { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); padding-top: 7px; padding-bottom: 7px; }
+  #myfiles-list, #queue-list, #myfiles-playlists { padding-bottom: 52px; }
+
   /* CZ/EN přepínač jazyka v panelu ⓘ (guide) — zrcadlově naproti zavíracímu ✖ */
   .lang-toggle-btn {
     position: fixed;
@@ -3586,6 +3590,8 @@
   .focus-menu button.on { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); background: rgba(255,255,255,0.1); }
   body.opt-lite .su-seg.su-seg-focus { opacity: 1; pointer-events: auto; }
   body.opt-lite .su-seg.su-seg-weather, body.opt-lite .su-seg.su-seg-sunset { opacity: 1; pointer-events: auto; }
+  body.opt-lite .su-seg.su-seg-music, body.opt-lite .su-seg.su-seg-r2test { opacity: 1; pointer-events: auto; }
+  #su-r2-result { white-space: pre-line; }
   /* Nabídka WEATHER (stejný vzhled jako nabídka FOCUS); nedostupná volba je ztlumená */
   .focus-menu button:disabled, .focus-menu button:disabled:hover { opacity: 0.35; cursor: not-allowed; border-color: rgba(255,255,255,0.14); }
   /* ===== SETUP (EXPLORE > SETUP): úsporný režim, volby grafiky a sezónní atmosféry ===== */
@@ -4661,6 +4667,10 @@
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_weather_n"></span><span class="su-desc" data-i18n="su_weather_d"></span></div><div class="su-seg su-seg-weather" data-weatherbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
     <div class="su-sec" data-i18n="su_sec_sunset">SUNSET BUTTON</div>
     <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_sunset_n"></span><span class="su-desc" data-i18n="su_sunset_d"></span></div><div class="su-seg su-seg-sunset" data-sunsetbtn role="group"><button type="button" data-v="cycle" data-i18n="su_focus_cycle">SWITCH</button><button type="button" data-v="menu" data-i18n="su_focus_menu">WINDOW</button></div></div>
+    <div class="su-sec" data-i18n="su_sec_music">MUSIC SOURCE</div>
+    <div class="su-note" data-i18n="su_music_note"></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_music_n"></span><span class="su-desc" data-i18n="su_music_d"></span></div><div class="su-seg su-seg-music" data-musicsrc role="group"><button type="button" data-v="auto" aria-pressed="true">AUTO</button><button type="button" data-v="github" aria-pressed="false">GITHUB</button><button type="button" data-v="r2" aria-pressed="false">R2</button></div></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_r2test_n"></span><span class="su-desc" id="su-r2-result"></span></div><div class="su-seg su-seg-r2test" role="group"><button type="button" id="su-r2-test" data-i18n="su_r2test_b">TEST R2</button></div></div>
   </div>
 </div>
 
@@ -10633,6 +10643,8 @@
           if (verdict === 'bad') {
             console.log(`Cached file is not playable (attempt ${attempt}/3), removing:`, track.title);
             await removeTrackFromAudioCache(track.src);
+            // GitHub vrátil nepřehratelný soubor (chybová stránka) -> další pokus ať jde přes R2 zálohu.
+            try { if (window.mirrorReportBad) window.mirrorReportBad(track.src); } catch (e) {}
             if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt));
             continue;
           }
@@ -11210,6 +11222,12 @@
     sunset_menu_blocked_wx: { en: "Only NIGHT works with RAIN / WINTER", cz: "S deštěm / sněhem jde jen NIGHT" },
     weather_menu_blocked: { en: "Turn SUNSET / NIGHT off first", cz: "Nejdřív vypněte SUNSET / NIGHT" },
     su_title: { en: "⚙ SETUP", cz: "⚙ NASTAVENÍ" },
+    su_sec_music: { en: "MUSIC SOURCE", cz: "ZDROJ HUDBY" },
+    su_music_note: { en: "Music normally streams from GitHub. If GitHub is down or slow, the backup server (R2) takes over automatically and the same track keeps playing.", cz: "Hudba se normálně streamuje z GitHubu. Když GitHub vypadne nebo je pomalý, převezme to automaticky záložní server (R2) a stejná skladba hraje dál." },
+    su_music_n: { en: "SOURCE", cz: "ZDROJ" },
+    su_music_d: { en: "AUTO: GitHub first, R2 as backup\nGITHUB: never use R2\nR2: always use R2 (for testing)", cz: "AUTO: nejdřív GitHub, R2 jako záloha\nGITHUB: R2 se nepoužije\nR2: vždy R2 (na zkoušku)" },
+    su_r2test_n: { en: "TEST BACKUP", cz: "TEST ZÁLOHY" },
+    su_r2test_b: { en: "TEST R2", cz: "TEST R2" },
     su_sec_gfx: { en: "GRAPHICS", cz: "GRAFIKA" },
     su_lite: { en: "LITE MODE", cz: "ÚSPORNÝ REŽIM" },
     su_lite_d: { en: "Smoother on slower devices. Switches off:\n• glow effects\n• animations (pulsing, background blobs and dots)\n• 2 COLORS mix\n• VISUAL panel slide animation\n• the ✨ button next to the logo\n• seasonal atmospheres (Christmas, All Souls, witches)\n• blur (behind windows and panels, background orbs)\n• the AURORA theme\n• WEATHER: only SUN works, SUNSET is off", cz: "Plynulejší chod na pomalejších zařízeních. Vypne:\n• záři (glow)\n• animace (pulzování, plovoucí koule a kuličky v pozadí)\n• 2 BARVY (mix)\n• animaci vysunutí panelu VISUAL\n• tlačítko ✨ vedle loga\n• sezónní atmosféry (Vánoce, Dušičky, čarodějnice)\n• rozostření (za okny a panely, koule v pozadí)\n• motiv AURORA\n• WEATHER: půjde jen SUN, SUNSET bude vypnutý" },
@@ -13840,6 +13858,8 @@
     // nepřeskakovat samo. Dřív appka bez internetu sama projela celý playlist a zapsala
     // falešná přehrání do historie i statistik. Po stisku ▶ se skladba načte znovu.
     if (!isPlaying) return;
+    // záloha R2: skladbu z GitHubu zkusit ještě přes R2 (nebo naopak), než se přeskočí
+    if (window.mirrorRetry && window.mirrorRetry()) return;
     consecutiveTrackErrors++;
     const activeListLength = customQueueActive ? customQueue.length : playlist.length;
     if (consecutiveTrackErrors > activeListLength) {
@@ -13851,6 +13871,137 @@
     setTrackTitle("Track unavailable, skipping…");
     setTimeout(() => { if (isPlaying) playNextTrack(); }, 800);
   });
+
+  // ==========================================
+  // ZÁLOHA R2 - spolupráce se Service Workerem (sw.js v47+)
+  // Player dál používá adresy z GitHubu. SW skladbu při výpadku/zpomalení GitHubu vezme z R2.
+  // Tady jen: zpráva s režimem (AUTO / GITHUB / R2), hlídač zadrhnutí uprostřed skladby, test R2.
+  // ==========================================
+  (function mirrorControl() {
+    const MODE_KEY = 'synthlucida_music_source';
+    const STALL_MS = 8000;      // tak dlouho smí skladba "bufferovat", než se zkusí druhý zdroj
+    const RETRY_GAP_MS = 45000; // nejdřív za 45 s znovu přepnout (ať se to nepřepíná sem a tam)
+    let mode = 'auto', r2First = false, stallTimer = null, lastRetryAt = 0, lastRetrySrc = '', lastToastAt = 0;
+    try { const v = localStorage.getItem(MODE_KEY); if (v === 'github' || v === 'r2') mode = v; } catch (e) { /* ignore */ }
+    const isCz = () => { try { return guideLang === 'cz'; } catch (e) { return false; } };
+    const isGh = (u) => typeof u === 'string' && u.indexOf(TRACK_SRC_PREFIX) === 0;
+    function ctl() { try { return (navigator.serviceWorker && navigator.serviceWorker.controller) || null; } catch (e) { return null; } }
+    function post(msg) { const c = ctl(); if (!c) return false; try { c.postMessage(msg); return true; } catch (e) { return false; } }
+    function renderSeg() {
+      document.querySelectorAll('.su-seg[data-musicsrc] button').forEach((b) => b.setAttribute('aria-pressed', b.getAttribute('data-v') === mode ? 'true' : 'false'));
+    }
+    function sendMode() { post({ type: 'MIRROR_MODE', mode: mode }); }
+    function reloadSame(resume) {
+      const t = audio.currentTime || 0;
+      const onMeta = () => {
+        audio.removeEventListener('loadedmetadata', onMeta);
+        try { if (t > 1) audio.currentTime = t; } catch (e) { /* ignore */ }
+        if (resume) { try { const pr = audio.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* ignore */ } }
+      };
+      audio.addEventListener('loadedmetadata', onMeta);
+      setTimeout(() => { try { audio.load(); } catch (e) { /* ignore */ } }, 250); // SW si mezitím zpracuje zprávu o přepnutí
+    }
+    function reportBad(url) {
+      // SW podle adresy skladby ví, odkud ji podal; "from" je jen záloha, když si to nepamatuje.
+      post({ type: 'MIRROR_FAIL', from: r2First ? 'r2' : 'github', url: url || '' });
+    }
+    window.mirrorReportBad = function (url) { if (mode === 'auto') reportBad(url); };
+    function switchSource(resume) {
+      reportBad(audio.currentSrc || audio.src);
+      reloadSame(resume);
+    }
+    // volá se z handleru chyby audia: true = skladba se zkouší znovu z druhého zdroje, přeskakovat nebudeme
+    window.mirrorRetry = function () {
+      if (mode !== 'auto' || !ctl() || navigator.onLine === false) return false;
+      const src = audio.currentSrc || audio.src;
+      if (!isGh(src)) return false;
+      const now = Date.now();
+      if (lastRetrySrc === src && now - lastRetryAt < RETRY_GAP_MS) return false; // tahle skladba už se zkoušela
+      lastRetrySrc = src; lastRetryAt = now;
+      switchSource(true);
+      return true;
+    };
+    function clearStall() { if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; } }
+    audio.addEventListener('waiting', () => {
+      clearStall();
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        if (mode !== 'auto' || !isPlaying || audio.paused || navigator.onLine === false || !ctl()) return;
+        if (typeof bulkDownloadInProgress !== 'undefined' && bulkDownloadInProgress) return; // zpomalení způsobuje stahování
+        const src = audio.currentSrc || audio.src;
+        if (!isGh(src)) return;
+        const now = Date.now();
+        if (now - lastRetryAt < RETRY_GAP_MS) return;
+        lastRetryAt = now; lastRetrySrc = src;
+        switchSource(true);
+      }, STALL_MS);
+    });
+    ['playing', 'canplay', 'pause', 'emptied', 'ended'].forEach((ev) => audio.addEventListener(ev, clearStall));
+
+    function fmtTest(r) {
+      const cz = isCz();
+      const L = [];
+      if (!r.configured) return cz ? 'R2 není v sw.js nastaveno.' : 'R2 is not set up in sw.js.';
+      const c = r.cors;
+      if (c && c.ok && (c.v.status === 200 || c.v.status === 206)) {
+        if (c.v.status === 206 && !c.v.range) L.push(cz ? '⚠ R2 odpovídá, ale chybí CORS „Expose Headers“ (Content-Range). Přehrávání poběží, jen méně pohodlně.' : '⚠ R2 responds, but CORS “Expose Headers” (Content-Range) is missing. Playback works, just less smoothly.');
+        else L.push((cz ? '✓ R2 funguje (CORS i přetáčení)' : '✓ R2 works (CORS and seeking)') + ' · ' + c.ms + ' ms');
+      } else if (c && c.ok) {
+        L.push((cz ? '✗ R2 vrátilo chybu ' : '✗ R2 returned error ') + c.v.status + (c.v.status === 404 ? (cz ? ' – soubor tam není (zkontroluj název a složku).' : ' – file not found (check name and folder).') : ''));
+      } else if (r.reachable && r.reachable.ok) {
+        L.push(cz ? '⚠ R2 je dostupné, ale chybí CORS. Hudba z R2 bude hrát, stahování offline z R2 ne.' : '⚠ R2 is reachable but CORS is missing. Music from R2 will play, offline download from R2 will not.');
+      } else {
+        L.push(cz ? '✗ R2 není dostupné (adresa, veřejný přístup nebo připojení).' : '✗ R2 is unreachable (address, public access or connection).');
+      }
+      const g = r.github;
+      L.push(g && g.ok ? ('GitHub: OK · ' + g.ms + ' ms') : (cz ? 'GitHub: nedostupný' : 'GitHub: unreachable'));
+      return L.join('\n');
+    }
+    function setResult(t) { const el = document.getElementById('su-r2-result'); if (el) el.textContent = t; }
+
+    function onMsg(e) {
+      const d = e && e.data;
+      if (!d || typeof d.type !== 'string') return;
+      if (d.type === 'MIRROR_STATE') {
+        r2First = !!d.r2First;
+        if (d.served === 'r2' && mode === 'auto' && Date.now() - lastToastAt > 300000) {
+          lastToastAt = Date.now();
+          try { showToast(isCz() ? 'GitHub je pomalý nebo nedostupný – hraje záloha (R2)' : 'GitHub is slow or unavailable – playing from backup (R2)', '🛟'); } catch (err) { /* ignore */ }
+        }
+      } else if (d.type === 'MIRROR_TEST_RESULT') {
+        setResult(fmtTest(d.report || {}));
+        const tb = document.getElementById('su-r2-test'); if (tb) tb.disabled = false;
+      }
+    }
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', onMsg);
+        navigator.serviceWorker.addEventListener('controllerchange', () => setTimeout(sendMode, 300));
+        navigator.serviceWorker.ready.then(() => setTimeout(sendMode, 300)).catch(() => {});
+      }
+    } catch (e) { /* ignore */ }
+
+    document.addEventListener('click', (e) => {
+      const sb = e.target.closest && e.target.closest('.su-seg[data-musicsrc] button');
+      if (sb) {
+        mode = sb.getAttribute('data-v');
+        try { localStorage.setItem(MODE_KEY, mode); } catch (err) { /* ignore */ }
+        renderSeg(); sendMode();
+        setResult(mode === 'r2' ? (isCz() ? 'Hudba teď jede z R2. Další skladba/načtení půjde z R2.' : 'Music now comes from R2. The next track/load will use R2.') : '');
+        return;
+      }
+      const tb = e.target.closest && e.target.closest('#su-r2-test');
+      if (tb) {
+        if (!ctl()) { setResult(isCz() ? 'Test potřebuje aktivní Service Worker – obnov stránku a zkus znovu.' : 'The test needs an active Service Worker – reload the page and try again.'); return; }
+        let file = '';
+        try { const t = (tracks.asmr || tracks.piano || [])[0]; file = t && t.src ? t.src.slice(t.src.lastIndexOf('/') + 1) : ''; } catch (err) { /* ignore */ }
+        tb.disabled = true; setResult(isCz() ? 'Testuji…' : 'Testing…');
+        post({ type: 'MIRROR_TEST', file: file });
+        setTimeout(() => { if (tb.disabled) { tb.disabled = false; setResult(isCz() ? 'Test neodpověděl (starší sw.js? nahraj nový a obnov stránku).' : 'No answer (old sw.js? upload the new one and reload).'); } }, 15000);
+      }
+    });
+    renderSeg();
+  })();
 
   progressContainer.addEventListener('click', (e) => {
     const duration = audio.duration;
