@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.5.2">
+<meta name="app-version" content="2.5.3">
 <!-- iOS: skrytí adresního řádku a Safari lišt po přidání na plochu -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -498,6 +498,15 @@
   .myfiles-pl-picker .btn-feature { font-size: 10px; padding: 4px 9px; min-width: 0; }
   .myfiles-pl-picker .myfiles-pl-picker-note { font-size: 10px; opacity: 0.6; align-self: center; }
   .myfiles-pl-picker .btn-feature.in-pl { opacity: 0.55; }
+  /* F: složky - hlavička složky v seznamu souborů, odsazené soubory uvnitř, štítek "bez složky" */
+  #myfiles-list li.myfiles-folder-head { cursor: pointer; font-weight: 600; background: rgba(255,255,255,0.05); border-left: 2px solid var(--accent-color); margin-top: 4px; }
+  #myfiles-list li.myfiles-folder-head:hover { background: rgba(255,255,255,0.09); }
+  #myfiles-list li.myfiles-folder-head .history-name { color: var(--accent-color); cursor: pointer; }
+  .myfiles-folder-caret { font-size: 9px; opacity: 0.6; flex-shrink: 0; }
+  .myfiles-folder-count { font-size: 10px; opacity: 0.6; flex-shrink: 0; }
+  #myfiles-list li.myfiles-in-folder { margin-left: 12px; border-left: 1px dashed rgba(255,255,255,0.18); }
+  #myfiles-list li.myfiles-folder-label, #myfiles-list li.myfiles-folder-label:hover { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.55; cursor: default; background: none; padding-left: 5px; margin-top: 8px; }
+  .myfiles-folder-create { margin: 0 0 8px; }
   /* MY PLAYLIST v pickeru (＋): svítí barvou motivu, dokud je soubor v MY PLAYLIST (přidaný srdíčkem) */
   .myfiles-pl-picker .btn-feature.in-queue { opacity: 1; color: var(--accent-color); border-color: var(--accent-color); box-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); }
   .myfiles-add-track-row .myfiles-text-input { flex: 1 1 auto; }
@@ -3264,6 +3273,10 @@
   body.focus-mode-2 .layer-badge { opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s linear 0.6s; }
   /* Schovaný řádek dál zabírá místo (visibility, ne display:none), aby player při zapnutí vrstev neposkočil */
   .layer-hint[hidden] { display: block; visibility: hidden; }
+  /* Název přehrávaného vlastního playlistu (z F) nad seznamem skladeb */
+  .pl-name-banner { width: 90%; margin: 0 auto 4px auto; box-sizing: border-box; padding: 0; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--accent-color); overflow: hidden; white-space: nowrap; }
+  .pl-name-banner[hidden] { display: none; }
+  body.focus-mode-2 .pl-name-banner { display: none; }
   /* Knob: kovová čepička, oblouk hlasitosti se září (sílí s hlasitostí), značka středu (50 %),
      plynulý pohyb, zvětšení při najetí/tažení a větší dotyková plocha. --p = 0..1 (nastavuje JS). */
   @property --p { syntax: '<number>'; inherits: true; initial-value: 0.5; }
@@ -4020,6 +4033,7 @@
   </div>
   
   <div class="layer-hint" id="layer-hint" hidden>Tap a second ASMR track to layer it.</div>
+  <div class="pl-name-banner" id="pl-name-banner" hidden></div>
   <div class="playlist-wrap" id="playlist-wrap">
   <ul class="playlist" id="playlist"></ul>
   <div class="f3-grip" id="f3-grip" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Drag to resize the playlist" title="Drag to resize · double-tap = automatic height"><span></span></div>
@@ -4487,6 +4501,10 @@
     <div id="myfiles-playlists"></div>
 
     <h4 class="myfiles-subhead" data-i18n="mf_h_files">Your Files</h4>
+    <div class="myfiles-create-row myfiles-folder-create">
+      <input type="text" id="myfiles-folder-name" class="myfiles-text-input" placeholder="New folder name" data-i18n-placeholder="mf_ph_folder" maxlength="40" autocomplete="off">
+      <button class="btn-feature" data-i18n="mf_btn_folder" onclick="createMyFolder()">📁 NEW FOLDER</button>
+    </div>
     <p class="main-guide-note" id="myfiles-empty-note" data-i18n="mf_files_empty" style="display:none;">No files added yet.</p>
     <div class="myfiles-bulk" id="myfiles-bulk"></div>
     <ul class="history-list" id="myfiles-list"></ul>
@@ -4538,6 +4556,8 @@
     <div class="main-guide-section">
       <h4 data-i18n="h_myfiles_quick">2. Quick add with ♥ and ＋</h4>
       <p data-i18n="p_myfiles_quick">Every file under &quot;Your Files&quot; has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under &quot;Your Playlists&quot; and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds. To add many files at once, tap ☑ SELECT FILES above the list, tick the files you want (or tap ☑ ALL), then tap ♥ MY PLAYLIST or ＋ and a playlist name in the bar - every ticked file is added in one go, and files that are already there are skipped. Tap ✕ DONE to leave selecting.</p>
+      <h4 data-i18n="h_myfiles_folders">Folders for lots of files</h4>
+      <p data-i18n="p_myfiles_folders">With a big music library the list of files gets long, so you can sort it into folders. Type a name above the list of files and tap NEW FOLDER. To move a file, tap its ＋ and pick a folder under &quot;Move to folder&quot;; to move many files at once, tap ☑ SELECT FILES, tick them and tap a folder in the bar. Tap a folder to open or close it, ✎ renames it and ✕ deletes it - the files are never deleted, they just return to the list without a folder. Search looks inside folders too.</p>
     </div>
 
     <div class="main-guide-section">
@@ -10387,8 +10407,48 @@
     }
   }
 
+  // Název vlastního playlistu z F (key 'custom:<id>') nahoře nad tracklistem; u ASMR/PIANO/CHILL, My Playlist a jednotlivého souboru se skryje
+  function updatePlaylistNameBanner() {
+    const el = document.getElementById('pl-name-banner');
+    if (!el) return;
+    let name = '';
+    try {
+      if (mainListShowsQueue) {
+        name = activeMoodFilter() || ''; // MY PLAYLIST: hraje se jen vybraná sekce
+      } else if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0 && currentPlaylistKey.indexOf('custom:file:') !== 0) {
+        const pl = myPlaylists.find(p => p.id === currentPlaylistKey.slice('custom:'.length));
+        if (pl && pl.name) name = pl.name;
+      }
+    } catch (e) { name = ''; }
+    el.classList.remove('marquee-on');
+    if (!name) { el.textContent = ''; el.title = ''; el.hidden = true; return; }
+    el.textContent = '\u266A ' + name;
+    el.title = name;
+    el.hidden = false;
+    marqueeWrap(el);
+    if (el.clientWidth > 0) marqueeActivate(el); // dlouhý název se plynule posouvá tam a zpět místo třech teček (při šířce 0 se změří později, viz ResizeObserver)
+  }
+
+  // Přeměření posouvání názvu, když se změní šířka (otočení displeje, změna okna, návrat z FOCUS 2, kde je název skrytý a šířka 0)
+  (function initPlaylistNameBannerResize() {
+    try {
+      const el = document.getElementById('pl-name-banner');
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      let lastW = -1;
+      new ResizeObserver(() => {
+        const w = el.clientWidth;
+        if (w === lastW) return;
+        lastW = w;
+        if (el.hidden || w <= 0) return;
+        marqueeDeactivate(el);
+        marqueeActivate(el);
+      }).observe(el);
+    } catch (e) { /* ignore */ }
+  })();
+
   async function updatePlaylistUI() {
     playlistEl.innerHTML = '';
+    updatePlaylistNameBanner();
 
     // Pokud hlavní okno právě prohlíží frontu "My Playlist" (viz mainListShowsQueue),
     // zobrazí JEJÍ obsah - jinak normálně naposledy vybraný ASMR/PIANO/CHILL playlist.
@@ -10951,6 +11011,10 @@
     mf_ph_search: { en: "Search files & playlists…", cz: "Hledat v souborech a playlistech…" },
     mf_aria_search: { en: "Search files and playlists", cz: "Hledat v souborech a playlistech" },
     mf_btn_create: { en: "CREATE", cz: "VYTVOŘIT" },
+    mf_ph_folder: { en: "New folder name", cz: "Název nové složky" },
+    mf_btn_folder: { en: "📁 NEW FOLDER", cz: "📁 NOVÁ SLOŽKA" },
+    h_myfiles_folders: { en: "Folders for lots of files", cz: "Složky pro hodně souborů" },
+    p_myfiles_folders: { en: "With a big music library the list of files gets long, so you can sort it into folders. Type a name above the list of files and tap NEW FOLDER. To move a file, tap its ＋ and pick a folder under \"Move to folder\"; to move many files at once, tap ☑ SELECT FILES, tick them and tap a folder in the bar. Tap a folder to open or close it, ✎ renames it and ✕ deletes it - the files are never deleted, they just return to the list without a folder. Search looks inside folders too.", cz: "Když máš hodně hudby, seznam souborů je dlouhý, a proto ho můžeš třídit do složek. Napiš nad seznamem souborů název a klepni na NOVÁ SLOŽKA. Soubor přesuneš klepnutím na jeho ＋ a výběrem složky v části „Přesunout do složky“; víc souborů najednou přesuneš přes ☑ VYBRAT SOUBORY, zaškrtnutím souborů a klepnutím na složku v liště. Klepnutím na složku ji otevřeš nebo zavřeš, ✎ ji přejmenuje a ✕ ji smaže - soubory se nikdy nemažou, jen se vrátí do seznamu bez složky. Hledání prochází i složky." },
     mf_pl_empty: { en: "No playlists yet. Create one above, then add your files and SYNTHLUCIDA tracks to it.", cz: "Zatím žádné playlisty. Nahoře si nějaký vytvořte a pak do něj přidejte své soubory a skladby SYNTHLUCIDA." },
     mf_files_empty: { en: "No files added yet.", cz: "Zatím nejsou přidány žádné soubory." },
     mf_note_local: { en: "Uploaded files and playlists are stored locally in your browser and are never sent anywhere.", cz: "Nahrané soubory a playlisty se ukládají pouze lokálně ve vašem prohlížeči a nikam se neodesílají." },
@@ -11691,6 +11755,7 @@
     pl.name = trimmed;
     saveMyPlaylistsToStorage();
     renderMyFiles();
+    updatePlaylistNameBanner();
   };
 
   window.deleteMyPlaylist = function(playlistId) {
@@ -11921,6 +11986,15 @@
       const already = pl.items.some(it => it && it.type === 'file' && it.fileId === f.id);
       addTo((already ? '✓ ' : '＋ ') + pl.name, () => addFileToMyPlaylist(pl.id, f.id), already);
     });
+    // Přesunout do složky
+    const folderLbl = document.createElement('span');
+    folderLbl.className = 'myfiles-pl-picker-note';
+    folderLbl.style.flexBasis = '100%';
+    folderLbl.textContent = myFolders.length ? mfT('Move to folder:', 'Přesunout do složky:') : mfT('No folders yet - create one above the list of files.', 'Zatím žádná složka - vytvořte si ji nad seznamem souborů.');
+    box.appendChild(folderLbl);
+    const curFolder = fileFolderId(f.id);
+    myFolders.forEach(fo => addTo((curFolder === fo.id ? '✓ ' : '📁 ') + fo.name, () => moveFilesToFolder([f.id], fo.id), curFolder === fo.id));
+    if (curFolder) addTo(mfT('↩ NO FOLDER', '↩ BEZ SLOŽKY'), () => moveFilesToFolder([f.id], null), false);
     return box;
   }
 
@@ -11954,11 +12028,123 @@
   }
 
   // Seznam "Your Files": jen zobrazení A-Z (nic se nemaže ani nepřesouvá, volba se pamatuje)
+  // ==========================================
+  // F: SLOŽKY pro vlastní soubory (jen organizace seznamu - soubory v IndexedDB, playlisty ani MY PLAYLIST se nemění)
+  // Uloženo v localStorage: { folders:[{id,name}], map:{fileId:folderId}, open:[folderId] }
+  // ==========================================
+  const MYFILES_FOLDERS_KEY = 'synthlucida_myfiles_folders';
+  const MYFILES_FOLDER_MAX = 40;
+  let myFolders = [];
+  let myFolderMap = Object.create(null);
+  let myFolderOpen = Object.create(null);
+  function loadMyFolders() {
+    myFolders = []; myFolderMap = Object.create(null); myFolderOpen = Object.create(null);
+    try {
+      const raw = JSON.parse(localStorage.getItem(MYFILES_FOLDERS_KEY) || 'null');
+      if (!raw || typeof raw !== 'object') return;
+      (Array.isArray(raw.folders) ? raw.folders : []).forEach(f => {
+        if (!f || typeof f.id !== 'string' || typeof f.name !== 'string') return;
+        const name = f.name.replace(/\s+/g, ' ').trim().slice(0, 40);
+        if (!name || myFolders.length >= MYFILES_FOLDER_MAX || myFolders.some(x => x.id === f.id)) return;
+        myFolders.push({ id: f.id, name });
+      });
+      const ids = new Set(myFolders.map(f => f.id));
+      const m = (raw.map && typeof raw.map === 'object') ? raw.map : {};
+      Object.keys(m).forEach(k => { if (k !== '__proto__' && typeof m[k] === 'string' && ids.has(m[k])) myFolderMap[k] = m[k]; });
+      (Array.isArray(raw.open) ? raw.open : []).forEach(id => { if (ids.has(id)) myFolderOpen[id] = true; });
+    } catch (e) { /* poškozená data: začne se bez složek */ }
+  }
+  function saveMyFolders() {
+    try { localStorage.setItem(MYFILES_FOLDERS_KEY, JSON.stringify({ folders: myFolders, map: myFolderMap, open: Object.keys(myFolderOpen) })); } catch (e) { /* ignore */ }
+  }
+  loadMyFolders();
+  // složka souboru (jen existující, jinak null = bez složky)
+  function fileFolderId(fileId) { const id = myFolderMap[fileId]; return (id && myFolders.some(f => f.id === id)) ? id : null; }
+  function folderFileCount(folderId) { return myFilesLibrary.reduce((n, f) => n + (fileFolderId(f.id) === folderId ? 1 : 0), 0); }
+  // úklid: odkazy na soubory, které už v knihovně nejsou (jen když se knihovna načetla v pořádku)
+  function pruneFolderMap() {
+    if (typeof myFilesLibraryOk !== 'undefined' && !myFilesLibraryOk) return;
+    const ids = new Set(myFilesLibrary.map(f => f.id));
+    let changed = false;
+    Object.keys(myFolderMap).forEach(k => { if (!ids.has(k)) { delete myFolderMap[k]; changed = true; } });
+    if (changed) saveMyFolders();
+  }
+
+  window.createMyFolder = function() {
+    const input = document.getElementById('myfiles-folder-name');
+    const name = ((input && input.value) || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (!name) return;
+    if (myFolders.some(f => f.name.toLowerCase() === name.toLowerCase())) { showToast(mfT('That folder already exists', 'Taková složka už existuje'), '📁'); return; }
+    if (myFolders.length >= MYFILES_FOLDER_MAX) { showToast(mfT('Maximum is ' + MYFILES_FOLDER_MAX + ' folders', 'Maximum je ' + MYFILES_FOLDER_MAX + ' složek'), '📁'); return; }
+    const id = 'fld' + myFilesGenId();
+    myFolders.push({ id, name });
+    myFolderOpen[id] = true;
+    if (input) input.value = '';
+    saveMyFolders();
+    renderMyFiles();
+    showToast(mfT('Folder created: ', 'Složka vytvořena: ') + name, '📁');
+  };
+  window.toggleMyFolderOpen = function(folderId) {
+    if (myFolderOpen[folderId]) delete myFolderOpen[folderId]; else myFolderOpen[folderId] = true;
+    saveMyFolders();
+    renderMyFiles();
+  };
+  window.renameMyFolder = function(folderId) {
+    const fo = myFolders.find(f => f.id === folderId);
+    if (!fo) return;
+    const nn = prompt(mfT('Folder name:', 'Název složky:'), fo.name);
+    if (nn === null) return;
+    const name = nn.replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (!name) return;
+    if (myFolders.some(f => f.id !== folderId && f.name.toLowerCase() === name.toLowerCase())) { showToast(mfT('That folder already exists', 'Taková složka už existuje'), '📁'); return; }
+    fo.name = name;
+    saveMyFolders();
+    renderMyFiles();
+  };
+  window.deleteMyFolder = function(folderId) {
+    const fo = myFolders.find(f => f.id === folderId);
+    if (!fo) return;
+    const n = folderFileCount(folderId);
+    if (!confirm(mfT('Delete the folder "' + fo.name + '"?' + (n ? '\n\nThe ' + n + ' file(s) are NOT deleted - they just return to the list without a folder.' : ''),
+                     'Smazat složku „' + fo.name + '“?' + (n ? '\n\nSoubory (' + n + ') se NEMAŽOU - jen se vrátí do seznamu bez složky.' : '')))) return;
+    Object.keys(myFolderMap).forEach(k => { if (myFolderMap[k] === folderId) delete myFolderMap[k]; });
+    myFolders = myFolders.filter(f => f.id !== folderId);
+    delete myFolderOpen[folderId];
+    saveMyFolders();
+    renderMyFiles();
+  };
+  // Přesun souborů do složky (folderId = null: zpět do seznamu bez složky)
+  window.moveFilesToFolder = function(fileIds, folderId) {
+    const fo = folderId ? myFolders.find(f => f.id === folderId) : null;
+    if (folderId && !fo) return;
+    let moved = 0;
+    (fileIds || []).forEach(id => {
+      if (!myFilesLibrary.some(f => f.id === id)) return;
+      if ((fileFolderId(id) || null) === (folderId || null)) return;
+      if (fo) myFolderMap[id] = fo.id; else delete myFolderMap[id];
+      moved++;
+    });
+    if (fo && moved) myFolderOpen[fo.id] = true;
+    openFilePickerId = null;
+    (fileIds || []).forEach(id => myFilesSelected.delete(id)); // z výběru jen přesunuté soubory (přesun přes ＋ nezruší zbytek výběru)
+    if (moved) saveMyFolders();
+    renderMyFiles();
+    showToast(moved
+      ? (fo ? mfT(`Moved to ${fo.name}: ${moved}`, `Přesunuto do složky ${fo.name}: ${moved}`) : mfT(`Moved out of folders: ${moved}`, `Vráceno bez složky: ${moved}`))
+      : mfT('Nothing to move', 'Není co přesouvat'), '📁');
+  };
+
   const MYFILES_SORT_KEY = 'synthlucida_myfiles_sort_az';
   let myFilesSortAZ = false;
   try { myFilesSortAZ = localStorage.getItem(MYFILES_SORT_KEY) === '1'; } catch (e) { /* ignore */ }
   function getMyFilesDisplayOrder() {
-    return myFilesSortAZ ? myFilesLibrary.slice().sort((a, b) => azCompare(a.name, b.name)) : myFilesLibrary;
+    const base = myFilesSortAZ ? myFilesLibrary.slice().sort((a, b) => azCompare(a.name, b.name)) : myFilesLibrary;
+    if (!myFolders.length) return base;
+    // pořadí shodné s tím, co se kreslí: soubory ve složkách (podle pořadí složek), potom soubory bez složky
+    const out = [];
+    myFolders.forEach(fo => base.forEach(f => { if (fileFolderId(f.id) === fo.id) out.push(f); }));
+    base.forEach(f => { if (!fileFolderId(f.id)) out.push(f); });
+    return out;
   }
   window.toggleMyFilesSortAZ = function() {
     myFilesSortAZ = !myFilesSortAZ;
@@ -12103,12 +12289,79 @@
       row2.appendChild(note);
     }
     bar.appendChild(row2);
+
+    const row3 = document.createElement('div');
+    row3.className = 'myfiles-bulk-row';
+    const lbl3 = document.createElement('span');
+    lbl3.className = 'myfiles-bulk-label';
+    lbl3.textContent = mfT('Move selected to folder:', 'Vybrané přesunout do složky:');
+    row3.appendChild(lbl3);
+    myFolders.forEach(fo => mk(row3, '📁 ' + fo.name, () => moveFilesToFolder(getSelectedMyFiles().map(f => f.id), fo.id), { disabled: none }));
+    if (myFolders.length) mk(row3, mfT('↩ NO FOLDER', '↩ BEZ SLOŽKY'), () => moveFilesToFolder(getSelectedMyFiles().map(f => f.id), null), { disabled: none });
+    else {
+      const note3 = document.createElement('span');
+      note3.className = 'myfiles-bulk-label';
+      note3.textContent = mfT('(create a folder above the list first)', '(nejdřív si nad seznamem vytvořte složku)');
+      row3.appendChild(note3);
+    }
+    bar.appendChild(row3);
+  }
+
+  // Hlavička složky v seznamu souborů: klepnutím se složka otevře/zavře; ✎ přejmenuje, ✕ smaže (soubory zůstanou)
+  function buildMyFolderHeader(fo) {
+    const li = document.createElement('li');
+    li.className = 'myfiles-folder-head';
+    li.dataset.folderId = fo.id;
+    const files = getMyFilesDisplayOrder().filter(f => fileFolderId(f.id) === fo.id);
+    const isOpen = !!myFolderOpen[fo.id];
+    if (myFilesSelectMode) {
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.className = 'myfiles-sel-box';
+      box.checked = files.length > 0 && files.every(f => myFilesSelected.has(f.id));
+      box.disabled = !files.length;
+      box.setAttribute('aria-label', mfT('Select all files in ', 'Vybrat všechny soubory ve složce ') + fo.name);
+      box.addEventListener('click', (e) => e.stopPropagation());
+      box.addEventListener('change', () => { files.forEach(f => { if (box.checked) myFilesSelected.add(f.id); else myFilesSelected.delete(f.id); }); renderMyFiles(); });
+      li.appendChild(box);
+    }
+    const caret = document.createElement('span');
+    caret.className = 'myfiles-folder-caret';
+    caret.textContent = isOpen ? '▾' : '▸';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'history-name';
+    nameSpan.textContent = '📁 ' + fo.name;
+    nameSpan.title = fo.name;
+    setupHoverMarquee(nameSpan);
+    const count = document.createElement('span');
+    count.className = 'myfiles-folder-count';
+    count.textContent = '(' + files.length + ')';
+    const renBtn = document.createElement('button');
+    renBtn.className = 'icon-btn';
+    renBtn.title = mfT('Rename folder', 'Přejmenovat složku');
+    renBtn.setAttribute('aria-label', renBtn.title);
+    renBtn.textContent = '✎';
+    renBtn.addEventListener('click', (e) => { e.stopPropagation(); renameMyFolder(fo.id); });
+    const delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn';
+    delBtn.title = mfT('Delete folder (files are kept)', 'Smazat složku (soubory zůstanou)');
+    delBtn.setAttribute('aria-label', delBtn.title);
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteMyFolder(fo.id); });
+    li.appendChild(caret);
+    li.appendChild(nameSpan);
+    li.appendChild(count);
+    li.appendChild(renBtn);
+    li.appendChild(delBtn);
+    li.addEventListener('click', () => toggleMyFolderOpen(fo.id));
+    return li;
   }
 
   // Vykreslení celého panelu My Files (seznam souborů + seznam playlistů)
   function renderMyFilesCore() {
     const listEl = document.getElementById('myfiles-list');
     const emptyNote = document.getElementById('myfiles-empty-note');
+    try { pruneFolderMap(); } catch (e) { console.error(e); }
     try { renderMyFilesBulkBar(); } catch (e) { console.error(e); }
     if (listEl) {
       listEl.innerHTML = '';
@@ -12116,8 +12369,9 @@
         if (emptyNote) emptyNote.style.display = '';
       } else {
         if (emptyNote) emptyNote.style.display = 'none';
-        getMyFilesDisplayOrder().forEach(f => {
+        const appendFileRow = (f, inFolder) => {
           const li = document.createElement('li');
+          if (inFolder) li.classList.add('myfiles-in-folder');
           if (myFilesSelectMode) {
             const selBox = document.createElement('input');
             selBox.type = 'checkbox';
@@ -12191,7 +12445,24 @@
           li.appendChild(removeBtnEl);
           listEl.appendChild(li);
           if (openFilePickerId === f.id) listEl.appendChild(buildFilePlaylistPicker(f));
-        });
+        };
+        const order = getMyFilesDisplayOrder();
+        if (!myFolders.length) {
+          order.forEach(f => appendFileRow(f, false));
+        } else {
+          myFolders.forEach(fo => {
+            listEl.appendChild(buildMyFolderHeader(fo));
+            order.forEach(f => { if (fileFolderId(f.id) === fo.id) appendFileRow(f, true); });
+          });
+          const loose = order.filter(f => !fileFolderId(f.id));
+          if (loose.length) {
+            const lab = document.createElement('li');
+            lab.className = 'myfiles-folder-label';
+            lab.textContent = mfT('Without a folder', 'Bez složky') + ' (' + loose.length + ')';
+            listEl.appendChild(lab);
+            loose.forEach(f => appendFileRow(f, false));
+          }
+        }
       }
     }
 
@@ -12340,10 +12611,25 @@
     if (listEl) {
       const order = getMyFilesDisplayOrder();
       let k = 0, lastShow = true;
+      // složky: při hledání se ukážou jen ty, kde je nalezený soubor (a jsou otevřené); jinak podle otevření/zavření
+      const folderHit = {};
+      if (active) order.forEach(f => { const fid = fileFolderId(f.id); if (fid && myFilesMatch(f.name)) folderHit[fid] = true; });
       Array.from(listEl.children).forEach(li => {
         let show;
-        if (li.classList.contains('myfiles-pl-picker')) show = lastShow; // nabídka "přidat do playlistu" patří k souboru nad ní
-        else { const f = order[k++]; show = !active || !!(f && myFilesMatch(f.name)); lastShow = show; if (show) shown++; }
+        if (li.classList.contains('myfiles-folder-head')) {
+          const fid = li.dataset.folderId;
+          const fo = myFolders.find(x => x.id === fid);
+          show = !active || !!folderHit[fid] || !!(fo && myFilesMatch(fo.name));
+          lastShow = show; if (show) shown++;
+        } else if (li.classList.contains('myfiles-folder-label')) {
+          show = !active; lastShow = show;
+        } else if (li.classList.contains('myfiles-pl-picker')) show = lastShow; // nabídka "přidat do playlistu" patří k souboru nad ní
+        else {
+          const f = order[k++];
+          const fid = f ? fileFolderId(f.id) : null;
+          show = (!active || !!(f && myFilesMatch(f.name))) && (!fid || active || !!myFolderOpen[fid]);
+          lastShow = show; if (show) shown++;
+        }
         li.style.display = show ? '' : 'none';
       });
     }

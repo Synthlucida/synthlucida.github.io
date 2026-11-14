@@ -91,7 +91,7 @@
 // auto - přidána fotka player-bg-sun-12.jpg do LAZY_ASSETS, cache zvýšena na v1279.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1285';
+const APP_CACHE_NAME = 'synthlucida-app-v1286';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
