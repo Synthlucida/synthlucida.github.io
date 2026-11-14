@@ -102,7 +102,7 @@
 //    Teď se kopie z R2 PŘESUNE pod GitHub adresu a nic se nemaže. Cache zvýšena na v1300.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1405';
+const APP_CACHE_NAME = 'synthlucida-app-v1502';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -501,8 +501,15 @@ async function fetchMediaWithFailover(request, mUrl) {
 }
 
 // DOWNLOAD OFFLINE skladby z GitHubu se zálohou na R2. Ukládá se vždy pod GitHub adresou.
+// Skladby, které má přehrávač právě načtené (hlásí je stránka před stahováním). Prohlížeč si u načtené skladby
+// pamatuje, z jakého serveru ji přehrává; kdyby se jí pod rukama uložila offline kopie z DRUHÉHO serveru,
+// přehrávání by se v půlce zastavilo. Taková skladba se proto smí uložit jen ze stejného zdroje, ze kterého hraje.
+let inUseUrls = new Set();
+
 async function downloadWithFailover(cache, request, mUrl) {
+  const lock = inUseUrls.has(request.url) ? (servedBy.get(request.url) || '') : '';
   const viaR2 = async () => {
+    if (lock === 'gh') throw new Error('track is playing from GitHub');
     const resp = await fetch(mUrl, { mode: 'cors', credentials: 'omit' });
     if (resp.status !== 200) throw new Error('R2 HTTP ' + resp.status);
     await cache.put(request.url, resp.clone());
@@ -510,6 +517,7 @@ async function downloadWithFailover(cache, request, mUrl) {
     return resp;
   };
   const viaGh = async () => {
+    if (lock === 'r2') throw new Error('track is playing from R2');
     const ac = new AbortController();
     // 40 s na to, aby GitHub vůbec začal odpovídat; pak na dotažení celé skladby (pomalé připojení) až 3 minuty.
     let t = setTimeout(() => ac.abort(), GH_DOWNLOAD_DEADLINE_MS);
@@ -542,6 +550,10 @@ async function downloadWithFailover(cache, request, mUrl) {
 self.addEventListener('message', (event) => {
   const d = event.data || {};
   if (!d || typeof d.type !== 'string' || d.type.indexOf('MIRROR_') !== 0) return;
+  if (d.type === 'MIRROR_INUSE') { // hned (bez čekání), aby to platilo dřív, než dorazí požadavek na stažení
+    inUseUrls = new Set((Array.isArray(d.urls) ? d.urls : []).filter((u) => typeof u === 'string').slice(0, 8));
+    return;
+  }
   event.waitUntil((async () => {
     await loadMirrorState();
     if (d.type === 'MIRROR_MODE') {
@@ -696,15 +708,15 @@ async function handleAudioRequest(event) {
 
   // Stažení MP3 do zařízení (odemčená skladba za XP): stránka chce soubor PŘEČÍST (mode 'cors').
   // GitHub to nikdy nedovolí (nemá CORS) a ani "opaque" kopie z cache se přečíst nedá - proto rovnou R2.
-  // Čitelná kopie se uloží pod GitHub adresu (jako u DOWNLOAD OFFLINE). Když R2 nejde nebo je
-  // záloha vypnutá (režim GITHUB), vrátí se chyba a stránka jako poslední záchranu otevře odkaz na GitHub.
+  // Když R2 nejde nebo je záloha vypnutá (režim GITHUB), vrátí se chyba a stránka jako poslední záchranu otevře odkaz na GitHub.
   if (mUrl && request.mode === 'cors') {
     if (!r2Allowed()) return offlineAudioResponse();
     try {
       const resp = await fetch(mUrl, { mode: 'cors', credentials: 'omit' });
       if (resp.status !== 200) return offlineAudioResponse();
-      try { await cache.put(request.url, resp.clone()); } catch (e) { /* plná paměť - stažení i tak proběhne */ }
-      markServed(request.url, 'r2');
+      // Do offline úložiště se tady NIC neukládá. Prohlížeč si u skladby pamatuje, odkud ji přehrává, a kdyby se
+      // uložená kopie během poslechu (nebo po něm) vyměnila za kopii z jiného serveru, přehrávání by se v půlce
+      // zastavilo s chybou. Uloženou kopii smí měnit jen DOWNLOAD OFFLINE.
       return resp;
     } catch (err) {
       return offlineAudioResponse();

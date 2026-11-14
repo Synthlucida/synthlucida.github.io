@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.7.3">
+<meta name="app-version" content="2.8.2">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -3884,6 +3884,10 @@
   @media (prefers-reduced-motion: reduce) { .brand-wordmark .brand-name { transition: none; } .brand-sub.brand-evap, .brand-sub.brand-born { animation-duration: 0.01s; } }
   body.opt-noanim .brand-wordmark .brand-name { transition: none; }
   body.opt-noanim .brand-sub.brand-evap, body.opt-noanim .brand-sub.brand-born { animation-duration: 0.01s; }
+  /* NIGHT: ON - koule na pozadí se samy schovají a tlačítko ORBS zašedne. Nastavení ORBS se nemění,
+     takže po vypnutí noci jsou koule zpátky, pokud je měl uživatel zapnuté. */
+  body.sl-night-on::before, body.sl-night-on .ambient-blobs { display: none !important; }
+  body.sl-night-on .btn-orbs { opacity: 0.3 !important; filter: grayscale(1); pointer-events: none; cursor: default; text-decoration: line-through; }
   /* ÚSPORNÝ REŽIM: koule na pozadí (otáčející se tečky i velké plynoucí koule) úplně zmizí */
   body.opt-lite::before, body.opt-lite .ambient-blobs { display: none !important; }
   /* ---- iPhone / iPad: nepodporované funkce zašedlé ---- */
@@ -5627,11 +5631,16 @@
   }
   // Náhodná skladba ze seznamu objektů {title,...}: bez "special", bez právě hrající a (pokud to jde) bez nedávno hraných.
   // Jsou-li všechny special, nic se nefiltruje.
+  // Skladba, která právě hraje jako DRUHÁ VRSTVA (ASMR MIX): nesmí se vybrat jako další hlavní skladba,
+  // jinak by hrála dvakrát přes sebe.
+  function isLayerTrack(t) {
+    try { return !!(t && layerActive && layerSrc && t.src === layerSrc); } catch (e) { return false; } // při startu ještě není vrstva připravená
+  }
   function randomTrackIndex(list, current) {
     const n = list ? list.length : 0;
     if (n <= 1) return 0;
     const pool = [];
-    for (let i = 0; i < n; i++) if (i !== current && !isSpecialTrack(list[i])) pool.push(i);
+    for (let i = 0; i < n; i++) if (i !== current && !isSpecialTrack(list[i]) && !isLayerTrack(list[i])) pool.push(i);
     if (pool.length) return pickNotRecent(list, pool);
     // žádná jiná "běžná" skladba: zůstane aktuální, je-li běžná; jinak (vše special) normální náhoda
     if (typeof current === 'number' && current >= 0 && current < n && !isSpecialTrack(list[current])) return current;
@@ -5646,6 +5655,10 @@
     if (n <= 0) return 0;
     const base = (typeof from === 'number' && from >= 0 && from < n) ? from : (dir > 0 ? -1 : 0);
     for (let k = 1; k <= n; k++) {
+      const p = (((base + dir * k) % n) + n) % n;
+      if (!isSpecialTrack(list[p]) && !isLayerTrack(list[p])) return p;
+    }
+    for (let k = 1; k <= n; k++) { // nezbylo nic jiného než skladba z druhé vrstvy - původní chování
       const p = (((base + dir * k) % n) + n) % n;
       if (!isSpecialTrack(list[p])) return p;
     }
@@ -8179,6 +8192,7 @@
           btn.innerText = "NIGHT: ON";
           btn.classList.add('active');
       }
+      try { document.body.classList.toggle('sl-night-on', sunsetMode === 3); } catch (e) { /* ignore */ } // NIGHT: koule na pozadí se schovají (CSS)
       if (sunsetMode === 3) loadMoonPhoto();
       if (sunsetMode !== 3) shootingStar = null; // ať noční obloha při návratu nenaskočí s "obletlou" hvězdou
       updateCanvasState();
@@ -10886,6 +10900,72 @@
     } catch (e) { /* ignore */ }
   }
 
+  // Stáhne jednu skladbu do offline úložiště a ověří, že je přehratelná. Vrací true, když je bezpečně uložená.
+  async function fetchTrackForOffline(track) {
+    let ok = false;
+    // Až 3 pokusy: pokus se opakuje jen tehdy, když uložený soubor NENÍ přehratelný
+    // (typicky chybová stránka z GitHubu). Už stažená skladba se také ověří, takže
+    // se tím vyléčí i dřív poškozené položky v cache.
+    for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+      const already = await isTrackCached(track.src);
+      if (!already) {
+        // Tyto MP3 soubory jsou hostované na GitHubu (releases), který u nich
+        // NEPOSÍLÁ hlavičku Access-Control-Allow-Origin. Obyčejný fetch() v
+        // režimu 'cors' (výchozí) proto pro každou zatím nestaženou skladbu
+        // rovnou SELHAL (CORS chyba) - tiše skončil dole v catch bloku, ale
+        // progress bar přesto naskočil na další skladbu, jako by bylo
+        // hotovo. Mode 'no-cors' je přesně to, co bez problémů používá i
+        // přehrávání přes <audio> tag, takže funguje spolehlivě i tady.
+        // Service Worker (sw.js) navíc teď čeká, než je soubor opravdu
+        // celý uložený v Cache Storage, než tuto odpověď vrátí.
+        await fetch(track.src, { mode: 'no-cors' });
+      }
+      // Ověříme si přímo v cache, jestli je skladba doopravdy stažená,
+      // místo abychom to jen předpokládali - badge/status tak vždy
+      // odpovídá realitě.
+      const nowCached = await isTrackCached(track.src);
+      if (!nowCached) {
+        console.log('Track still not cached after download attempt:', track.title);
+        break; // nejde o poškozený soubor (např. SW zatím nepřebírá kontrolu) - další pokus by jen zbytečně stahoval znovu
+      }
+      // Opaque odpověď nejde zkontrolovat podle statusu, takže ověříme obsah.
+      const verdict = await probeTrackPlayable(track.src);
+      if (verdict === 'bad') {
+        console.log(`Cached file is not playable (attempt ${attempt}/3), removing:`, track.title);
+        await removeTrackFromAudioCache(track.src);
+        // GitHub vrátil nepřehratelný soubor (chybová stránka) -> další pokus ať jde přes R2 zálohu.
+        try { if (window.mirrorReportBad) window.mirrorReportBad(track.src); } catch (e) {}
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt));
+        continue;
+      }
+      ok = true; // 'ok', nebo 'unknown' (ověření se nepovedlo - raději nic nemažeme)
+    }
+    return ok;
+  }
+
+  // Skladba, kterou má přehrávač právě načtenou, se do offline neukládá hned: prohlížeč si pamatuje, odkud ji
+  // přehrává, a kdyby se pod ní objevila kopie z jiného serveru (nebo se ověřovala kopie téže adresy), přehrávání
+  // by se mohlo v půlce zastavit. Počká se, až začne hrát jiná skladba, a pak se uloží sama.
+  let pendingOfflineTracks = [];
+  let pendingOfflineBusy = false;
+  async function flushPendingOffline() {
+    if (pendingOfflineBusy || !pendingOfflineTracks.length || navigator.onLine === false) return;
+    pendingOfflineBusy = true;
+    try {
+      const inUse = loadedTrackSrcs();
+      const todo = pendingOfflineTracks.filter((t) => inUse.indexOf(t.src) === -1);
+      for (const t of todo) {
+        let ok = false;
+        try { if (window.mirrorInUse) window.mirrorInUse(loadedTrackSrcs()); ok = await fetchTrackForOffline(t); } catch (e) { /* zkusí se příště */ }
+        if (ok || loadedTrackSrcs().indexOf(t.src) === -1) pendingOfflineTracks = pendingOfflineTracks.filter((x) => x !== t); // neúspěch u nehrající skladby = běžné selhání, znovu až ručně
+        if (ok) { const idx = playlist.indexOf(t); const badge = idx >= 0 ? document.getElementById(`offline-badge-${idx}`) : null; if (badge) badge.innerText = '✓ OFFLINE'; }
+      }
+      try { if (window.mirrorInUse) window.mirrorInUse([]); } catch (e) { /* ignore */ }
+      if (todo.length) updateOfflineStatus();
+    } finally { pendingOfflineBusy = false; }
+  }
+  try { audio.addEventListener('loadstart', () => { if (pendingOfflineTracks.length) setTimeout(flushPendingOffline, 4000); }); } catch (e) { /* ignore */ }
+
   // Stáhne offline vybrané skladby aktuálního playlistu (indexy v playlistu). Bez parametru = celý playlist.
   async function runOfflineDownload(indices) {
     const btn = document.getElementById('btn-download');
@@ -10900,6 +10980,14 @@
     const order = (Array.isArray(indices) ? indices : list.map((t, i) => i))
       .filter((i, k, a) => Number.isInteger(i) && i >= 0 && i < list.length && a.indexOf(i) === k);
     if (!order.length) return;
+    // bez internetu není co stahovat - jasná hláška místo "FAILED"
+    if (navigator.onLine === false) {
+      let missing = 0;
+      for (const i of order) { try { if (!(await isTrackCached(list[i].src))) missing++; } catch (e) { missing++; } }
+      showToast(missing ? (guideLang === 'cz' ? 'Ke stažení skladeb do offline je potřeba internet. Připoj se a zkus to znovu.' : 'Downloading tracks for offline needs an internet connection. Go online and try again.')
+                        : (guideLang === 'cz' ? 'Vše je už stažené offline.' : 'Everything is already downloaded for offline.'), missing ? '📶' : '✓');
+      return;
+    }
     const originalText = btn.innerText;
     btn.disabled = true;
     progWrap.classList.add('active');
@@ -10912,50 +11000,22 @@
     bulkDownloadInProgress = true;
 
     let failedCount = 0;
+    const deferred = []; // právě načtené skladby - uloží se samy, až začne hrát jiná
 
     for (let n = 0; n < order.length; n++) {
       const i = order[n];
       const track = list[i];
+      const inUse = loadedTrackSrcs();
+      const trackInUse = inUse.indexOf(track.src) !== -1;
+      try { if (window.mirrorInUse) window.mirrorInUse(inUse); } catch (e) { /* ignore */ }
       btn.innerText = `DOWNLOADING ${Math.round((n / order.length) * 100)}%`;
       let trackOk = false;
 
       try {
-        // Až 3 pokusy: pokus se opakuje jen tehdy, když uložený soubor NENÍ přehratelný
-        // (typicky chybová stránka z GitHubu). Už stažená skladba se také ověří, takže
-        // se tím vyléčí i dřív poškozené položky v cache.
-        for (let attempt = 1; attempt <= 3 && !trackOk; attempt++) {
-          const already = await isTrackCached(track.src);
-          if (!already) {
-            // Tyto MP3 soubory jsou hostované na GitHubu (releases), který u nich
-            // NEPOSÍLÁ hlavičku Access-Control-Allow-Origin. Obyčejný fetch() v
-            // režimu 'cors' (výchozí) proto pro každou zatím nestaženou skladbu
-            // rovnou SELHAL (CORS chyba) - tiše skončil dole v catch bloku, ale
-            // progress bar přesto naskočil na další skladbu, jako by bylo
-            // hotovo. Mode 'no-cors' je přesně to, co bez problémů používá i
-            // přehrávání přes <audio> tag, takže funguje spolehlivě i tady.
-            // Service Worker (sw.js) navíc teď čeká, než je soubor opravdu
-            // celý uložený v Cache Storage, než tuto odpověď vrátí.
-            await fetch(track.src, { mode: 'no-cors' });
-          }
-          // Ověříme si přímo v cache, jestli je skladba doopravdy stažená,
-          // místo abychom to jen předpokládali - badge/status tak vždy
-          // odpovídá realitě.
-          const nowCached = await isTrackCached(track.src);
-          if (!nowCached) {
-            console.log('Track still not cached after download attempt:', track.title);
-            break; // nejde o poškozený soubor (např. SW zatím nepřebírá kontrolu) - další pokus by jen zbytečně stahoval znovu
-          }
-          // Opaque odpověď nejde zkontrolovat podle statusu, takže ověříme obsah.
-          const verdict = await probeTrackPlayable(track.src);
-          if (verdict === 'bad') {
-            console.log(`Cached file is not playable (attempt ${attempt}/3), removing:`, track.title);
-            await removeTrackFromAudioCache(track.src);
-            // GitHub vrátil nepřehratelný soubor (chybová stránka) -> další pokus ať jde přes R2 zálohu.
-            try { if (window.mirrorReportBad) window.mirrorReportBad(track.src); } catch (e) {}
-            if (attempt < 3) await new Promise((r) => setTimeout(r, 1000 * attempt));
-            continue;
-          }
-          trackOk = true; // 'ok', nebo 'unknown' (ověření se nepovedlo - raději nic nemažeme)
+        if (trackInUse && !(await isTrackCached(track.src))) {
+          deferred.push(track); // právě načtená skladba - uloží se, až začne hrát jiná
+        } else {
+          trackOk = await fetchTrackForOffline(track);
         }
 
         const badge = playlist === list ? document.getElementById(`offline-badge-${i}`) : null;
@@ -10964,7 +11024,7 @@
       } catch (e) {
         console.log('Failed to download:', track.title, e);
       } finally {
-        if (!trackOk) failedCount++;
+        if (!trackOk && deferred.indexOf(track) === -1) failedCount++;
         const pct = Math.round(((n + 1) / order.length) * 100);
         progBar.style.width = `${pct}%`;
         btn.innerText = `DOWNLOADING ${pct}%`;
@@ -10972,7 +11032,18 @@
     }
 
     bulkDownloadInProgress = false;
+    try { if (window.mirrorInUse) window.mirrorInUse([]); } catch (e) { /* ignore */ }
     btn.innerText = failedCount > 0 ? `⚠ ${failedCount} FAILED - TRY AGAIN` : '✓ DONE';
+    if (failedCount > 0 && navigator.onLine === false) {
+      showToast(guideLang === 'cz' ? 'Připojení vypadlo – zbylé skladby se stáhnou, až budeš online.' : 'Connection lost – the remaining tracks will download when you are back online.', '📶');
+    }
+    if (deferred.length) {
+      deferred.forEach((t) => { if (pendingOfflineTracks.indexOf(t) === -1) pendingOfflineTracks.push(t); });
+      await flushPendingOffline(); // skladba mezitím mohla dohrát - pak se uloží hned
+      if (pendingOfflineTracks.length && !(failedCount > 0 && navigator.onLine === false)) {
+        showToast(guideLang === 'cz' ? 'Právě hrající skladba se uloží sama, jakmile začne hrát jiná.' : 'The track that is playing now will be saved automatically once another track starts.', 'ℹ');
+      }
+    }
     updateOfflineStatus();
     setTimeout(() => {
       btn.innerText = originalText;
@@ -12426,8 +12497,8 @@
 
   // ♥ u souboru: přidá ho do MY PLAYLIST, nebo ho z něj odebere
   window.toggleMyFileInQueue = async function(fileId) {
-    const pos = customQueue.findIndex(e => e && e.fileId === fileId);
-    if (pos >= 0) { removeFromCustomQueue(pos); showToast(mfT('Removed from My Playlist', 'Odebráno z My Playlist'), '✓'); refreshMyFilesHearts(); return; }
+    let pos = customQueue.findIndex(e => e && e.fileId === fileId);
+    if (pos >= 0) { for (let guard = 0; pos >= 0 && guard < 50; guard++) { removeFromCustomQueue(pos); pos = customQueue.findIndex(e => e && e.fileId === fileId); } showToast(mfT('Removed from My Playlist', 'Odebráno z My Playlist'), '✓'); refreshMyFilesHearts(); return; }
     const url = await getMyFileBlobUrl(fileId);
     if (!url) return;
     const record = myFilesLibrary.find(f => f.id === fileId);
@@ -13196,6 +13267,25 @@
       return b && b.size > 1024 ? b : null;
     } catch (e) { return null; }
   }
+  function dlNeedsNetText() {
+    return guideLang === 'cz' ? 'Ke stažení této skladby do zařízení je potřeba internet. Připoj se a zkus to znovu.'
+                              : 'Downloading this track to your device needs an internet connection. Go online and try again.';
+  }
+  // skladby, které má přehrávač právě načtené (hlavní přehrávač, prolínání, druhá ASMR vrstva)
+  function loadedTrackSrcs() {
+    const out = [];
+    try {
+      const add = (a, onlyWhilePlaying) => {
+        if (!a || (onlyWhilePlaying && a.paused)) return;
+        const u = a.currentSrc || a.src;
+        if (u && u.indexOf('blob:') !== 0 && out.indexOf(u) === -1) out.push(u);
+      };
+      add(typeof audio !== 'undefined' ? audio : null, false); // hlavní přehrávač: i pozastavená skladba je pořád načtená
+      add(typeof crossfadeAudio !== 'undefined' ? crossfadeAudio : null, true);
+      add(typeof layerAudio !== 'undefined' ? layerAudio : null, true);
+    } catch (e) { /* ignore */ }
+    return out;
+  }
   window.downloadTrackFile = async function(src, title) {
     if (!isSafeDownloadSrc(src)) {
       showToast(guideLang === 'cz' ? 'Neplatná adresa skladby' : 'Invalid track address', '⚠');
@@ -13206,6 +13296,8 @@
       showToast(guideLang === 'cz' ? 'Stahuji…' : 'Downloading…', '⬇');
       let blob = await readableCachedTrack(src);
       if (!blob) {
+        // bez internetu jde do zařízení stáhnout jen skladba, jejíž offline kopie se dá přečíst - jinak rovnou jasná hláška
+        if (navigator.onLine === false && src.indexOf('blob:') !== 0) { showToast(dlNeedsNetText(), '📶'); return; }
         const res = await fetch(src);
         if (!res.ok) throw new Error('network');
         blob = await res.blob();
@@ -13223,7 +13315,7 @@
       showToast(guideLang === 'cz' ? 'Staženo' : 'Downloaded', '✓');
     } catch (e) {
       if (navigator.onLine === false && src.indexOf('blob:') !== 0) {
-        showToast(guideLang === 'cz' ? 'Bez internetu teď stáhnout nejde – zkus to znovu online' : "Can't download while offline – try again when you're online", '⚠');
+        showToast(dlNeedsNetText(), '📶');
         return;
       }
       window.open(src, '_blank', 'noopener,noreferrer'); // poslední záchrana: přímo z GitHubu
@@ -14610,6 +14702,8 @@
       post({ type: 'MIRROR_FAIL', from: r2First ? 'r2' : 'github', url: url || '' });
     }
     window.mirrorReportBad = function (url) { if (mode === 'auto') reportBad(url); };
+    // před stahováním do offline: které skladby má přehrávač právě načtené (SW jim nevymění zdroj pod rukama)
+    window.mirrorInUse = function (urls) { post({ type: 'MIRROR_INUSE', urls: Array.isArray(urls) ? urls : [] }); };
     function switchSource(resume) {
       reportBad(audio.currentSrc || audio.src);
       reloadSame(resume);
@@ -15890,13 +15984,16 @@
   // The liked state persists across sessions because MY PLAYLIST itself is saved to localStorage.
   window.toggleTrackLike = function(playlistKey, index) {
     if (!tracks[playlistKey] || !tracks[playlistKey][index]) return;
-    const pos = customQueue.findIndex(e => queueEntryMatchesTrack(e, playlistKey, index));
+    let pos = customQueue.findIndex(e => queueEntryMatchesTrack(e, playlistKey, index));
     let liked;
     if (pos >= 0) {
-      customQueue.splice(pos, 1);
-      if (customQueueActive) {
-        if (pos < customQueueIndex) customQueueIndex--;
-        else if (pos === customQueueIndex) customQueueIndex--; // review 09/2026: stejně jako ✕ - další bude skladba, co následovala
+      while (pos >= 0) { // skladba může být ve více sekcích - srdíčko odebere všechny její záznamy
+        customQueue.splice(pos, 1);
+        if (customQueueActive) {
+          if (pos < customQueueIndex) customQueueIndex--;
+          else if (pos === customQueueIndex) customQueueIndex--; // review 09/2026: stejně jako ✕ - další bude skladba, co následovala
+        }
+        pos = customQueue.findIndex(e => queueEntryMatchesTrack(e, playlistKey, index));
       }
       liked = false;
     } else {
@@ -16191,14 +16288,37 @@
   }
   // Další / předchozí pozice ve frontě; při přehrávání sekce jen mezi skladbami té sekce.
   // MY PLAYLIST: skladby "special" se tu NEpřeskakují - hrají normálně jako ostatní (playlist si skládá uživatel sám).
+  // Stejná skladba ve frontě (jedna skladba může být ve více sekcích - každá sekce má svou kopii záznamu).
+  function sameQueueTrack(a, b) {
+    if (!a || !b) return false;
+    if (a.fileId || b.fileId) return a.fileId === b.fileId;
+    if (a.src && b.src) return a.src === b.src;
+    return a.playlist === b.playlist && a.index === b.index;
+  }
+  // Kopie skladby v JINÉ sekci, která už je ve frontě výš: při přehrávání celého My Playlist se přeskočí,
+  // aby skladba ze dvou sekcí nehrála dvakrát. (Dvě stejné skladby ve stejné sekci si přidal uživatel sám - hrají obě.)
+  function isOtherSectionCopy(p) {
+    const e = customQueue[p];
+    if (!e) return false;
+    for (let q = 0; q < p; q++) { const o = customQueue[q]; if (o && (o.mood || '') !== (e.mood || '') && sameQueueTrack(o, e)) return true; }
+    return false;
+  }
   function queueNeighborPos(dir) {
     const f = activeMoodFilter();
     const n = customQueue.length;
     if (!f) {
+      for (let k = 1; k <= n; k++) {
+        const p = (((customQueueIndex + dir * k) % n) + n) % n;
+        if (!isOtherSectionCopy(p) && !isLayerTrack(customQueue[p])) return p;
+      }
       let p = customQueueIndex + dir;
       if (p >= n) p = 0;
       if (p < 0) p = n - 1;
       return p;
+    }
+    for (let k = 1; k <= n; k++) {
+      const p = (((customQueueIndex + dir * k) % n) + n) % n;
+      if (customQueue[p] && customQueue[p].mood === f && !isLayerTrack(customQueue[p])) return p;
     }
     for (let k = 1; k <= n; k++) {
       const p = (((customQueueIndex + dir * k) % n) + n) % n;
@@ -16209,7 +16329,14 @@
   function queueRandomPos() {
     const f = activeMoodFilter();
     const el = [];
-    customQueue.forEach((e, p) => { if (p !== customQueueIndex && (!f || (e && e.mood === f))) el.push(p); }); // special se v MY PLAYLIST nevynechávají
+    const cur = customQueue[customQueueIndex];
+    customQueue.forEach((e, p) => { // special se v MY PLAYLIST nevynechávají
+      if (p === customQueueIndex || (f && !(e && e.mood === f))) return;
+      if (isLayerTrack(e) || sameQueueTrack(e, cur)) return;   // ne skladba z druhé vrstvy, ne jiná kopie právě hrající
+      if (!f && isOtherSectionCopy(p)) return;                  // celý My Playlist: skladba ze dvou sekcí jen jednou
+      el.push(p);
+    });
+    if (!el.length) customQueue.forEach((e, p) => { if (p !== customQueueIndex && (!f || (e && e.mood === f)) && !isLayerTrack(e)) el.push(p); });
     if (!el.length) return customQueueIndex >= 0 ? customQueueIndex : 0;
     return pickNotRecent(customQueue, el);
   }
@@ -16220,12 +16347,29 @@
   function setEntryMood(pos, name) {
     const e = customQueue[pos];
     if (!e) return;
+    if (customQueue.some(o => o && o !== e && (o.mood || '') === (name || '') && sameQueueTrack(o, e))) { // skladba tam už je (jiná kopie)
+      showToast(name ? mt('Already in: ' + name, 'Už je v: ' + name) : mt('Already in My Playlist without a section', 'Bez sekce už v My Playlist je'), '📁');
+      return;
+    }
     if (name) e.mood = name; else delete e.mood;
     saveCustomQueue();
     renderCustomQueue();
     syncMainListWithQueue();
     const m = name || null;
     showToast(m ? mt('Moved to: ' + m, 'Přesunuto do: ' + m) : mt('Removed from section', 'Odebráno ze sekce'), '📁');
+  }
+
+  // Stejná skladba i v další sekci: do fronty se přidá druhý záznam téže skladby se štítkem té sekce.
+  function copyEntryToMood(pos, name) {
+    const e = customQueue[pos];
+    if (!e || !name) return;
+    if (customQueue.some(o => o && o.mood === name && sameQueueTrack(o, e))) { showToast(mt('Already in: ' + name, 'Už je v: ' + name), '📁'); return; }
+    customQueue.push(Object.assign({}, e, { mood: name })); // na konec fronty - pozice hrající skladby se neposune
+    saveCustomQueue();
+    renderCustomQueue();
+    updateQueueCountBadge();
+    syncMainListWithQueue();
+    showToast(mt('Also added to: ' + name, 'Přidáno také do: ' + name), '📁');
   }
 
   function closeMoodPicker() {
@@ -16257,6 +16401,11 @@
     };
     queueMoods.forEach(m => add((entry.mood === m ? '✓ ' : '') + m, () => setEntryMood(pos, m)));
     if (queueMoods.length) { const sep = document.createElement('div'); sep.className = 'mood-picker-sep'; menu.appendChild(sep); }
+    if (entry.mood) {
+      const also = queueMoods.filter(m => m !== entry.mood && !customQueue.some(o => o && o.mood === m && sameQueueTrack(o, entry)));
+      also.forEach(m => add(mt('＋ Also add to: ' + m, '＋ Přidat také do: ' + m), () => copyEntryToMood(pos, m)));
+      if (also.length) { const sep2 = document.createElement('div'); sep2.className = 'mood-picker-sep'; menu.appendChild(sep2); }
+    }
     if (entry.mood) add(mt('✕ No section', '✕ Bez sekce'), () => setEntryMood(pos, null));
     if (queueMoods.length < MOOD_MAX_COUNT) add(mt('＋ New section…', '＋ Nová sekce…'), () => openMoodEdit('new', pos));
     document.body.appendChild(menu);
@@ -16325,7 +16474,14 @@
     const n = moodCount(m);
     if (!confirm(mt('Delete the section "' + m + '"?' + (n ? '\n\nThe ' + n + ' track(s) stay in My Playlist.' : ''),
                     'Smazat sekci „' + m + '“?' + (n ? '\n\nSkladby (' + n + ') zůstanou v My Playlist.' : '')))) return;
-    customQueue.forEach(e => { if (e && e.mood === m) delete e.mood; });
+    for (let p = customQueue.length - 1; p >= 0; p--) {
+      const e = customQueue[p];
+      if (!e || e.mood !== m) continue;
+      if (customQueue.some(o => o && o !== e && sameQueueTrack(o, e))) { // skladba je ještě v jiné sekci - tahle kopie zmizí se sekcí
+        customQueue.splice(p, 1);
+        if (customQueueActive) { if (p < customQueueIndex) customQueueIndex--; else if (p === customQueueIndex) customQueueIndex--; }
+      } else delete e.mood;
+    }
     queueMoods = queueMoods.filter(x => x !== m);
     queueMoodView = null;
     if (customQueueMoodPlay === m) customQueueMoodPlay = null;
@@ -16450,7 +16606,10 @@
   function bulkSetSection(name) {
     const sel = selectedQueueEntries();
     if (!sel.length) return;
-    sel.forEach(e => { if (name) e.mood = name; else delete e.mood; });
+    sel.forEach(e => {
+      if (customQueue.some(o => o && o !== e && (o.mood || '') === (name || '') && sameQueueTrack(o, e))) return; // tam už tahle skladba je
+      if (name) e.mood = name; else delete e.mood;
+    });
     afterQueueBulkChange();
     showToast(name
       ? mt('Moved to: ' + name + ' (' + sel.length + ')', 'Přesunuto do: ' + name + ' (' + sel.length + ')')
