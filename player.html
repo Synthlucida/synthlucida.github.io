@@ -20462,6 +20462,7 @@
       timer = null;
       if (isDismissed() || isOpen()) return;
       if (document.hidden) { waitVisible = true; return; } // na skryté záložce počkáme, až se vrátí uživatel
+      if (document.body.classList.contains('tour-on')) { schedule(20000); return; } // běží rychlý průvodce - ukázat až po něm
       input.value = '';
       input.classList.remove('sp-bad');
       err.hidden = true;
@@ -20637,6 +20638,7 @@
     }
     function endTour() {
       active = false; tour.hidden = true;
+      try { if (document.activeElement && card.contains(document.activeElement)) document.activeElement.blur(); } catch (e) { /* ignore */ }
       document.body.classList.remove('tour-on');
       try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
     }
@@ -20650,12 +20652,25 @@
     document.getElementById('tour-next').addEventListener('click', function () { go(1); });
     document.getElementById('tour-prev').addEventListener('click', function () { go(-1); });
     document.getElementById('tour-close').addEventListener('click', endTour);
-    document.addEventListener('keydown', function (e) {
+    // Klávesy během průvodce: zachytí se jako první a dál se nepustí - jinak by šipky zároveň přetáčely skladbu,
+    // mezerník pouštěl/zastavoval hudbu a šipky nahoru/dolů měnily hlasitost (zkratky přehrávače).
+    // Mezerník / Enter na tlačítku průvodce dál normálně "klikne" (výchozí akce prohlížeče se neruší).
+    window.addEventListener('keydown', function (e) {
       if (!active) return;
       if (e.key === 'Escape') { e.preventDefault(); endTour(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
-    });
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); }
+      else if (e.key === 'Tab') { // fokus zůstává v kartě průvodce
+        var f = Array.prototype.filter.call(card.querySelectorAll('button'), function (b) { return !b.disabled; });
+        if (f.length) {
+          var i = f.indexOf(document.activeElement);
+          e.preventDefault();
+          f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+        }
+      }
+      e.stopPropagation();
+    }, true);
     window.addEventListener('resize', schedulePlace);
     window.addEventListener('scroll', schedulePlace, true);
     document.addEventListener('click', function (e) {
