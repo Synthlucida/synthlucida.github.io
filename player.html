@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.8.6">
+<meta name="app-version" content="2.8.7">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -2699,8 +2699,8 @@
     opacity: 0.9;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 5; /* delší hlášky (2 věty) se nesmí useknout v půlce */
+    line-clamp: 5;
     -webkit-box-orient: vertical;
     word-break: break-word;
   }
@@ -2711,6 +2711,8 @@
 
   /* Hláška níž a menší (aby nekryla poslední řádek seznamu) + pod seznamy rezerva, ať jde poslední skladba odscrollovat nad hlášku */
   .app-toast { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); padding-top: 7px; padding-bottom: 7px; }
+  /* hláška se roztáhne podle textu až skoro na šířku displeje (dřív zabrala jen půlku šířky a delší text se usekl) */
+  .app-toast { width: max-content; }
   #myfiles-list, #queue-list, #myfiles-playlists { padding-bottom: 52px; }
 
   /* CZ/EN přepínač jazyka v panelu ⓘ (guide) — zrcadlově naproti zavíracímu ✖ */
@@ -3876,8 +3878,9 @@
   #plfind-panel .plfind-scope { color: var(--accent-color); }
   /* ---- Řazení seznamu (tlačítko pod hledáním): pořadí se mění jen vizuálně (CSS order), řádky v kódu zůstávají na svých místech ---- */
   /* My Playlist a vlastní playlisty ze sekce F v hlavním okně: DOWNLOAD OFFLINE a počet stažených skladeb zmizí
-     (místo po nich zůstává, aby se řádek ani okno nepohnuly); v ASMR / PIANO / CHILL jsou zpět */
-  body.sl-own-list #btn-download, body.sl-own-list #offline-status { visibility: hidden; pointer-events: none; }
+     úplně a zbylá tlačítka se vycentrují; v ASMR / PIANO / CHILL jsou zpět. Výšku řádku drží skript (setOwnListLayout),
+     aby okno pod ním neposkočilo, když by se tlačítka vešla na méně řádků. */
+  body.sl-own-list #btn-download, body.sl-own-list #offline-status { display: none !important; }
   .pl-sort-btn { top: 25px; }
   .pl-find-btn::after { inset: -9px -2px -4px -9px; }
   .pl-sort-btn::after { inset: -4px -2px -9px -9px; }
@@ -11227,7 +11230,9 @@
     if (iconEl) iconEl.textContent = icon || '✓';
     toast.classList.add('show');
     clearTimeout(appToastTimer);
-    appToastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    // delší text zůstane vidět déle, aby se dal dočíst (2,2 s až 6,5 s)
+    const toastMs = Math.min(6500, Math.max(2200, 1000 + String(text == null ? '' : text).length * 50));
+    appToastTimer = setTimeout(() => toast.classList.remove('show'), toastMs);
   }
 
   // ==========================================
@@ -12751,6 +12756,36 @@
     showToast(mfT('Sorted A–Z: ', 'Seřazeno A–Z: ') + pl.name, '🔤');
   };
 
+  // Playlist z panelu F: trvale seřadí položky podle délky (od nejkratší); neznámé délky si nejdřív doměří
+  window.sortMyPlaylistByLength = async function(playlistId) {
+    let pl = myPlaylists.find(p => p.id === playlistId);
+    if (!pl || pl.items.length < 2) return;
+    if (!confirm(mfT('Sort "' + pl.name + '" by length (shortest first)? The current order will be replaced.', 'Seřadit „' + pl.name + '“ podle délky (od nejkratší)? Současné pořadí bude nahrazeno.'))) return;
+    const refOf = (item) => {
+      if (!item) return null;
+      if (item.type === 'file') return item.fileId ? { fileId: item.fileId } : null;
+      try { const t = getTrackByRef(item.playlist, findTrackIndexByRef(item.playlist, item.index, item.title, item.src)); return t ? { src: t.src } : null; } catch (e) { return null; }
+    };
+    const before = pl.items.slice();
+    const refs = before.map(refOf);
+    if (refs.some(r => r && trackDuration(r) === null)) {
+      showToast(mfT('Measuring track lengths…', 'Zjišťuji délky skladeb…'), '⏱');
+      await probeTrackDurations(refs.filter(Boolean));
+    }
+    pl = myPlaylists.find(p => p.id === playlistId); // playlist se během měření mohl změnit nebo smazat
+    if (!pl || pl.items.length !== before.length || pl.items.some((it, i) => it !== before[i])) {
+      showToast(mfT('The playlist changed meanwhile – nothing was sorted.', 'Playlist se mezitím změnil – nic jsem neseřadil.'), '⚠');
+      return;
+    }
+    const rows = before.map((item, i) => ({ item, i, ref: refs[i] }));
+    rows.sort((a, b) => trackSortCompare('len', a.ref, b.ref) || (a.i - b.i));
+    pl.items = rows.map(r => r.item);
+    saveMyPlaylistsToStorage();
+    renderMyFiles();
+    syncMyPlaylistToMainWindow(playlistId);
+    showToast(mfT('Sorted by length: ', 'Seřazeno podle délky: ') + pl.name, '⏱');
+  };
+
   window.toggleMyFilesSelectMode = function() {
     myFilesSelectMode = !myFilesSelectMode;
     if (!myFilesSelectMode) myFilesSelected.clear();
@@ -13163,6 +13198,7 @@
           ['■ STOP', () => stopPlayback()],
           [mfT('RENAME', 'PŘEJMENOVAT'), () => renameMyPlaylist(pl.id)],
           [mfT('🔤 SORT A–Z', '🔤 ŘADIT A–Z'), () => sortMyPlaylistAZ(pl.id)],
+          [mfT('⏱ BY LENGTH', '⏱ PODLE DÉLKY'), () => sortMyPlaylistByLength(pl.id)],
           [mfT('DELETE', 'SMAZAT'), () => deleteMyPlaylist(pl.id)]
         ].forEach(([label, handler]) => {
           const actionBtn = document.createElement('button');
@@ -14048,94 +14084,184 @@
 
   // ------------------------------------------------------------------
   // ŘAZENÍ SEZNAMU V HLAVNÍM OKNĚ (tlačítko pod hledáním): původní pořadí -> A–Z -> podle délky -> původní.
-  // Platí jen pro playlisty ASMR / PIANO / CHILL… V My Playlist a ve vlastních playlistech ze sekce F určuje
-  // pořadí uživatel sám, tam je tlačítko zašedlé. Řádky se v kódu nepřesouvají (čísla skladeb, srdíčka a uložené
-  // odkazy zůstávají platné) - mění se jen pořadí zobrazení a podle něj i "další / předchozí skladba".
+  // Dvě nezávislé volby: jedna pro playlisty ASMR / PIANO / CHILL…, druhá pro vlastní seznamy (My Playlist
+  // a playlisty ze sekce F). Řádky se v kódu nepřesouvají a uložené pořadí se nemění (čísla skladeb, srdíčka
+  // a uložené odkazy zůstávají platné) - mění se jen pořadí zobrazení a podle něj i "další / předchozí skladba".
+  // Trvalé seřazení vlastního playlistu dělají tlačítka ŘADIT A–Z / ŘADIT PODLE DÉLKY v My Playlist a v sekci F.
   // ------------------------------------------------------------------
   var LIST_SORT_KEY = 'sl-list-sort';
-  var listSortMode = 'off'; // 'off' | 'az' | 'len'
+  var LIST_SORT_OWN_KEY = 'sl-list-sort-own';
+  var listSortMode = 'off';    // vestavěné playlisty: 'off' | 'az' | 'len'
+  var listSortModeOwn = 'off'; // My Playlist + playlisty ze sekce F
   try { const sv = localStorage.getItem(LIST_SORT_KEY); if (sv === 'az' || sv === 'len') listSortMode = sv; } catch (e) { /* ignore */ }
-  // délky skladeb v sekundách (podle názvu souboru); nové skladby si player doměří sám a zapamatuje
+  try { const so = localStorage.getItem(LIST_SORT_OWN_KEY); if (so === 'az' || so === 'len') listSortModeOwn = so; } catch (e) { /* ignore */ }
+  function listSortIsOn(m) { return m === 'az' || m === 'len'; }
+  // délky skladeb v sekundách (klíč = název souboru, u vlastních souborů "file:ID"); neznámé si player doměří a zapamatuje
   var TRACK_DURATIONS = {"Cognition.mp3":389,"Inverse_world.mp3":326,"Crazy_Drive_Wake_Up_Call_special_track.mp3":288,"Express_to_Miami_SPECIAL_TRACK.mp3":151,"Fading_Into_Silence.mp3":218,"Guitar_by_the_Sea.mp3":251,"Drone_For_ASMR3.mp3":253,"Morning_Smile.mp3":185,"One_Moment.mp3":183,"ASMR_nature_forest.mp3":487,"Sunsets_In_Dreams.mp3":337,"Run_Machine_SPECIAL_TRACK.mp3":227,"Pure_Serenity.mp3":228,"Signs_of_Life.mp3":174,"angelic.mp3":320,"Tropical_Vibes_SPECIAL_TRACK.mp3":394,"ambient_reverie.mp3":190,"asmr_big_thunderstorm.mp3":583,"asmr1.mp3":106,"asmr_summer_walk.mp3":459,"asmr_rain.mp3":604,"be_free.mp3":281,"back_to_life.mp3":223,"Sundown_Memories.mp3":263,"Slow_Horizon.mp3":234,"before_the_dawn.mp3":195,"bird_singing.mp3":409,"blue_hour.mp3":176,"bubbling_stream.mp3":48,"asmr2022.mp3":675,"calling_analog.mp3":309,"childrens_dreams.mp3":373,"crying_dirty_piano.mp3":161,"drone_for_asmr.mp3":737,"drone_for_asmr2.mp3":445,"echoes_freedom.mp3":313,"atmos_sky.mp3":261,"campfire.mp3":480,"balearic_man.mp3":183,"balearic_man_solo_guitar.mp3":227,"candle.mp3":474,"everything.mp3":297,"empyrean.mp3":212,"final_moments.mp3":207,"fly_with_the_soul_long.mp3":336,"fly_with_the_soul_part2.mp3":164,"flying.mp3":300,"freedom.mp3":295,"clinking_glass.mp3":97,"emotional_saxophone.mp3":333,"echoes_of_freedom_sunset_mix.mp3":377,"empty_place.mp3":125,"free_tones.mp3":367,"endless_summer.mp3":229,"everythning_piano_version.mp3":225,"frogs.mp3":61,"friday_hype.mp3":181,"holiday_stories.mp3":330,"k01.mp3":190,"just_dreaming.mp3":199,"last_sunset.mp3":286,"last_way.mp3":270,"late_summer_euphony.mp3":215,"leaking_pipe.mp3":152,"heaven_and_earth.mp3":338,"gentle_piano_breeze.mp3":158,"happy_days.mp3":134,"gentle_horizons.mp3":182,"islanders.mp3":253,"golden_morning.mp3":248,"magnificent_nature.mp3":416,"lemonade_bubbles.mp3":32,"my_mind.mp3":384,"lydian_bloom.mp3":187,"night_waves.mp3":297,"nebula_piano2.mp3":76,"nebula_piano1.mp3":75,"ocean_waves.mp3":807,"on_the_lake.mp3":265,"noise.mp3":30,"oceanic_memories.mp3":168,"pointX.mp3":190,"piano1.mp3":247,"magic_waves.mp3":319,"moonlight.mp3":266,"piano2.mp3":178,"morning_city.mp3":212,"polaris.mp3":203,"raindrops.mp3":228,"rock_birds.mp3":139,"sea_with_seagulls.mp3":402,"melodies_of_rain.mp3":675,"night_life.mp3":333,"seaside_town_ambience.mp3":232,"reveria.mp3":283,"see_you_again_player.mp3":229,"sleeping_and_dreaming.mp3":504,"sleeping_piano.mp3":176,"ship_of_dreams_player.mp3":306,"quiet_hours.mp3":112,"ready_for_the_sun.mp3":298,"space_ambient_1.mp3":117,"still_in_dreams.mp3":260,"stones.mp3":74,"spirits_of_summer.mp3":405,"slow_morning.mp3":79,"spirits_of_winter.mp3":255,"river.mp3":36,"solar_drift.mp3":264,"summer_breeze.mp3":306,"space_ambient_2.mp3":129,"stranger_visitors.mp3":271,"spring.mp3":354,"stress_mode_off.mp3":155,"summer_night.mp3":164,"sunrider.mp3":183,"summer_night_and_train.mp3":116,"tales_of_raindrops_solo_piano.mp3":213,"tattoo_artist.mp3":133,"thunderstorm2.mp3":85,"unanejo.mp3":242,"walking_in_the_rain.mp3":234,"summer_simple_song.mp3":160,"sunlit_keys.mp3":97,"voidwalker.mp3":213,"the_sun_is_down.mp3":198,"sunset_calm.mp3":238,"sunset_boulevard.mp3":176,"thunderstorm1.mp3":289,"winning_moments.mp3":217,"waves.mp3":586,"waves_on_the_lake2.mp3":91,"waves_on_the_lake3.mp3":158,"whisper_of_lost_codes.mp3":236,"whispers_of_light.mp3":269};
   var TRACK_DUR_KEY = 'sl-track-durs';
   try { const dv = JSON.parse(localStorage.getItem(TRACK_DUR_KEY) || '{}'); if (dv && typeof dv === 'object' && !Array.isArray(dv)) Object.keys(dv).forEach((k) => { const v = Number(dv[k]); if (isFinite(v) && v > 0 && !(k in TRACK_DURATIONS)) TRACK_DURATIONS[k] = Math.round(v); }); } catch (e) { /* ignore */ }
   function trackFileName(src) { try { return decodeURIComponent(String(src || '').split('?')[0].split('/').pop()); } catch (e) { return String(src || '').split('/').pop(); } }
-  function trackDuration(t) { const v = t && TRACK_DURATIONS[trackFileName(t.src)]; return (typeof v === 'number' && v > 0) ? v : null; }
-  function rememberTrackDuration(src, sec) {
-    const name = trackFileName(src);
-    if (!name || String(src).indexOf('blob:') === 0 || !isFinite(sec) || sec <= 0 || TRACK_DURATIONS[name]) return false;
-    TRACK_DURATIONS[name] = Math.round(sec);
-    try { let dv = JSON.parse(localStorage.getItem(TRACK_DUR_KEY) || '{}'); if (!dv || typeof dv !== 'object' || Array.isArray(dv)) dv = {}; dv[name] = Math.round(sec); localStorage.setItem(TRACK_DUR_KEY, JSON.stringify(dv)); } catch (e) { /* ignore */ }
+  // skladba může být řádek playlistu ({title, src, fileId?}) i záznam z My Playlist ({title, src?, playlist, index, fileId?})
+  function trackSrcOf(t) {
+    if (!t) return '';
+    if (t.src) return String(t.src);
+    try { const r = (t.playlist && typeof t.index === 'number' && tracks[t.playlist]) ? tracks[t.playlist][t.index] : null; return r && r.src ? String(r.src) : ''; } catch (e) { return ''; }
+  }
+  function trackDurKey(t) {
+    if (!t) return '';
+    if (t.fileId) return 'file:' + t.fileId;
+    const src = trackSrcOf(t);
+    return (!src || src.indexOf('blob:') === 0) ? '' : trackFileName(src);
+  }
+  function trackDuration(t) { const k = trackDurKey(t); const v = k ? TRACK_DURATIONS[k] : null; return (typeof v === 'number' && v > 0) ? v : null; }
+  function storeTrackDuration(key, sec) {
+    if (!key || !isFinite(sec) || sec <= 0 || TRACK_DURATIONS[key]) return false;
+    TRACK_DURATIONS[key] = Math.round(sec);
+    try { let dv = JSON.parse(localStorage.getItem(TRACK_DUR_KEY) || '{}'); if (!dv || typeof dv !== 'object' || Array.isArray(dv)) dv = {}; dv[key] = Math.round(sec); localStorage.setItem(TRACK_DUR_KEY, JSON.stringify(dv)); } catch (e) { /* ignore */ }
     return true;
   }
+  function rememberTrackDuration(src, sec) { return String(src || '').indexOf('blob:') === 0 ? false : storeTrackDuration(trackFileName(src), sec); }
   function fmtTrackDur(sec) { return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
-  function listSortKeyOf(list) { // vrátí název vestavěného playlistu, jinak null
+  function trackSortCompare(mode, a, b) { // a, b = skladby; 0 = stejné (pořadí pak určí původní pozice)
+    if (mode === 'az') return displayTrackTitle((a && a.title) || '').localeCompare(displayTrackTitle((b && b.title) || ''), undefined, { numeric: true, sensitivity: 'base' });
+    const x = trackDuration(a), y = trackDuration(b);
+    if (x === null || y === null) return (x === null ? 1 : 0) - (y === null ? 1 : 0); // neznámá délka až na konec
+    return x - y;
+  }
+  function listSortKind(list) { // 'builtin' = ASMR/PIANO/CHILL…, 'own' = playlist ze sekce F, null = nic
     if (!list || typeof tracks !== 'object') return null;
     const k = Object.keys(tracks).find((x) => tracks[x] === list);
-    return (k && k.indexOf('custom:') !== 0) ? k : null;
+    if (!k) return null;
+    return k.indexOf('custom:') === 0 ? 'own' : 'builtin';
   }
+  function listSortKeyOf(list) { return listSortKind(list) === 'builtin' ? Object.keys(tracks).find((x) => tracks[x] === list) : null; }
   var listSortCache = { list: null, mode: '', n: 0, known: 0, order: null };
   function listSortOrder(list) {
-    if (listSortMode === 'off' || !listSortKeyOf(list)) return null;
-    const known = listSortMode === 'len' ? list.filter((t) => trackDuration(t) !== null).length : 0;
+    const kind = listSortKind(list);
+    const mode = kind === 'builtin' ? listSortMode : (kind === 'own' ? listSortModeOwn : 'off');
+    if (!listSortIsOn(mode)) return null;
+    const known = mode === 'len' ? list.filter((t) => trackDuration(t) !== null).length : 0;
     const c = listSortCache;
-    if (c.list === list && c.mode === listSortMode && c.n === list.length && c.known === known && c.order) return c.order;
+    if (c.list === list && c.mode === mode && c.n === list.length && c.known === known && c.order) return c.order;
     const idx = list.map((t, i) => i);
-    if (listSortMode === 'az') {
-      idx.sort((a, b) => displayTrackTitle(list[a].title).localeCompare(displayTrackTitle(list[b].title), undefined, { numeric: true, sensitivity: 'base' }) || (a - b));
-    } else {
-      idx.sort((a, b) => { const x = trackDuration(list[a]), y = trackDuration(list[b]); if (x === null || y === null) return ((x === null ? 1 : 0) - (y === null ? 1 : 0)) || (a - b); return (x - y) || (a - b); });
-    }
-    listSortCache = { list, mode: listSortMode, n: list.length, known, order: idx };
+    idx.sort((a, b) => trackSortCompare(mode, list[a], list[b]) || (a - b));
+    listSortCache = { list, mode, n: list.length, known, order: idx };
     return idx;
+  }
+  // My Playlist: seřadí zadané pozice ve frontě podle zvoleného řazení vlastních seznamů
+  function queueSortPositions(positions) {
+    const mode = listSortModeOwn;
+    return positions.slice().sort((a, b) => trackSortCompare(mode, customQueue[a], customQueue[b]) || (a - b));
+  }
+  // "další / předchozí" v My Playlist podle seřazeného zobrazení; null = řazení není zapnuté
+  function queueSortedNeighbor(dir, f) {
+    if (!listSortIsOn(listSortModeOwn)) return null;
+    const cands = [];
+    customQueue.forEach((e, p) => { if (e && (f ? e.mood === f : !isOtherSectionCopy(p))) cands.push(p); });
+    if (!cands.length) return null;
+    const ord = queueSortPositions(cands);
+    const n = ord.length;
+    let at = ord.indexOf(customQueueIndex);
+    if (at < 0) at = dir > 0 ? -1 : 0;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let k = 1; k <= n; k++) {
+        const p = ord[(((at + dir * k) % n) + n) % n];
+        if (pass === 1 || !isLayerTrack(customQueue[p])) return p;
+      }
+    }
+    return null;
   }
   var LIST_SORT_ICONS = {
     off: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h6"/></svg>',
     az: '<svg viewBox="0 0 24 24" aria-hidden="true"><text x="1" y="11">A</text><text x="1" y="23">Z</text><path d="M17 3v17M13 16l4 4 4-4"/></svg>',
     len: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.500" cy="13" r="7.500"/><path d="M9.500 8.500V13l3 2"/><path d="M21 3v17M18.500 17.500l2.500 2.500 2.500-2.500"/></svg>'
   };
-  function listSortApplies() { try { return !mainListShowsQueue && !!listSortKeyOf(playlist); } catch (e) { return false; } }
+  // co je právě v hlavním okně: {kind, mode, items} - items = skladby v pořadí řádků
+  function listSortView() {
+    try {
+      if (mainListShowsQueue) {
+        const rows = playlistEl ? Array.prototype.slice.call(playlistEl.children) : [];
+        const pos = rows.map((li) => (li.dataset && li.dataset.qpos !== undefined) ? parseInt(li.dataset.qpos, 10) : NaN);
+        const ok = pos.length > 0 && pos.every((p) => p >= 0 && p < customQueue.length && customQueue[p]);
+        return { kind: 'own', mode: listSortModeOwn, queue: true, pos: ok ? pos : null, items: ok ? pos.map((p) => customQueue[p]) : [] };
+      }
+      const kind = listSortKind(playlist);
+      return { kind, mode: kind === 'builtin' ? listSortMode : (kind === 'own' ? listSortModeOwn : 'off'), queue: false, pos: null, items: kind ? playlist : [] };
+    } catch (e) { return { kind: null, mode: 'off', queue: false, pos: null, items: [] }; }
+  }
+  // Vlastní seznam v hlavním okně: schová DOWNLOAD OFFLINE + počet stažených. Řádek s tlačítky si přitom
+  // podrží původní výšku (tlačítka se jen vycentrují), takže se nic pod ním neposune.
+  function setOwnListLayout(own) {
+    const body = document.body;
+    if (body.classList.contains('sl-own-list') === own) return;
+    const row = document.querySelector('.effects-container');
+    const h = (own && row) ? row.getBoundingClientRect().height : 0;
+    body.classList.toggle('sl-own-list', own);
+    if (!row) return;
+    if (own && h > 0) { row.style.minHeight = Math.round(h * 100) / 100 + 'px'; row.style.alignContent = 'center'; }
+    else { row.style.minHeight = ''; row.style.alignContent = ''; }
+  }
+  // po otočení telefonu / změně velikosti okna už podržená výška neplatí - řádek se přepočítá sám
+  try { window.addEventListener('resize', () => { const row = document.querySelector('.effects-container'); if (row && row.style.minHeight) { row.style.minHeight = ''; row.style.alignContent = ''; } }); } catch (e) { /* ignore */ }
   function applyListSort() {
     const btn = document.getElementById('pl-sort-btn');
-    const applies = listSortApplies();
-    const order = applies ? listSortOrder(playlist) : null;
-    try { document.body.classList.toggle('sl-own-list', !applies); } catch (e) { /* ignore */ }
+    const view = listSortView();
+    const on = !!view.kind && listSortIsOn(view.mode);
+    // DOWNLOAD OFFLINE a počet stažených skladeb jsou jen u vestavěných playlistů
+    try { setOwnListLayout(view.kind !== 'builtin'); } catch (e) { /* ignore */ }
+    let rank = null; // rank[i] = pořadí i-tého řádku na obrazovce
+    if (on && playlistEl) {
+      const rows = playlistEl.children;
+      if (view.queue) {
+        if (view.pos && view.pos.length === rows.length) {
+          const idx = view.pos.map((p, i) => i);
+          idx.sort((a, b) => trackSortCompare(view.mode, view.items[a], view.items[b]) || (a - b));
+          rank = []; idx.forEach((rowIndex, r) => { rank[rowIndex] = r; });
+        }
+      } else {
+        const order = listSortOrder(playlist);
+        if (order && order.length === rows.length) { rank = []; order.forEach((rowIndex, r) => { rank[rowIndex] = r; }); }
+      }
+    }
     if (btn) {
-      const shown = applies ? listSortMode : 'off';
+      const shown = on ? view.mode : 'off';
       if (btn.getAttribute('data-mode') !== shown) { btn.innerHTML = LIST_SORT_ICONS[shown] || LIST_SORT_ICONS.off; btn.setAttribute('data-mode', shown); }
-      btn.classList.toggle('pl-sort-on', !!order);
-      btn.classList.toggle('pl-sort-na', !applies);
+      btn.classList.toggle('pl-sort-on', !!rank);
+      btn.classList.remove('pl-sort-na');
     }
     if (!playlistEl) return;
     const rows = playlistEl.children;
-    const usable = !!order && rows.length === order.length;
-    playlistEl.classList.toggle('pl-sorted', usable);
-    playlistEl.classList.toggle('pl-sorted-len', usable && listSortMode === 'len');
-    if (!usable) { for (let i = 0; i < rows.length; i++) if (rows[i].style.order) rows[i].style.order = ''; return; }
-    order.forEach((trackIndex, rank) => {
-      const li = rows[trackIndex];
-      if (!li) return;
-      li.style.order = String(rank);
-      if (listSortMode === 'len') {
+    playlistEl.classList.toggle('pl-sorted', !!rank);
+    playlistEl.classList.toggle('pl-sorted-len', !!rank && view.mode === 'len');
+    if (!rank) { for (let i = 0; i < rows.length; i++) if (rows[i].style.order) rows[i].style.order = ''; return; }
+    for (let i = 0; i < rows.length; i++) {
+      const li = rows[i];
+      li.style.order = String(rank[i]);
+      if (view.mode === 'len') {
         let d = li.querySelector('.track-dur');
         if (!d) { d = document.createElement('span'); d.className = 'track-dur'; const nm = li.querySelector('.track-name'); if (nm && nm.nextSibling) li.insertBefore(d, nm.nextSibling); else li.appendChild(d); }
-        const sec = trackDuration(playlist[trackIndex]);
+        const sec = trackDuration(view.items[i]);
         d.textContent = sec ? fmtTrackDur(sec) : '–:––';
       }
-    });
+    }
   }
-  // Délky, které player ještě nezná (nově přidané skladby): doměří se po jedné, jen když je zapnuté řazení podle délky.
+  // Doměří délky, které player ještě nezná (nové skladby, vlastní soubory). keepGoing() = false měření ukončí.
   var listDurProbeBusy = false;
-  async function probeMissingDurations() {
-    if (listDurProbeBusy || navigator.onLine === false) return;
-    const list = playlist;
-    if (!listSortKeyOf(list)) return;
-    const missing = list.filter((t) => trackDuration(t) === null && t.src && t.src.indexOf('blob:') !== 0);
-    if (!missing.length) return;
+  async function probeTrackDurations(items, keepGoing, onEach) {
+    if (listDurProbeBusy) return false;
+    const missing = (items || []).filter((t) => t && trackDurKey(t) && trackDuration(t) === null);
+    if (!missing.length) return true;
     listDurProbeBusy = true;
     try {
+      const seen = Object.create(null);
       for (const t of missing) {
-        if (listSortMode !== 'len' || playlist !== list) break;
+        if (keepGoing && !keepGoing()) break;
+        const key = trackDurKey(t);
+        if (seen[key] || trackDuration(t) !== null) continue;
+        seen[key] = true;
+        let url = '';
+        try { url = t.fileId ? (await getMyFileBlobUrl(t.fileId)) : trackSrcOf(t); } catch (e) { url = ''; }
+        if (!url || (!t.fileId && navigator.onLine === false)) continue;
         const sec = await new Promise((resolve) => {
           const a = new Audio();
           let done = false;
@@ -14145,27 +14271,37 @@
           a.preload = 'metadata';
           a.addEventListener('loadedmetadata', () => fin(isFinite(a.duration) ? a.duration : null), { once: true });
           a.addEventListener('error', () => fin(null), { once: true });
-          a.src = t.src;
+          a.src = url;
         });
-        if (sec && rememberTrackDuration(t.src, sec) && playlist === list) applyListSort();
+        if (sec && storeTrackDuration(key, sec) && onEach) { try { onEach(); } catch (e) { /* ignore */ } }
       }
     } finally { listDurProbeBusy = false; }
+    return true;
   }
-  try { audio.addEventListener('loadedmetadata', () => { if (rememberTrackDuration(audio.currentSrc || audio.src, audio.duration) && listSortMode === 'len') applyListSort(); }); } catch (e) { /* ignore */ }
+  function probeMissingDurations() {
+    const v0 = listSortView();
+    if (!v0.kind || v0.mode !== 'len') return;
+    const sig = () => { const v = listSortView(); return v.kind === v0.kind && v.mode === 'len' && v.queue === v0.queue && (v.queue || playlist === v0.items); };
+    probeTrackDurations(v0.items.slice(), sig, () => { if (sig()) applyListSort(); });
+  }
+  try { audio.addEventListener('loadedmetadata', () => { if (rememberTrackDuration(audio.currentSrc || audio.src, audio.duration)) applyListSort(); }); } catch (e) { /* ignore */ }
   window.cycleListSort = function () {
     const cz = guideLang === 'cz';
-    if (!listSortApplies()) {
-      showToast(cz ? 'Tady určuješ pořadí ty – seznam je seřazený tak, jak sis ho poskládal.' : 'Here the order is yours – the list stays the way you arranged it.', '↕');
-      return;
-    }
-    listSortMode = listSortMode === 'off' ? 'az' : (listSortMode === 'az' ? 'len' : 'off');
-    try { if (listSortMode === 'off') localStorage.removeItem(LIST_SORT_KEY); else localStorage.setItem(LIST_SORT_KEY, listSortMode); } catch (e) { /* ignore */ }
+    const view = listSortView();
+    if (!view.kind) return;
+    const next = view.mode === 'az' ? 'len' : (view.mode === 'len' ? 'off' : 'az');
+    if (view.kind === 'builtin') listSortMode = next; else listSortModeOwn = next;
+    try {
+      const k = view.kind === 'builtin' ? LIST_SORT_KEY : LIST_SORT_OWN_KEY;
+      if (next === 'off') localStorage.removeItem(k); else localStorage.setItem(k, next);
+    } catch (e) { /* ignore */ }
     applyListSort();
     if (playlistEl) playlistEl.scrollTop = 0;
-    showToast(listSortMode === 'az' ? (cz ? 'Seřazeno podle abecedy (A–Z)' : 'Sorted by name (A–Z)')
-            : listSortMode === 'len' ? (cz ? 'Seřazeno podle délky (od nejkratší)' : 'Sorted by length (shortest first)')
-            : (cz ? 'Původní pořadí' : 'Original order'), '↕');
-    if (listSortMode === 'len') probeMissingDurations();
+    const own = view.kind === 'own';
+    showToast(next === 'az' ? (cz ? 'Seřazeno podle abecedy (A–Z)' : 'Sorted by name (A–Z)')
+            : next === 'len' ? (cz ? 'Seřazeno podle délky (od nejkratší)' : 'Sorted by length (shortest first)')
+            : (own ? (cz ? 'Tvoje vlastní pořadí' : 'Your own order') : (cz ? 'Původní pořadí' : 'Original order')), '↕');
+    if (next === 'len') probeMissingDurations();
   };
   try { applyListSort(); } catch (e) { /* ignore */ }
 
@@ -16460,6 +16596,7 @@
   function queueNeighborPos(dir) {
     const f = activeMoodFilter();
     const n = customQueue.length;
+    try { const sp = queueSortedNeighbor(dir, f); if (sp !== null && sp !== undefined) return sp; } catch (e) { /* řazení není připravené - běžné pořadí */ }
     if (!f) {
       for (let k = 1; k <= n; k++) {
         const p = (((customQueueIndex + dir * k) % n) + n) % n;
@@ -16812,6 +16949,32 @@
     showToast(mt('Sorted A–Z', 'Seřazeno A–Z'), '🔤');
   }
 
+  // Seřadí MY PLAYLIST podle délky skladeb (od nejkratší). Délky, které player nezná, si nejdřív doměří.
+  async function sortQueueByLength() {
+    const visNow = () => { const v = []; customQueue.forEach((e, p) => { if (e && (!queueMoodView || e.mood === queueMoodView)) v.push(p); }); return v; };
+    let vis = visNow();
+    if (vis.length < 2) return;
+    const what = queueMoodView ? mt('section "' + queueMoodView + '"', 'sekci „' + queueMoodView + '“') : mt('the whole My Playlist', 'celý My Playlist');
+    if (!confirm(mt('Sort ' + what + ' by length (shortest first)? The current order will be replaced.', 'Seřadit ' + what + ' podle délky (od nejkratší)? Současné pořadí se nahradí.'))) return;
+    const before = vis.map(p => customQueue[p]);
+    if (before.some(e => trackDuration(e) === null)) {
+      showToast(mt('Measuring track lengths…', 'Zjišťuji délky skladeb…'), '⏱');
+      await probeTrackDurations(before);
+    }
+    vis = visNow(); // seznam se během měření mohl změnit - pak se nic neřadí
+    if (vis.length !== before.length || vis.some((p, i) => customQueue[p] !== before[i])) {
+      showToast(mt('The playlist changed meanwhile – nothing was sorted.', 'Playlist se mezitím změnil – nic jsem neseřadil.'), '⚠');
+      return;
+    }
+    const sorted = before.map((e, i) => ({ e, i })).sort((a, b) => trackSortCompare('len', a.e, b.e) || (a.i - b.i)).map(x => x.e);
+    const nq = customQueue.slice();
+    vis.forEach((p, i) => { nq[p] = sorted[i]; });
+    replaceQueueKeepingPlayback(nq);
+    afterQueueBulkChange();
+    const unknown = before.filter(e => trackDuration(e) === null).length;
+    showToast(unknown ? mt('Sorted by length (' + unknown + ' with unknown length are last)', 'Seřazeno podle délky (' + unknown + ' s neznámou délkou je na konci)') : mt('Sorted by length', 'Seřazeno podle délky'), '⏱');
+  }
+
   function bulkRemoveSelected() {
     const sel = selectedQueueEntries();
     if (!sel.length) return;
@@ -16848,6 +17011,7 @@
     if (!queueSelectMode) {
       mk(row1, mt('☑ SELECT TRACKS', '☑ VYBRAT SKLADBY'), toggleQueueSelectMode);
       mk(row1, mt('🔤 SORT A–Z', '🔤 ŘADIT A–Z'), sortQueueAZ, visible.length < 2);
+      mk(row1, mt('⏱ BY LENGTH', '⏱ PODLE DÉLKY'), sortQueueByLength, visible.length < 2);
       bar.appendChild(row1);
       return;
     }
@@ -16855,6 +17019,7 @@
     mk(row1, mt('☐ NONE', '☐ NIC'), () => { queueSelected.clear(); renderCustomQueue(); }, !queueSelected.size);
     mk(row1, mt('✕ DONE', '✕ HOTOVO'), toggleQueueSelectMode);
     mk(row1, mt('🔤 SORT A–Z', '🔤 ŘADIT A–Z'), sortQueueAZ, visible.length < 2);
+    mk(row1, mt('⏱ BY LENGTH', '⏱ PODLE DÉLKY'), sortQueueByLength, visible.length < 2);
     const cnt = document.createElement('span');
     cnt.className = 'myfiles-bulk-count';
     cnt.textContent = mt(queueSelected.size + ' / ' + visible.length + ' selected', queueSelected.size + ' / ' + visible.length + ' vybráno');
