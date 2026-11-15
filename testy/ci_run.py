@@ -101,6 +101,63 @@ def run_all(player, sw):
     return ordered, info["browser"], len(tp.TESTS)
 
 
+LIVE_JS = r"""<script>
+/* Stránka se sama obnoví, když GitHub uloží nové výsledky (není potřeba Ctrl+F5).
+   Každou minutu se podívá do historie.json (malý soubor) a při změně načte stránku znovu,
+   s jiným ?v=, aby prohlížeč ani GitHub nevrátily starou kopii z mezipaměti.
+   Každých 5 minut se navíc zeptá GitHubu, jestli zrovna neběží nové testy. */
+(function () {
+  var STAMP = __STAMP__, REPO = __REPO__;
+  var live = document.getElementById('live');
+  var running = false, checked = '';
+  function hhmm(d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); }
+  function show() {
+    if (!live) return;
+    live.hidden = false;
+    live.className = 'live' + (running ? ' run' : '');
+    live.textContent = running
+      ? 'Právě běží nové testy – stránka se po nich sama obnoví (asi za 10 minut).'
+      : 'Stránka se obnovuje sama' + (checked ? ' · naposledy zkontrolováno ' + checked : '') + '.';
+  }
+  function reload() {
+    var last = 0;
+    try { last = +sessionStorage.getItem('testy-reload') || 0; } catch (e) {}
+    if (Date.now() - last < 120000) return; // pojistka proti opakovanému načítání
+    try { sessionStorage.setItem('testy-reload', String(Date.now())); } catch (e) {}
+    location.replace(location.pathname + '?v=' + Date.now());
+  }
+  function checkResults() {
+    if (document.hidden) return;
+    fetch('historie.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (h) {
+        if (!h || !h.length) return;
+        var x = h[0], stamp = (x.run_url || '') + '|' + (x.date || '') + '|' + (x.commit || '');
+        checked = hhmm(new Date());
+        if (stamp !== STAMP) reload(); else show();
+      })
+      .catch(function () {});
+  }
+  function checkRunning() {
+    if (!REPO || document.hidden) return;
+    fetch('https://api.github.com/repos/' + REPO + '/actions/workflows/test-playeru.yml/runs?per_page=1', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var run = d && d.workflow_runs && d.workflow_runs[0];
+        running = !!(run && run.status && run.status !== 'completed');
+        show();
+      })
+      .catch(function () {});
+  }
+  show();
+  checkResults(); checkRunning();
+  setInterval(checkResults, 60000);
+  setInterval(checkRunning, 300000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { checkResults(); checkRunning(); } });
+})();
+</script>"""
+
+
 def build_page(entry, history):
     e = html.escape
 
@@ -163,7 +220,7 @@ def build_page(entry, history):
     if entry.get("error"):
         error_box = '<pre class="err">%s</pre>' % e(entry["error"])
 
-    return """<!doctype html>
+    page = """<!doctype html>
 <html lang="cs">
 <head>
 <meta charset="utf-8">
@@ -207,6 +264,11 @@ def build_page(entry, history):
   tr:last-child td { border-bottom:0; }
   td.ok { color:var(--ok); } td.bad { color:var(--bad); } td.warn { color:var(--warn); }
   .foot { color:var(--muted); font-size:12px; margin-top:30px; }
+  .live { margin:14px 0 0; font-size:12px; color:var(--muted); }
+  .live.run { color:var(--warn); }
+  .live.run::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%%; background:var(--warn); margin-right:7px; animation:pulse 1.2s ease-in-out infinite; vertical-align:1px; }
+  @keyframes pulse { 50%% { opacity:.25; } }
+  @media (prefers-reduced-motion: reduce) { .live.run::before { animation:none; } }
   pre.err { white-space:pre-wrap; overflow-wrap:anywhere; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; font-size:12px; color:var(--bad); }
 </style>
 </head>
@@ -217,6 +279,7 @@ def build_page(entry, history):
     <p class="big %s">%s</p>
     <p class="sub">%s</p>
     <div class="meta">%s</div>
+    <p class="live" id="live" hidden></p>
   </section>
   %s
   <h2>Testy</h2>
@@ -233,6 +296,10 @@ def build_page(entry, history):
 </html>
 """ % (bigcls, e(big), e(sub), "".join(meta), error_box, "\n".join(rows) or "<p class=\"sub\">Žádné výsledky.</p>",
        "\n".join(hist), e(entry.get("browser") or ""))
+    return page.replace(
+        "</body>",
+        LIVE_JS.replace("__STAMP__", json.dumps((entry.get("run_url") or "") + "|" + (entry.get("date") or "") + "|" + (entry.get("commit") or "")))
+               .replace("__REPO__", json.dumps(os.environ.get("GITHUB_REPOSITORY", ""))) + "\n</body>")
 
 
 def main(argv):
