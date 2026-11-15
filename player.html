@@ -1621,7 +1621,7 @@
 
   /* Playlist - ZVĚTŠENO pro zobrazení 5-6 skladeb */
   .playlist { list-style: none; padding: 0; margin: 0 auto 8px auto; width: 90%; height: clamp(90px, 22vh, 160px); /* pevná výška: krátký playlist hlavní okno nezmenší, přepínání playlistů neskáče */ overflow-y: auto; overflow-x: hidden; text-align: left; }
-  .playlist li { font-size: 12px; line-height: 1.1; padding: 4px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .playlist li { font-size: 12px; line-height: 1.1; padding: 4px 5px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s, order 0s; /* order se nesmí animovat: seřazený seznam by se ~0,2 s přeskládával a lupa by změřila pozici uprostřed animace */ display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .playlist li:hover { color: var(--accent-color); background: rgba(255,255,255,0.05); padding-left: 10px; }
   .playlist li.active { border-left: 2px solid var(--accent-color); background: rgba(255,255,255,0.06); }
   /* Skladby se slovem "special": zvýrazněné hvězdičkou a barvou motivu; při přehrávání (popořadě, ⏭, 🔀, kostka) se vždy přeskakují - pustí se jen ručním klepnutím; v MY PLAYLIST hrají normálně */
@@ -13598,10 +13598,20 @@
     const scrollToRow = () => {
       const row = loc.kind === 'queue' ? playlistEl.querySelector('[data-qpos="' + rowIndex + '"]') : playlistEl.children[rowIndex];
       if (!row) { if (++tries < 5) setTimeout(scrollToRow, 80); return; }
-      const listRect = playlistEl.getBoundingClientRect();
-      const rowRect = row.getBoundingClientRect();
-      const target = playlistEl.scrollTop + (rowRect.top - listRect.top) - (listRect.height - rowRect.height) / 2;
-      playlistEl.scrollTo({ top: Math.max(0, target), behavior: switched ? 'auto' : 'smooth' });
+      const centerRow = (behavior) => {
+        const listRect = playlistEl.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const target = playlistEl.scrollTop + (rowRect.top - listRect.top) - (listRect.height - rowRect.height) / 2;
+        playlistEl.scrollTo({ top: Math.max(0, target), behavior });
+      };
+      centerRow(switched ? 'auto' : 'smooth');
+      if (switched) { // pojistka: po usazení layoutu (řazení, výška seznamu) se pozice ještě jednou srovná
+        [120, 400].forEach((ms) => setTimeout(() => {
+          if (!row.isConnected) return;
+          const lr = playlistEl.getBoundingClientRect(), rr = row.getBoundingClientRect();
+          if (Math.abs((rr.top - lr.top) - (lr.height - rr.height) / 2) > 3) centerRow('auto');
+        }, ms));
+      }
       if (loc.fromQueue) { // hraje fronta, ale skladba je z tohoto playlistu - nechat ji v seznamu trvale označenou
         Array.prototype.forEach.call(playlistEl.children, (li) => li.classList.remove('active'));
         row.classList.add('active');
