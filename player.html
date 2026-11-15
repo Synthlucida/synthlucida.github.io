@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.8.8">
+<meta name="app-version" content="2.8.9">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -4482,6 +4482,11 @@
       <span class="guide-tip-title" data-i18n="tour_card_title">Quick tour</span>
       <span class="guide-tip-text" data-i18n="tour_card_text">New here? In about a minute the quick tour shows you the most important buttons, step by step.</span>
       <button type="button" class="btn-feature guide-tour-btn" data-tour-start data-i18n="tour_card_btn">▶ START THE TOUR</button>
+    </div>
+
+    <div class="guide-tip guide-layer-tip" role="note">
+      <span class="guide-tip-title" data-i18n="layer_tip_title">Tip: ASMR layers under your own music</span>
+      <span class="guide-tip-text" data-i18n="layer_tip_text">The second ASMR layer is not only for the ASMR playlist. Add an ASMR track to MY PLAYLIST or to one of your playlists in F, tap the layers button and pick it – it then loops quietly under whatever plays from that list: piano, chill, or your own audio files. Your own recording can be a layer too if its file name contains “asmr”.</span>
     </div>
 
     <div class="guide-tip" role="note">
@@ -10482,12 +10487,34 @@
     const show = layerActive && layerAvailable();
     const inQueue = mainListShowsQueue;
     const dimOthers = !viewingAsmr() && layerPickMode && layerAvailable();
+    // Druhá vrstva je vždy jen JEDNA. Když je stejná skladba v seznamu víckrát (např. v My Playlist ve dvou
+    // sekcích), značku "2" dostane jen jeden řádek - ten, na který uživatel klepl, jinak první shodný.
+    let hits = [];
+    let picked = -1;
     for (let i = 0; i < rows.length; i++) {
-      const t = inQueue ? customQueue[rows[i].dataset.qpos !== undefined ? +rows[i].dataset.qpos : i] : playlist[i];
-      rows[i].classList.toggle('layer-track', !!(show && t && t.src === layerSrc && layerEntryOk(t)));
+      const ti = inQueue ? (rows[i].dataset.qpos !== undefined ? +rows[i].dataset.qpos : i) : i;
+      const t = inQueue ? customQueue[ti] : playlist[i];
+      if (show && t && t.src === layerSrc && layerEntryOk(t)) {
+        hits.push(i);
+        if (layerRowRef && layerRowRef.queue === inQueue && layerRowRef.index === ti) picked = i;
+      }
       // při výběru druhé stopy v My Playlist / vlastním playlistu F jsou ztlumené řádky, které nejsou z ASMR (nejdou vrstvit)
       rows[i].classList.toggle('layer-dim', !!(dimOthers && !layerEntryOk(t)));
     }
+    const mark = hits.length ? (picked >= 0 ? picked : hits[0]) : -1;
+    for (let i = 0; i < rows.length; i++) rows[i].classList.toggle('layer-track', i === mark);
+  }
+
+  // stejná skladba nesmí hrát zároveň jako hlavní i jako druhá vrstva (zněla by dvakrát přes sebe)
+  var layerRowRef = null; // { queue, index } řádku, na který uživatel klepl při výběru druhé vrstvy
+  function layerSameAsMain(src) {
+    try {
+      if (!src) return false;
+      const main = audio.currentSrc || audio.src || '';
+      if (!main) return false;
+      const abs = (u) => { try { return new URL(u, location.href).href; } catch (e) { return String(u); } };
+      return abs(main) === abs(src);
+    } catch (e) { return false; }
   }
 
   function updateLayerUI() {
@@ -10513,6 +10540,7 @@
     layerPickMode = false;
     layerActive = false;
     layerSrc = '';
+    layerRowRef = null;
     try { layerAudio.pause(); layerAudio.removeAttribute('src'); layerAudio.load(); } catch (e) { /* ignore */ }
     updateLayerUI();
   }
@@ -10524,9 +10552,14 @@
       showToast('Only ASMR tracks can be layered', '🎧');
       return;
     }
+    if (layerSameAsMain(t.src)) { // tahle skladba právě hraje jako hlavní - vrstvit ji samu na sebe nedává smysl
+      if (!silent) showToast(guideLang === 'cz' ? 'Tahle skladba už hraje – jako druhou vrstvu vyber jinou.' : 'This track is already playing – pick a different one as the second layer.', '🎧');
+      return;
+    }
     layerPendingSrc = '';
     layerPickMode = false;
     layerActive = true;
+    layerRowRef = { queue: !!mainListShowsQueue, index: index };
     layerSrc = t.src;
     layerAudio.loop = true;
     layerAudio.src = t.src;
@@ -10557,6 +10590,7 @@
       ? customQueue.findIndex((t) => queueEntryIsAsmr(t) && t.src === src)
       : playlist.findIndex((t) => layerEntryOk(t) && t.src === src);
     if (idx < 0 && !viewingAsmr()) return; // v My Playlist / vlastním playlistu stopa není - uložená stopa počká na playlist ASMR
+    if (layerSameAsMain(src)) return; // uložená vrstva je zrovna hlavní skladba - počká, až bude hrát jiná
     layerPendingSrc = ''; // jen jednou za spuštění
     if (idx >= 0) pickLayerTrack(idx, true);
   }
@@ -10580,6 +10614,11 @@
   function layerTick() {
     applyPendingLayer();
     if ((layerActive || layerPickMode) && !layerAvailable()) stopLayer();
+    else if (layerActive && layerSameAsMain(layerSrc)) {
+      // hlavní přehrávání přešlo na skladbu, která hraje jako druhá vrstva (uživatel na ni klepl) -> vrstva se vypne
+      stopLayer();
+      showToast(guideLang === 'cz' ? 'Druhá vrstva vypnuta – tahle skladba teď hraje jako hlavní.' : 'Second layer stopped – this track now plays as the main one.', '🎧');
+    }
     else updateLayerUI();
     if (!layerActive) return;
     const v = layerTargetVolume();
@@ -11473,6 +11512,8 @@
     contact_error: { en: "Something went wrong, please try again.", cz: "Něco se pokazilo, zkuste to prosím znovu." },
     guide_title: { en: "SYNTHLUCIDA — User Guide", cz: "SYNTHLUCIDA — Uživatelská příručka" },
     guide_intro: { en: "Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.", cz: "Nepřetržité vysílání 24 hodin denně, 7 dní v týdnu. Užívejte si nekonečný, bezplatný poslech. Ať už potřebujete hudbu na pozadí pro soustředění, hluboké uvolnění nebo běžné činnosti, tento stream nabízí dokonalý atmosférický doprovod. Více informací na www.SYNTHLUCIDA.com." },
+    layer_tip_title: { en: "Tip: ASMR layers under your own music", cz: "Tip: ASMR vrstvy i pod vlastní hudbou" },
+    layer_tip_text: { en: "The second ASMR layer is not only for the ASMR playlist. Add an ASMR track to MY PLAYLIST or to one of your playlists in F, tap the layers button and pick it – it then loops quietly under whatever plays from that list: piano, chill, or your own audio files. Your own recording can be a layer too if its file name contains “asmr”.", cz: "Druhá ASMR vrstva není jen pro playlist ASMR. Přidej ASMR skladbu do MY PLAYLIST nebo do svého playlistu v sekci F, klepni na tlačítko s vrstvami a vyber ji – pak hraje tiše ve smyčce pod čímkoli z toho seznamu: pod pianem, chillem i pod tvými vlastními audio soubory. Vrstvou může být i tvoje vlastní nahrávka, když má v názvu souboru slovo „asmr“." },
     tour_card_title: { en: "Quick tour", cz: "Rychlý průvodce" },
     tour_card_text: { en: "New here? In about a minute the quick tour shows you the most important buttons, step by step.", cz: "Jsi tu nový? Rychlý průvodce ti asi za minutu postupně ukáže nejdůležitější tlačítka." },
     tour_card_btn: { en: "▶ START THE TOUR", cz: "▶ SPUSTIT PRŮVODCE" },
@@ -21472,6 +21513,8 @@
         x: { en: 'More to discover: game, relax, drawing, breathing, binaural beats, search – and SETUP with settings (e.g. LITE MODE for slower phones).', cz: 'Další části: hra, relaxace, kreslení, dýchání, binaurální tóny, vyhledávání – a SETUP s nastavením (např. ÚSPORNÝ REŽIM pro slabší telefony).' } },
       { sel: '.main-files-btn', t: { en: 'F – MY FILES', cz: 'F – MOJE SOUBORY' },
         x: { en: 'Add your own music from your device and build playlists mixing it with SYNTHLUCIDA tracks.', cz: 'Přidej vlastní hudbu ze zařízení a skládej z ní playlisty spolu se skladbami SYNTHLUCIDA.' } },
+      { sel: '#btn-layer', t: { en: 'ASMR MIX – SECOND LAYER', cz: 'ASMR MIX – DRUHÁ VRSTVA' },
+        x: { en: 'Lays a second ASMR sound under what is playing. Not only in the ASMR playlist: add an ASMR track to MY PLAYLIST or to your playlist in F and rain or a stream can play under your own music too.', cz: 'Pod to, co hraje, pustí druhý ASMR zvuk. Nejen v playlistu ASMR: přidej ASMR skladbu do MY PLAYLIST nebo do svého playlistu v sekci F a déšť či potok hraje i pod tvojí vlastní hudbou.' } },
       { sel: '.main-guide-btn', t: { en: 'GUIDE', cz: 'NÁVOD' },
         x: { en: 'The full guide lives here – and you can start this tour again any time. Enjoy listening!', cz: 'Tady najdeš kompletní návod a tohoto průvodce kdykoli znovu. Příjemný poslech!' } }
     ];
