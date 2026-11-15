@@ -994,6 +994,260 @@ def t_layout(s, c):
         c.ok(not bad, "Šířka %d px: nic nepřetéká ven z obrazovky" % w + (" – " + " | ".join(bad[:2]) if bad else ""))
 
 
+def t_i18n(s, c):
+    src = s.env.player_src
+    keys = set(re.findall(r'data-i18n(?:-placeholder|-aria)?="([^"]+)"', src))
+    ctx, p, errs = s.page()
+    # text bez překladu, který má pevný nápis přímo ve stránce (např. MICROSOFT STORE), je v pořádku - zůstane stejný v obou jazycích
+    bad = p.evaluate("""(keys)=>keys.filter(k=>{const e=i18nText[k];
+      if(!e){const el=document.querySelector('[data-i18n="'+k+'"],[data-i18n-placeholder="'+k+'"],[data-i18n-aria="'+k+'"]');
+        return !(el&&(el.textContent.trim()||el.getAttribute('placeholder')||el.getAttribute('aria-label')))}
+      return !String(e.en||'').trim()||!String(e.cz||'').trim()})""", sorted(keys))
+    c.ok(not bad, "Všech %d textů má českou i anglickou verzi" % len(keys) + (" – chybí: " + ", ".join(bad[:6]) if bad else ""))
+    btn_txt = p.evaluate("document.querySelector('.lang-toggle-btn') ? document.querySelector('.lang-toggle-btn').innerText : ''")
+    p.evaluate("toggleGuideLanguage()")
+    p.wait_for_timeout(300)
+    for fn in ("toggleMainGuide()", "toggleSetup()", "toggleCustomQueue()", "toggleMainFiles()", "toggleMainStats()"):
+        p.evaluate(fn)
+        p.wait_for_timeout(250)
+        p.evaluate(fn)
+    r = p.evaluate("""()=>({lang:guideLang,empty:Array.from(document.querySelectorAll('[data-i18n]')).filter(e=>!e.textContent.trim()).map(e=>e.getAttribute('data-i18n')).slice(0,5),
+      sample:(document.querySelector('[data-i18n="tour_card_btn"]')||{}).textContent||''})""")
+    c.ok(r["lang"] != "en" or btn_txt == "", "Přepnutí jazyka funguje (teď: %s)" % r["lang"])
+    c.ok(not r["empty"], "Po přepnutí jazyka není žádný text prázdný" + (": " + ", ".join(r["empty"]) if r["empty"] else ""))
+    p.reload()
+    p.wait_for_timeout(1500)
+    c.ok(p.evaluate("guideLang") == r["lang"], "Zvolený jazyk se pamatuje i po novém načtení")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_timer(s, c):
+    ctx, p, errs = s.page()
+    p.evaluate("playTrack(2)")
+    p.wait_for_timeout(1200)
+    p.evaluate("setTimer(15)")
+    p.wait_for_timeout(1300)
+    r = p.evaluate("()=>({txt:document.getElementById('timer-display').innerText,active:!!document.querySelector('.btn-timer.active[data-timer-min=\"15\"]')})")
+    c.ok(re.match(r"⏱ 1[45]:\d\d", r["txt"]) and r["active"], "Časovač 15 minut se spustí a odpočítává (%s)" % r["txt"])
+    p.evaluate("cancelTimer()")
+    p.wait_for_timeout(300)
+    c.ok("Off" in p.evaluate("document.getElementById('timer-display').innerText"), "Křížek časovač zruší")
+    v0 = p.evaluate("audio.volume")
+    p.evaluate("()=>{setTimer(1);timerEndsAt=Date.now()+4000}")
+    p.wait_for_timeout(2200)
+    mid = p.evaluate("()=>({mul:sleepFadeMul,paused:audio.paused})")
+    c.ok(mid["mul"] < 1 and not mid["paused"], "Před koncem se hudba plynule ztiší")
+    p.wait_for_timeout(3500)
+    r = p.evaluate("()=>({paused:audio.paused,mul:sleepFadeMul,vol:audio.volume,txt:document.getElementById('timer-display').innerText})")
+    c.ok(r["paused"] and "Off" in r["txt"], "Po uplynutí času se hudba zastaví")
+    c.ok(r["mul"] == 1 and abs(r["vol"] - v0) < 0.02, "Hlasitost se pak vrátí, aby další přehrání nezačalo v tichu")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_repeat(s, c):
+    ctx, p, errs = s.page()
+    p.evaluate("playTrack(4)")
+    p.wait_for_timeout(1200)
+    p.evaluate("toggleRepeat()")
+    c.ok(p.evaluate("repeatEnabled && document.getElementById('btn-repeat').classList.contains('active')"), "Tlačítko opakování se zapne")
+    p.evaluate("audio.currentTime=Math.max(0,audio.duration-0.6)")
+    p.wait_for_timeout(2500)
+    r = p.evaluate("()=>({i:currentTrackIndex,t:audio.currentTime,paused:audio.paused})")
+    c.ok(r["i"] == 4 and r["t"] < 5 and not r["paused"], "S opakováním hraje po skončení stejná skladba znovu")
+    p.evaluate("toggleShuffle()")
+    r = p.evaluate("()=>({sh:shuffleEnabled,rep:repeatEnabled,b:document.getElementById('btn-repeat').classList.contains('active')})")
+    c.ok(r["sh"] and not r["rep"] and not r["b"], "Zapnutí náhodného pořadí opakování vypne (nejdou zároveň)")
+    seen = set()
+    for _ in range(4):
+        p.evaluate("playNextTrack()")
+        p.wait_for_timeout(700)
+        seen.add(p.evaluate("currentTrackIndex"))
+    c.ok(len(seen) >= 3 and not p.evaluate("audio.paused"), "Náhodné pořadí hraje různé skladby (%d různé ze 4)" % len(seen))
+    p.evaluate("toggleShuffle()")
+    p.evaluate("audio.pause()")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_offline_app(s, c):
+    s.env.reset()
+    ctx, p, errs = s.page(sw=True)
+    p.evaluate(CLEAR_AUDIO_CACHE_JS)
+    p.evaluate(PIANO_JS)
+    p.wait_for_timeout(600)
+    p.evaluate("runOfflineDownload([2])")
+    p.wait_for_timeout(4000)
+    c.ok(p.evaluate("isTrackCached(tracks.piano[2].src)"), "Skladba se stáhne do offline")
+    p.wait_for_timeout(1500)
+    ctx.set_offline(True)
+    try:
+        p.reload()
+        p.wait_for_timeout(2500)
+        rows = p.evaluate("document.querySelectorAll('#playlist li').length")
+        c.ok(rows > 5, "Player se načte i úplně bez internetu (%d skladeb v seznamu)" % rows)
+        p.evaluate(PIANO_JS)
+        p.wait_for_timeout(600)
+        p.evaluate("playTrack(2)")
+        p.wait_for_timeout(2500)
+        c.ok(not p.evaluate("audio.paused") and p.evaluate("audio.currentTime") > 0.5, "Stažená skladba bez internetu hraje")
+        bad = [e for e in errs if "Failed to fetch" not in e and "NetworkError" not in e]
+        c.ok(not bad, "Bez chyby ve stránce" + (": " + bad[0] if bad else ""))
+    finally:
+        ctx.set_offline(False)
+
+
+def t_sw_update(s, c):
+    s.env.reset()
+    orig = s.env.sw
+    try:
+        ctx, p, errs = s.page(sw=True)
+        p.evaluate(CLEAR_AUDIO_CACHE_JS)
+        p.evaluate(PIANO_JS)
+        p.wait_for_timeout(600)
+        p.evaluate("runOfflineDownload([3])")
+        p.wait_for_timeout(4000)
+        c.ok(p.evaluate("isTrackCached(tracks.piano[3].src)"), "Skladba je stažená offline")
+        keys0 = p.evaluate("caches.keys()")
+        m = re.search(r"synthlucida-app-v(\d+)", orig)
+        if not m:
+            c.ok(False, "V sw.js chybí číslo verze (synthlucida-app-vČÍSLO)")
+            return
+        newname = "synthlucida-app-v%d" % (int(m.group(1)) + 1)
+        s.env.sw = orig.replace(m.group(0), newname) + "\n// update %s\n" % time.time()
+        p.reload()
+        p.wait_for_timeout(3000)
+        p.reload()
+        p.wait_for_timeout(2500)
+        keys1 = p.evaluate("caches.keys()")
+        c.ok(newname in keys1, "Nový sw.js se nainstaluje (%s)" % newname)
+        c.ok(m.group(0) not in keys1 and m.group(0) in keys0, "Stará kopie aplikace se uklidí")
+        c.ok(p.evaluate("isTrackCached(tracks.piano[3].src)"), "Stažené skladby po aktualizaci zůstanou")
+        c.ok(p.evaluate("document.querySelectorAll('#playlist li').length") > 5 and not errs, "Player po aktualizaci normálně běží" + (": " + errs[0] if errs else ""))
+    finally:
+        s.env.sw = orig
+
+
+def t_settings(s, c):
+    ctx, p, errs = s.page()
+    p.evaluate("()=>{const el=document.getElementById('volume-slider');el.value=0.42;el.dispatchEvent(new Event('input',{bubbles:true}))}")
+    p.evaluate("()=>{setVisualTheme('space', document.querySelector(\".btn-theme[onclick*=\\\"'space'\\\"]\"));setCrossfade(6, document.querySelector('.btn-crossfade[data-cf=\"6\"]'));saveSettings()}")
+    p.wait_for_timeout(400)
+    p.reload()
+    p.wait_for_timeout(1800)
+    r = p.evaluate("()=>({vol:+document.getElementById('volume-slider').value,theme:document.body.classList.contains('theme-space'),cf:crossfadeDuration})")
+    c.ok(abs(r["vol"] - 0.42) < 0.011, "Hlasitost se pamatuje (%.2f)" % r["vol"])
+    c.ok(r["theme"], "Uložené barevné téma se po novém spuštění obnoví")
+    c.ok(r["cf"] == 6, "Uložené prolínání skladeb se obnoví (%s s)" % r["cf"])
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_extras(s, c):
+    ctx, p, errs = s.page()
+    n = p.evaluate("""()=>{const b=Array.from(document.querySelectorAll('.btn-theme[onclick*="setVisualTheme"]'));b.forEach(x=>x.click());return b.length}""")
+    p.wait_for_timeout(500)
+    c.ok(n >= 20 and not errs, "Všech %d barevných témat jde přepnout bez chyby" % n)
+    p.evaluate("startBreathing()")
+    p.wait_for_timeout(1500)
+    on = p.evaluate("breathingActive")
+    p.evaluate("stopBreathing()")
+    p.wait_for_timeout(500)
+    c.ok(on and not p.evaluate("breathingActive") and not errs, "Dechové cvičení se spustí a zase vypne")
+    p.evaluate("startBinaural()")
+    p.wait_for_timeout(1500)
+    on = p.evaluate("binauralActive")
+    p.evaluate("stopBinaural()")
+    p.wait_for_timeout(600)
+    c.ok(on and not p.evaluate("binauralActive") and not errs, "Binaurální tóny se otevřou a zavřou")
+    p.evaluate("playTrack(1)")
+    p.wait_for_timeout(1200)
+    p.evaluate("toggleHistory()")
+    p.wait_for_timeout(300)
+    title = p.evaluate("document.getElementById('track-title').textContent")
+    hist = p.evaluate("document.getElementById('history-list').innerText")
+    c.ok(title and title.split(" ")[0] in hist, "Historie poslechu ukazuje právě hranou skladbu")
+    p.evaluate("toggleHistory()")
+    other = p.evaluate("displayTrackTitle(tracks.piano[4].title)")
+    p.evaluate("toggleSearch()")
+    p.wait_for_timeout(300)
+    p.fill("#search-input", other)
+    p.wait_for_timeout(500)
+    res = p.evaluate("document.getElementById('search-results').innerText")
+    c.ok(other in res, "Hledání (lupa) najde skladbu i z jiného playlistu (%s)" % other)
+    p.evaluate("toggleSearch()")
+    p.evaluate("toggleMainStats()")
+    p.wait_for_timeout(400)
+    c.ok(len(p.evaluate("document.getElementById('main-stats').innerText")) > 40, "Statistiky (S) se zobrazí")
+    p.evaluate("toggleMainStats()")
+    p.evaluate("audio.pause()")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+MS_JS = """window.__msh={};try{const o=navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
+navigator.mediaSession.setActionHandler=function(a,h){window.__msh[a]=h;return o(a,h)}}catch(e){}"""
+
+
+def t_media_session(s, c):
+    ctx, p, errs = s.page(init=MS_JS)
+    have = p.evaluate("Object.keys(window.__msh||{}).sort()")
+    c.ok(all(a in have for a in ("play", "pause", "nexttrack", "previoustrack")), "Ovládání ze zamčené obrazovky a sluchátek je nastavené (%s)" % ", ".join(have))
+    p.evaluate("playTrack(2)")
+    p.wait_for_timeout(1500)
+    r = p.evaluate("()=>({t:(navigator.mediaSession.metadata||{}).title||'',shown:document.getElementById('track-title').textContent})")
+    c.ok(r["t"] and r["t"].lower() == r["shown"].lower(), "Na zamčené obrazovce je správný název skladby (%s)" % r["t"])
+    p.evaluate("window.__msh.nexttrack()")
+    p.wait_for_timeout(1200)
+    c.ok(p.evaluate("currentTrackIndex") != 2 and not p.evaluate("audio.paused"), "Tlačítko další skladba ze zamčené obrazovky funguje")
+    p.evaluate("window.__msh.pause()")
+    p.wait_for_timeout(500)
+    c.ok(p.evaluate("audio.paused"), "Pauza ze zamčené obrazovky funguje")
+    p.evaluate("window.__msh.play()")
+    p.wait_for_timeout(900)
+    c.ok(not p.evaluate("audio.paused"), "Play ze zamčené obrazovky funguje")
+    p.evaluate("audio.pause()")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def _probe(url, timeout=20):
+    """True = soubor je na serveru, False = server řekl, že tam není (404/410), None = nepodařilo se zjistit."""
+    import urllib.request
+    import urllib.error
+    req = urllib.request.Request(url, headers={"Range": "bytes=0-1", "User-Agent": "SynthlucidaTest/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status in (200, 206)
+    except urllib.error.HTTPError as e:
+        return False if e.code in (404, 410) else None
+    except Exception:
+        return None
+
+
+def t_online(s, c):
+    from concurrent.futures import ThreadPoolExecutor
+    urls = sorted(set(re.findall(r'src: "(%s[^"]+)"' % re.escape(GH_PREFIX), s.env.player_src)))
+    m = re.search(r"const R2_BASE = '([^']*)';", s.env.sw_src)
+    r2 = m.group(1) if m else ""
+    jobs = [("GitHub", u, u) for u in urls]
+    if r2:
+        jobs += [("R2", u, r2 + u.rsplit("/", 1)[-1]) for u in urls]
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        res = list(ex.map(lambda j: (j[0], j[1], _probe(j[2])), jobs))
+    for where in ("GitHub", "R2") if r2 else ("GitHub",):
+        mine = [r for r in res if r[0] == where]
+        missing = [u.rsplit("/", 1)[-1] for w, u, ok in mine if ok is False]
+        unknown = [u for w, u, ok in mine if ok is None]
+        if len(unknown) == len(mine):
+            c.ok(True, "%s: nepodařilo se ověřit (není internet?) – kontrola přeskočena" % where)
+            continue
+        if missing:
+            n = len(missing)
+            word = "skladba CHYBÍ" if n == 1 else ("skladby CHYBÍ" if 2 <= n <= 4 else "skladeb CHYBÍ")
+            c.ok(False, "%s: na serveru %d %s (nebo má jinak napsaný název): %s" % (where, n, word, ", ".join(missing[:8])))
+        else:
+            c.ok(True, "%s: všech %d skladeb je opravdu na serveru" % (where, len(mine) - len(unknown)) +
+                 (" (%d se nepodařilo ověřit)" % len(unknown) if unknown else ""))
+    if not r2:
+        c.ok(False, "V sw.js jsem nenašel adresu zálohy R2")
+
+
 TESTS = [
     ("Kontrola souborů", t_static),
     ("Načtení playeru a okna", t_load),
@@ -1018,6 +1272,15 @@ TESTS = [
     ("Vlastní soubory (sekce F)", t_own_files),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
+    ("Texty v češtině i angličtině", t_i18n),
+    ("Časovač usínání", t_timer),
+    ("Opakování a náhodné pořadí", t_repeat),
+    ("Aplikace bez internetu", t_offline_app),
+    ("Aktualizace sw.js nesmaže stažené skladby", t_sw_update),
+    ("Uložené nastavení", t_settings),
+    ("Témata, dýchání, binaurální tóny, historie, hledání", t_extras),
+    ("Ovládání ze zamčené obrazovky", t_media_session),
+    ("Skladby jsou opravdu na GitHubu a R2 (online)", t_online),
 ]
 
 
