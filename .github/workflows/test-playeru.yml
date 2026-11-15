@@ -1,0 +1,95 @@
+# SYNTHLUCIDA – automatický test playeru
+# Spustí se sám po každém nahrání player.html nebo sw.js (a jde spustit i ručně: Actions -> Test playeru -> Run workflow).
+# Výsledky zapíše na stránku testy/index.html  ->  https://synthlucida.com/testy/
+name: Test playeru
+
+on:
+  push:
+    paths:
+      - 'player.html'
+      - 'sw.js'
+      - 'testy/test_playeru.py'
+      - 'testy/ci_run.py'
+      - '.github/workflows/test-playeru.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # uložit stránku s výsledky do repozitáře
+  pages: write      # požádat GitHub Pages o zveřejnění stránky s výsledky
+
+concurrency:
+  group: test-playeru
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Stáhnout soubory webu
+        uses: actions/checkout@v4
+
+      - name: Připravit Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Nainstalovat testovací prohlížeč
+        run: |
+          python -m pip install --disable-pip-version-check --quiet playwright==1.65.2
+          python -m playwright install --with-deps chromium
+
+      - name: Spustit testy
+        id: tests
+        run: python testy/ci_run.py player.html sw.js testy
+
+      - name: Uložit stránku s výsledky
+        if: always()
+        run: |
+          set -e
+          if [ ! -f testy/index.html ]; then echo "Stránka s výsledky nevznikla."; exit 0; fi
+          mkdir -p /tmp/vysledky
+          cp testy/index.html testy/historie.json /tmp/vysledky/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898341+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            # vždy na nejnovější stav (mezitím mohlo přijít další nahrání) a jen dva soubory s výsledky
+            git fetch --quiet --depth=1 origin "$GITHUB_REF_NAME"
+            git reset --quiet --hard FETCH_HEAD
+            cp /tmp/vysledky/index.html /tmp/vysledky/historie.json testy/
+            git add testy/index.html testy/historie.json
+            if git diff --cached --quiet; then echo "Beze změny."; exit 0; fi
+            git commit --quiet -m "Výsledky testů playeru"
+            if git push --quiet origin HEAD:"$GITHUB_REF_NAME"; then echo "Uloženo."; exit 0; fi
+            sleep $((i * 5))
+          done
+          echo "Stránku s výsledky se nepodařilo uložit."
+          exit 1
+
+      - name: Zveřejnit stránku s výsledky
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Uložení přes GitHub Actions samo web neobnoví - proto se o to požádá zvlášť.
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" > /dev/null \
+            && echo "Web se obnovuje, stránka s výsledky bude za 1–2 minuty aktuální." \
+            || echo "Web se teď obnovit nepodařilo - stránka s výsledky se aktualizuje při příštím nahrání. Výsledek je i v souboru ke stažení níže."
+
+      - name: Výsledky ke stažení
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vysledky-testu
+          path: testy/index.html
+          if-no-files-found: ignore
+
+      - name: Výsledek
+        if: always()
+        run: |
+          if [ "${{ steps.tests.outputs.result }}" = "ok" ]; then
+            echo "Všechny testy prošly."
+          else
+            echo "Některé testy neprošly nebo nedoběhly – podrobnosti na https://synthlucida.com/testy/"
+            exit 1
+          fi
