@@ -1015,6 +1015,140 @@ def t_own_bulk(s, c):
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
+def t_own_backup(s, c):
+    """Sekce F: záloha seznamů (malý .json) a obnovení na „druhém zařízení“."""
+    def f(name, sec):
+        return {"name": name, "mimeType": "audio/wav", "buffer": make_wav(sec, 8000)}
+    A, B, C, D = f("Alfa.wav", 3), f("Beta.wav", 4), f("Gama.wav", 5), f("Delta.wav", 6)
+    STATE = """()=>({pls:myPlaylists.map(pl=>pl.name+': '+pl.items.map(i=>i.type==='file'?((myFilesLibrary.find(x=>x.id===i.fileId)||{name:'??'}).name):'T').join(',')),
+      folders:myFolders.map(fo=>fo.name+': '+myFilesLibrary.filter(x=>myFolderMap[x.id]===fo.id).map(x=>x.name).sort().join(',')),
+      pending:document.getElementById('myfiles-pending').hidden?0:(JSON.parse(localStorage.getItem('synthlucida_myfiles_pending')||'{"files":[]}').files.length)})"""
+
+    def upload(p, files):
+        p.set_input_files("#myfiles-input", files)
+        p.wait_for_function("!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+        p.wait_for_timeout(400)
+
+    # --- první zařízení: soubory, složka, dva playlisty (jeden název dvakrát), smíchané se SYNTHLUCIDA skladbami
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof exportMyFilesBackup==='function'&&!!document.getElementById('myfiles-backup-input')"):
+        c.ok(False, "Player nemá zálohu seznamů (je to aktuální player.html?)")
+        return
+    p.evaluate("toggleMainFiles()")
+    upload(p, [A, B, C, D])
+    p.evaluate("""()=>{const id=n=>myFilesLibrary.find(x=>x.name===n).id;
+      document.getElementById('myfiles-folder-name').value='Chill';createMyFolder();moveFilesToFolder([id('Alfa'),id('Beta')],myFolders[0].id);
+      const T=(pl,i)=>({type:'track',playlist:pl,index:i,title:tracks[pl][i].title,src:tracks[pl][i].src});
+      myPlaylists.push({id:'b1',name:'Večer',createdAt:1,items:[T('piano',1),{type:'file',fileId:id('Alfa'),title:'Alfa'},T('asmr',2),{type:'file',fileId:id('Gama'),title:'Gama'}]});
+      myPlaylists.push({id:'b2',name:'Dup',createdAt:2,items:[{type:'file',fileId:id('Beta'),title:'Beta'},{type:'file',fileId:id('Delta'),title:'Delta'}]});
+      myPlaylists.push({id:'b3',name:'Dup',createdAt:3,items:[{type:'file',fileId:id('Alfa'),title:'Alfa'}]});
+      saveMyPlaylistsToStorage();renderMyFiles();}""")
+    want = p.evaluate(STATE)
+    with p.expect_download() as dl:
+        p.evaluate("exportMyFilesBackup()")
+    path = os.path.join(tempfile.gettempdir(), "testplayeru_zaloha.json")
+    dl.value.save_as(path)
+    size = os.path.getsize(path)
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    c.ok(size < 20000 and data.get("kind") == "synthlucida-myfiles-backup" and len(data.get("playlists", [])) == 3 and len(data.get("files", [])) == 4,
+         "Záloha je malý soubor bez hudby (%d B, playlisty 3, soubory 4)" % size)
+    ctx.close()
+
+    # --- druhé zařízení: Gama už je nahraná, playlist „dup“ už existuje a jiný playlist musí zůstat
+    ctx, p, errs2 = s.page()
+    p.evaluate("toggleMainFiles()")
+    upload(p, [C])
+    p.evaluate("()=>{myPlaylists.push({id:'x1',name:'dup',createdAt:1,items:[]},{id:'x2',name:'Moje',createdAt:2,items:[]});saveMyPlaylistsToStorage();renderMyFiles()}")
+    p.set_input_files("#myfiles-backup-input", path)
+    p.wait_for_timeout(800)
+    r = p.evaluate(STATE)
+    c.ok(r["pending"] == 3, "Po obnovení se ukáže, kolik souborů ze zálohy ještě chybí (%s)" % r["pending"])
+    p.reload()
+    p.wait_for_timeout(1500)
+    p.evaluate("toggleMainFiles()")
+    p.wait_for_timeout(400)
+    c.ok(p.evaluate(STATE)["pending"] == 3, "Čekání na chybějící soubory přežije nové načtení appky")
+    upload(p, [D, B])
+    upload(p, [A])
+    r = p.evaluate(STATE)
+    norm = lambda pls: sorted(x.lower() for x in pls)  # nahrazený playlist si nechá svůj název („dup“ zůstane malými písmeny)
+    exp = norm(want["pls"] + ["Moje: "])
+    c.ok(norm(r["pls"]) == exp, "Nahrané MP3 se samy zařadí do playlistů ve správném pořadí (%s)" % " | ".join(r["pls"]))
+    c.ok(r["folders"] == want["folders"] and r["pending"] == 0, "Soubory se vrátí i do složek a rámeček „chybí“ zmizí")
+    p.set_input_files("#myfiles-backup-input", path)
+    p.wait_for_timeout(800)
+    r2 = p.evaluate(STATE)
+    c.ok(norm(r2["pls"]) == exp, "Opakované obnovení ze stejné zálohy nic nezdvojí")
+    c.ok(p.evaluate("myFilesLibrary.length") == 4, "Obnovení nemaže ani nepřidává soubory v zařízení")
+
+    # --- špatný a zlomyslný soubor
+    bad = os.path.join(tempfile.gettempdir(), "testplayeru_spatna.json")
+    with open(bad, "w", encoding="utf-8") as fh:
+        fh.write('{"kind":"neco jineho"}')
+    p.set_input_files("#myfiles-backup-input", bad)
+    p.wait_for_timeout(500)
+    c.ok(norm(p.evaluate(STATE)["pls"]) == exp, "Soubor, který není záloha, se odmítne a nic se nezmění")
+    x = '<img src=x onerror="window.__pwned=1">'
+    with open(bad, "w", encoding="utf-8") as fh:
+        json.dump({"kind": "synthlucida-myfiles-backup", "folders": [x, None, 5], "files": [None, {"name": x, "size": 5, "folder": x}],
+                   "playlists": [None, {"name": x, "items": [None, {"type": "track", "playlist": "piano", "index": 0, "title": x, "src": "javascript:window.__pwned=2"},
+                                                         {"type": "track", "playlist": "piano", "index": 1, "title": "t", "src": "https://evil.example/a.mp3"}]}]}, fh)
+    p.set_input_files("#myfiles-backup-input", bad)
+    p.wait_for_timeout(800)
+    r = p.evaluate("()=>({pw:window.__pwned||0,img:document.querySelectorAll('img[src=\"x\"]').length,src:myPlaylists[myPlaylists.length-1].items.map(i=>i.src||'')})")
+    c.ok(not r["pw"] and not r["img"] and not any(r["src"]), "Kód ani cizí odkazy podstrčené v záloze se nespustí a nepoužijí")
+    for fp in (path, bad):
+        try:
+            os.remove(fp)
+        except Exception:
+            pass
+    allerr = errs + errs2
+    c.ok(not allerr, "Bez chyby ve stránce" + (": " + allerr[0] if allerr else ""))
+
+
+def t_total_time(s, c):
+    """Celkový čas vedle názvu: playlist ze sekce F a pojmenovaná sekce v My Playlist."""
+    ctx, p, errs = s.page()
+    p.evaluate("toggleMainFiles()")
+    p.set_input_files("#myfiles-input", [{"name": "Delsi.wav", "mimeType": "audio/wav", "buffer": make_wav(40, 8000)},
+                                         {"name": "Kratsi.wav", "mimeType": "audio/wav", "buffer": make_wav(4, 8000)}])
+    p.wait_for_function("myFilesLibrary.length===2&&!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+    fmt = lambda sec: "%d:%02d" % (sec // 60, sec % 60)
+    exp = p.evaluate("""()=>{const id=n=>myFilesLibrary.find(x=>x.name===n).id;
+      myPlaylists.push({id:'tt',name:'TOP',createdAt:1,items:[{type:'track',playlist:'asmr',index:0,title:tracks.asmr[0].title,src:tracks.asmr[0].src},
+        {type:'file',fileId:id('Delsi'),title:'Delsi'},{type:'file',fileId:id('Kratsi'),title:'Kratsi'}]});saveMyPlaylistsToStorage();
+      return trackDuration(tracks.asmr[0])}""")
+    if not exp:
+        c.ok(False, "Player nezná délku první ASMR skladby – test nejde vyhodnotit")
+        return
+    # hned po spuštění klepnout na řazení podle délky: měření celkového času ho nesmí pokazit
+    order = p.evaluate("async()=>{await playMyPlaylist('tt');await sortMyPlaylistByLength('tt');return myPlaylists.find(x=>x.id==='tt').items.map(i=>i.title)}")
+    c.ok(order[:2] == ["Kratsi", "Delsi"], "Řazení PODLE DÉLKY hned po spuštění playlistu funguje správně (%s)" % ", ".join(order))
+    try:
+        p.wait_for_function("document.getElementById('pl-name-banner').textContent.indexOf('·')!==-1", timeout=15000)
+    except Exception:
+        pass
+    banner = p.evaluate("document.getElementById('pl-name-banner').textContent")
+    want = fmt(exp + 44)
+    c.ok(banner.strip().endswith(want) and "TOP" in banner, "Playlist ze sekce F ukazuje celkový čas vedle názvu (%s, má být %s)" % (banner.strip(), want))
+    p.evaluate("()=>{const pl=myPlaylists.find(x=>x.id==='tt');pl.items=pl.items.filter(i=>i.title!=='Delsi');saveMyPlaylistsToStorage();syncMyPlaylistToMainWindow('tt')}")
+    p.wait_for_timeout(1500)
+    banner = p.evaluate("document.getElementById('pl-name-banner').textContent")
+    c.ok(banner.strip().endswith(fmt(exp + 4)), "Po odebrání skladby se čas sám přepočítá (%s)" % banner.strip())
+    # sekce v My Playlist
+    p.evaluate("""async()=>{customQueue.push({title:tracks.piano[1].title,src:tracks.piano[1].src,playlist:'piano',index:1,mood:'Na spaní'});
+      customQueue.push({title:tracks.chill[0].title,src:tracks.chill[0].src,playlist:'chill',index:0});
+      queueMoods=['Na spaní'];saveQueueMoods();saveCustomQueue();renderCustomQueue();toggleCustomQueue();playCustomQueueAt(0,'Na spaní')}""")
+    p.wait_for_timeout(1500)
+    r = p.evaluate("()=>({b:document.getElementById('pl-name-banner').textContent,d:trackDuration(tracks.piano[1])})")
+    c.ok(r["d"] and r["b"].strip().endswith(fmt(r["d"])) and "Na spaní" in r["b"], "Sekce v My Playlist ukazuje celkový čas (%s)" % r["b"].strip())
+    p.evaluate("playCustomQueueAt(1,null)")
+    p.wait_for_timeout(1000)
+    c.ok(p.evaluate("document.getElementById('pl-name-banner').hidden"), "Celý My Playlist bez sekce nad seznamem nic nového neukazuje")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
 def t_robust(s, c):
     keys = sorted(set(re.findall(r"""['"]((?:sl-[a-z0-9-]+)|(?:synthlucida_[a-z0-9_]+))['"]""", s.env.player_src)))
     panels = ["", "toggleCustomQueue()", "toggleMainStats()", "toggleMainFiles()", "toggleSetup()", "playTrack(3)"]
@@ -1338,6 +1472,8 @@ TESTS = [
     ("Koule na pozadí", t_orbs),
     ("Vlastní soubory (sekce F)", t_own_files),
     ("Vlastní soubory – duplicity, průběh, hromadné mazání", t_own_bulk),
+    ("Záloha a obnova seznamů (sekce F)", t_own_backup),
+    ("Celkový čas playlistu vedle názvu", t_total_time),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
