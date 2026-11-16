@@ -1149,6 +1149,110 @@ def t_total_time(s, c):
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
+def t_history(s, c):
+    """Historie poslechu: přehrání z historie (i po novém otevření appky), vlastní soubory, F playlisty, ＋, limit, mazání."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof playFromHistoryEntry==='function'"):
+        c.ok(False, "Player nemá opravené přehrávání z historie (je to aktuální player.html?)")
+        return
+    STATE = """()=>({playing:!!audio.getAttribute('src')&&!audio.paused,key:String(currentPlaylistKey),
+      title:((customQueueActive?customQueue[customQueueIndex]:playlist[currentTrackIndex])||{}).title||'',
+      open:document.getElementById('history-panel').classList.contains('visible'),
+      toast:document.getElementById('app-toast-text').textContent})"""
+
+    def click(part):
+        p.evaluate("()=>{audio.pause();audio.removeAttribute('src');audio.load();openHistoryFromFiles()}")
+        p.wait_for_timeout(250)
+        found = p.evaluate("(t)=>{const el=[...document.querySelectorAll('#history-list .history-name')].find(e=>e.textContent.indexOf(t)!==-1);if(!el)return false;el.click();return true}", part)
+        p.wait_for_timeout(1500)
+        st = p.evaluate(STATE)
+        st["found"] = found
+        return st
+
+    hist_len = lambda: p.evaluate("JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]').length")
+
+    # --- 1) běžná SYNTHLUCIDA skladba
+    piano = p.evaluate("()=>{setPlaylist('piano',[...document.querySelectorAll('.btn-atmos')].find(b=>/piano/i.test(b.textContent)));playTrack(2);return tracks.piano[2].title}")
+    p.wait_for_timeout(1000)
+    p.evaluate("()=>setPlaylist('chill',[...document.querySelectorAll('.btn-atmos')].find(b=>/chill/i.test(b.textContent)))")
+    r = click(displayable(p, piano))
+    c.ok(r["found"] and r["playing"] and r["key"] == "piano" and r["title"] == piano and not r["open"],
+         "Klepnutí na skladbu v historii ji pustí ve správném playlistu a historie se zavře")
+
+    # --- 2) vlastní soubory a F playlist
+    p.evaluate("toggleMainFiles()")
+    p.set_input_files("#myfiles-input", [{"name": "Hist A.wav", "mimeType": "audio/wav", "buffer": make_wav(30, 8000)},
+                                         {"name": "Hist B.wav", "mimeType": "audio/wav", "buffer": make_wav(20, 8000)}])
+    p.wait_for_function("myFilesLibrary.length===2&&!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+    nebula = p.evaluate("""async()=>{const id=n=>myFilesLibrary.find(f=>f.name===n).id;
+      myPlaylists.push({id:'hpl',name:'HistPL',createdAt:1,items:[{type:'track',playlist:'piano',index:3,title:tracks.piano[3].title,src:tracks.piano[3].src},
+        {type:'file',fileId:id('Hist B'),title:'Hist B'},{type:'file',fileId:id('Hist A'),title:'Hist A'}]});saveMyPlaylistsToStorage();
+      await playMyFileNow(id('Hist A'));await new Promise(r=>setTimeout(r,700));
+      await playMyPlaylist('hpl');await new Promise(r=>setTimeout(r,700));playTrack(1);await new Promise(r=>setTimeout(r,700));
+      return tracks.piano[3].title}""")
+    p.wait_for_timeout(500)
+    r = click("Hist B")
+    c.ok(r["playing"] and r["title"] == "Hist B", "Vlastní soubor z F playlistu jde pustit z historie")
+
+    # --- 3) po novém otevření appky (seznamy F existují jen v paměti)
+    p.reload()
+    p.wait_for_timeout(1800)
+    rA, rB, rN = click("Hist A"), click("Hist B"), click(displayable(p, nebula))
+    c.ok(rA["playing"] and rA["title"] == "Hist A", "Po novém otevření appky jde z historie pustit samostatný vlastní soubor")
+    c.ok(rB["playing"] and rB["title"] == "Hist B" and rB["key"] == "custom:hpl",
+         "Po novém otevření appky se skladba z F playlistu pustí v celém playlistu od sebe")
+    c.ok(rN["playing"] and rN["title"] == nebula, "Po novém otevření appky jde pustit i SYNTHLUCIDA skladba, která hrála v F playlistu")
+
+    # --- 4) úpravy playlistu a souborů
+    p.evaluate("()=>{const pl=myPlaylists.find(x=>x.id==='hpl');const it=pl.items.splice(1,1)[0];pl.items.push(it);saveMyPlaylistsToStorage()}")
+    r = click("Hist B")
+    c.ok(r["playing"] and r["title"] == "Hist B" and r["key"] == "custom:hpl", "Po přeházení skladeb v playlistu hraje z historie pořád ta správná")
+    p.evaluate("()=>{const pl=myPlaylists.find(x=>x.id==='hpl');pl.items=pl.items.filter(i=>i.title!=='Hist A');saveMyPlaylistsToStorage()}")
+    r = click("Hist A")
+    c.ok(r["playing"] and r["title"] == "Hist A" and r["key"].startswith("custom:file:"), "Soubor odebraný z playlistu se z historie pustí samostatně")
+    p.evaluate("()=>{myPlaylists=myPlaylists.filter(x=>x.id!=='hpl');saveMyPlaylistsToStorage()}")
+    rN, rB = click(displayable(p, nebula)), click("Hist B")
+    c.ok(rN["playing"] and rN["title"] == nebula and rN["key"] == "piano" and rB["playing"] and rB["title"] == "Hist B",
+         "Po smazání F playlistu hraje SYNTHLUCIDA skladba z katalogu a soubor samostatně")
+
+    # --- 5) tlačítko ＋ (do My Playlist)
+    r = p.evaluate("""async()=>{openHistoryFromFiles();const li=[...document.querySelectorAll('#history-list li')].find(l=>l.textContent.indexOf('Hist B')!==-1);
+      const btn=li.querySelector('.icon-btn');const before=customQueue.filter(q=>q.fileId).length;btn.click();await new Promise(r=>setTimeout(r,600));
+      const mid=customQueue.filter(q=>q.fileId).length;btn.click();await new Promise(r=>setTimeout(r,400));
+      return {dis:btn.disabled,before,mid,after:customQueue.filter(q=>q.fileId).length,toast:document.getElementById('app-toast-text').textContent}}""")
+    c.ok(not r["dis"] and r["mid"] == r["before"] + 1 and r["after"] == r["mid"],
+         "Tlačítko ＋ v historii přidá vlastní soubor do My Playlist jen jednou (%s)" % r["toast"])
+
+    # --- 6) smazaný soubor
+    p.evaluate("async()=>{const f=myFilesLibrary.find(x=>x.name==='Hist A');await deleteMyFile(f.id)}")
+    p.wait_for_timeout(600)
+    left = p.evaluate("JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]').filter(h=>h.title==='Hist A').length")
+    c.ok(left == 0, "Smazaný soubor zmizí i z historie")
+    p.evaluate("()=>{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');h.unshift({title:'Uz neexistuje',playlist:'custom:file:nic',fileId:'nic',index:0,time:Date.now()});localStorage.setItem(HISTORY_KEY,JSON.stringify(h))}")
+    r = click("Uz neexistuje")
+    dis = p.evaluate("()=>{openHistoryFromFiles();const li=[...document.querySelectorAll('#history-list li')].find(l=>l.textContent.indexOf('Uz neexistuje')!==-1);return li.querySelector('.icon-btn').disabled}")
+    c.ok(not r["playing"] and ("available" in r["toast"] or "dispozici" in r["toast"]) and dis,
+         "U skladby, která už neexistuje, se ukáže hláška místo tichého nic a ＋ je zašedlé")
+
+    # --- 7) export, limit a smazání
+    with p.expect_download() as dl:
+        p.evaluate("exportHistory()")
+    c.ok(dl.value.suggested_filename.endswith(".txt"), "Historii jde stáhnout jako textový soubor")
+    p.evaluate("()=>{const h=[];for(let i=0;i<130;i++)h.push({title:tracks.chill[i%tracks.chill.length].title,playlist:'chill',index:i%tracks.chill.length,time:Date.now()-i*1000});localStorage.setItem(HISTORY_KEY,JSON.stringify(h))}")
+    p.evaluate("()=>{setPlaylist('asmr',[...document.querySelectorAll('.btn-atmos')].find(b=>/asmr/i.test(b.textContent)));playTrack(0)}")
+    p.wait_for_timeout(1000)
+    c.ok(hist_len() == 100, "Historie si drží nejvýš 100 posledních skladeb (%d)" % hist_len())
+    p.evaluate("()=>{openHistoryFromFiles();clearHistory()}")
+    p.wait_for_timeout(300)
+    c.ok(hist_len() == 0 and p.evaluate("document.querySelectorAll('#history-list li').length") == 0, "VYMAZAT historii ji opravdu smaže")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def displayable(p, title):
+    """Jak je název skladby vidět v historii (bez předpony SYNTHLUCIDA)."""
+    return p.evaluate("(t)=>displayTrackTitle(t)", title)
+
+
 def t_robust(s, c):
     keys = sorted(set(re.findall(r"""['"]((?:sl-[a-z0-9-]+)|(?:synthlucida_[a-z0-9_]+))['"]""", s.env.player_src)))
     panels = ["", "toggleCustomQueue()", "toggleMainStats()", "toggleMainFiles()", "toggleSetup()", "playTrack(3)"]
@@ -1474,6 +1578,7 @@ TESTS = [
     ("Vlastní soubory – duplicity, průběh, hromadné mazání", t_own_bulk),
     ("Záloha a obnova seznamů (sekce F)", t_own_backup),
     ("Celkový čas playlistu vedle názvu", t_total_time),
+    ("Historie poslechu", t_history),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
