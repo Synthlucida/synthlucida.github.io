@@ -5369,29 +5369,45 @@
 
   // Brush feel as chosen, plus (living-light color only) a glowing aura and a white-hot core on top,
   // so the stroke looks like it is made of light.
+  // How much glow / white-hot core each brush gets on top in a light color (aurora, living light).
+  // The brush's own look has to stay visible, so textured brushes get little or none.
+  const LIGHT_MIX = {
+    neon:       { halo: 0.55, core: 0.95, coreW: 0.5 },
+    soft:       { halo: 0.8,  core: 0.45, coreW: 0.35 },
+    stardust:   { halo: 0.4,  core: 0,    coreW: 0 },
+    ink:        { halo: 0.22, core: 0,    coreW: 0 },
+    chalk:      { halo: 0,    core: 0,    coreW: 0 },
+    watercolor: { halo: 0,    core: 0,    coreW: 0 }
+  };
   function drawSegment(x0, y0, x1, y1, sf, color, size, erase, style, glowHue, veil) {
     drawSegmentBase(x0, y0, x1, y1, sf, color, size, erase, style);
     if (typeof glowHue !== 'number' || erase) return;
+    const mix = LIGHT_MIX[style] || LIGHT_MIX.soft;
+    if (!mix.halo && !mix.core) return;
     const w = Math.max(1.5, size * sf);
-    const k = style === 'neon' ? 0.55 : 1;          // NEON already glows on its own
+    const k = mix.halo;
     dctx.save();
     dctx.lineCap = 'round'; dctx.lineJoin = 'round';
     dctx.globalCompositeOperation = 'source-over';
-    if (veil) {
+    if (veil && k >= 0.5) {
       // aurora only: a very wide, faint curtain of light whose hue drifts a little further along
       dctx.strokeStyle = hslL(glowHue + 35, 55);
       dctx.globalAlpha = 0.045 * k; dctx.lineWidth = w * 6;
       dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
     }
-    dctx.strokeStyle = hslL(glowHue, 62);
-    dctx.globalAlpha = 0.10 * k; dctx.lineWidth = w * 3.6;
-    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
-    dctx.globalAlpha = 0.17 * k; dctx.lineWidth = w * 2.3;
-    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
-    dctx.shadowColor = hslL(glowHue, 60); dctx.shadowBlur = w * 1.8;
-    dctx.strokeStyle = hslL(glowHue, 93);
-    dctx.globalAlpha = 0.95; dctx.lineWidth = Math.max(1.2, w * 0.5);
-    dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+    if (k) {
+      dctx.strokeStyle = hslL(glowHue, 62);
+      dctx.globalAlpha = 0.10 * k; dctx.lineWidth = w * 3.6;
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+      dctx.globalAlpha = 0.17 * k; dctx.lineWidth = w * 2.3;
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+    }
+    if (mix.core) {
+      dctx.shadowColor = hslL(glowHue, 60); dctx.shadowBlur = w * 1.8;
+      dctx.strokeStyle = hslL(glowHue, 93);
+      dctx.globalAlpha = mix.core; dctx.lineWidth = Math.max(1.2, w * mix.coreW);
+      dctx.beginPath(); dctx.moveTo(x0, y0); dctx.lineTo(x1, y1); dctx.stroke();
+    }
     dctx.restore();
   }
 
