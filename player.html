@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.0">
+<meta name="app-version" content="2.9.1">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -618,6 +618,11 @@
   .myfiles-upload { margin: 8px 0 10px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; background: rgba(255,255,255,0.03); }
   .myfiles-upload[hidden] { display: none; }
   #myfiles-add-btn:disabled { opacity: 0.4; cursor: progress; }
+  .queue-actions.myfiles-backup-row { margin-top: 8px; }
+  .myfiles-pending { margin: 10px 0; padding: 8px 10px; border: 1px dashed var(--accent-color); border-radius: 10px; background: rgba(255,255,255,0.03); font-size: 10px; line-height: 1.45; text-align: left; overflow-wrap: anywhere; }
+  .myfiles-pending[hidden] { display: none; }
+  .myfiles-pending-names { display: block; margin-top: 4px; opacity: 0.6; font-size: 9px; }
+  .myfiles-pending .btn-feature { margin-top: 6px; font-size: 10px; padding: 4px 9px; min-width: 0; }
   .myfiles-upload-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 10px; min-width: 0; }
   .myfiles-upload-top > span:first-child { min-width: 0; overflow-wrap: anywhere; }
   .myfiles-upload-pct { flex: none; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 10px; color: var(--accent-color); font-variant-numeric: tabular-nums; }
@@ -4735,6 +4740,12 @@
       <div class="myfiles-upload-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="myfiles-upload-bar"><div class="myfiles-upload-fill" id="myfiles-upload-fill"></div></div>
       <div class="myfiles-upload-name" id="myfiles-upload-name"></div>
     </div>
+    <input type="file" id="myfiles-backup-input" accept=".json,application/json" style="display:none;" onchange="handleMyFilesBackupImport(event)">
+    <div class="queue-actions myfiles-backup-row">
+      <button class="btn-feature" data-i18n="mf_btn_backup" onclick="exportMyFilesBackup()">💾 BACKUP LISTS</button>
+      <button class="btn-feature" data-i18n="mf_btn_restore" onclick="document.getElementById('myfiles-backup-input').click()">📂 RESTORE BACKUP</button>
+    </div>
+    <div class="myfiles-pending" id="myfiles-pending" hidden></div>
     <div class="myfiles-gain" id="myfiles-gain-box">
       <div class="myfiles-gain-row">
         <label class="myfiles-gain-label" for="myfiles-gain" data-i18n="mf_gain_label">MY FILES VOLUME</label>
@@ -4811,6 +4822,11 @@
       <p data-i18n="p_myfiles_quick">Every file under &quot;Your Files&quot; has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under &quot;Your Playlists&quot; and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds. To add many files at once, tap ☑ SELECT FILES above the list, tick the files you want (or tap ☑ ALL), then tap ♥ MY PLAYLIST or ＋ and a playlist name in the bar - every ticked file is added in one go, and files that are already there are skipped. Tap ✕ DONE to leave selecting.</p>
       <h4 data-i18n="h_myfiles_folders">Folders for lots of files</h4>
       <p data-i18n="p_myfiles_folders">With a big music library the list of files gets long, so you can sort it into folders. Type a name above the list of files and tap NEW FOLDER. To move a file, tap its ＋ and pick a folder under &quot;Move to folder&quot;; to move many files at once, tap ☑ SELECT FILES, tick them and tap a folder in the bar. Tap a folder to open or close it, ✎ renames it and ✕ deletes it - the files are never deleted, they just return to the list without a folder. Search looks inside folders too.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_myfiles_backup">Move your lists to another device (backup)</h4>
+      <p data-i18n="p_myfiles_backup">Tap 💾 BACKUP LISTS to save a small file (a few kB) with your playlists, their order, your folders and the list of your files. The music itself is not inside - keep your MP3s where they are (OneDrive, a USB stick…). On the other device open the F panel, tap 📂 RESTORE BACKUP and pick that file, then add your MP3s with ＋ ADD AUDIO FILES. Each file is recognised by its name and size and goes back into its playlists (in the right order) and folder automatically - you can add the MP3s before or after restoring, all at once or a few at a time. Until then a dashed note shows how many files are still missing. Playlists with the same name are replaced by the backup, everything else stays. Tip: keep the backup file next to your MP3s.</p>
     </div>
 
     <div class="main-guide-section">
@@ -10814,21 +10830,87 @@
     const el = document.getElementById('pl-name-banner');
     if (!el) return;
     let name = '';
+    let total = '';
     try {
       if (mainListShowsQueue) {
         name = activeMoodFilter() || ''; // MY PLAYLIST: hraje se jen vybraná sekce
+        if (name) total = mySectionTotalText(name);
       } else if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0 && currentPlaylistKey.indexOf('custom:file:') !== 0) {
         const pl = myPlaylists.find(p => p.id === currentPlaylistKey.slice('custom:'.length));
-        if (pl && pl.name) name = pl.name;
+        if (pl && pl.name) { name = pl.name; total = ownPlaylistTotalText(currentPlaylistKey); }
       }
-    } catch (e) { name = ''; }
+    } catch (e) { name = ''; total = ''; }
     el.classList.remove('marquee-on');
     if (!name) { el.textContent = ''; el.title = ''; el.hidden = true; return; }
-    el.textContent = '\u266A ' + name;
-    el.title = name;
+    el.textContent = '\u266A ' + name + (total ? '  \u00B7  ' + total : '');
+    el.title = name + (total ? ' (' + total + ')' : '');
     el.hidden = false;
     marqueeWrap(el);
     if (el.clientWidth > 0) marqueeActivate(el); // dlouhý název se plynule posouvá tam a zpět místo třech teček (při šířce 0 se změří později, viz ResizeObserver)
+  }
+
+  // Celkový čas playlistu ze sekce F (vedle názvu nad seznamem). Neznámé délky (hlavně vlastní soubory)
+  // se jednou na pozadí doměří a název se pak obnoví; když některou zjistit nejde, čas dostane "+" (je to nejméně tolik).
+  const ownTotalProbed = Object.create(null);
+  function fmtTotalDur(sec) {
+    sec = Math.round(sec);
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60;
+    return h ? h + ':' + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0') : m + ':' + String(x).padStart(2, '0');
+  }
+  function ownPlaylistTotalText(key) {
+    const list = (typeof tracks === 'object' && Array.isArray(tracks[key])) ? tracks[key] : null;
+    return listTotalText(key, list, () => currentPlaylistKey === key && !mainListShowsQueue);
+  }
+  // Sekce v My Playlist (vlastní pojmenovaný playlist na hlavní obrazovce)
+  function mySectionTotalText(mood) {
+    const list = customQueue.filter(e => e && e.mood === mood);
+    return listTotalText('mood:' + mood, list, () => mainListShowsQueue && activeMoodFilter() === mood);
+  }
+  // Vlastní měření délek jen pro celkový čas - nezamyká společné měření pro řazení PODLE DÉLKY
+  // (to by jinak během měření času seřadilo seznam s neznámými délkami na konci).
+  async function measureListDurations(items, keepGoing) {
+    const seen = Object.create(null);
+    for (const t of items) {
+      if (keepGoing && !keepGoing()) return;
+      const key = trackDurKey(t);
+      if (!key || seen[key] || trackDuration(t) !== null) continue;
+      seen[key] = true;
+      let url = '';
+      try { url = t.fileId ? (await getMyFileBlobUrl(t.fileId)) : trackSrcOf(t); } catch (e) { url = ''; }
+      if (!url || (!t.fileId && navigator.onLine === false)) continue;
+      const sec = await new Promise((resolve) => {
+        const a = new Audio();
+        let done = false, timer = 0;
+        const fin = (v) => { if (done) return; done = true; clearTimeout(timer); try { a.removeAttribute('src'); a.load(); } catch (e) { /* ignore */ } resolve(v); };
+        timer = setTimeout(() => fin(null), 9000);
+        a.preload = 'metadata';
+        a.addEventListener('loadedmetadata', () => fin(isFinite(a.duration) ? a.duration : null), { once: true });
+        a.addEventListener('error', () => fin(null), { once: true });
+        a.src = url;
+      });
+      if (sec) storeTrackDuration(key, sec);
+    }
+  }
+  function listTotalText(key, list, same) {
+    if (!list || !list.length) return '';
+    let sum = 0;
+    const miss = [];
+    list.forEach(t => { const d = trackDuration(t); if (d === null) miss.push(trackDurKey(t) || '?'); else sum += d; });
+    if (!miss.length) return fmtTotalDur(sum);
+    const sig = miss.join('|'); // měří se znovu jen tehdy, když přibyla jiná neznámá skladba
+    const st = ownTotalProbed[key];
+    if (!st || st.sig !== sig) {
+      ownTotalProbed[key] = { sig, busy: true };
+      const finish = () => {
+        if (!same()) { if (ownTotalProbed[key] && ownTotalProbed[key].sig === sig) delete ownTotalProbed[key]; return; } // přepnuto jinam: příště se změří znovu
+        const cur = ownTotalProbed[key]; if (cur && cur.sig === sig) cur.busy = false;
+        updatePlaylistNameBanner();
+      };
+      measureListDurations(list.slice(), same).then(finish, finish);
+      return '';
+    }
+    if (st.busy) return ''; // měří se
+    return sum ? fmtTotalDur(sum) + '+' : '';
   }
 
   // Přeměření posouvání názvu, když se změní šířka (otočení displeje, změna okna, návrat z FOCUS 2, kde je název skrytý a šířka 0)
@@ -11623,6 +11705,10 @@
     myfiles_intro: { en: "Add your own audio files and build playlists that mix them with SYNTHLUCIDA tracks. Everything plays through the same player below - shuffle, repeat, crossfade and the sleep timer all work with it too.", cz: "Přidejte si vlastní audio soubory a vytvářejte playlisty, které je mixují se skladbami SYNTHLUCIDA. Vše se přehrává přes stejný přehrávač níže - shuffle, opakování, crossfade i časovač spánku fungují i s nimi." },
     mf_title: { en: "My Files & Playlists", cz: "Vlastní soubory a playlisty" },
     mf_btn_add: { en: "＋ ADD AUDIO FILES", cz: "＋ PŘIDAT AUDIO SOUBORY" },
+    mf_btn_backup: { en: "💾 BACKUP LISTS", cz: "💾 ZÁLOHA SEZNAMŮ" },
+    mf_btn_restore: { en: "📂 RESTORE BACKUP", cz: "📂 OBNOVIT ZE ZÁLOHY" },
+    h_myfiles_backup: { en: "Move your lists to another device (backup)", cz: "Přenos seznamů na jiné zařízení (záloha)" },
+    p_myfiles_backup: { en: "Tap 💾 BACKUP LISTS to save a small file (a few kB) with your playlists, their order, your folders and the list of your files. The music itself is not inside - keep your MP3s where they are (OneDrive, a USB stick…). On the other device open the F panel, tap 📂 RESTORE BACKUP and pick that file, then add your MP3s with ＋ ADD AUDIO FILES. Each file is recognised by its name and size and goes back into its playlists (in the right order) and folder automatically - you can add the MP3s before or after restoring, all at once or a few at a time. Until then a dashed note shows how many files are still missing. Playlists with the same name are replaced by the backup, everything else stays. Tip: keep the backup file next to your MP3s.", cz: "Klepnutím na 💾 ZÁLOHA SEZNAMŮ uložíte malý soubor (pár kB) s vašimi playlisty, jejich pořadím, složkami a seznamem souborů. Samotná hudba v něm není - MP3 nechte tam, kde je máte (OneDrive, flashka…). Na druhém zařízení otevřete panel F, klepněte na 📂 OBNOVIT ZE ZÁLOHY a vyberte tento soubor, potom přidejte své MP3 tlačítkem ＋ PŘIDAT AUDIO SOUBORY. Každý soubor se pozná podle názvu a velikosti a sám se vrátí do svých playlistů (ve správném pořadí) i do složky - MP3 můžete přidat před obnovením i po něm, všechny najednou nebo postupně. Do té doby čárkovaný rámeček ukazuje, kolik souborů ještě chybí. Playlisty se stejným názvem se zálohou nahradí, všechno ostatní zůstane. Tip: zálohu si uložte rovnou vedle svých MP3." },
     mf_btn_history: { en: "🕘 HISTORY", cz: "🕘 HISTORIE" },
     mf_gain_label: { en: "MY FILES VOLUME", cz: "HLASITOST MÝCH SOUBORŮ" },
     plsort_btn: { en: "Sort this playlist", cz: "Seřadit tento playlist" },
@@ -12279,7 +12365,7 @@
 
     // Duplicity: soubor se stejným názvem a stejnou velikostí už v knihovně je -> přeskočí se (i dvakrát vybraný v jedné dávce)
     if (!myFilesLibraryOk) await refreshMyFilesLibrary();
-    const dupKey = (name, size) => String(name || '').trim().toLowerCase() + '|' + (Number(size) || 0);
+    const dupKey = myFileDupKey;
     const knownKeys = new Set(myFilesLibrary.map(f => dupKey(f.name, f.size)));
     const skippedFiles = [];
     const dupFiles = [];
@@ -12318,10 +12404,15 @@
       alert(mfT('Skipped (not an audio file): ', 'Přeskočeno (nejde o audio soubor): ') + skippedFiles.slice(0, 5).join(', ') + (skippedFiles.length > 5 ? '…' : ''));
     }
     await refreshMyFilesLibrary();
+    let placedNote = '';
+    try {
+      const placed = applyMyFilesPending();
+      if (placed) placedNote = mfT(' Sorted into lists from your backup: ' + placed + '.', ' Podle zálohy zařazeno: ' + placed + '.');
+    } catch (e) { console.error(e); }
     renderMyFiles();
-    const dupNote = dupFiles.length
+    const dupNote = (dupFiles.length
       ? mfT(' Skipped ' + dupFiles.length + ' already added: ', ' Přeskočeno ' + dupFiles.length + ' už přidaných: ') + dupFiles.slice(0, 3).join(', ') + (dupFiles.length > 3 ? '…' : '')
-      : '';
+      : '') + placedNote;
     if (addedCount) {
       showToast(mfT('Added to your files: ' + addedCount + ' - tap ♥ for My Playlist or ＋ for a playlist.', 'Přidáno do vašich souborů: ' + addedCount + ' - klepnutím na ♥ je přidáte do My Playlist, na ＋ do playlistu.') + dupNote, '✓');
     } else if (dupFiles.length) {
@@ -13461,9 +13552,274 @@
     }
   }
   function renderMyFiles() {
+    try { renderMyFilesPending(); } catch (e) { console.error(e); }
     renderMyFilesCore();
     try { applyMyFilesFilter(); } catch (e) { console.error(e); }
   }
+  // ==========================================
+  // F: ZÁLOHA SEZNAMŮ (malý .json soubor - jen uspořádání, bez hudby)
+  // Export: playlisty (pořadí, vlastní soubory i SYNTHLUCIDA skladby), složky a seznam souborů (název + velikost).
+  // Obnovení: soubory, které v zařízení už jsou, se zařadí hned; chybějící čekají (localStorage) a zařadí se samy,
+  // jakmile je uživatel nahraje (poznají se podle názvu a velikosti - stejně jako duplicity při nahrávání).
+  // ==========================================
+  const MYFILES_PENDING_KEY = 'synthlucida_myfiles_pending';
+  const MYFILES_BACKUP_KIND = 'synthlucida-myfiles-backup';
+  function myFileDupKey(name, size) { return String(name || '').trim().toLowerCase() + '|' + (Number(size) || 0); }
+  function cleanBackupText(v, max) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : ''; }
+  function cleanBackupSize(v) { const n = Number(v); return (isFinite(n) && n >= 0) ? Math.floor(n) : -1; }
+
+  function loadMyFilesPending() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(MYFILES_PENDING_KEY) || 'null');
+      if (!raw || typeof raw !== 'object' || !Array.isArray(raw.files)) return null;
+      const files = raw.files.filter(f => f && typeof f === 'object' && typeof f.name === 'string' && isFinite(Number(f.size)))
+        .map(f => ({ name: f.name, size: Number(f.size), folder: typeof f.folder === 'string' ? f.folder : '',
+          slots: Array.isArray(f.slots) ? f.slots.filter(sl => sl && typeof sl.pl === 'string' && Number.isInteger(sl.i) && sl.i >= 0) : [] }));
+      const order = Object.create(null);
+      if (raw.order && typeof raw.order === 'object') Object.keys(raw.order).forEach(k => { if (k !== '__proto__' && Array.isArray(raw.order[k])) order[k] = raw.order[k].map(String); });
+      return files.length ? { files, order } : null;
+    } catch (e) { return null; }
+  }
+  function saveMyFilesPending(pend) {
+    try {
+      if (!pend || !pend.files.length) localStorage.removeItem(MYFILES_PENDING_KEY);
+      else localStorage.setItem(MYFILES_PENDING_KEY, JSON.stringify(pend));
+    } catch (e) { /* ignore */ }
+  }
+  // složka podle názvu (existující, jinak se vytvoří; null když už je složek maximum)
+  function ensureMyFolderByName(name) {
+    const nm = cleanBackupText(name, 40);
+    if (!nm) return null;
+    const ex = myFolders.find(f => f.name.toLowerCase() === nm.toLowerCase());
+    if (ex) return ex.id;
+    if (myFolders.length >= MYFILES_FOLDER_MAX) return null;
+    const id = 'fld' + myFilesGenId();
+    myFolders.push({ id, name: nm });
+    return id;
+  }
+  function myFilesLibraryByKey() {
+    const m = new Map();
+    myFilesLibrary.forEach(f => { const k = myFileDupKey(f.name, f.size); if (!m.has(k)) m.set(k, f); });
+    return m;
+  }
+  function myPlaylistItemToken(it) {
+    if (!it || typeof it !== 'object') return '';
+    if (it.type === 'file') { const r = myFilesLibrary.find(f => f.id === it.fileId); return r ? 'f:' + myFileDupKey(r.name, r.size) : ''; }
+    if (it.type === 'track') return 't:' + it.playlist + '|' + it.title;
+    return '';
+  }
+  // kam do playlistu vložit soubor, který byl v záloze na pozici xi (za poslední položku, která v záloze byla před ním)
+  function pendingInsertPos(pl, tokens, xi) {
+    if (!Array.isArray(tokens)) return pl.items.length;
+    const used = new Array(tokens.length).fill(false);
+    let pos = 0;
+    pl.items.forEach((it, idx) => {
+      const tok = myPlaylistItemToken(it);
+      if (!tok) return;
+      for (let k = 0; k < tokens.length; k++) {
+        if (!used[k] && tokens[k] === tok) { used[k] = true; if (k < xi) pos = idx + 1; break; }
+      }
+    });
+    return pos;
+  }
+
+  // Zařadí čekající soubory ze zálohy, které už jsou v knihovně. Vrací počet zařazených souborů.
+  function applyMyFilesPending() {
+    const pend = loadMyFilesPending();
+    if (!pend || !myFilesLibraryOk) return 0;
+    const byKey = myFilesLibraryByKey();
+    const touched = new Set();
+    let placed = 0, foldersChanged = false;
+    pend.files = pend.files.filter(pf => {
+      const rec = byKey.get(myFileDupKey(pf.name, pf.size));
+      if (!rec) return true; // ještě není nahraný - čeká dál
+      if (pf.folder) { const fid = ensureMyFolderByName(pf.folder); if (fid) { myFolderMap[rec.id] = fid; foldersChanged = true; } }
+      const already = new Set(myPlaylists.filter(pl => pl.items.some(it => it && it.type === 'file' && it.fileId === rec.id)).map(pl => pl.id));
+      pf.slots.slice().sort((a, b) => a.i - b.i).forEach(sl => {
+        const pl = myPlaylists.find(p => p.id === sl.pl);
+        if (!pl || already.has(pl.id)) return; // playlist mezitím smazaný, nebo tam soubor už uživatel dal sám
+        pl.items.splice(pendingInsertPos(pl, pend.order[pl.id], sl.i), 0, { type: 'file', fileId: rec.id, title: rec.name });
+        touched.add(pl.id);
+      });
+      placed++;
+      return false;
+    });
+    // pořadí ze zálohy už není potřeba u playlistů, na které nic nečeká
+    const waiting = new Set();
+    pend.files.forEach(pf => pf.slots.forEach(sl => waiting.add(sl.pl)));
+    Object.keys(pend.order).forEach(k => { if (!waiting.has(k)) delete pend.order[k]; });
+    if (placed) {
+      saveMyFilesPending(pend);
+      if (touched.size) saveMyPlaylistsToStorage();
+      if (foldersChanged) saveMyFolders();
+      touched.forEach(id => { try { syncMyPlaylistToMainWindow(id); } catch (e) { /* ignore */ } });
+    }
+    return placed;
+  }
+
+  // Rámeček "čeká se na soubory ze zálohy"
+  function renderMyFilesPending() {
+    const box = document.getElementById('myfiles-pending');
+    if (!box) return;
+    const pend = loadMyFilesPending();
+    if (!pend) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = '';
+    const n = pend.files.length;
+    const t = document.createElement('span');
+    t.textContent = '⏳ ' + mfT('From your backup ' + n + ' file(s) are still missing. Add them with ＋ ADD AUDIO FILES - they will sort themselves into their playlists and folders.',
+                               'Ze zálohy ještě chybí souborů: ' + n + '. Přidejte je tlačítkem ＋ PŘIDAT AUDIO SOUBORY - samy se zařadí do svých playlistů a složek.');
+    box.appendChild(t);
+    const names = document.createElement('span');
+    names.className = 'myfiles-pending-names';
+    names.textContent = pend.files.slice(0, 6).map(f => f.name).join(', ') + (n > 6 ? ' …' : '');
+    box.appendChild(names);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-feature';
+    b.textContent = mfT('✕ STOP WAITING', '✕ UŽ NEČEKAT');
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm(mfT('Stop waiting for the missing files? Your playlists stay as they are now, files added later will no longer be sorted in automatically.',
+                       'Přestat čekat na chybějící soubory? Playlisty zůstanou, jak jsou teď, a později přidané soubory se už samy nezařadí.'))) return;
+      saveMyFilesPending(null);
+      renderMyFiles();
+    });
+    box.appendChild(b);
+  }
+
+  // Export zálohy
+  window.exportMyFilesBackup = function() {
+    const libById = new Map(myFilesLibrary.map(f => [f.id, f]));
+    const folderName = (id) => { const fo = myFolders.find(f => f.id === fileFolderId(id)); return fo ? fo.name : ''; };
+    const data = {
+      app: 'SYNTHLUCIDA Player',
+      kind: MYFILES_BACKUP_KIND,
+      v: 1,
+      created: new Date().toISOString(),
+      folders: myFolders.map(f => f.name),
+      files: myFilesLibrary.slice().reverse().map(f => ({ name: f.name, size: Number(f.size) || 0, folder: folderName(f.id) })),
+      playlists: myPlaylists.map(pl => ({
+        name: pl.name,
+        items: pl.items.map(it => {
+          if (it && it.type === 'file') { const r = libById.get(it.fileId); return r ? { type: 'file', name: r.name, size: Number(r.size) || 0 } : null; }
+          if (it && it.type === 'track') { const o = { type: 'track', playlist: it.playlist, index: it.index, title: it.title }; if (isSafeTrackSrc(it.src)) o.src = it.src; return o; }
+          return null;
+        }).filter(Boolean)
+      }))
+    };
+    if (!data.files.length && !data.playlists.length && !data.folders.length) {
+      showToast(mfT('Nothing to back up yet - add files or create a playlist first.', 'Zatím není co zálohovat - nejdřív přidejte soubory nebo vytvořte playlist.'), 'ℹ');
+      return;
+    }
+    const d = new Date();
+    const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    downloadTextFile('synthlucida-moje-seznamy-' + stamp + '.json', JSON.stringify(data, null, 1), 'application/json');
+    showToast(mfT('Backup saved (' + data.playlists.length + ' playlists, ' + data.files.length + ' files). The music itself is not inside - keep your MP3s.',
+                  'Záloha uložena (playlistů: ' + data.playlists.length + ', souborů: ' + data.files.length + '). Hudba v ní není - MP3 si nechte.'), '💾');
+  };
+
+  // Obnovení ze zálohy
+  window.handleMyFilesBackupImport = async function(event) {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (myFilesUploadBusy) { showToast(mfT('Please wait - files are still being added.', 'Počkejte prosím - soubory se ještě nahrávají.'), '⏳'); return; }
+    const bad = () => alert(mfT('This is not a SYNTHLUCIDA backup of your lists (or the file is damaged).', 'Tohle není záloha seznamů ze SYNTHLUCIDA playeru (nebo je soubor poškozený).'));
+    if (file.size > 2 * 1024 * 1024) { bad(); return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (e) { bad(); return; }
+    if (!data || typeof data !== 'object' || data.kind !== MYFILES_BACKUP_KIND || !Array.isArray(data.playlists) || !Array.isArray(data.files)) { bad(); return; }
+
+    // vyčištění dat ze souboru
+    const folders = (Array.isArray(data.folders) ? data.folders : []).map(x => cleanBackupText(x, 40)).filter(Boolean).slice(0, MYFILES_FOLDER_MAX);
+    const files = data.files.slice(0, 20000).map(f => (f && typeof f === 'object') ? { name: cleanBackupText(f.name, 300), size: cleanBackupSize(f.size), folder: cleanBackupText(f.folder, 40) } : null)
+      .filter(f => f && f.name && f.size >= 0);
+    const playlists = data.playlists.slice(0, 500).map(pl => {
+      if (!pl || typeof pl !== 'object') return null;
+      const name = cleanBackupText(pl.name, 60);
+      if (!name) return null;
+      const items = (Array.isArray(pl.items) ? pl.items : []).slice(0, 5000).map(it => {
+        if (!it || typeof it !== 'object') return null;
+        if (it.type === 'file') { const n = cleanBackupText(it.name, 300), sz = cleanBackupSize(it.size); return (n && sz >= 0) ? { type: 'file', name: n, size: sz } : null; }
+        if (it.type === 'track') {
+          const plk = typeof it.playlist === 'string' && /^[a-z0-9_-]{1,40}$/i.test(it.playlist) ? it.playlist : '';
+          const idx = Number(it.index);
+          const title = cleanBackupText(it.title, 300);
+          if (!plk || !title || !Number.isInteger(idx) || idx < 0 || idx > 100000) return null;
+          const o = { type: 'track', playlist: plk, index: idx, title };
+          if (isSafeTrackSrc(it.src)) o.src = it.src;
+          return o;
+        }
+        return null;
+      }).filter(Boolean);
+      return { name, items };
+    }).filter(Boolean);
+
+    const sameName = [];
+    { const used = new Set(); playlists.forEach(bp => { const p = myPlaylists.find(x => !used.has(x.id) && x.name.trim().toLowerCase() === bp.name.toLowerCase()); if (p) { used.add(p.id); sameName.push(bp); } }); }
+    if (!confirm(mfT('Restore from this backup?\n\nPlaylists: ' + playlists.length + ', folders: ' + folders.length + ', files: ' + files.length +
+                       (sameName.length ? '\n\n' + sameName.length + ' playlist(s) with the same name on this device will be replaced by the backup: ' + sameName.slice(0, 5).map(p => p.name).join(', ') + (sameName.length > 5 ? '…' : '') : '') +
+                       '\n\nYour files on this device are not deleted. The music is not in the backup - add your MP3s with ＋ ADD AUDIO FILES and they will sort themselves in.',
+                     'Obnovit z této zálohy?\n\nPlaylistů: ' + playlists.length + ', složek: ' + folders.length + ', souborů: ' + files.length +
+                       (sameName.length ? '\n\nPlaylisty se stejným názvem v tomto zařízení (' + sameName.length + ') se nahradí zálohou: ' + sameName.slice(0, 5).map(p => p.name).join(', ') + (sameName.length > 5 ? '…' : '') : '') +
+                       '\n\nVaše soubory v tomto zařízení se nemažou. Hudba v záloze není - přidejte své MP3 tlačítkem ＋ PŘIDAT AUDIO SOUBORY a samy se zařadí.'))) return;
+
+    if (!myFilesLibraryOk) await refreshMyFilesLibrary();
+    const byKey = myFilesLibraryByKey();
+    folders.forEach(n => ensureMyFolderByName(n));
+    const pend = { files: [], order: Object.create(null) };
+    const pendByKey = new Map();
+    const pendingFor = (name, size, folder) => {
+      const k = myFileDupKey(name, size);
+      let pf = pendByKey.get(k);
+      if (!pf) { pf = { name, size, folder: folder || '', slots: [] }; pendByKey.set(k, pf); pend.files.push(pf); }
+      else if (folder && !pf.folder) pf.folder = folder;
+      return pf;
+    };
+    let foundNow = 0;
+    files.forEach(f => {
+      const rec = byKey.get(myFileDupKey(f.name, f.size));
+      if (rec) {
+        foundNow++;
+        if (f.folder) { const fid = ensureMyFolderByName(f.folder); if (fid) myFolderMap[rec.id] = fid; }
+      } else pendingFor(f.name, f.size, f.folder);
+    });
+    const touched = [];
+    const before = myPlaylists.slice(); // nahrazují se jen playlisty, které v zařízení byly už před obnovením (každý nejvýš jednou)
+    const replaced = new Set();
+    playlists.forEach(bp => {
+      let pl = before.find(p => !replaced.has(p.id) && p.name.trim().toLowerCase() === bp.name.toLowerCase());
+      if (pl) { replaced.add(pl.id); pl.items = []; }
+      else { pl = { id: myFilesGenId(), name: bp.name, items: [], createdAt: Date.now() }; myPlaylists.push(pl); }
+      const tokens = [];
+      let waits = false;
+      bp.items.forEach((it, i) => {
+        if (it.type === 'track') {
+          tokens.push('t:' + it.playlist + '|' + it.title);
+          pl.items.push(Object.assign({}, it));
+          return;
+        }
+        tokens.push('f:' + myFileDupKey(it.name, it.size));
+        const rec = byKey.get(myFileDupKey(it.name, it.size));
+        if (rec) pl.items.push({ type: 'file', fileId: rec.id, title: rec.name });
+        else { pendingFor(it.name, it.size, '').slots.push({ pl: pl.id, i }); waits = true; }
+      });
+      if (waits) pend.order[pl.id] = tokens;
+      touched.push(pl.id);
+    });
+    saveMyFolders();
+    saveMyPlaylistsToStorage();
+    saveMyFilesPending(pend.files.length ? pend : null); // nová záloha nahradí dřívější čekání
+    renderMyFiles();
+    touched.forEach(id => { try { syncMyPlaylistToMainWindow(id); } catch (e) { /* ignore */ } });
+    showToast(pend.files.length
+      ? mfT('Restored. ' + foundNow + ' file(s) found on this device, ' + pend.files.length + ' still missing - add them with ＋ ADD AUDIO FILES.',
+            'Obnoveno. V zařízení nalezeno souborů: ' + foundNow + ', chybí ještě: ' + pend.files.length + ' - přidejte je tlačítkem ＋ PŘIDAT AUDIO SOUBORY.')
+      : mfT('Restored - all files were found on this device.', 'Obnoveno - všechny soubory už v zařízení jsou.'), '📂');
+  };
+
   (function initMyFilesSearch() {
     const inp = document.getElementById('myfiles-search');
     if (!inp) return;
