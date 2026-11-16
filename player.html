@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.8.9">
+<meta name="app-version" content="2.9.0">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -615,6 +615,18 @@
   .myfiles-bulk .btn-feature.active { color: var(--accent-color); border-color: var(--accent-color); }
   .myfiles-bulk-count { font-size: 10px; opacity: 0.7; margin-left: 2px; }
   .myfiles-bulk-label { font-size: 10px; opacity: 0.6; }
+  .myfiles-upload { margin: 8px 0 10px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; background: rgba(255,255,255,0.03); }
+  .myfiles-upload[hidden] { display: none; }
+  #myfiles-add-btn:disabled { opacity: 0.4; cursor: progress; }
+  .myfiles-upload-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 10px; min-width: 0; }
+  .myfiles-upload-top > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .myfiles-upload-pct { flex: none; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 10px; color: var(--accent-color); font-variant-numeric: tabular-nums; }
+  .myfiles-upload-track { height: 6px; margin: 6px 0 4px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
+  .myfiles-upload-fill { height: 100%; width: 0; border-radius: 3px; background: var(--accent-color); box-shadow: 0 0 calc(6px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); transition: width 0.2s ease; }
+  .myfiles-upload-name { font-size: 9px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .myfiles-upload.is-done .myfiles-upload-fill { transition: none; }
+  .myfiles-bulk .btn-feature.myfiles-bulk-del:not(:disabled) { color: #ffb4b4; border-color: rgba(255,140,140,0.55); }
+  .myfiles-bulk .btn-feature.myfiles-bulk-del:not(:disabled):hover { color: #fff; border-color: #ff8c8c; background: rgba(255,90,90,0.14); }
   .myfiles-sel-box { flex-shrink: 0; width: 16px; height: 16px; margin: 0 4px 0 0; accent-color: var(--accent-color); cursor: pointer; }
   #myfiles-list li.myfiles-selected, #queue-list li.myfiles-selected { background: rgba(255,255,255,0.06); }
   /* Hledání v panelu F (nahoře): pole + zvýraznění nalezených skladeb v otevřeném playlistu */
@@ -4715,8 +4727,13 @@
 
     <input type="file" id="myfiles-input" accept="audio/*" multiple style="display:none;" onchange="handleMyFilesUpload(event)">
     <div class="queue-actions">
-      <button class="btn-feature" data-i18n="mf_btn_add" onclick="document.getElementById('myfiles-input').click()">＋ ADD AUDIO FILES</button>
+      <button class="btn-feature" id="myfiles-add-btn" data-i18n="mf_btn_add" onclick="document.getElementById('myfiles-input').click()">＋ ADD AUDIO FILES</button>
       <button class="btn-feature" data-i18n="mf_btn_history" onclick="openHistoryFromFiles()">🕘 HISTORY</button>
+    </div>
+    <div class="myfiles-upload" id="myfiles-upload" hidden>
+      <div class="myfiles-upload-top"><span id="myfiles-upload-text"></span><span class="myfiles-upload-pct" id="myfiles-upload-pct">0 %</span></div>
+      <div class="myfiles-upload-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="myfiles-upload-bar"><div class="myfiles-upload-fill" id="myfiles-upload-fill"></div></div>
+      <div class="myfiles-upload-name" id="myfiles-upload-name"></div>
     </div>
     <div class="myfiles-gain" id="myfiles-gain-box">
       <div class="myfiles-gain-row">
@@ -4786,7 +4803,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_myfiles_step1">1. Add your own audio files</h4>
-      <p data-i18n="p_myfiles_step1">Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under "Your Files". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to).</p>
+      <p data-i18n="p_myfiles_step1">Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under "Your Files". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to). To delete many files at once, tap ☑ SELECT FILES, tick them (or ☑ ALL) and tap 🗑 DELETE SELECTED. A file that is already in Your Files (same name and size) is skipped when you add it again, so nothing is doubled.</p>
     </div>
 
     <div class="main-guide-section">
@@ -11593,7 +11610,7 @@
     myfiles_guide_title: { en: "How To: Your Own Tracks & Mixing", cz: "Návod: Vlastní skladby a mixování" },
     myfiles_guide_intro: { en: "Everything below happens on the F panel (My Files & Playlists) - here's exactly how to add your own audio, mix it with SYNTHLUCIDA tracks, and build your own playlists.", cz: "Vše níže se odehrává v panelu F (Vlastní soubory a playlisty) - tady je přesný postup, jak přidat vlastní zvukové soubory, namixovat je se skladbami SYNTHLUCIDA a vytvořit si vlastní playlisty." },
     h_myfiles_step1: { en: "1. Add your own audio files", cz: "1. Přidání vlastních audio souborů" },
-    p_myfiles_step1: { en: "Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under \"Your Files\". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to).", cz: "Otevřete panel F a klepněte na ＋ PŘIDAT AUDIO SOUBORY. Vyberte jeden nebo více audio souborů ze svého zařízení - nahrají se okamžitě a nikam se přitom neodesílají; každý soubor se uloží pouze lokálně ve vašem prohlížeči a objeví se v seznamu „Vaše soubory\". Klepnutím na název souboru ho rovnou samostatně přehrajete, klepnutím na ✕ ho smažete (tím se odebere i ze všech playlistů, kam byl přidán)." },
+    p_myfiles_step1: { en: "Open the F panel and tap ＋ ADD AUDIO FILES. Pick one or more audio files from your device - they upload instantly, with nothing sent anywhere; each file is stored locally in your browser and shows up under \"Your Files\". Tap a file's name to play it right away on its own, or tap ✕ to delete it (this also removes it from any playlist it was added to). To delete many files at once, tap ☑ SELECT FILES, tick them (or ☑ ALL) and tap 🗑 DELETE SELECTED. A file that is already in Your Files (same name and size) is skipped when you add it again, so nothing is doubled.", cz: "Otevřete panel F a klepněte na ＋ PŘIDAT AUDIO SOUBORY. Vyberte jeden nebo více audio souborů ze svého zařízení - nahrají se okamžitě a nikam se přitom neodesílají; každý soubor se uloží pouze lokálně ve vašem prohlížeči a objeví se v seznamu „Vaše soubory\". Klepnutím na název souboru ho rovnou samostatně přehrajete, klepnutím na ✕ ho smažete (tím se odebere i ze všech playlistů, kam byl přidán). Chcete-li smazat více souborů najednou, klepněte na ☑ VYBRAT SOUBORY, zaškrtněte je (nebo ☑ VŠE) a klepněte na 🗑 SMAZAT VYBRANÉ. Soubor, který už ve Vašich souborech je (stejný název i velikost), se při dalším přidání přeskočí, takže se nic nezdvojí." },
     h_myfiles_quick: { en: "2. Quick add with ♥ and ＋", cz: "2. Rychlé přidání pomocí ♥ a ＋" },
     p_myfiles_quick: { en: "Every file under \"Your Files\" has two small buttons next to ▶. Tap ♥ to put the file straight into MY PLAYLIST - tap it again to take it out, and the heart stays in sync with MY PLAYLIST. Tap ＋ to open a short list under the file: ♥ MY PLAYLIST at the top, then all the playlists you have created - tap a name to add the file there (a ✓ marks playlists that already contain it, so it is never added twice). If you have no playlist yet, create one under \"Your Playlists\" and the ＋ list will offer it. Right after uploading you can use the same two buttons to sort new files in seconds. To add many files at once, tap ☑ SELECT FILES above the list, tick the files you want (or tap ☑ ALL), then tap ♥ MY PLAYLIST or ＋ and a playlist name in the bar - every ticked file is added in one go, and files that are already there are skipped. Tap ✕ DONE to leave selecting.", cz: "U každého souboru v sekci „Vaše soubory\" jsou vedle ▶ dvě malá tlačítka. Klepnutím na ♥ soubor rovnou přidáte do MY PLAYLIST - dalším klepnutím ho zase odeberete a srdíčko zůstává v souladu s MY PLAYLIST. Klepnutím na ＋ se pod souborem rozbalí krátký seznam: nahoře ♥ MY PLAYLIST a pod ním všechny vámi vytvořené playlisty - klepnutím na název tam soubor přidáte (✓ značí playlisty, které ho už obsahují, takže se nikdy nepřidá dvakrát). Pokud ještě žádný playlist nemáte, vytvořte si ho v sekci „Vaše playlisty\" a seznam ＋ ho nabídne. Hned po nahrání tak můžete nové soubory roztřídit během pár vteřin. Chcete-li přidat více souborů najednou, klepněte nad seznamem na ☑ VYBRAT SOUBORY, zaškrtněte požadované soubory (nebo klepněte na ☑ VŠE) a v liště klepněte na ♥ MY PLAYLIST nebo na ＋ a název playlistu - všechny zaškrtnuté soubory se přidají naráz a ty, které tam už jsou, se přeskočí. Výběr ukončíte tlačítkem ✕ HOTOVO." },
     h_myfiles_step2: { en: "3. Build a playlist that mixes your files with SYNTHLUCIDA", cz: "3. Vytvoření playlistu mixujícího vaše soubory se SYNTHLUCIDA" },
@@ -12219,31 +12236,104 @@
     return false;
   }
 
+  // Ukazatel průběhu nahrávání (počet souborů + procenta podle velikosti)
+  function setMyFilesUploadProgress(state) {
+    const box = document.getElementById('myfiles-upload');
+    const addBtn = document.getElementById('myfiles-add-btn');
+    if (!box) return;
+    if (!state) {
+      box.hidden = true;
+      if (addBtn) addBtn.disabled = false;
+      return;
+    }
+    box.hidden = false;
+    if (addBtn) addBtn.disabled = !state.done;
+    const pct = Math.max(0, Math.min(100, Math.round(state.pct)));
+    const fill = document.getElementById('myfiles-upload-fill');
+    const bar = document.getElementById('myfiles-upload-bar');
+    const txt = document.getElementById('myfiles-upload-text');
+    const pctEl = document.getElementById('myfiles-upload-pct');
+    const nameEl = document.getElementById('myfiles-upload-name');
+    if (fill) fill.style.width = pct + '%';
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+    if (pctEl) pctEl.textContent = pct + ' %';
+    if (txt) txt.textContent = state.done
+      ? mfT('Done: ' + state.total + ' file(s) processed', 'Hotovo: zpracováno souborů ' + state.total)
+      : mfT('Adding files ' + state.index + ' / ' + state.total + '…', 'Nahrávám soubory ' + state.index + ' / ' + state.total + '…');
+    if (nameEl) nameEl.textContent = state.name || '';
+    box.classList.toggle('is-done', !!state.done);
+  }
+  let myFilesUploadBusy = false;
+  let myFilesUploadHideTimer = null;
+
   // Nahrání nových souborů uživatelem
   window.handleMyFilesUpload = async function(event) {
     const input = event.target;
     const files = Array.from(input.files || []);
     input.value = ''; // aby šlo znovu vybrat stejný soubor příště
     if (!files.length) return;
+    if (myFilesUploadBusy) { showToast(mfT('Please wait - files are still being added.', 'Počkejte prosím - soubory se ještě nahrávají.'), '⏳'); return; }
+    myFilesUploadBusy = true;
+    clearTimeout(myFilesUploadHideTimer);
+    try {
 
+    // Duplicity: soubor se stejným názvem a stejnou velikostí už v knihovně je -> přeskočí se (i dvakrát vybraný v jedné dávce)
+    if (!myFilesLibraryOk) await refreshMyFilesLibrary();
+    const dupKey = (name, size) => String(name || '').trim().toLowerCase() + '|' + (Number(size) || 0);
+    const knownKeys = new Set(myFilesLibrary.map(f => dupKey(f.name, f.size)));
     const skippedFiles = [];
+    const dupFiles = [];
+    let addedCount = 0, failedCount = 0;
+    // průběh: podle velikosti (velký soubor trvá déle), u nulových velikostí podle počtu
+    const totalBytes = files.reduce((n, f) => n + (Number(f.size) || 0), 0);
+    let doneBytes = 0, doneCount = 0;
+    const progPct = () => totalBytes > 0 ? (doneBytes / totalBytes) * 100 : (doneCount / files.length) * 100;
+    setMyFilesUploadProgress({ index: 1, total: files.length, pct: 0, name: files[0].name });
     for (const file of files) {
-      if (!isAudioUpload(file)) { skippedFiles.push(file.name); continue; }
-      const id = myFilesGenId();
-      const title = file.name.replace(/\.[^/.]+$/, '');
+      setMyFilesUploadProgress({ index: Math.min(files.length, doneCount + 1), total: files.length, pct: progPct(), name: file.name });
       try {
-        await myFilesDbPut({ id, name: title, type: file.type, size: file.size, addedAt: Date.now(), blob: file });
-      } catch (e) {
-        console.error('Nelze uložit soubor:', e);
-        alert(mfT('Could not save one of the files on this device.', 'Jeden ze souborů se nepodařilo uložit do tohoto zařízení.'));
+        if (!isAudioUpload(file)) { skippedFiles.push(file.name); continue; }
+        const title = file.name.replace(/\.[^/.]+$/, '');
+        const k = dupKey(title, file.size);
+        if (knownKeys.has(k)) { dupFiles.push(title); continue; }
+        const id = myFilesGenId();
+        try {
+          await myFilesDbPut({ id, name: title, type: file.type, size: file.size, addedAt: Date.now(), blob: file });
+          knownKeys.add(k);
+          addedCount++;
+        } catch (e) {
+          console.error('Nelze uložit soubor:', e);
+          failedCount++;
+        }
+      } finally {
+        doneBytes += Number(file.size) || 0;
+        doneCount++;
       }
+    }
+    setMyFilesUploadProgress({ index: files.length, total: files.length, pct: 100, name: '', done: true });
+    if (failedCount) {
+      alert(mfT('Could not save ' + failedCount + ' file(s) on this device (the device storage may be full).', 'Do tohoto zařízení se nepodařilo uložit souborů: ' + failedCount + ' (úložiště může být plné).'));
     }
     if (skippedFiles.length) {
       alert(mfT('Skipped (not an audio file): ', 'Přeskočeno (nejde o audio soubor): ') + skippedFiles.slice(0, 5).join(', ') + (skippedFiles.length > 5 ? '…' : ''));
     }
     await refreshMyFilesLibrary();
     renderMyFiles();
-    if (files.length > skippedFiles.length) showToast(mfT('Added to your files - tap ♥ for My Playlist or ＋ for a playlist', 'Přidáno do vašich souborů - klepnutím na ♥ je přidáte do My Playlist, na ＋ do playlistu'), '✓');
+    const dupNote = dupFiles.length
+      ? mfT(' Skipped ' + dupFiles.length + ' already added: ', ' Přeskočeno ' + dupFiles.length + ' už přidaných: ') + dupFiles.slice(0, 3).join(', ') + (dupFiles.length > 3 ? '…' : '')
+      : '';
+    if (addedCount) {
+      showToast(mfT('Added to your files: ' + addedCount + ' - tap ♥ for My Playlist or ＋ for a playlist.', 'Přidáno do vašich souborů: ' + addedCount + ' - klepnutím na ♥ je přidáte do My Playlist, na ＋ do playlistu.') + dupNote, '✓');
+    } else if (dupFiles.length) {
+      showToast(mfT('Already in your files - nothing was added twice.', 'Už ve vašich souborech je - nic se nepřidalo dvakrát.') + dupNote, '✓');
+    }
+    } finally {
+      myFilesUploadBusy = false;
+      // hotovo zůstane chvíli vidět, pak lišta zmizí (tlačítko ＋ jde použít hned)
+      const addBtn = document.getElementById('myfiles-add-btn');
+      if (addBtn) addBtn.disabled = false;
+      myFilesUploadHideTimer = setTimeout(() => setMyFilesUploadProgress(null), 2500);
+    }
   };
 
   // Smazání vlastního souboru z knihovny (a odebrání z playlistů, kde je použit)
@@ -12320,12 +12410,12 @@
     if (btn) setPlaylist(key, btn);
   }
 
-  window.deleteMyFile = async function(fileId) {
-    if (!confirm(mfT('Delete this file from your device?', 'Smazat tento soubor ze zařízení?'))) return;
+  // Smaže jeden soubor (bez dotazu) a odebere ho všude. Vrací klíč souboru, nebo null, když se smazání nepovedlo.
+  async function deleteMyFileCore(fileId) {
     const rec = myFilesLibrary.find(f => f.id === fileId);
     const fileName = rec ? rec.name : '';
     const oldUrl = myFilesBlobUrlCache[fileId] || '';
-    try { await myFilesDbDelete(fileId); } catch (e) { console.error(e); }
+    try { await myFilesDbDelete(fileId); } catch (e) { console.error(e); return null; }
     myPlaylists.forEach(pl => {
       pl.items = pl.items.filter(it => !(it.type === 'file' && it.fileId === fileId));
     });
@@ -12336,11 +12426,56 @@
       try { URL.revokeObjectURL(myFilesBlobUrlCache[fileId]); } catch (e) { /* ignore */ }
       delete myFilesBlobUrlCache[fileId];
     }
+    // hned i ze seznamu v paměti (další mazaný soubor se stejným názvem se pak správně dohledá i ve starších záznamech)
+    myFilesLibrary = myFilesLibrary.filter(f => f.id !== fileId);
+    myFilesSelected.delete(fileId);
+    return fileKey;
+  }
+
+  window.deleteMyFile = async function(fileId) {
+    if (!confirm(mfT('Delete this file from your device?', 'Smazat tento soubor ze zařízení?'))) return;
+    const fileKey = await deleteMyFileCore(fileId);
+    await finishMyFilesDelete(fileKey ? [fileKey] : []);
+    if (!fileKey) showToast(mfT('The file could not be deleted - please try again.', 'Soubor se nepodařilo smazat - zkuste to prosím znovu.'), '⚠');
+  };
+
+  // Hromadné smazání zaškrtnutých souborů (jeden dotaz pro všechny)
+  let bulkDeleteBusy = false;
+  window.bulkDeleteSelectedMyFiles = async function() {
+    if (bulkDeleteBusy) return;
+    const files = getSelectedMyFiles();
+    if (!files.length) return;
+    const all = files.length === myFilesLibrary.length;
+    if (!confirm(all
+      ? mfT('Delete ALL ' + files.length + ' of your files from this device?\n\nThey will also be removed from your playlists, My Playlist and History. This cannot be undone.',
+            'Smazat VŠECHNY vaše soubory (' + files.length + ') z tohoto zařízení?\n\nOdeberou se i z vašich playlistů, z My Playlist a z historie. Nejde to vrátit zpět.')
+      : mfT('Delete ' + files.length + ' selected file(s) from this device?\n\nThey will also be removed from your playlists, My Playlist and History. This cannot be undone.',
+            'Smazat vybrané soubory (' + files.length + ') z tohoto zařízení?\n\nOdeberou se i z vašich playlistů, z My Playlist a z historie. Nejde to vrátit zpět.'))) return;
+    bulkDeleteBusy = true;
+    const keys = [];
+    let failed = 0;
+    try {
+      if (files.length > 10) showToast(mfT('Deleting ' + files.length + ' files…', 'Mažu soubory: ' + files.length + '…'), '🗑');
+      for (const f of files) {
+        const k = await deleteMyFileCore(f.id);
+        if (k) keys.push(k); else failed++;
+      }
+    } finally { bulkDeleteBusy = false; }
+    await finishMyFilesDelete(keys);
+    showToast(failed
+      ? mfT('Deleted: ' + keys.length + ', could not delete: ' + failed, 'Smazáno: ' + keys.length + ', nepodařilo se smazat: ' + failed)
+      : mfT('Deleted files: ' + keys.length, 'Smazáno souborů: ' + keys.length), '🗑');
+  };
+
+  // Po smazání: obnovit seznam a hlavní okno (pokud ukazovalo smazaný soubor nebo se F playlist vyprázdnil)
+  async function finishMyFilesDelete(fileKeys) {
     await refreshMyFilesLibrary();
     renderMyFiles();
     if (typeof currentPlaylistKey === 'string' && currentPlaylistKey.indexOf('custom:') === 0) {
-      if (currentPlaylistKey === fileKey) {
-        showDefaultPlaylistInMain(); // hlavní okno ukazovalo jen tento jeden soubor
+      if (fileKeys.indexOf(currentPlaylistKey) !== -1) {
+        showDefaultPlaylistInMain(); // hlavní okno ukazovalo jen smazaný soubor
+      } else if (currentPlaylistKey.indexOf('custom:file:') === 0) {
+        /* jiný samostatný soubor - beze změny */
       } else {
         const plId = currentPlaylistKey.slice('custom:'.length);
         const pl = myPlaylists.find(p => p.id === plId);
@@ -12971,6 +13106,12 @@
       row3.appendChild(note3);
     }
     bar.appendChild(row3);
+
+    const row4 = document.createElement('div');
+    row4.className = 'myfiles-bulk-row';
+    const delBtn = mk(row4, mfT('🗑 DELETE SELECTED', '🗑 SMAZAT VYBRANÉ') + (none ? '' : ' (' + myFilesSelected.size + ')'), bulkDeleteSelectedMyFiles, { disabled: none || bulkDeleteBusy });
+    delBtn.classList.add('myfiles-bulk-del');
+    bar.appendChild(row4);
   }
 
   // Hlavička složky v seznamu souborů: klepnutím se složka otevře/zavře; ✎ přejmenuje, ✕ smaže (soubory zůstanou)
