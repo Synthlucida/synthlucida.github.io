@@ -948,6 +948,73 @@ def t_own_files(s, c):
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
+def t_own_bulk(s, c):
+    """Sekce F: přeskočení už přidaných souborů, ukazatel průběhu, hromadné mazání."""
+    wav = s.env.wav[:60000 + 44]
+
+    def f(name, extra=0):
+        return {"name": name, "mimeType": "audio/wav", "buffer": wav + b"\0" * extra}
+
+    ctx, p, errs = s.page()
+    p.evaluate("toggleMainFiles()")
+    p.wait_for_timeout(300)
+    if not p.evaluate("typeof bulkDeleteSelectedMyFiles==='function'&&!!document.getElementById('myfiles-upload')"):
+        c.ok(False, "Player nemá hromadné mazání nebo ukazatel průběhu (je to aktuální player.html?)")
+        return
+    # průběh nahrávání: zaznamenat, co se během nahrávání ukazuje
+    p.evaluate("""()=>{window.__up=[];const box=document.getElementById('myfiles-upload');
+      new MutationObserver(()=>window.__up.push({hidden:box.hidden,pct:document.getElementById('myfiles-upload-pct').textContent,
+        locked:document.getElementById('myfiles-add-btn').disabled})).observe(box,{subtree:true,childList:true,characterData:true,attributes:true})}""")
+    p.set_input_files("#myfiles-input", [f("Test A.wav"), f("Test B.wav", 10), f("Test C.wav", 20), f("Test D.wav", 30)])
+    p.wait_for_function("myFilesLibrary.length===4&&!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+    up = p.evaluate("window.__up")
+    pcts = [int(re.sub(r"\D", "", u["pct"]) or 0) for u in up if not u["hidden"]]
+    c.ok(up and any(u["locked"] for u in up) and pcts and pcts[-1] == 100 and pcts == sorted(pcts),
+         "Při nahrávání se ukáže průběh v procentech (%s) a tlačítko přidání je zatím zamčené" % " → ".join("%d %%" % x for x in pcts[:6]))
+    p.wait_for_timeout(2900)
+    c.ok(p.evaluate("document.getElementById('myfiles-upload').hidden"), "Ukazatel průběhu po dokončení sám zmizí")
+
+    # duplicity: stejné soubory znovu + jeden nový + jeden dvakrát v jedné dávce
+    p.set_input_files("#myfiles-input", [f("Test A.wav"), f("Test B.wav", 10), f("Test E.wav", 40), f("Test E.wav", 40)])
+    p.wait_for_function("!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+    p.wait_for_timeout(300)
+    names = sorted(p.evaluate("myFilesLibrary.map(x=>x.name)"))
+    toast = p.evaluate(TOAST_JS)
+    c.ok(names == ["Test A", "Test B", "Test C", "Test D", "Test E"],
+         "Už přidaný soubor se při dalším nahrání přeskočí a nezdvojí se (v knihovně: %d)" % len(names))
+    c.ok(re.search(r"(Skipped|Přeskočeno) 3\b", toast), "Hláška řekne, kolik souborů se přeskočilo (2 už přidané + 1 vybraný dvakrát)")
+    p.set_input_files("#myfiles-input", [f("Test A.wav", 999)])
+    p.wait_for_function("myFilesLibrary.length===6", timeout=20000)
+    c.ok(True, "Soubor se stejným názvem, ale jinou velikostí se přidá (jiná verze)")
+
+    # hromadné mazání: soubory v playlistu F, v My Playlist, v historii a jeden právě hraje
+    p.evaluate("""async()=>{myPlaylists.push({id:'tbulk',name:'Bulk',items:myFilesLibrary.map(x=>({type:'file',fileId:x.id,title:x.name})),createdAt:1});
+      saveMyPlaylistsToStorage();toggleMyFilesSelectMode();selectAllMyFiles(true);await bulkAddSelectedToQueue();selectAllMyFiles(false);
+      localStorage.setItem(HISTORY_KEY,JSON.stringify(myFilesLibrary.map(x=>({title:x.name,playlist:'custom:file:'+x.id,fileId:x.id,time:Date.now()}))));
+      await playMyFileNow(myFilesLibrary.find(x=>x.name==='Test B').id);
+      myFilesLibrary.filter(x=>x.name==='Test B'||x.name==='Test C').forEach(x=>toggleMyFileSelected(x.id,true));}""")
+    p.wait_for_timeout(800)
+    btn = p.evaluate("()=>{const b=document.querySelector('#myfiles-bulk .myfiles-bulk-del');return b?{t:b.textContent,d:b.disabled}:null}")
+    c.ok(btn and not btn["d"] and "(2)" in btn["t"], "V režimu výběru je tlačítko SMAZAT VYBRANÉ s počtem (%s)" % (btn["t"] if btn else "chybí"))
+    p.evaluate("document.querySelector('#myfiles-bulk .myfiles-bulk-del').click()")
+    p.wait_for_timeout(1500)
+    r = p.evaluate("""async()=>({lib:myFilesLibrary.map(x=>x.name).sort(),db:(await myFilesDbGetAll()).length,
+      pl:myPlaylists.find(x=>x.id==='tbulk').items.map(i=>i.title).sort(),q:customQueue.map(e=>e.title).sort(),
+      h:JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]').map(x=>x.title).sort(),blob:audio.src.indexOf('blob:')===0&&!audio.paused})""")
+    left = ["Test A", "Test A", "Test D", "Test E"]
+    c.ok(r["lib"] == left and r["db"] == 4, "Hromadné mazání smaže jen vybrané soubory (zbývá %d)" % r["db"])
+    c.ok(r["pl"] == left and r["q"] == left and r["h"] == left, "Smazané soubory zmizí i z playlistu F, z My Playlist a z historie")
+    c.ok(not r["blob"], "Právě hrající smazaný soubor se zastaví")
+
+    p.evaluate("()=>{if(!myFilesSelectMode)toggleMyFilesSelectMode();selectAllMyFiles(true)}")
+    p.evaluate("document.querySelector('#myfiles-bulk .myfiles-bulk-del').click()")
+    p.wait_for_timeout(1500)
+    r = p.evaluate("async()=>({lib:myFilesLibrary.length,db:(await myFilesDbGetAll()).length,q:customQueue.length,bar:document.getElementById('myfiles-bulk').children.length})")
+    c.ok(r["lib"] == 0 and r["db"] == 0 and r["q"] == 0 and r["bar"] == 0, "☑ VŠE + SMAZAT VYBRANÉ smaže všechny vlastní soubory")
+    c.ok(p.evaluate("document.querySelectorAll('#playlist li').length") >= 5, "Hlavní okno se potom vrátí na běžný playlist")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
 def t_robust(s, c):
     keys = sorted(set(re.findall(r"""['"]((?:sl-[a-z0-9-]+)|(?:synthlucida_[a-z0-9_]+))['"]""", s.env.player_src)))
     panels = ["", "toggleCustomQueue()", "toggleMainStats()", "toggleMainFiles()", "toggleSetup()", "playTrack(3)"]
@@ -1270,6 +1337,7 @@ TESTS = [
     ("Skladba SPECIAL", t_special),
     ("Koule na pozadí", t_orbs),
     ("Vlastní soubory (sekce F)", t_own_files),
+    ("Vlastní soubory – duplicity, průběh, hromadné mazání", t_own_bulk),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
