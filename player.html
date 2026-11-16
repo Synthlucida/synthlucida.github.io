@@ -11075,7 +11075,78 @@
   }
 
   // Stáhne jednu skladbu do offline úložiště a ověří, že je přehratelná. Vrací true, když je bezpečně uložená.
+  // ==========================================
+  // STATISTIKY POSLECHU (GoatCounter události - anonymní, bez cookies, nic osobního)
+  // Počítá se jen u SYNTHLUCIDA skladeb z ASMR, PIANO a CHILL: přehrání (aspoň 30 s poslechu),
+  // druhá ASMR vrstva (aspoň 30 s), přidání do My Playlist (♥) a stažení offline.
+  // Vlastní soubory uživatelů se nepočítají nikdy. Výsledky: https://player.goatcounter.com
+  // ==========================================
+  const SL_STAT_KEYS = { asmr: 'ASMR', piano: 'PIANO', chill: 'CHILL' };
+  let slStatMap = null;
+  function slStatFileOf(src) {
+    try {
+      const u = String(src || '');
+      if (u.indexOf('https://') !== 0) return ''; // blob: (vlastní soubory) a jiné adresy ne
+      return decodeURIComponent(u.split('?')[0].split('#')[0].split('/').pop() || '').toLowerCase();
+    } catch (e) { return ''; }
+  }
+  function slStatTrack(src) {
+    const f = slStatFileOf(src);
+    if (!f) return null;
+    if (!slStatMap) {
+      slStatMap = Object.create(null);
+      Object.keys(SL_STAT_KEYS).forEach(k => (tracks[k] || []).forEach(t => {
+        const ff = slStatFileOf(t && t.src);
+        if (ff && !slStatMap[ff]) slStatMap[ff] = { key: k, title: String(t.title || '').replace(/^SYNTHLUCIDA\s*-\s*/i, '').trim() || ff };
+      }));
+    }
+    return slStatMap[f] || null;
+  }
+  function slStat(kind, src) {
+    try {
+      const t = slStatTrack(src);
+      if (!t || !window.goatcounter || typeof window.goatcounter.count !== 'function') return;
+      const lbl = { play: '▶ Přehráno', layer: '🎧 ASMR vrstva', heart: '♥ Do My Playlist', offline: '⬇ Staženo offline' }[kind] || kind;
+      window.goatcounter.count({
+        path: kind + '-' + t.key + '-' + slStatFileOf(src).replace(/\.mp3$/, ''),
+        title: lbl + ' – ' + SL_STAT_KEYS[t.key] + ' – ' + t.title,
+        event: true
+      });
+    } catch (e) { /* statistiky nesmí nic rozbít */ }
+  }
+  // Poslech: sčítá skutečně přehrané vteřiny (přetáčení se nepočítá); po 30 s se pošle jedna událost na jedno přehrání
+  function slStatWatch(el, kind) {
+    if (!el) return;
+    let acc = 0, last = -1, sent = false, curSrc = '';
+    const reset = () => { acc = 0; last = -1; sent = false; curSrc = el.currentSrc || el.src || ''; };
+    el.addEventListener('loadstart', reset);
+    el.addEventListener('ended', reset);
+    el.addEventListener('timeupdate', () => {
+      try {
+        const src = el.currentSrc || el.src || '';
+        if (src !== curSrc) reset();
+        const t = el.currentTime || 0;
+        if (sent && last > 30 && t < 3) { acc = 0; sent = false; } // opakování jedné skladby (začala znovu od začátku)
+        if (last >= 0 && !el.paused) { const d = t - last; if (d > 0 && d < 2) acc += d; }
+        last = t;
+        if (!sent && acc >= 30) { sent = true; slStat(kind, src); }
+      } catch (e) { /* ignore */ }
+    });
+  }
+  try {
+    slStatWatch(document.getElementById('audio-player'), 'play');
+    slStatWatch(document.getElementById('audio-player-crossfade'), 'play');
+    slStatWatch(document.getElementById('audio-player-layer'), 'layer');
+  } catch (e) { /* ignore */ }
+
   async function fetchTrackForOffline(track) {
+    let wasCached = true;
+    try { wasCached = await isTrackCached(track.src); } catch (e) { wasCached = true; }
+    const ok = await fetchTrackForOfflineCore(track);
+    if (ok && !wasCached) slStat('offline', track.src);
+    return ok;
+  }
+  async function fetchTrackForOfflineCore(track) {
     let ok = false;
     // Až 3 pokusy: pokus se opakuje jen tehdy, když uložený soubor NENÍ přehratelný
     // (typicky chybová stránka z GitHubu). Už stažená skladba se také ověří, takže
@@ -16783,6 +16854,7 @@
     if (!tracks[playlistKey] || index < 0 || !tracks[playlistKey][index]) return;
     const track = tracks[playlistKey][index];
     customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index, fileId: fileIdForQueueEntry(playlistKey, track) });
+    slStat('heart', track.src);
     saveCustomQueue();
     updateQueueCountBadge(); // číslo na tlačítku hned, ještě před překreslením seznamů
     try { renderCustomQueue(); } catch (e) { console.error(e); }
@@ -16840,6 +16912,7 @@
     } else {
       const track = tracks[playlistKey][index];
       customQueue.push({ title: track.title, src: track.src, playlist: playlistKey, index, fileId: fileIdForQueueEntry(playlistKey, track) });
+      slStat('heart', track.src);
       liked = true;
     }
     saveCustomQueue();
