@@ -697,6 +697,38 @@
   body.is-fullscreen .canvas-panel::before { animation: none; }
   body.is-fullscreen .corner-btn-fullscreen { position: fixed; top: auto; bottom: 10px; right: 10px; left: auto; z-index: 120; }
   body.is-fullscreen .main-layout { justify-content: center; }
+
+  /* ---- First-run guided tour ---- */
+  .tour-block { position: fixed; inset: 0; z-index: 300; background: transparent; }
+  .tour-hole {
+    position: fixed; z-index: 301; pointer-events: none; border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.76), 0 0 0 2px var(--accent-color), 0 0 20px var(--accent-color);
+    transition: left .28s ease, top .28s ease, width .28s ease, height .28s ease;
+  }
+  .tour-card {
+    position: fixed; z-index: 302; width: min(330px, calc(100vw - 16px)); box-sizing: border-box;
+    background: rgba(12,12,18,0.97); border: 1px solid var(--accent-color); border-radius: 14px; padding: 14px 14px 12px;
+    box-shadow: 0 6px 26px rgba(0,0,0,0.7), 0 0 16px var(--accent-color); color: #fff;
+    font-family: 'Orbitron', sans-serif; text-align: left;
+  }
+  .tour-card h4 { margin: 0 24px 7px 0; font-size: 12px; letter-spacing: 1.2px; color: var(--accent-color); text-shadow: 0 0 8px var(--accent-color); }
+  .tour-card p { margin: 0 0 12px; font-size: 10px; line-height: 1.7; opacity: 0.88; letter-spacing: 0.3px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  .tour-lang { position: absolute; top: 10px; right: 10px; background: none; border: 1px solid rgba(255,255,255,0.25); color: #fff; border-radius: 6px; font: 8px 'Orbitron', sans-serif; padding: 3px 6px; cursor: pointer; }
+  .tour-lang:hover { background: var(--accent-color); color: #000; }
+  .tour-dots { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tour-dots i { width: 14px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18); }
+  .tour-dots i.on { background: var(--accent-color); box-shadow: 0 0 6px var(--accent-color); }
+  .tour-dots i.done { background: rgba(255,255,255,0.5); }
+  .tour-btns { display: flex; align-items: center; gap: 6px; }
+  .tour-btns button { font: 9px 'Orbitron', sans-serif; letter-spacing: 0.8px; padding: 8px 12px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: #fff; }
+  .tour-btns button:hover { background: rgba(255,255,255,0.16); }
+  .tour-btns .tour-next { margin-left: auto; background: var(--accent-color); color: #000; border-color: var(--accent-color); font-weight: 700; }
+  .tour-btns .tour-next:hover { filter: brightness(1.15); background: var(--accent-color); }
+  .tour-btns .tour-skip { border-color: transparent; background: none; opacity: 0.6; padding-left: 4px; padding-right: 4px; }
+  .tour-btns button:disabled { opacity: 0.3; cursor: default; }
+  .tour-try { display: inline-block; margin: 0 0 10px; padding: 3px 8px; font: 8px 'Orbitron', sans-serif; letter-spacing: 1px; border-radius: 20px; border: 1px dashed var(--accent-color); color: var(--accent-color); }
+  .info-tour-btn { display: block; margin: 0 auto 14px; font: 9px 'Orbitron', sans-serif; letter-spacing: 1px; padding: 9px 14px; border-radius: 10px; cursor: pointer; background: var(--accent-color); color: #000; border: none; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { .tour-hole { transition: none; } }
 </style>
 <script data-goatcounter="https://draw.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -715,6 +747,7 @@
     <button class="info-close" id="btn-info-close" aria-label="Close">✕</button>
     <button class="info-lang-toggle" id="info-lang-toggle" onclick="toggleInfoLanguage()" aria-label="Switch language">CZ</button>
     <h2 data-i18n="title">HOW TO DRAW</h2>
+    <button class="info-tour-btn" id="btn-tour-start" type="button" data-i18n="btn_tour">▶ START GUIDED TOUR</button>
     <a href="https://synthlucida.com/hub.html?lang=en" class="info-hub-link" id="info-hub-link" data-i18n="btn_hub">SYNTHLUCIDA HUB ↗</a>
 
     <h3 data-i18n="h_drawing">DRAWING</h3>
@@ -5653,6 +5686,7 @@
     p_sound: { en: "While you draw, a soft ambient tone quietly follows your brush. It's always tuned to a calm five-note scale, so it can never sound \"off\" — higher up the canvas plays a higher note, lower plays a deeper one, gliding gently between them as you move. The tone pans left and right with your brush, blooms in slowly and fades out slowly when you lift your finger, and has a light touch of reverb for a soft, spacious feel. Each BRUSH FEEL gives it its own tone color — SOFT is pure and warm, INK is fuller with a slow swell, CHALK is dry and grainy, NEON is bright and shimmering, STARDUST is a glassy little chime, and erasing plays a quiet, muted note of its own. Toggle it anytime with 🔊 SOUND, and use the slider beside it to set the volume (40% by default) — both choices are remembered.", cz: "Zatímco kreslíte, tichý ambientní tón jemně sleduje váš štětec. Vždy je naladěn na klidnou pětitónovou stupnici, takže nikdy nemůže znít „mimo“ — výš na plátně zní vyšší tón, níž hlubší, a mezi nimi plynule klouže podle vašeho pohybu. Tón se posouvá vlevo a vpravo podle polohy štětce, pomalu se rozvine a při zvednutí prstu pomalu odezní, a má jemný nádech reverbu pro měkký, prostorový pocit. Každý styl štětce (BRUSH FEEL) mu dodá vlastní barvu tónu — SOFT je čistý a hřejivý, INK plnější s pomalým náběhem, CHALK suchý a zrnitý, NEON jasný a třpytivý, STARDUST zvonivý a skleněný a gumování hraje svůj vlastní tichý, tlumený tón. Kdykoli ho přepnete tlačítkem 🔊 SOUND a posuvníkem vedle něj nastavíte hlasitost (výchozích 40 %) — obě volby se zapamatují." },
     h_life: { en: "BRING THE PICTURE TO LIFE", cz: "OŽIVTE SVŮJ OBRÁZEK" },
     p_life: { en: "Draw a picture (e.g. a bird), then press ➕ MARK PART and drag over a part you want to move (e.g. a wing). Choose a motion — FLAP, SWAY, SPIN, BOB, PULSE (gentle breathing), FADE (soft opacity breathing), DRIFT (slow floating), TWINKLE (a soft flicker, lovely for stars), SHAKE (a playful jitter), SWING (a pendulum), JUMP, HEARTBEAT, BREATHE, WAVE (grass, flags), BLINK, GLOW, FLOAT (bubbles, smoke rising) or RAINBOW (slowly cycling colors). Add as many parts as you like and hit 🦋 LIVE — the rest of the picture stays still while the marked parts move around the point where they're \"attached\" to the body.", cz: "Nakreslete obrázek (např. ptáka), poté stiskněte ➕ MARK PART a přetáhněte přes část, kterou chcete rozhýbat (např. křídlo). Vyberte pohyb — FLAP, SWAY, SPIN, BOB, PULSE (jemné dýchání), FADE (jemné dýchání průhlednosti), DRIFT (pomalé plutí), TWINKLE (jemné blikání, skvělé pro hvězdy), SHAKE (hravé chvění), SWING (kyvadlo), JUMP (skákání), HEARTBEAT (tlukot srdce), BREATHE (nádech), WAVE (tráva, vlajky), BLINK (mrknutí), GLOW (záře), FLOAT (stoupání bublin, kouře) nebo RAINBOW (pomalu se měnící barvy). Přidejte tolik částí, kolik chcete, a stiskněte 🦋 LIVE — zbytek obrázku zůstane nehybný, zatímco označené části se pohybují kolem bodu, kde jsou „připojené“ k tělu." },
+    btn_tour: { en: "▶ START GUIDED TOUR", cz: "▶ SPUSTIT PRŮVODCE" },
     btn_choose_outline: { en: "CHOOSE A PAGE", cz: "VYBRAT OMALOVÁNKU" },
     h_themes: { en: "THEMES", cz: "MOTIVY" },
     p_themes: { en: "Pick a THEME from the row above the canvas to change the background mood, including the calm ZEN theme. It doesn't change your brush color.", cz: "Vyberte THEME z řady nad plátnem a změňte tak náladu pozadí, včetně klidného motivu ZEN. Barvu vašeho štětce to nijak nemění." },
@@ -5713,6 +5747,183 @@
   document.getElementById('btn-info-close').addEventListener('click', () => toggleInfoOverlay(false));
   document.getElementById('info-overlay').addEventListener('click', e => { if (e.target.id === 'info-overlay') toggleInfoOverlay(false); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleInfoOverlay(false); exitAddPartMode(); removeToolbar(); if (textMode) exitTextMode(); if (emojiMode) exitEmojiMode(); removeTextStylePicker(); } });
+
+  // --- FIRST-RUN GUIDED TOUR ---
+  // A spotlight walk-through of the real controls (CZ/EN). Shown once for new visitors; can be replayed
+  // from the "i" panel. Everything is created on demand and removed again, so it costs nothing afterwards.
+  const TOUR_KEY = 'synthlucida_canvas_tour_done';
+  const TOUR_UI = {
+    en: { next: 'NEXT', back: 'BACK', done: 'LET’S PAINT', skip: 'SKIP', lang: 'CZ', step: 'Step', of: 'of', try: 'TRY IT NOW' },
+    cz: { next: 'DALŠÍ', back: 'ZPĚT', done: 'MALUJEME', skip: 'PŘESKOČIT', lang: 'EN', step: 'Krok', of: 'z', try: 'ZKUSTE TO' }
+  };
+  const TOUR_STEPS = [
+    { sel: null,
+      en: ['Welcome to SYNTHLUCIDA CANVAS', 'A calm place to paint with light. This quick tour (about one minute) shows the important things. You can skip it at any time.'],
+      cz: ['Vítejte v SYNTHLUCIDA CANVAS', 'Klidné místo, kde malujete světlem. Rychlá prohlídka (asi minuta) ukáže to důležité. Můžete ji kdykoli přeskočit.'] },
+    { sel: ['#canvas-stack'], tryIt: true,
+      en: ['Your canvas', 'Press and drag with your mouse or finger to paint. Go on — draw a few strokes right now, then press NEXT.'],
+      cz: ['Vaše plátno', 'Stiskněte a táhněte myší nebo prstem. Zkuste teď nakreslit pár táhů a pak stiskněte DALŠÍ.'] },
+    { sel: ['#color-palette'],
+      en: ['Colors', 'Tap a color to paint with it. The “+” swatch opens a full color picker for any shade you like.'],
+      cz: ['Barvy', 'Klepněte na barvu, kterou chcete malovat. Vzorník „+“ otevře plný výběr libovolného odstínu.'] },
+    { sel: ['#magic-palette'],
+      en: ['Magic colors', 'These shimmering swatches change while you paint — rainbow, living light and aurora, in several variants. Try one and draw!'],
+      cz: ['Magické barvy', 'Třpytivé vzorníky se během malování proměňují — duha, živé světlo a aurora v několika variantách. Vyzkoušejte a malujte!'] },
+    { sel: ['#brush-style-row', '#brush-size@.vol-row'],
+      en: ['Brush feel & size', 'Soft, ink, chalk, neon, stardust or watercolor — every brush paints differently. The slider changes the brush size.'],
+      cz: ['Štětec a velikost', 'Soft, ink, chalk, neon, stardust nebo watercolor — každý štětec maluje jinak. Jezdcem změníte velikost štětce.'] },
+    { sel: ['#btn-fill@.controls'],
+      en: ['Handy tools', 'The bucket FILLS a whole area with one tap, the eraser rubs out, SPARKLE adds a glittering trail, and the speaker plays calm ambient sound.'],
+      cz: ['Užitečné nástroje', 'Kbelík vyplní celou plochu jedním klepnutím, gumamaže, SPARKLE přidá třpytivou stopu a repro přehrává klidný zvuk.'] },
+    { sel: ['#btn-template-toggle'],
+      en: ['Coloring pages', 'Open CHOOSE A PAGE to pick from 61 outlines — mandalas, animals, nature. Your colors always stay under the lines. The bucket makes coloring easy, even for little ones.'],
+      cz: ['Omalovánky', 'Po otevření VYBRAT OMALOVÁNKU si vyberete z 61 obrysů — mandaly, zvířata, příroda. Barvy zůstávají vždy pod čárami. S kbelíkem se vybarvuje snadno i pro nejmenší.'] },
+    { sel: ['.game-actions-container'],
+      en: ['Undo, animate & save', 'UNDO takes a step back. ANIMATE replays your painting like a little film, and you can save it as an image, a VIDEO or a GIF.'],
+      cz: ['Zpět, animace a uložení', 'UNDO vrátí krok zpět. ANIMATE přehraje vaše malování jako filmek a můžete ho uložit jako obrázek, VIDEO nebo GIF.'] },
+    { sel: ['#btn-text-mode@.glass-section'],
+      en: ['Text & emoji', 'Write a word in a glowing graphic style or stamp an emoji anywhere on your picture.'],
+      cz: ['Text a emoji', 'Napište slovo ve zvýrazněném grafickém stylu nebo vložte emoji kamkoli do obrazu.'] },
+    { sel: ['#btn-add-part@.glass-section'],
+      en: ['Bring to life', 'Press MARK PART, drag a box over something (a wing, a star, a word), pick one of 18 motions — then LIVE makes it move while the rest stays still.'],
+      cz: ['Oživení obrazu', 'Stiskněte MARK PART, přetáhněte rámeček přes část (křídlo, hvězdu, slovo), vyberte jeden z 18 pohybů — a LIVE ji rozhýbe, zbytek zůstane stát.'] },
+    { sel: null,
+      en: ['You’re ready!', 'Have fun painting. You can replay this tour any time: tap the “i” button in the top-left corner and choose START GUIDED TOUR.'],
+      cz: ['Jste připraveni!', 'Užijte si malování. Prohlídku si můžete kdykoli zopakovat: klepněte vlevo nahoře na „i“ a zvolte SPUSTIT PRŮVODCE.'] }
+  ];
+  let tourState = null;
+
+  function tourTargetRect(step) {
+    if (!step.sel) return null;
+    let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+    step.sel.forEach(s => {
+      const parts = s.split('@');
+      let el = document.querySelector(parts[0]);
+      if (el && parts[1]) el = el.closest(parts[1]);
+      if (!el) return;
+      const q = el.getBoundingClientRect();
+      if (q.width < 2 || q.height < 2) return;
+      l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+    });
+    return l === Infinity ? null : { left: l, top: t, right: r, bottom: b, width: r - l, height: b - t };
+  }
+
+  function tourScrollTo(step) {
+    const q = tourTargetRect(step);
+    if (!q) return;
+    const vh = window.innerHeight;
+    let delta;
+    if (q.height > vh * 0.6) delta = q.top - 70;                       // tall target: show its top
+    else delta = q.top - (vh - q.height) / 2 + (q.height < vh * 0.4 ? -vh * 0.12 : 0);   // leave room for the card
+    window.scrollTo(0, Math.max(0, window.scrollY + delta));
+  }
+
+  function tourPlace() {
+    if (!tourState) return;
+    const { hole, card } = tourState, step = TOUR_STEPS[tourState.i];
+    const vw = window.innerWidth, vh = window.innerHeight, pad = 6, q = tourTargetRect(step);
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    if (!q) {
+      hole.style.left = (vw / 2) + 'px'; hole.style.top = (vh / 2) + 'px'; hole.style.width = '0px'; hole.style.height = '0px';
+      card.style.left = Math.max(8, (vw - cw) / 2) + 'px'; card.style.top = Math.max(8, (vh - ch) / 2) + 'px';
+      return;
+    }
+    const L = Math.max(2, q.left - pad), T = Math.max(2, q.top - pad), R = Math.min(vw - 2, q.right + pad), B = Math.min(vh - 2, q.bottom + pad);
+    hole.style.left = L + 'px'; hole.style.top = T + 'px'; hole.style.width = Math.max(0, R - L) + 'px'; hole.style.height = Math.max(0, B - T) + 'px';
+    let top;
+    if (vh - B >= ch + 14) top = B + 10;
+    else if (T >= ch + 14) top = T - 10 - ch;
+    else top = vh - ch - 12;                                           // no room next to it: dock at the bottom
+    card.style.top = Math.max(8, top) + 'px';
+    card.style.left = Math.min(Math.max(8, q.left + q.width / 2 - cw / 2), Math.max(8, vw - cw - 8)) + 'px';
+  }
+
+  function tourRender() {
+    const s = tourState; if (!s) return;
+    let step = TOUR_STEPS[s.i];
+    // skip a step whose control is not on screen (should not happen, but never leave the user stuck)
+    while (step.sel && !tourTargetRect(step) && s.i < TOUR_STEPS.length - 1) { s.i += s.dir; if (s.i < 0) { s.i = 0; s.dir = 1; } step = TOUR_STEPS[s.i]; }
+    const ui = TOUR_UI[guideLang] || TOUR_UI.en, txt = step[guideLang] || step.en, n = TOUR_STEPS.length, last = s.i === n - 1;
+    s.block.style.pointerEvents = step.tryIt ? 'none' : '';
+    s.card.innerHTML = '';
+    const lang = document.createElement('button'); lang.type = 'button'; lang.className = 'tour-lang'; lang.textContent = ui.lang;
+    lang.setAttribute('aria-label', 'Language');
+    lang.addEventListener('click', () => { toggleInfoLanguage(); tourRender(); });
+    const h = document.createElement('h4'); h.textContent = txt[0];
+    const p = document.createElement('p'); p.textContent = txt[1];
+    const dots = document.createElement('div'); dots.className = 'tour-dots';
+    for (let k = 0; k < n; k++) { const d = document.createElement('i'); d.className = k === s.i ? 'on' : (k < s.i ? 'done' : ''); dots.appendChild(d); }
+    s.card.appendChild(lang); s.card.appendChild(dots); s.card.appendChild(h);
+    if (step.tryIt) { const t = document.createElement('div'); t.className = 'tour-try'; t.textContent = '✎ ' + ui.try; s.card.appendChild(t); }
+    s.card.appendChild(p);
+    const row = document.createElement('div'); row.className = 'tour-btns';
+    const skip = document.createElement('button'); skip.type = 'button'; skip.className = 'tour-skip'; skip.textContent = ui.skip;
+    skip.addEventListener('click', endTour);
+    const back = document.createElement('button'); back.type = 'button'; back.textContent = '← ' + ui.back; back.disabled = s.i === 0;
+    back.addEventListener('click', () => tourGo(-1));
+    const next = document.createElement('button'); next.type = 'button'; next.className = 'tour-next'; next.textContent = last ? ui.done : ui.next + ' →';
+    next.addEventListener('click', () => { if (last) endTour(); else tourGo(1); });
+    if (!last) row.appendChild(skip);
+    row.appendChild(back); row.appendChild(next);
+    s.card.appendChild(row);
+    tourScrollTo(step);
+    tourPlace();
+    requestAnimationFrame(() => { tourPlace(); requestAnimationFrame(tourPlace); });
+    try { next.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+
+  function tourGo(d) {
+    if (!tourState) return;
+    const k = tourState.i + d;
+    if (k < 0 || k >= TOUR_STEPS.length) return;
+    tourState.i = k; tourState.dir = d;
+    tourRender();
+  }
+
+  function endTour() {
+    if (!tourState) return;
+    const s = tourState; tourState = null;
+    window.removeEventListener('resize', s.onMove);
+    window.removeEventListener('scroll', s.onMove);
+    document.removeEventListener('keydown', s.onKey, true);
+    s.block.remove(); s.hole.remove(); s.card.remove();
+    try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) { /* ignore */ }
+    window.scrollTo(0, 0);
+  }
+
+  function startTour() {
+    if (tourState) return;
+    try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) { /* ignore */ }   // never nag twice, even if closed half-way
+    toggleInfoOverlay(false);
+    const block = document.createElement('div'); block.className = 'tour-block';
+    const hole = document.createElement('div'); hole.className = 'tour-hole';
+    const card = document.createElement('div'); card.className = 'tour-card';
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-live', 'polite');
+    document.body.appendChild(block); document.body.appendChild(hole); document.body.appendChild(card);
+    let raf = 0;
+    const onMove = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; tourPlace(); }); };
+    const onKey = e => {
+      if (e.key === 'Escape') { e.stopPropagation(); endTour(); }
+      else if (e.key === 'ArrowRight' || e.key === 'Enter') { if (e.target && e.target.tagName === 'BUTTON' && e.key === 'Enter') return; e.preventDefault(); if (tourState.i === TOUR_STEPS.length - 1) endTour(); else tourGo(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); tourGo(-1); }
+    };
+    tourState = { i: 0, dir: 1, block, hole, card, onMove, onKey };
+    window.addEventListener('resize', onMove);
+    window.addEventListener('scroll', onMove, { passive: true });
+    document.addEventListener('keydown', onKey, true);
+    window.scrollTo(0, 0);
+    tourRender();
+  }
+  window.startTour = startTour;
+  document.getElementById('btn-tour-start').addEventListener('click', startTour);
+  // first visit: offer the tour once, shortly after the page is ready
+  (function () {
+    let seen = false;
+    try { seen = !!localStorage.getItem(TOUR_KEY); } catch (e) { /* ignore */ }
+    let off = false;
+    try { off = new URLSearchParams(window.location.search).get('tour') === '0'; } catch (e) { /* ignore */ }
+    if (!seen && !off) setTimeout(() => { if (!document.getElementById('info-overlay').classList.contains('show')) startTour(); }, 1200);
+  })();
 
   // --- ANIMATION: BUILD TIMELINE FROM RECORDED STROKES ---
   // Strokes are stored in the CSS px of the canvas size they were drawn at;
