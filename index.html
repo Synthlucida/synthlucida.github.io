@@ -1720,65 +1720,6 @@ h2 {
   text-align: right;
 }
 
-/* shared star rating widget - same numbers for every visitor, not just this browser */
-.rating-widget {
-  margin: 6px 0 24px;
-  padding-top: 22px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  text-align: center;
-}
-
-.rating-label {
-  font-size: 11px;
-  color: #c4c4c4;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.rating-stars {
-  font-size: 30px;
-  letter-spacing: 6px;
-  line-height: 1;
-  margin-bottom: 10px;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.rating-star {
-  display: inline-block;
-  color: rgba(255,255,255,0.22);
-  cursor: pointer;
-  transition: color 0.15s ease, transform 0.15s ease;
-}
-
-.rating-star:hover {
-  transform: scale(1.12);
-}
-
-.rating-star.filled {
-  color: #ffd700;
-  text-shadow: 0 0 8px rgba(255,215,0,0.55);
-}
-
-.rating-widget.voted .rating-star {
-  cursor: default;
-}
-
-.rating-widget.voted .rating-star:hover {
-  transform: none;
-}
-
-.rating-summary {
-  font-size: 12px;
-  color: #adadad;
-  letter-spacing: 0.4px;
-}
-
-.rating-summary strong {
-  color: #3ec6e0;
-}
-
 .review-cta-wrap {
   text-align: center;
   margin-top: 22px;
@@ -2184,32 +2125,6 @@ a.button:hover {
 @keyframes logoPulse {
   0%, 100% { filter: drop-shadow(0 0 10px rgba(62,198,224,0.21)); }
   50% { filter: drop-shadow(0 0 22px rgba(62,198,224,0.39)); }
-}
-
-/* hidden visitor stats panel — revealed by clicking the footer logo 5x */
-.visitor-stats-panel {
-  display: none;
-  max-width: 260px;
-  margin: 16px auto 0 auto;
-  padding: 14px 20px;
-  border: 1px solid rgba(62,198,224,0.15);
-  border-radius: 10px;
-  background: rgba(62,198,224,0.027);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  color: #9fdfe8;
-  text-align: center;
-  line-height: 1.9;
-}
-
-.visitor-stats-panel.visible {
-  display: block;
-}
-
-.visitor-stats-panel strong {
-  color: #3ec6e0;
-  font-size: 15px;
-  letter-spacing: 0;
 }
 
 footer {
@@ -3413,11 +3328,6 @@ href="https://synthlucida.com/hub.html">
 
 <img src="logo.jpg" alt="SYNTHLUCIDA Logo" class="footer-logo" id="footer-logo" loading="lazy">
 
-<div class="visitor-stats-panel" id="visitor-stats-panel" aria-hidden="true">
-  <div>Zobrazení stránky celkem: <strong id="visitor-stats-total">…</strong></div>
-  <div>Zobrazení dnes: <strong id="visitor-stats-today">…</strong></div>
-</div>
-
 <h2 data-i18n="info-h2">Atmospheric Electronic Music & Sound Design</h2>
 
 <div class="bio">
@@ -3537,135 +3447,6 @@ Privacy Policy
 <div id="christmas-toast"></div>
 
 <script>
-  // ==========================================
-  // Shared helper for talking to the third-party CountAPI service
-  // (used by both the rating widget and the visitor stats below).
-  // A plain fetch() has no timeout of its own — if the free service
-  // is slow or unreachable, the request can hang indefinitely and
-  // leave the UI stuck showing "…" forever. This wraps fetch with an
-  // AbortController so any call gives up after a fixed time and falls
-  // back to the normal .catch() handling instead of hanging.
-  // ==========================================
-  function fetchWithTimeout(url, timeoutMs) {
-    timeoutMs = timeoutMs || 6000;
-    var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
-    return fetch(url, { signal: controller.signal }).finally(function () {
-      clearTimeout(timer);
-    });
-  }
-</script>
-
-<script>
-  // ==========================================
-  // SHARED STAR RATING WIDGET
-  // Uses CountAPI (countapi.mileshilliard.com — a free, key-free public
-  // counter service and the actively maintained successor to the now-dead
-  // api.countapi.xyz) to store two running totals - a rating sum and a vote
-  // count - so the SAME average is shown to every visitor, not just saved
-  // in one browser's localStorage.
-  // Note: this is an unauthenticated third-party service, so this is a
-  // lightweight community rating, not a tamper-proof one.
-  // ==========================================
-  (function() {
-    const RATING_API = 'https://countapi.mileshilliard.com/api/v1';
-    const RATING_SUM_KEY = 'synthlucida_player_rating_sum';
-    const RATING_COUNT_KEY = 'synthlucida_player_rating_count';
-    const RATING_STORAGE_KEY = 'synthlucida_player_rating_voted';
-
-    function renderRatingSummary(sum, count) {
-      const summaryEl = document.getElementById('rating-summary');
-      if (!summaryEl) return;
-      if (!count || count <= 0) {
-        summaryEl.textContent = 'No ratings yet — be the first!';
-        return;
-      }
-      const avg = sum / count;
-      summaryEl.innerHTML = '<strong>' + avg.toFixed(1) + '★</strong> average from ' + count + ' rating' + (count === 1 ? '' : 's');
-    }
-
-    function fillStars(upToValue) {
-      document.querySelectorAll('#rating-stars .rating-star').forEach(function(star) {
-        const val = parseInt(star.getAttribute('data-value'), 10);
-        star.classList.toggle('filled', val <= upToValue);
-      });
-    }
-
-    // Reads a counter's current value. Treats a missing key (never voted
-    // on yet, anywhere) as 0 instead of erroring out.
-    function getCounter(key) {
-      return fetchWithTimeout(RATING_API + '/get/' + key)
-        .then(function(r) { return r.ok ? r.json() : { value: 0 }; })
-        .then(function(data) { return parseInt(data.value, 10) || 0; })
-        .catch(function() { return 0; });
-    }
-
-    function setCounter(key, value) {
-      return fetchWithTimeout(RATING_API + '/set/' + key + '?value=' + value).catch(function(){});
-    }
-
-    function hitCounter(key) {
-      return fetchWithTimeout(RATING_API + '/hit/' + key).catch(function(){});
-    }
-
-    function initRatingWidget() {
-      const widget = document.getElementById('rating-widget');
-      if (!widget) return;
-      const stars = widget.querySelectorAll('.rating-star');
-      let hasVoted = !!localStorage.getItem(RATING_STORAGE_KEY);
-      if (hasVoted) widget.classList.add('voted');
-
-      function loadCurrent() {
-        Promise.all([getCounter(RATING_SUM_KEY), getCounter(RATING_COUNT_KEY)])
-          .then(function(results) {
-            const sum = results[0];
-            const count = results[1];
-            renderRatingSummary(sum, count);
-            if (hasVoted) {
-              fillStars(parseInt(localStorage.getItem(RATING_STORAGE_KEY), 10));
-            } else if (count > 0) {
-              fillStars(Math.round(sum / count));
-            }
-          });
-      }
-
-      loadCurrent();
-      if (hasVoted) return;
-
-      stars.forEach(function(star) {
-        star.addEventListener('mouseenter', function() {
-          if (hasVoted) return;
-          fillStars(parseInt(star.getAttribute('data-value'), 10));
-        });
-        star.addEventListener('click', function() {
-          if (hasVoted) return;
-          const value = parseInt(star.getAttribute('data-value'), 10);
-          hasVoted = true;
-          widget.classList.add('voted');
-          localStorage.setItem(RATING_STORAGE_KEY, String(value));
-          fillStars(value);
-          // Read-modify-write the running sum, then bump the vote count by 1.
-          getCounter(RATING_SUM_KEY)
-            .then(function(currentSum) { return setCounter(RATING_SUM_KEY, currentSum + value); })
-            .then(function() { return hitCounter(RATING_COUNT_KEY); })
-            .then(function() { loadCurrent(); })
-            .catch(function() { /* ignore network errors */ });
-        });
-      });
-
-      widget.addEventListener('mouseleave', function() {
-        if (hasVoted) return;
-        loadCurrent();
-      });
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initRatingWidget);
-    } else {
-      initRatingWidget();
-    }
-  })();
-
   // Review panel toggle - shows/hides the "Inside the Relax Player" article
   function toggleReview() {
     const panel = document.getElementById('review-panel');
@@ -4015,92 +3796,6 @@ Privacy Policy
 </script>
 
 <script>
-  // ==========================================
-  // VISITOR STATS — hidden page-view counter.
-  // Uses the same free, key-free CountAPI service already used by the
-  // star rating widget above. Every page load "hits" (increments) a
-  // running total and a per-day counter. The numbers are only revealed
-  // by clicking the footer logo 5 times in a row (and hidden again the
-  // same way) — the logo itself stays a plain, non-clickable-looking
-  // image (no pointer cursor) so this stays a hidden Easter egg.
-  // ==========================================
-  (function () {
-    const STATS_API = 'https://countapi.mileshilliard.com/api/v1';
-    const STATS_TOTAL_KEY = 'synthlucida_index_views_total';
-
-    function todayKey() {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return 'synthlucida_index_views_' + y + '-' + m + '-' + day;
-    }
-
-    function hit(key) {
-      return fetchWithTimeout(STATS_API + '/hit/' + key)
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) { return data && typeof data.value !== 'undefined' ? data.value : null; })
-        .catch(function () { return null; });
-    }
-
-    function formatNumber(n) {
-      return n.toLocaleString('cs-CZ');
-    }
-
-    // Record this page view once on load, and remember the resulting
-    // counts so opening the panel later doesn't inflate them further.
-    let cachedTotal = null;
-    let cachedToday = null;
-    const statsReady = Promise.all([hit(STATS_TOTAL_KEY), hit(todayKey())]).then(function (results) {
-      cachedTotal = results[0];
-      cachedToday = results[1];
-    });
-
-    function renderStats() {
-      const totalEl = document.getElementById('visitor-stats-total');
-      const todayEl = document.getElementById('visitor-stats-today');
-      if (!totalEl || !todayEl) return;
-      totalEl.textContent = '…';
-      todayEl.textContent = '…';
-      statsReady.then(function () {
-        totalEl.textContent = cachedTotal !== null ? formatNumber(cachedTotal) : '—';
-        todayEl.textContent = cachedToday !== null ? formatNumber(cachedToday) : '—';
-      });
-    }
-
-    function initLogoToggle() {
-      const logo = document.getElementById('footer-logo');
-      const panel = document.getElementById('visitor-stats-panel');
-      if (!logo || !panel) return;
-
-      let clicks = 0;
-      let clickTimer = null;
-
-      logo.addEventListener('click', function () {
-        clicks++;
-        if (clickTimer) clearTimeout(clickTimer);
-        clickTimer = setTimeout(function () { clicks = 0; }, 2000);
-
-        if (clicks >= 5) {
-          clicks = 0;
-          clearTimeout(clickTimer);
-          const willShow = !panel.classList.contains('visible');
-          panel.classList.toggle('visible');
-          panel.setAttribute('aria-hidden', willShow ? 'false' : 'true');
-          if (willShow) renderStats();
-        }
-      });
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initLogoToggle);
-    } else {
-      initLogoToggle();
-    }
-  })();
-</script>
-
-<script>
   // Safety net for a Chrome/Edge-on-mobile rendering glitch: scroll all
   // the way down, then scroll fast back up, and part of the header —
   // sometimes a button, sometimes even the SYNTHLUCIDA title itself —
@@ -4151,7 +3846,7 @@ Privacy Policy
   // original English markup and the Czech dictionary below, and
   // remembers the choice in localStorage. Note: a few dynamically-set
   // strings driven by other scripts on this page (live radio status
-  // messages, the star-rating summary, the visitor-stats panel) are
+  // messages) are
   // controlled elsewhere and are not translated by this toggle.
   // ==========================================
   const i18n_cz = {
