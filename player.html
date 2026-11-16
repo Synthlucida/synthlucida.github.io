@@ -12800,11 +12800,18 @@
   }
 
   // Spustí přehrávání vlastního playlistu přes standardní přehrávací engine
-  window.playMyPlaylist = async function(playlistId) {
+  // startPick (nepovinné): funkce, která v načteném playlistu najde skladbu, od které se má hrát (použití z HISTORIE).
+  // Když ji nenajde, nic se nepřepne a vrátí se false.
+  window.playMyPlaylist = async function(playlistId, startPick) {
     const pl = myPlaylists.find(p => p.id === playlistId);
-    if (!pl || !pl.items.length) { alert(mfT('This playlist is empty. Add files or tracks first.', 'Tento playlist je prázdný. Nejdřív do něj přidejte soubory nebo skladby.')); return; }
+    if (!pl || !pl.items.length) { if (startPick) return false; alert(mfT('This playlist is empty. Add files or tracks first.', 'Tento playlist je prázdný. Nejdřív do něj přidejte soubory nebo skladby.')); return false; }
     const resolved = await resolveMyPlaylistTracks(pl);
-    if (!resolved.length) { alert(mfT('None of the tracks in this playlist could be loaded.', 'Žádnou ze skladeb v tomto playlistu se nepodařilo načíst.')); return; }
+    if (!resolved.length) { if (startPick) return false; alert(mfT('None of the tracks in this playlist could be loaded.', 'Žádnou ze skladeb v tomto playlistu se nepodařilo načíst.')); return false; }
+    let startAt = 0;
+    if (typeof startPick === 'function') {
+      startAt = resolved.findIndex(startPick);
+      if (startAt < 0) return false;
+    }
 
     const key = 'custom:' + playlistId;
     tracks[key] = resolved;
@@ -12816,10 +12823,11 @@
     const downloadBtn = document.getElementById('btn-download');
     if (downloadBtn) downloadBtn.style.display = 'none';
     updatePlaylistUI();
-    playTrack(0);
+    playTrack(startAt);
     try { localStorage.setItem('synthlucida_last_playlist', key); } catch (e) { /* ignore */ }
     const panel = document.getElementById('main-files');
     if (panel) panel.classList.remove('visible');
+    return true;
   };
 
   function buildMyPlaylistTrackOptions(playlistId) {
@@ -16624,23 +16632,28 @@
       nameSpan.className = 'history-name';
       nameSpan.innerText = displayTrackTitle(entry.title);
       nameSpan.title = 'Tap to play now';
-      nameSpan.onclick = () => playFromHistory(entry.playlist, entry.index, entry.title);
+      nameSpan.onclick = () => playFromHistoryEntry(entry);
       setupHoverMarquee(nameSpan);
 
       const metaSpan = document.createElement('span');
       metaSpan.className = 'history-meta';
       metaSpan.innerText = `${friendlyPlaylistLabel(entry.playlist)} · ${formatHistoryTime(entry.time)}`;
-      metaSpan.onclick = () => playFromHistory(entry.playlist, entry.index, entry.title);
+      metaSpan.onclick = () => playFromHistoryEntry(entry);
 
       const addBtn = document.createElement('button');
       addBtn.className = 'icon-btn';
       addBtn.title = 'Add to My Playlist';
       addBtn.innerText = '+';
-      const histTrackIdx = findTrackIndexByRef(entry.playlist, entry.index, entry.title);
-      addBtn.disabled = histTrackIdx < 0;
+      const histTarget = historyAddTarget(entry);
+      addBtn.disabled = !histTarget;
       addBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        addToCustomQueue(entry.playlist, histTrackIdx);
+        const t = historyAddTarget(entry);
+        if (!t) return;
+        if (t.fileId) {
+          if (customQueue.some(q => q && q.fileId === t.fileId)) { showToast(mfT('Already in My Playlist', 'Už je v My Playlist'), '✓'); return; }
+          toggleMyFileInQueue(t.fileId);
+        } else addToCustomQueue(t.key, t.index);
       });
 
       li.appendChild(nameSpan);
@@ -16648,6 +16661,69 @@
       li.appendChild(addBtn);
       listEl.appendChild(li);
     });
+  }
+
+  // HISTORIE: najde, co se dá z položky pustit. Seznamy vlastních souborů a F playlistů (klíč custom:…) existují jen
+  // v paměti - po novém otevření appky (nebo po úpravě playlistu) by se skladba z historie nedala pustit. Proto:
+  //  1) vlastní soubor podle fileId (pokud ještě existuje), 2) SYNTHLUCIDA skladba podle názvu z katalogu,
+  //  3) starší záznam vlastního souboru bez fileId podle názvu souboru.
+  function historyFileId(entry) {
+    if (entry && typeof entry.fileId === 'string' && entry.fileId) return entry.fileId;
+    const k = entry && entry.playlist;
+    return (typeof k === 'string' && k.indexOf('custom:file:') === 0) ? k.slice('custom:file:'.length) : '';
+  }
+  function historyCatalogRef(title) {
+    if (!title) return null;
+    for (const k of ['asmr', 'piano', 'chill']) {
+      const i = (tracks[k] || []).findIndex(t => t && t.title === title);
+      if (i >= 0) return { key: k, index: i };
+    }
+    return null;
+  }
+  function historyAddTarget(entry) {
+    if (!entry) return null;
+    const key = entry.playlist;
+    if (typeof key !== 'string' || key.indexOf('custom:') !== 0) {
+      const i = findTrackIndexByRef(key, entry.index, entry.title);
+      return i >= 0 ? { key, index: i } : null;
+    }
+    const fid = historyFileId(entry);
+    if (fid) return (!myFilesLibraryOk || myFilesLibrary.some(f => f.id === fid)) ? { fileId: fid } : null;
+    const ref = historyCatalogRef(entry.title);
+    if (ref) return ref;
+    const rec = myFilesLibrary.find(f => f.name === entry.title);
+    return rec ? { fileId: rec.id } : null;
+  }
+  let historyPlayBusy = false;
+  async function playFromHistoryEntry(entry) {
+    if (!entry || historyPlayBusy) return;
+    const key = entry.playlist;
+    if (typeof key !== 'string' || key.indexOf('custom:') !== 0) { playFromHistory(key, entry.index, entry.title); return; }
+    historyPlayBusy = true;
+    try {
+      if (!myFilesLibraryOk) { try { await refreshMyFilesLibrary(); } catch (e) { /* ignore */ } }
+      const fid = historyFileId(entry);
+      const closeHist = () => { const panel = document.getElementById('history-panel'); if (panel) panel.classList.remove('visible'); };
+      // a) F playlist, který pořád existuje a skladbu obsahuje -> pustí se celý playlist od této skladby
+      if (key.indexOf('custom:file:') !== 0) {
+        const plId = key.slice('custom:'.length);
+        if (myPlaylists.some(p => p.id === plId)) {
+          const ok = await playMyPlaylist(plId, fid ? (t => t && t.fileId === fid) : (t => t && !t.fileId && t.title === entry.title));
+          if (ok) { closeHist(); return; }
+        }
+      }
+      // b) vlastní soubor (sám)
+      if (fid && myFilesLibrary.some(f => f.id === fid)) { await playMyFileNow(fid); closeHist(); return; }
+      if (!fid) {
+        // c) SYNTHLUCIDA skladba z katalogu
+        const ref = historyCatalogRef(entry.title);
+        if (ref) { playFromHistory(ref.key, ref.index, entry.title); return; }
+        // d) starší záznam vlastního souboru bez id
+        const rec = myFilesLibrary.find(f => f.name === entry.title);
+        if (rec) { await playMyFileNow(rec.id); closeHist(); return; }
+      }
+      showToast(mfT('This track is no longer available (the file or playlist was removed).', 'Tahle skladba už není k dispozici (soubor nebo playlist byl odstraněn).'), 'ℹ');
+    } finally { historyPlayBusy = false; }
   }
 
   function playFromHistory(playlistKey, index, title) {
