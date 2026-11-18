@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.2">
+<meta name="app-version" content="2.9.3">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -12722,6 +12722,7 @@
     if (downloadBtn) downloadBtn.style.display = 'none';
     updatePlaylistUI();
     playTrack(0);
+    try { localStorage.setItem('synthlucida_last_playlist', key); } catch (e) { /* ignore */ } // po dalším otevření se připraví zase tento soubor
   };
 
   // Vytvoření nového playlistu
@@ -16095,11 +16096,13 @@
     return { kind: 'playlist', pos, title: track.title, src: track.src };
   }
 
+  let crossfadeTarget = null; // skladba, do které právě probíhá prolnutí (pro dokončení, když původní dohraje dřív)
   function startCrossfade() {
     if (crossfadeActive || crossfadeDuration <= 0 || IOS_NO_VOLUME) return; // iOS: hlasitost nejde měnit -> bez prolnutí
     const target = getNextCrossfadeTarget();
     if (!target) return;
     crossfadeActive = true;
+    crossfadeTarget = target;
 
     crossfadeAudio.src = target.src;
     crossfadeAudio.currentTime = 0;
@@ -16238,7 +16241,13 @@
       done = true; clearTimers();
       try {
         const pos = crossfadeAudio.currentTime;
-        if (isFinite(audio.duration) && pos < audio.duration && Math.abs(audio.currentTime - pos) > 0.3) audio.currentTime = pos;
+        if (isFinite(audio.duration)) {
+          if (pos < audio.duration && Math.abs(audio.currentTime - pos) > 0.3) audio.currentTime = pos;
+        } else if (pos > 0.3) { // hlavní přehrávač skladbu ještě nenačetl - přetočit, jakmile ji zná (bez časovačů)
+          const src0 = audio.src;
+          const onMeta = () => { audio.removeEventListener('loadedmetadata', onMeta); try { if (audio.src === src0 && pos < audio.duration) audio.currentTime = pos; } catch (e) { /* ignore */ } };
+          audio.addEventListener('loadedmetadata', onMeta);
+        }
       } catch (e) { /* ignore */ }
       restoreMain();
       try { audio.volume = mainVol(); } catch (e) { /* ignore */ }
@@ -16297,8 +16306,24 @@
   //  'handoff' - nová skladba už hraje v hlavním přehrávači (nic dalšího není potřeba),
   //  'fade'    - prolnutí se zrušilo, hraje dál původní skladba (po jejím konci normální přechod),
   //  ''        - žádné prolnutí neběželo.
-  function crossfadeBailOut() {
+  function crossfadeBailOut(reason) {
     if (!crossfadeActive) return '';
+    // Původní skladba dohrála o chvilku dřív, než doběhlo prolnutí (běžné i s rozsvíceným displejem, hlavně u dlouhého
+    // prolnutí): nová skladba už hraje v druhém přehrávači -> prolnutí se do ní dokončí (dřív se zrušilo, nová skladba
+    // se zastavila a pustila se znovu od začátku - s náhodným pořadím dokonce jiná).
+    if ((reason === 'ended' || reason === 'hidden') && crossfadeInterval && crossfadeTarget && !crossfadeAudio.paused) {
+      clearInterval(crossfadeInterval);
+      crossfadeInterval = null;
+      try { crossfadeAudio.volume = Math.min(1, mainVol(crossfadeTarget.src)); } catch (e) { /* ignore */ }
+      const t = crossfadeTarget;
+      try { finishCrossfade(t); } catch (e) { /* ignore */ }
+      if (document.hidden && cfHandoff && typeof cfHandoff.force === 'function') {
+        try { slPlayLog('prolnutí dokončeno bez časovačů'); } catch (e) { /* ignore */ }
+        try { cfHandoff.force(); } catch (e) { /* ignore */ }
+        crossfadeActive = false;
+      }
+      return 'handoff';
+    }
     try { slPlayLog('prolnutí ukončeno bez časovačů'); } catch (e) { /* ignore */ }
     if (cfHandoff && typeof cfHandoff.force === 'function') {
       try { cfHandoff.force(); } catch (e) { /* ignore */ }
@@ -16310,10 +16335,10 @@
     return 'fade';
   }
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && CF_MOBILE && crossfadeActive) crossfadeBailOut();
+    if (document.hidden && CF_MOBILE && crossfadeActive) crossfadeBailOut('hidden');
   });
   // Pojistka: nová skladba v druhém přehrávači dohrála a předání do hlavního se nestihlo (zaseknuté časovače).
-  crossfadeAudio.addEventListener('ended', () => { if (crossfadeActive) crossfadeBailOut(); });
+  crossfadeAudio.addEventListener('ended', () => { if (crossfadeActive) crossfadeBailOut('cf-ended'); });
 
   // Zruší probíhající prolnutí (např. když uživatel ručně přepne skladbu)
   function cancelCrossfade() {
@@ -17301,6 +17326,7 @@
     const entry = customQueue[pos];
     customQueueActive = true;
     customQueueIndex = pos;
+    try { localStorage.setItem('synthlucida_last_playlist', '@queue'); } catch (e) { /* ignore */ }
     releaseDice();
     // Hlavní okno přehrávače (a zvýraznění nahoře) má teď ukazovat "My Playlist", ne ASMR/PIANO/CHILL
     mainListShowsQueue = true;
@@ -18031,9 +18057,23 @@
 
   // Zapamatování poslední přehrávané skladby a pozice v ní (bez autoplaye při dalším otevření)
   function saveLastTrackPosition() {
+    // My Playlist (i vybraná sekce) má vlastní záznam - po dalším otevření appky se připraví stejná skladba
+    // na stejném místě (bez autoplaye), viz obnovení '@queue' při startu.
+    if (customQueueActive) {
+      const e = customQueue[customQueueIndex];
+      if (!e) return;
+      try {
+        localStorage.setItem('synthlucida_last_queue', JSON.stringify({
+          pos: customQueueIndex, title: e.title || '', fileId: e.fileId || null,
+          playlist: e.playlist || '', mood: customQueueMoodPlay || null, time: audio.currentTime || 0
+        }));
+        localStorage.setItem('synthlucida_last_playlist', '@queue');
+      } catch (err) { /* ignore */ }
+      return;
+    }
     // review 09/2026: při přehrávání My Playlist se poslední skladba nepřepisuje - ukládala se
     // jiná skladba s pozicí té z My Playlist, takže po restartu naskočil "mix" dvou skladeb
-    if (currentTrackIndex === -1 || customQueueActive) return;
+    if (currentTrackIndex === -1) return;
     try {
       localStorage.setItem('synthlucida_last_track', JSON.stringify({
         playlist: currentPlaylistKey,
@@ -19176,7 +19216,7 @@
   audio.addEventListener('ended', () => {
       // Skladba dohrála a prolnutí pořád "běží" = zaseklo se (typicky telefon se zhasnutým displejem).
       // Dřív se tu skončilo a přehrávání se zastavilo. Teď se prolnutí ukončí a hraje se dál.
-      if (crossfadeActive && crossfadeBailOut() === 'handoff') return; // nová skladba už hraje
+      if (crossfadeActive && crossfadeBailOut('ended') === 'handoff') return; // nová skladba už hraje
       if (repeatEnabled) {
         if (customQueueActive) playCustomQueueAt(customQueueIndex);
         else playTrack(currentTrackIndex);
@@ -19539,19 +19579,76 @@
 
     try {
         const savedPlaylist = localStorage.getItem('synthlucida_last_playlist');
-        if (savedPlaylist && savedPlaylist.indexOf('custom:') === 0) {
+        // Hlavní okno ukáže vlastní seznam (F / My Playlist): ASMR/PIANO/CHILL nesvítí, DOWNLOAD se schová
+        const showOwnList = () => {
+          document.querySelectorAll('.btn-atmos').forEach(b => b.classList.remove('active'));
+          const downloadBtn = document.getElementById('btn-download');
+          if (downloadBtn) downloadBtn.style.display = 'none';
+        };
+        if (savedPlaylist === '@queue') {
+          // MY PLAYLIST (i vybraná sekce): připravit stejnou skladbu na stejném místě, bez autoplaye.
+          // Vlastní soubory v My Playlist potřebují čerstvou adresu z IndexedDB - proto až po jejich opravě.
+          let lq = null;
+          try { lq = JSON.parse(localStorage.getItem('synthlucida_last_queue') || 'null'); } catch (e) { lq = null; }
+          if (lq && typeof lq === 'object' && customQueue.length) {
+            refreshMyFilesLibrary().then(() => repairCustomQueueBlobUrls()).catch(() => {}).then(() => {
+              if (isPlaying || currentTrackIndex !== -1 || customQueueActive) return; // uživatel mezitím sám něco pustil
+              let pos = -1;
+              const same = (e) => e && (lq.fileId ? e.fileId === lq.fileId : (!e.fileId && e.title === lq.title));
+              if (same(customQueue[lq.pos])) pos = lq.pos;
+              else pos = customQueue.findIndex(same);
+              if (pos < 0) return;
+              const entry = customQueue[pos];
+              if (!entry || !entry.src) return;
+              customQueueActive = true;
+              customQueueIndex = pos;
+              customQueueMoodPlay = (lq.mood && typeof findMood === 'function' && findMood(lq.mood) && entry.mood === findMood(lq.mood)) ? findMood(lq.mood) : null;
+              mainListShowsQueue = true;
+              showOwnList();
+              updatePlaylistUI();
+              audio.src = entry.src;
+              currentTrackTitle = entry.title;
+              setTrackTitle(entry.title, isTrackNew(getTrackByRef(entry.playlist, findTrackIndexByRef(entry.playlist, entry.index, entry.title, entry.src))));
+              audio.addEventListener('loadedmetadata', function restoreQueueTime() {
+                audio.removeEventListener('loadedmetadata', restoreQueueTime);
+                try { if (lq.time > 1 && lq.time < audio.duration) audio.currentTime = lq.time; } catch (e) { /* ignore */ }
+              });
+              try { renderCustomQueue(); } catch (e) { /* ignore */ }
+              if ('mediaSession' in navigator) {
+                try { navigator.mediaSession.metadata = new MediaMetadata({ title: displayTrackTitle(entry.title), artist: 'SYNTHLUCIDA', album: 'MY PLAYLIST', artwork: [{ src: 'logo.jpg', sizes: '512x512', type: 'image/jpeg' }] }); } catch (e) { /* ignore */ }
+              }
+            });
+          }
+        } else if (savedPlaylist && savedPlaylist.indexOf('custom:file:') === 0) {
+          // Samostatně puštěný vlastní soubor ze sekce F
+          const fid = savedPlaylist.slice('custom:file:'.length);
+          refreshMyFilesLibrary().then(() => {
+            const rec = myFilesLibrary.find(f => f.id === fid);
+            if (!rec) return null;
+            return getMyFileBlobUrl(fid).then((url) => ({ rec, url }));
+          }).then((r) => {
+            if (!r || !r.url || isPlaying || currentTrackIndex !== -1 || customQueueActive) return;
+            tracks[savedPlaylist] = [{ title: r.rec.name, src: r.url }];
+            playlist = tracks[savedPlaylist];
+            currentPlaylistKey = savedPlaylist;
+            mainListShowsQueue = false;
+            showOwnList();
+            updatePlaylistUI();
+            restoreLastTrackInto(savedPlaylist);
+          }).catch((e) => console.error("Nelze obnovit vlastní soubor:", e));
+        } else if (savedPlaylist && savedPlaylist.indexOf('custom:') === 0) {
             // Vlastní playlist z F sekce - soubory se načítají asynchronně z IndexedDB
             const cpId = savedPlaylist.slice('custom:'.length);
             const cp = myPlaylists.find(p => p.id === cpId);
             if (cp && cp.items.length) {
                 resolveMyPlaylistTracks(cp).then((resolved) => {
                     if (!resolved.length) return;
+                    if (isPlaying || currentTrackIndex !== -1 || customQueueActive) return; // uživatel mezitím sám něco pustil
                     tracks[savedPlaylist] = resolved;
                     playlist = tracks[savedPlaylist];
                     currentPlaylistKey = savedPlaylist;
+                    showOwnList(); // dřív tu zůstalo svítit ASMR, i když se ukazoval playlist ze sekce F
                     updatePlaylistUI();
-                    const downloadBtn = document.getElementById('btn-download');
-                    if (downloadBtn) downloadBtn.style.display = 'none';
                     restoreLastTrackInto(savedPlaylist);
                 }).catch((e) => console.error("Nelze obnovit vlastní playlist:", e));
             }
