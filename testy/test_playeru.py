@@ -1425,6 +1425,26 @@ def t_background(s, c):
     c.ok(sys_ok, "Nečekaná pauza od systému hned po rozjetí skladby (zhasnutý displej) se sama zruší a hraje se dál")
     c.ok(user_ok, "Pauza od uživatele se zhasnutým displejem zůstane pauzou")
 
+    # vlastní soubor s obrázkem alba (ID3 štítek s obalem): Android ho bere jako video a se zhasnutým displejem
+    # ho pozastaví -> pro přehrávání se obal vynechá, uložený soubor zůstane beze změny
+    def id3_with_cover(audio):
+        jpg = b"\xff\xd8\xff\xe0" + b"\0" * 3000 + b"\xff\xd9"
+        frame_body = b"\0image/jpeg\0\x03cover\0" + jpg
+        frame = b"APIC" + len(frame_body).to_bytes(4, "big") + b"\0\0" + frame_body
+        n = len(frame)
+        size = bytes([(n >> 21) & 0x7f, (n >> 14) & 0x7f, (n >> 7) & 0x7f, n & 0x7f])
+        return b"ID3\x03\0\0" + size + frame + audio
+    ctx, p, errs1 = s.page()
+    p.evaluate("toggleMainFiles()")
+    p.set_input_files("#myfiles-input", [{"name": "S obalem.mp3", "mimeType": "audio/mpeg", "buffer": id3_with_cover(make_wav(5, 8000))}])
+    p.wait_for_function("myFilesLibrary.length===1&&!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+    r = p.evaluate("""async()=>{const f=myFilesLibrary[0];const url=await getMyFileBlobUrl(f.id);
+      const b=new Uint8Array(await (await fetch(url)).arrayBuffer());const rec=await myFilesDbGet(f.id);
+      return {start:String.fromCharCode(b[0],b[1],b[2],b[3]),stored:rec.blob.size,size:f.size}}""")
+    ctx.close()
+    c.ok(r["start"] == "RIFF" and r["stored"] == r["size"],
+         "Obrázek alba ve vlastním MP3 se při přehrávání vynechá (Android by soubor se zhasnutým displejem zastavil), uložený soubor zůstane celý")
+
     ctx, p, errs = s.page()
     p.evaluate("()=>{slPlayLog('test zaznamu');location.hash='#playlog'}")
     p.wait_for_timeout(500)
