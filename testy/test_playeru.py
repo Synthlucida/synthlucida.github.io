@@ -738,7 +738,7 @@ def t_admin(s, c):
     p.evaluate("toggleSetup()")
     p.wait_for_timeout(300)
     u = p.evaluate(ui)
-    c.ok(u["dis"] and u["locked"] and u["seg"] == "AUTO*,GITHUB", "Volba R2 je bez admina zamčená a zdroj je AUTO")
+    c.ok(u["dis"] and u["locked"] and u["seg"] == "AUTO*,SERVER 1", "Volba R2 je bez admina zamčená a zdroj je AUTO")
     p.evaluate("()=>{window.__slIsAdmin=true;document.dispatchEvent(new CustomEvent('sladminchange'))}")
     p.wait_for_timeout(400)
     u = p.evaluate(ui)
