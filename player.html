@@ -17077,6 +17077,13 @@
         const o = (typeof e.fileId === 'string' && e.fileId)
           ? { title: e.title, playlist: e.playlist, index: e.index, fileId: e.fileId }
           : { title: e.title, src: e.src, playlist: e.playlist, index: e.index };
+        // fileId je jen interní číslo v tomto zařízení - na jiném zařízení by se soubor nenašel. Proto se přidá i název
+        // a velikost souboru, podle kterých ho import najde v My Files i na jiném telefonu / PC.
+        if (o.fileId) {
+          const lib = (typeof myFilesLibrary !== 'undefined' ? myFilesLibrary : []).find(f => f.id === o.fileId);
+          if (lib && typeof lib.name === 'string') o.name = lib.name.slice(0, 200);
+          if (lib && Number(lib.size) > 0) o.size = Number(lib.size);
+        }
         if (e.mood) o.mood = e.mood;
         return o;
       })
@@ -17111,6 +17118,25 @@
         // Žádná adresa ze souboru se u nich nepoužije - blob: URL si appka vytvoří sama z uložené knihovny.
         try { await refreshMyFilesLibrary(); } catch (e) { /* knihovna se nenačetla - vlastní soubory se přeskočí */ }
         const libById = new Map((myFilesLibraryOk ? myFilesLibrary : []).map(f => [f.id, f]));
+        // Záloha z jiného zařízení (např. z telefonu) má cizí fileId - soubor se proto hledá i podle názvu (a velikosti, je-li v záloze).
+        const libByKey = new Map();
+        const libByName = new Map();
+        (myFilesLibraryOk ? myFilesLibrary : []).forEach(f => {
+          const k = myFileDupKey(f.name, f.size);
+          if (!libByKey.has(k)) libByKey.set(k, f);
+          const n = String(f.name || '').trim().toLowerCase();
+          if (!libByName.has(n)) libByName.set(n, []);
+          libByName.get(n).push(f);
+        });
+        const matchLibFileByName = (t) => {
+          const nm = (typeof t.name === 'string' && t.name && t.name.length <= 200) ? t.name : t.title;
+          if (typeof t.size === 'number' && t.size > 0) {
+            const exact = libByKey.get(myFileDupKey(nm, t.size));
+            if (exact) return exact;
+          }
+          const arr = libByName.get(String(nm || '').trim().toLowerCase());
+          return (arr && arr.length === 1) ? arr[0] : null; // víc souborů se stejným názvem = nejednoznačné, přeskočí se
+        };
         let skippedFiles = 0;
         const valid = [];
         for (const t of importedTracks) {
@@ -17118,7 +17144,8 @@
           if (!t || typeof t !== 'object' || typeof t.title !== 'string' || t.title.length > 200 ||
               typeof t.playlist !== 'string' || t.playlist.length > 100 || typeof t.index !== 'number') continue;
           if (typeof t.fileId === 'string' && t.fileId) {
-            const rec = /^[A-Za-z0-9_-]{1,80}$/.test(t.fileId) ? libById.get(t.fileId) : null;
+            let rec = /^[A-Za-z0-9_-]{1,80}$/.test(t.fileId) ? libById.get(t.fileId) : null;
+            if (!rec) rec = matchLibFileByName(t);
             const okType = rec && (!rec.type || rec.type.indexOf('audio/') === 0 || rec.type === 'application/octet-stream');
             if (!okType) { skippedFiles++; continue; }
             valid.push({ title: String(rec.name || t.title).slice(0, 200), src: '', playlist: 'custom:file:' + rec.id, index: t.index, fileId: rec.id, mood: t.mood });
