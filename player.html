@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.3">
+<meta name="app-version" content="2.9.4">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -10039,10 +10039,10 @@
       playBtn.click();
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      if (!isNaN(audio.duration)) audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+      if (!isNaN(audio.duration)) userSeekTo(Math.min(audio.duration, audio.currentTime + 10));
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      audio.currentTime = Math.max(0, audio.currentTime - 10);
+      userSeekTo(Math.max(0, audio.currentTime - 10));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       volumeSlider.value = Math.min(1, parseFloat(volumeSlider.value) + 0.05).toFixed(2);
@@ -15848,6 +15848,27 @@
     renderSeg();
   })();
 
+  // Přetočení uživatelem (posuvník, šipky, zamčená obrazovka). Když zrovna běží prolnutí, dřív se posunula jen
+  // končící skladba a nová v druhém přehrávači hrála dál - posuvník neseděl a další posun "nic nedělal".
+  //  - prolnutí teprve běží (na posuvníku je pořád původní skladba): prolnutí se zruší a přetočí se původní
+  //    skladba; když skočíš znovu ke konci, prolnutí se rozjede samo od nového místa,
+  //  - předání už proběhlo (na posuvníku je nová skladba): předání se dokončí hned a přetočí se nová skladba.
+  function userSeekTo(t) {
+    if (!isFinite(t)) return;
+    if (crossfadeActive) {
+      if (cfHandoff && typeof cfHandoff.force === 'function') {
+        try { cfHandoff.force(); } catch (e) { /* ignore */ }
+        crossfadeActive = false;
+      } else {
+        cancelCrossfade();
+        try { audio.muted = !!soundMuted; audio.volume = mainVol(); } catch (e) { /* ignore */ }
+      }
+    }
+    const d = audio.duration;
+    try { audio.currentTime = Math.max(0, isFinite(d) ? Math.min(d, t) : t); } catch (e) { /* ignore */ }
+  }
+  window.userSeekTo = userSeekTo;
+
   progressContainer.addEventListener('click', (e) => {
     const duration = audio.duration;
     if (!isNaN(duration)) {
@@ -15855,7 +15876,7 @@
       const rect = progressContainer.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const width = rect.width;
-      audio.currentTime = (clickX / width) * duration;
+      userSeekTo((clickX / width) * duration);
     }
   });
 
@@ -16112,8 +16133,15 @@
 
     const targetVolume = mainVol(target.src); // nová skladba může být vlastní soubor (jiná hlasitost)
     const startVolume = audio.volume;
-    const steps = Math.max(30, Math.round(crossfadeDuration * 20));
-    const stepMs = (crossfadeDuration * 1000) / steps;
+    // Po skoku těsně ke konci zbývá méně než nastavené prolnutí -> prolnout za tolik, kolik zbývá
+    // (jinak původní skladba skončí uprostřed prolnutí a nová skočí rovnou na plnou hlasitost).
+    let cfLen = crossfadeDuration;
+    try {
+      const left = (audio.duration - audio.currentTime) / (audio.playbackRate || 1);
+      if (isFinite(left) && left > 0) cfLen = Math.max(1, Math.min(crossfadeDuration, left - 0.15));
+    } catch (e) { /* ignore */ }
+    const steps = Math.max(30, Math.round(cfLen * 20));
+    const stepMs = (cfLen * 1000) / steps;
     let step = 0;
 
     clearInterval(crossfadeInterval);
@@ -19077,7 +19105,7 @@
     try {
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined && !isNaN(audio.duration)) {
-          audio.currentTime = details.seekTime;
+          userSeekTo(details.seekTime);
         }
       });
     } catch (e) { /* seekto není všude podporované, není to kritické */ }
