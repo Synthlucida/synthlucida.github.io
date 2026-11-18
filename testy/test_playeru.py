@@ -1372,6 +1372,53 @@ def displayable(p, title):
     return p.evaluate("(t)=>displayTrackTitle(t)", title)
 
 
+def t_background(s, c):
+    """Telefon se zhasnutým displejem: časovače stránky stojí - hudba musí i tak pokračovat další skladbou."""
+    MOB = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
+    init = ("window.__hid=false;Object.defineProperty(document,'hidden',{get(){return window.__hid}});"
+            "Object.defineProperty(document,'visibilityState',{get(){return window.__hid?'hidden':'visible'}});")
+    def scenario(cf, hide, freeze, broken=False):
+        ctx, p, errs = s.page(init=init, user_agent=MOB)
+        if not p.evaluate("typeof crossfadeBailOut==='function'"):
+            ctx.close()
+            return None, ["Player nemá opravu přehrávání na pozadí (je to aktuální player.html?)"]
+        p.evaluate("""(a)=>{setCrossfade(a.cf,null);setPlaylist('piano',[...document.querySelectorAll('.btn-atmos')].find(b=>/piano/i.test(b.textContent)));
+          if(a.broken){tracks.piano[1].src='data:audio/mpeg;base64,AAAA';playlist=tracks.piano;}
+          audio.defaultPlaybackRate=8;crossfadeAudio.defaultPlaybackRate=8;playTrack(0);audio.playbackRate=8}""", {"cf": cf, "broken": broken})
+        p.wait_for_timeout(700)
+        if hide:
+            p.evaluate("()=>{window.__hid=true;document.dispatchEvent(new Event('visibilitychange'))}")
+        if freeze:
+            p.evaluate("()=>{window.setTimeout=()=>0;window.setInterval=()=>0}")  # jako uspaný telefon
+        try:
+            p.wait_for_function("currentTrackIndex>=%d&&!audio.paused&&audio.currentTime>1" % (2 if broken else 1), timeout=25000)
+            ok = True
+        except Exception:
+            ok = False
+        st = p.evaluate("()=>({i:currentTrackIndex,hraje:!audio.paused,t:Math.round(audio.currentTime),prolnuti:crossfadeActive})")
+        ctx.close()
+        return ok, st
+
+    for name, args in [
+        ("Prolnutí VYPNUTÉ, zhasnutý displej, uspané časovače: hraje další skladba", dict(cf=0, hide=True, freeze=True)),
+        ("Prolnutí ZAPNUTÉ, zhasnutý displej: hraje další skladba", dict(cf=3, hide=True, freeze=False)),
+        ("Prolnutí ZAPNUTÉ a zaseknuté (uspané časovače): skladba nezůstane stát", dict(cf=3, hide=False, freeze=True)),
+        ("Nedostupná další skladba se zhasnutým displejem: přeskočí se a hraje se dál", dict(cf=0, hide=True, freeze=True, broken=True)),
+    ]:
+        ok, st = scenario(**args)
+        if ok is None:
+            c.ok(False, st[0])
+            return
+        c.ok(ok, name + ("" if ok else " (%s)" % st))
+
+    ctx, p, errs = s.page()
+    p.evaluate("()=>{slPlayLog('test zaznamu');location.hash='#playlog'}")
+    p.wait_for_timeout(500)
+    shown = p.evaluate("()=>{const v=document.getElementById('sl-playlog-view');return v?v.textContent:''}")
+    c.ok("test zaznamu" in shown, "Záznam přehrávání jde zobrazit přes player.html#playlog")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
 def t_robust(s, c):
     keys = sorted(set(re.findall(r"""['"]((?:sl-[a-z0-9-]+)|(?:synthlucida_[a-z0-9_]+))['"]""", s.env.player_src)))
     panels = ["", "toggleCustomQueue()", "toggleMainStats()", "toggleMainFiles()", "toggleSetup()", "playTrack(3)"]
@@ -1699,6 +1746,7 @@ TESTS = [
     ("My Playlist – export a import souboru (i z jiného zařízení)", t_queue_import),
     ("Celkový čas playlistu vedle názvu", t_total_time),
     ("Historie poslechu", t_history),
+    ("Přehrávání se zhasnutým displejem", t_background),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
