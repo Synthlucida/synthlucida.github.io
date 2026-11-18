@@ -17264,7 +17264,7 @@
     audio.volume = mainVol();
 
     const playPromise = audio.play();
-    if (playPromise !== undefined) playPromise.catch(error => { console.log("Přehrávání selhalo:", error); });
+    if (playPromise !== undefined) playPromise.catch(error => { console.log("Přehrávání selhalo:", error); try { slPlayLog('play-odmítnuto', (error && error.name) || '?'); } catch (e) { /* ignore */ } });
 
     isPlaying = true;
     playBtn.innerText = "⏸";
@@ -18979,8 +18979,8 @@
   // MediaSession - ovládání play/pause/předchozí/další/seek ze zamykací obrazovky,
   // z notifikace nebo z bluetooth sluchátek.
   if ('mediaSession' in navigator) {
-    navigator.mediaSession.setActionHandler('play', () => { if (!isPlaying) playBtn.click(); });
-    navigator.mediaSession.setActionHandler('pause', () => { if (isPlaying) playBtn.click(); });
+    navigator.mediaSession.setActionHandler('play', () => { try { slPlayLog('zamčená obrazovka / sluchátka: play'); } catch (e) { /* ignore */ } if (!isPlaying) playBtn.click(); });
+    navigator.mediaSession.setActionHandler('pause', () => { try { slPlayLog('zamčená obrazovka / sluchátka: pauza'); } catch (e) { /* ignore */ } if (isPlaying) playBtn.click(); });
     navigator.mediaSession.setActionHandler('previoustrack', () => { playPrevTrack(); });
     navigator.mediaSession.setActionHandler('nexttrack', () => { playNextTrack(); });
     try {
@@ -18996,8 +18996,25 @@
   // Tlačítko pak ukazovalo ⏸, i když nic nehrálo, a na obnovení bylo potřeba ťuknout dvakrát
   // (a tlačítko ▶ na zamčené obrazovce nereagovalo). Přepnutí skladby tohle nespouští -
   // v tu chvíli už přehrávač zase hraje (audio.paused je false).
+  // Telefon se zhasnutým displejem občas právě rozjetou skladbu (hlavně vlastní soubor ze sekce F) sám pozastaví,
+  // i když nic nevolal uživatel ani player (záznam #playlog: "playing" a za 1 s "pause"). Taková pauza na začátku
+  // skladby se proto jednou až dvakrát sama zruší a hraje se dál. Pauzy od uživatele (tlačítko, zamčená obrazovka,
+  // časovač, STOP) sem nepatří - ty nastaví isPlaying = false dřív, než tahle událost přijde.
+  let trackLoadedAt = 0, autoResumeCount = 0;
+  audio.addEventListener('loadstart', () => { trackLoadedAt = Date.now(); autoResumeCount = 0; });
   audio.addEventListener('pause', () => {
     if (isPlaying && audio.paused && !audio.ended && !crossfadeActive && !audio.error) {
+      if (document.hidden && Date.now() - trackLoadedAt < 15000 && autoResumeCount < 2) {
+        autoResumeCount++;
+        try { slPlayLog('nečekaná pauza od systému -> hraju dál', '(' + autoResumeCount + '. pokus)'); } catch (e) { /* ignore */ }
+        const pr = audio.play();
+        if (pr && pr.catch) pr.catch((err) => {
+          try { slPlayLog('pokračování odmítnuto', (err && err.name) || '?'); } catch (e) { /* ignore */ }
+          if (audio.paused) { isPlaying = false; playBtn.innerText = "▶"; }
+        });
+        return;
+      }
+      try { slPlayLog('pauza od systému', document.hidden ? '(zhasnuto)' : ''); } catch (e) { /* ignore */ }
       isPlaying = false;
       playBtn.innerText = "▶";
     }
@@ -19028,7 +19045,7 @@
   ['ended', 'playing', 'stalled', 'error'].forEach((ev) => audio.addEventListener(ev, () => {
     slPlayLog(ev, ev === 'error' && audio.error ? 'kód ' + audio.error.code : '');
   }));
-  audio.addEventListener('pause', () => { if (!audio.ended && (document.hidden || isPlaying)) slPlayLog('pause', isPlaying ? '(nečekaná)' : ''); });
+  audio.addEventListener('pause', () => { if (!audio.ended && document.hidden) slPlayLog('pause'); });
   audio.addEventListener('waiting', () => { if (document.hidden) slPlayLog('waiting'); });
   document.addEventListener('visibilitychange', () => slPlayLog(document.hidden ? 'displej zhasl / appka na pozadí' : 'displej rozsvícen / appka v popředí', isPlaying ? '(hraje)' : '(nehraje)'));
   (function playLogViewer() {
