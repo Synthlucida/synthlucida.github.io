@@ -1425,6 +1425,30 @@ def t_background(s, c):
     c.ok(sys_ok, "Nečekaná pauza od systému hned po rozjetí skladby (zhasnutý displej) se sama zruší a hraje se dál")
     c.ok(user_ok, "Pauza od uživatele se zhasnutým displejem zůstane pauzou")
 
+    # "ticho na pozadí": běží jen na telefonu, se zhasnutým displejem a jen když hraje hudba
+    ctx, p, errs0 = s.page(init=init, user_agent=MOB)
+    if p.evaluate("typeof window.__slKeepAlive==='function'"):
+        ka = "()=>{const k=window.__slKeepAlive();return !!k&&!k.paused}"
+        p.evaluate("()=>{setPlaylist('piano',[...document.querySelectorAll('.btn-atmos')].find(b=>/piano/i.test(b.textContent)));playTrack(0)}")
+        p.wait_for_timeout(700)
+        a = p.evaluate(ka)
+        p.evaluate("()=>{window.__hid=true;document.dispatchEvent(new Event('visibilitychange'))}")
+        p.wait_for_timeout(500)
+        b = p.evaluate(ka)
+        p.evaluate("()=>playBtn.click()")
+        p.wait_for_timeout(500)
+        cc = p.evaluate(ka)
+        p.evaluate("()=>playBtn.click()")
+        p.wait_for_timeout(500)
+        p.evaluate("()=>{window.__hid=false;document.dispatchEvent(new Event('visibilitychange'))}")
+        p.wait_for_timeout(500)
+        d = p.evaluate(ka)
+        c.ok((not a) and b and (not cc) and (not d),
+             "Ticho na pozadí (drží appce právo hrát mezi skladbami) běží jen se zhasnutým displejem a jen když hraje hudba")
+    else:
+        c.ok(False, "Player nemá ticho na pozadí (je to aktuální player.html?)")
+    ctx.close()
+
     # vlastní soubor s obrázkem alba (ID3 štítek s obalem): Android ho bere jako video a se zhasnutým displejem
     # ho pozastaví -> pro přehrávání se obal vynechá, uložený soubor zůstane beze změny
     def id3_with_cover(audio):
