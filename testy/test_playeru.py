@@ -1107,6 +1107,125 @@ def t_own_backup(s, c):
     c.ok(not allerr, "Bez chyby ve stránce" + (": " + allerr[0] if allerr else ""))
 
 
+def t_queue_import(s, c):
+    """My Playlist: export a import souboru .json - vlastní soubory ze sekce F se najdou i na jiném zařízení (podle názvu a velikosti)."""
+    def f(name, sec):
+        return {"name": name, "mimeType": "audio/wav", "buffer": make_wav(sec, 8000)}
+    FILES = [f("Alfa.wav", 3), f("Beta.wav", 4), f("Gama.wav", 5)]
+    # alert/confirm se zachytí (confirm = OK = „nahradit“), ať jde zkontrolovat, co appka uživateli řekla
+    HOOK = "()=>{window.__al=[];window.alert=m=>{window.__al.push(String(m))};window.confirm=()=>true}"
+    QSTATE = "()=>customQueue.map(e=>({t:e.title,f:e.fileId||null}))"
+    LIB = "()=>myFilesLibrary.map(x=>({id:x.id,name:x.name}))"
+    tmp = tempfile.gettempdir()
+    paths = {k: os.path.join(tmp, "testplayeru_queue_%s.json" % k) for k in ("orig", "new", "old", "missing", "bad")}
+
+    def upload(p, files):
+        p.set_input_files("#myfiles-input", files)
+        p.wait_for_function("!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+        p.wait_for_timeout(400)
+
+    def do_import(p, path):
+        p.evaluate("()=>{window.__al=[]}")
+        p.set_input_files("#queue-import-input", path)
+        p.wait_for_timeout(1200)
+        return p.evaluate("()=>window.__al.slice()")
+
+    def own_ids_ok(p):
+        """vlastní soubory ve frontě ukazují na soubory, které opravdu jsou v My Files tohoto zařízení, ve stejném pořadí"""
+        q, lib = p.evaluate(QSTATE), p.evaluate(LIB)
+        byname = {x["name"]: x["id"] for x in lib}
+        own = [e for e in q if e["f"]]
+        return [e["t"] for e in own] == ["Alfa", "Beta", "Gama"] and all(byname.get(e["t"]) == e["f"] for e in own)
+
+    # --- první zařízení („telefon“): 3 vlastní soubory + 2 skladby SYNTHLUCIDA v My Playlist, export
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof importCustomQueueFile==='function'&&!!document.getElementById('queue-import-input')"):
+        c.ok(False, "Player nemá import My Playlistu (je to aktuální player.html?)")
+        return
+    p.evaluate("toggleMainFiles()")
+    upload(p, FILES)
+    p.evaluate(HOOK)
+    p.evaluate("""()=>{window.addToCustomQueue('asmr',0);window.addToCustomQueue('piano',1);
+      ['Alfa','Beta','Gama'].forEach(n=>{const f=myFilesLibrary.find(x=>x.name===n);customQueue.push({title:f.name,src:'',playlist:'custom:file:'+f.id,index:0,fileId:f.id})});
+      saveCustomQueue();renderCustomQueue();}""")
+    p.wait_for_timeout(300)
+    with p.expect_download() as dl:
+        p.evaluate("exportCustomQueueFile()")
+    dl.value.save_as(paths["orig"])
+    with open(paths["orig"], "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    fe = [t for t in data.get("tracks", []) if t.get("fileId")]
+    c.ok(len(data.get("tracks", [])) == 5 and len(fe) == 3 and all(t.get("name") and t.get("size") for t in fe),
+         "Export My Playlistu má u vlastních souborů i název a velikost (soubory %d, s názvem a velikostí %d)" % (len(fe), len([t for t in fe if t.get("name") and t.get("size")])))
+    c.ok(not any(str(t.get("src") or "").startswith("blob:") for t in data["tracks"]),
+         "Export neobsahuje dočasné blob: adresy ani obsah souborů")
+
+    # --- soubor ze stejného zařízení se načte jako dřív
+    al = do_import(p, paths["orig"])
+    c.ok(p.evaluate("customQueue.length") == 5 and own_ids_ok(p) and not al,
+         "Import zálohy ze STEJNÉHO zařízení funguje jako dřív (5 skladeb, bez hlášky)")
+    ctx.close()
+
+    # --- zálohy „z jiného zařízení“: vlastní soubory mají cizí fileId (na každém zařízení je jiné)
+    def variant(strip=False, extra=False):
+        d = json.loads(json.dumps(data))
+        for i, t in enumerate(d["tracks"]):
+            if t.get("fileId"):
+                t["fileId"] = "telefon-%d" % i
+                t["playlist"] = "custom:file:" + t["fileId"]
+                if strip:  # stará záloha z doby, kdy se název a velikost neukládaly
+                    t.pop("name", None)
+                    t.pop("size", None)
+        if extra:
+            d["tracks"].append({"title": "Nikdy", "playlist": "custom:file:telefon-x", "index": 0, "fileId": "telefon-x", "name": "Nikdy", "size": 123})
+        return d
+    for key, d in (("new", variant()), ("old", variant(strip=True)), ("missing", variant(extra=True))):
+        with open(paths[key], "w", encoding="utf-8") as fh:
+            json.dump(d, fh)
+    with open(paths["bad"], "w", encoding="utf-8") as fh:
+        fh.write('{"neco":"jineho"}')
+
+    # --- druhé zařízení („PC“): stejné soubory v sekci F, ale s jinými interními čísly
+    ctx, p, errs2 = s.page()
+    p.evaluate("toggleMainFiles()")
+    upload(p, FILES)
+    p.evaluate(HOOK)
+    al = do_import(p, paths["new"])
+    c.ok(p.evaluate("customQueue.length") == 5 and own_ids_ok(p) and not al,
+         "Záloha z jiného zařízení: všech 5 skladeb se načte, soubory se najdou podle názvu a velikosti (%s)" % (al[0][:60] if al else "bez hlášky"))
+    al = do_import(p, paths["old"])
+    c.ok(p.evaluate("customQueue.length") == 5 and own_ids_ok(p) and not al,
+         "Stará záloha bez názvu a velikosti (jen název skladby) se načte taky – přesně případ „8 souborů z F se nenašlo“")
+    try:
+        p.wait_for_function("customQueue.every(e=>!e.fileId||String(e.src).startsWith('blob:'))", timeout=6000)
+        ok_src = True
+    except Exception:
+        ok_src = False
+    c.ok(ok_src, "Načtené vlastní soubory dostanou platnou adresu k přehrání")
+    al = do_import(p, paths["missing"])
+    c.ok(p.evaluate("customQueue.length") == 5 and own_ids_ok(p) and len(al) == 1 and "1" in al[0],
+         "Soubor, který na zařízení opravdu není, se přeskočí s hláškou, ostatní se načtou (%s)" % (al[0][:50] if al else "bez hlášky"))
+    ctx.close()
+
+    # --- třetí zařízení: žádné vlastní soubory -> načtou se jen skladby SYNTHLUCIDA a appka řekne, že 3 chybí
+    ctx, p, errs3 = s.page()
+    p.evaluate(HOOK)
+    al = do_import(p, paths["new"])
+    q = p.evaluate(QSTATE)
+    c.ok(len(q) == 2 and not any(e["f"] for e in q) and len(al) == 1 and "3" in al[0],
+         "Bez nahraných souborů se načtou jen skladby SYNTHLUCIDA a hláška řekne, že 3 chybí (%s)" % (al[0][:50] if al else "bez hlášky"))
+    al = do_import(p, paths["bad"])
+    c.ok(p.evaluate("customQueue.length") == 2 and len(al) == 1, "Soubor, který není playlist, se odmítne a My Playlist se nezmění")
+    ctx.close()
+    for fp in paths.values():
+        try:
+            os.remove(fp)
+        except Exception:
+            pass
+    allerr = errs + errs2 + errs3
+    c.ok(not allerr, "Bez chyby ve stránce" + (": " + allerr[0] if allerr else ""))
+
+
 def t_total_time(s, c):
     """Celkový čas vedle názvu: playlist ze sekce F a pojmenovaná sekce v My Playlist."""
     ctx, p, errs = s.page()
@@ -1577,6 +1696,7 @@ TESTS = [
     ("Vlastní soubory (sekce F)", t_own_files),
     ("Vlastní soubory – duplicity, průběh, hromadné mazání", t_own_bulk),
     ("Záloha a obnova seznamů (sekce F)", t_own_backup),
+    ("My Playlist – export a import souboru (i z jiného zařízení)", t_queue_import),
     ("Celkový čas playlistu vedle názvu", t_total_time),
     ("Historie poslechu", t_history),
     ("Odolnost proti poškozeným datům", t_robust),
