@@ -1427,6 +1427,27 @@ def t_background(s, c):
     ctx.close()
     c.ok(cf_ok, "Prolnutí: když původní skladba dohraje dřív než prolnutí, pokračuje stejná nová skladba (bez useknutí a skoku na jinou)")
 
+    # přetočení během prolnutí: prolnutí se zruší a posuvník platí pro skladbu, kterou vidíš (dřív nová skladba hrála dál)
+    ctx, p, errs_sk = s.page()
+    if p.evaluate("typeof window.userSeekTo==='function'"):
+        p.evaluate("()=>{setCrossfade(15,null);setPlaylist('chill',[...document.querySelectorAll('.btn-atmos')].find(b=>/chill/i.test(b.textContent)));shuffleEnabled=false;playTrack(0)}")
+        p.wait_for_timeout(1200)
+        first = p.evaluate("audio.src")
+        p.evaluate("()=>userSeekTo(audio.duration-12)")
+        try:
+            p.wait_for_function("crossfadeActive&&!crossfadeAudio.paused", timeout=10000)
+            started = True
+        except Exception:
+            started = False
+        p.evaluate("()=>userSeekTo(audio.duration*0.4)")
+        p.wait_for_timeout(1000)
+        r = p.evaluate("()=>({cf:crossfadeActive,cfp:crossfadeAudio.paused,src:audio.src,t:audio.currentTime,d:audio.duration,v:audio.volume})")
+        sk_ok = started and (not r["cf"]) and r["cfp"] and r["src"] == first and abs(r["t"] - r["d"] * 0.4) < 3 and r["v"] > 0.05
+        c.ok(sk_ok, "Přetočení během prolnutí: prolnutí se zruší a přetočí se skladba, kterou vidíš na posuvníku")
+    else:
+        c.ok(False, "Player nemá opravu přetáčení během prolnutí (je to aktuální player.html?)")
+    ctx.close()
+
     # nečekaná pauza od systému těsně po rozjetí skladby (záznam z telefonu: "playing" a za 1 s "pause")
     ctx, p, errs0 = s.page(init=init, user_agent=MOB)
     p.evaluate("()=>{setPlaylist('piano',[...document.querySelectorAll('.btn-atmos')].find(b=>/piano/i.test(b.textContent)));playTrack(0)}")
