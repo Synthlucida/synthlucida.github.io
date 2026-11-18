@@ -1411,6 +1411,20 @@ def t_background(s, c):
             return
         c.ok(ok, name + ("" if ok else " (%s)" % st))
 
+    # nečekaná pauza od systému těsně po rozjetí skladby (záznam z telefonu: "playing" a za 1 s "pause")
+    ctx, p, errs0 = s.page(init=init, user_agent=MOB)
+    p.evaluate("()=>{setPlaylist('piano',[...document.querySelectorAll('.btn-atmos')].find(b=>/piano/i.test(b.textContent)));playTrack(0)}")
+    p.wait_for_timeout(800)
+    p.evaluate("()=>{window.__hid=true;document.dispatchEvent(new Event('visibilitychange'));audio.pause()}")  # pauza od systému
+    p.wait_for_timeout(1200)
+    sys_ok = p.evaluate("()=>!audio.paused&&isPlaying")
+    p.evaluate("()=>playBtn.click()")  # pauza od uživatele (tlačítko / zamčená obrazovka)
+    p.wait_for_timeout(1200)
+    user_ok = p.evaluate("()=>audio.paused&&!isPlaying")
+    ctx.close()
+    c.ok(sys_ok, "Nečekaná pauza od systému hned po rozjetí skladby (zhasnutý displej) se sama zruší a hraje se dál")
+    c.ok(user_ok, "Pauza od uživatele se zhasnutým displejem zůstane pauzou")
+
     ctx, p, errs = s.page()
     p.evaluate("()=>{slPlayLog('test zaznamu');location.hash='#playlog'}")
     p.wait_for_timeout(500)
