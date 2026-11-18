@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.2">
+<meta name="app-version" content="2.9.3">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -12343,11 +12343,62 @@
     } catch (e) { /* ignore */ }
   }
 
+  // OBRÁZEK ALBA (cover) VE VLASTNÍCH SOUBORECH: MP3/FLAC s vloženým obalem Chrome v Androidu bere jako VIDEO
+  // (obrázek je pro něj obrazová stopa) a se zhasnutým displejem ho sám pozastaví - hudba se zastaví, sluchátka
+  // pípnou a cvaknou (záznam #playlog: "playing" a hned "pause" od systému, pořád u stejných souborů).
+  // Pro přehrávání se proto obal (a ostatní ID3 štítky) vynechá. Uložený soubor v zařízení zůstává beze změny.
+  async function stripCoverArt(blob) {
+    try {
+      if (!blob || blob.size < 16) return blob;
+      const rd = async (a, b) => new Uint8Array(await blob.slice(a, b).arrayBuffer());
+      const head = await rd(0, 10);
+      // MP3: ID3v2 štítek na začátku (může jich být víc za sebou)
+      if (head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) {
+        let off = 0;
+        for (let guard = 0; guard < 4; guard++) {
+          const h = guard === 0 ? head : await rd(off, off + 10);
+          if (!(h.length === 10 && h[0] === 0x49 && h[1] === 0x44 && h[2] === 0x33)) break;
+          if ((h[6] | h[7] | h[8] | h[9]) & 0x80) break; // poškozená velikost - nic neměnit
+          const size = (h[6] << 21) | (h[7] << 14) | (h[8] << 7) | h[9];
+          off += 10 + size + ((h[5] & 0x10) ? 10 : 0);
+        }
+        if (off > 0 && off < blob.size - 1024) return new Blob([blob.slice(off)], { type: blob.type || 'audio/mpeg' });
+        return blob;
+      }
+      // FLAC: vynechat blok PICTURE (typ 6), ostatní bloky (STREAMINFO …) zůstanou ve stejném pořadí
+      if (head[0] === 0x66 && head[1] === 0x4C && head[2] === 0x61 && head[3] === 0x43) {
+        let off = 4, last = false;
+        const blocks = [];
+        for (let guard = 0; !last && guard < 128 && off + 4 <= blob.size; guard++) {
+          const bh = await rd(off, off + 4);
+          last = !!(bh[0] & 0x80);
+          blocks.push({ off, type: bh[0] & 0x7f, len: (bh[1] << 16) | (bh[2] << 8) | bh[3] });
+          off += 4 + blocks[blocks.length - 1].len;
+        }
+        const keep = blocks.filter(b => b.type !== 6);
+        if (!last || off >= blob.size || keep.length === blocks.length || !keep.length || keep[0].type !== 0) return blob;
+        const parts = [blob.slice(0, 4)];
+        for (let i = 0; i < keep.length; i++) {
+          const b = keep[i];
+          const bh = await rd(b.off, b.off + 4);
+          bh[0] = (bh[0] & 0x7f) | (i === keep.length - 1 ? 0x80 : 0);
+          parts.push(bh, blob.slice(b.off + 4, b.off + 4 + b.len));
+        }
+        parts.push(blob.slice(off));
+        return new Blob(parts, { type: blob.type || 'audio/flac' });
+      }
+    } catch (e) { /* cokoli nejasného -> původní soubor beze změny */ }
+    return blob;
+  }
+
   async function getMyFileBlobUrl(fileId) {
     if (myFilesBlobUrlCache[fileId]) return myFilesBlobUrlCache[fileId];
     const record = await myFilesDbGet(fileId);
     if (!record || !record.blob) return null;
-    const url = URL.createObjectURL(record.blob);
+    if (myFilesBlobUrlCache[fileId]) return myFilesBlobUrlCache[fileId]; // mezitím ho vytvořilo jiné volání
+    const playable = await stripCoverArt(record.blob);
+    if (myFilesBlobUrlCache[fileId]) return myFilesBlobUrlCache[fileId];
+    const url = URL.createObjectURL(playable);
     myFilesBlobUrlCache[fileId] = url;
     return url;
   }
