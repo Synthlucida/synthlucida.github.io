@@ -1411,6 +1411,22 @@ def t_background(s, c):
             return
         c.ok(ok, name + ("" if ok else " (%s)" % st))
 
+    # prolnutí s rozsvíceným displejem: původní skladba dohraje o chvilku dřív, než prolnutí doběhne
+    # -> musí pokračovat TA nová skladba, která už hraje (dřív se usekla a pustila se jiná)
+    ctx, p, errs_cf = s.page(init=init, user_agent=MOB)
+    p.evaluate("()=>{setCrossfade(6,null);setPlaylist('chill',[...document.querySelectorAll('.btn-atmos')].find(b=>/chill/i.test(b.textContent)));shuffleEnabled=true;playTrack(0)}")
+    p.wait_for_timeout(600)
+    p.evaluate("()=>{audio.currentTime=Math.max(0,(audio.duration||60)-12);audio.playbackRate=1.6}")
+    try:
+        p.wait_for_function("crossfadeActive&&!crossfadeAudio.paused", timeout=25000)
+        target = p.evaluate("crossfadeAudio.src")
+        p.wait_for_function("audio.src===%r&&!crossfadeActive&&!audio.paused" % target, timeout=25000)
+        cf_ok = True
+    except Exception:
+        cf_ok = False
+    ctx.close()
+    c.ok(cf_ok, "Prolnutí: když původní skladba dohraje dřív než prolnutí, pokračuje stejná nová skladba (bez useknutí a skoku na jinou)")
+
     # nečekaná pauza od systému těsně po rozjetí skladby (záznam z telefonu: "playing" a za 1 s "pause")
     ctx, p, errs0 = s.page(init=init, user_agent=MOB)
     p.evaluate("()=>{setPlaylist('piano',[...document.querySelectorAll('.btn-atmos')].find(b=>/piano/i.test(b.textContent)));playTrack(0)}")
@@ -1474,6 +1490,64 @@ def t_background(s, c):
     p.wait_for_timeout(500)
     shown = p.evaluate("()=>{const v=document.getElementById('sl-playlog-view');return v?v.textContent:''}")
     c.ok("test zaznamu" in shown, "Záznam přehrávání jde zobrazit přes player.html#playlog")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_last_source(s, c):
+    """Po zavření a novém otevření appky se připraví naposledy přehrávaný seznam a skladba (i F a My Playlist)."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof saveLastTrackPosition==='function'"):
+        c.ok(False, "Player nemá zapamatování posledního seznamu (je to aktuální player.html?)")
+        return
+    ST = """()=>({key:String(currentPlaylistKey),q:customQueueActive,mood:customQueueMoodPlay,
+      title:((customQueueActive?customQueue[customQueueIndex]:playlist[currentTrackIndex])||{}).title||'',
+      active:[...document.querySelectorAll('.btn-atmos.active')].map(b=>b.textContent.trim()).join(','),playing:!audio.paused})"""
+
+    def reopen():
+        p.evaluate("()=>{audio.pause();saveLastTrackPosition()}")
+        p.reload()
+        p.wait_for_timeout(2500)
+        return p.evaluate(ST)
+
+    p.evaluate("toggleMainFiles()")
+    p.set_input_files("#myfiles-input", [{"name": "Last A.wav", "mimeType": "audio/wav", "buffer": make_wav(20, 8000)},
+                                         {"name": "Last B.wav", "mimeType": "audio/wav", "buffer": make_wav(20, 8000)}])
+    p.wait_for_function("myFilesLibrary.length===2&&!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+
+    # F playlist
+    p.evaluate("""async()=>{const id=n=>myFilesLibrary.find(f=>f.name===n).id;
+      myPlaylists.push({id:'lp',name:'LastPL',createdAt:1,items:[{type:'track',playlist:'piano',index:2,title:tracks.piano[2].title,src:tracks.piano[2].src},
+        {type:'file',fileId:id('Last A'),title:'Last A'},{type:'file',fileId:id('Last B'),title:'Last B'}]});saveMyPlaylistsToStorage();
+      await playMyPlaylist('lp');await new Promise(r=>setTimeout(r,500));playTrack(2);await new Promise(r=>setTimeout(r,800))}""")
+    r = reopen()
+    c.ok(r["key"] == "custom:lp" and r["title"] == "Last B" and r["active"] == "" and not r["playing"],
+         "F playlist: po novém otevření je připravená stejná skladba (bez autoplaye a bez svítícího ASMR)")
+
+    # My Playlist se sekcí
+    p.evaluate("""async()=>{customQueue.length=0;const f=myFilesLibrary.find(x=>x.name==='Last A');
+      customQueue.push({title:tracks.chill[1].title,src:tracks.chill[1].src,playlist:'chill',index:1,mood:'Noc'});
+      customQueue.push({title:'Last A',src:await getMyFileBlobUrl(f.id),playlist:'custom:file:'+f.id,index:0,fileId:f.id,mood:'Noc'});
+      customQueue.push({title:tracks.piano[3].title,src:tracks.piano[3].src,playlist:'piano',index:3});
+      queueMoods=['Noc'];saveQueueMoods();saveCustomQueue();renderCustomQueue();playCustomQueueAt(1,'Noc');await new Promise(r=>setTimeout(r,1000))}""")
+    r = reopen()
+    c.ok(r["q"] and r["title"] == "Last A" and r["mood"] == "Noc" and not r["playing"],
+         "My Playlist: po novém otevření je připravená stejná skladba i vybraná sekce (%s, %s)" % (r["title"], r["mood"]))
+    p.evaluate("()=>playBtn.click()")
+    p.wait_for_timeout(1200)
+    r = p.evaluate(ST)
+    c.ok(r["q"] and r["playing"] and r["title"] == "Last A", "Po stisku ▶ hraje My Playlist dál od připravené skladby")
+
+    # samostatný vlastní soubor
+    p.evaluate("async()=>{const f=myFilesLibrary.find(x=>x.name==='Last B');await playMyFileNow(f.id);await new Promise(r=>setTimeout(r,800))}")
+    r = reopen()
+    c.ok(r["key"].startswith("custom:file:") and r["title"] == "Last B" and not r["q"], "Samostatně puštěný vlastní soubor se po novém otevření připraví znovu")
+
+    # běžný playlist dál funguje
+    p.evaluate("()=>{setPlaylist('chill',[...document.querySelectorAll('.btn-atmos')].find(b=>/chill/i.test(b.textContent)));playTrack(4)}")
+    p.wait_for_timeout(800)
+    want = p.evaluate("tracks.chill[4].title")
+    r = reopen()
+    c.ok(r["key"] == "chill" and r["title"] == want and r["active"] == "CHILL", "CHILL / PIANO / ASMR se po novém otevření připraví jako dřív")
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
@@ -1805,6 +1879,7 @@ TESTS = [
     ("Celkový čas playlistu vedle názvu", t_total_time),
     ("Historie poslechu", t_history),
     ("Přehrávání se zhasnutým displejem", t_background),
+    ("Zapamatování posledního seznamu (F, My Playlist)", t_last_source),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
