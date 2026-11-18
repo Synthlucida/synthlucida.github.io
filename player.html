@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.3">
+<meta name="app-version" content="2.9.2">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -19047,17 +19047,65 @@
   // Tlačítko pak ukazovalo ⏸, i když nic nehrálo, a na obnovení bylo potřeba ťuknout dvakrát
   // (a tlačítko ▶ na zamčené obrazovce nereagovalo). Přepnutí skladby tohle nespouští -
   // v tu chvíli už přehrávač zase hraje (audio.paused je false).
+  // TICHO NA POZADÍ (jen telefon/tablet, jen se zhasnutým displejem a jen když hraje hudba): Android appce v okamžiku
+  // mezi skladbami (jedna dohrála, další se teprve načítá) občas sebere "právo hrát zvuk" a novou skladbu pak hned
+  // pozastaví (záznam #playlog: "playing" a ve stejné vteřině "pause", i opakovaně). Po dobu přehrávání se zhasnutým
+  // displejem proto v samostatném přehrávači běží smyčka úplného ticha - appka tak "hraje" i mezi skladbami.
+  // Pauza od uživatele, časovač, STOP nebo rozsvícení displeje ticho hned vypnou.
+  let keepAliveEl = null, keepAliveUrl = '';
+  function silentWavUrl() {
+    if (keepAliveUrl) return keepAliveUrl;
+    const rate = 8000, n = rate; // 1 s ticha
+    const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true);
+    v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    keepAliveUrl = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    return keepAliveUrl;
+  }
+  function syncKeepAlive(force) {
+    try {
+      const want = CF_MOBILE && document.hidden && (isPlaying || force === true) && !IOS_NO_VOLUME;
+      if (want) {
+        if (!keepAliveEl) { keepAliveEl = new Audio(); keepAliveEl.loop = true; keepAliveEl.preload = 'auto'; keepAliveEl.src = silentWavUrl(); }
+        if (keepAliveEl.paused) {
+          const pr = keepAliveEl.play();
+          if (pr && pr.catch) pr.catch((err) => { if (err && err.name === 'AbortError') return; try { slPlayLog('ticho na pozadí odmítnuto', (err && err.name) || '?'); } catch (e) { /* ignore */ } });
+        }
+      } else if (keepAliveEl && !keepAliveEl.paused) {
+        keepAliveEl.pause();
+      }
+    } catch (e) { /* ignore */ }
+  }
+  ['play', 'playing', 'pause', 'ended', 'emptied', 'error'].forEach((ev) => audio.addEventListener(ev, () => syncKeepAlive()));
+  window.__slKeepAlive = () => keepAliveEl; // pro testy
+  document.addEventListener('visibilitychange', () => syncKeepAlive());
+
   // Telefon se zhasnutým displejem občas právě rozjetou skladbu (hlavně vlastní soubor ze sekce F) sám pozastaví,
   // i když nic nevolal uživatel ani player (záznam #playlog: "playing" a za 1 s "pause"). Taková pauza na začátku
   // skladby se proto jednou až dvakrát sama zruší a hraje se dál. Pauzy od uživatele (tlačítko, zamčená obrazovka,
   // časovač, STOP) sem nepatří - ty nastaví isPlaying = false dřív, než tahle událost přijde.
-  let trackLoadedAt = 0, autoResumeCount = 0;
-  audio.addEventListener('loadstart', () => { trackLoadedAt = Date.now(); autoResumeCount = 0; });
+  let trackLoadedAt = 0, autoResumeCount = 0, autoResumeSrc = '';
+  audio.addEventListener('loadstart', () => {
+    const src = audio.currentSrc || audio.src || '';
+    if (src === autoResumeSrc) return; // znovunačtení téže skladby (2. pokus níže) počítadlo nenuluje - jinak by to šlo dokola
+    autoResumeSrc = src; trackLoadedAt = Date.now(); autoResumeCount = 0;
+  });
   audio.addEventListener('pause', () => {
     if (isPlaying && audio.paused && !audio.ended && !crossfadeActive && !audio.error) {
       if (document.hidden && Date.now() - trackLoadedAt < 15000 && autoResumeCount < 2) {
         autoResumeCount++;
         try { slPlayLog('nečekaná pauza od systému -> hraju dál', '(' + autoResumeCount + '. pokus)'); } catch (e) { /* ignore */ }
+        try { syncKeepAlive(true); } catch (e) { /* ignore */ }
+        if (autoResumeCount === 2) { // druhý pokus: skladbu načíst znovu (nový přehrávač v systému), pak pokračovat od stejného místa
+          try {
+            const at = audio.currentTime || 0;
+            const onMeta = () => { audio.removeEventListener('loadedmetadata', onMeta); try { if (at > 0.5) audio.currentTime = at; } catch (e) { /* ignore */ } };
+            audio.addEventListener('loadedmetadata', onMeta);
+            audio.load();
+          } catch (e) { /* ignore */ }
+        }
         const pr = audio.play();
         if (pr && pr.catch) pr.catch((err) => {
           try { slPlayLog('pokračování odmítnuto', (err && err.name) || '?'); } catch (e) { /* ignore */ }
