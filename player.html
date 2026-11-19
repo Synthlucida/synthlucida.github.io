@@ -16432,7 +16432,12 @@
   // nepočítají - uživatel je má na zařízení už tak, takže nezabírají místo ve frontě na
   // odemčení a nemusí se nijak odemykat.
   function gamifiedQueueEntries() {
-    return customQueue.filter(e => !e.fileId);
+    const seen = new Set(); // kopie téže skladby v jiných sekcích se počítají jednou (odemykání je podle adresy)
+    return customQueue.filter(e => {
+      if (!e || e.fileId || seen.has(e.src)) return false;
+      seen.add(e.src);
+      return true;
+    });
   }
 
   function computeXP(s) {
@@ -17905,7 +17910,11 @@
     // nepatří - viz gamifiedQueueEntries().
     const availableXP = computeAvailableXP(stats);
     let creditsLeft = Math.floor(availableXP / DOWNLOAD_XP_STEP);
-    let notPurchasedIndex = -1; // pořadí jen mezi dosud NEzaplacenými gamifikovanými skladbami
+    // Pořadí odemykání se počítá přes CELÝ My Playlist (ne jen přes právě zobrazenou sekci), jinak by stejná
+    // skladba byla ve "vše" zamčená a v sekci odemčená (v sekci by byla první v řadě).
+    // Stejná skladba může být ve více sekcích (kopie) - odemyká se podle adresy, takže kopie sdílí jeden slot.
+    const lockRank = new Map();
+    { let r = 0; customQueue.forEach(e => { if (e && !e.fileId && !isDownloadUnlockedKey(stats, e.src) && !lockRank.has(e.src)) lockRank.set(e.src, r++); }); }
 
     customQueue.forEach((entry, pos) => {
       const vi = visible.indexOf(pos); // pozice mezi zobrazenými skladbami (při zobrazené sekci)
@@ -17999,8 +18008,8 @@
           dlBtn.title = guideLang === 'cz' ? 'Stáhnout MP3 do zařízení' : 'Download MP3 to your device';
           dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadTrackFile(entry.src, entry.title); });
         } else {
-          notPurchasedIndex++;
-          const isAffordable = notPurchasedIndex < creditsLeft;
+          const rank = lockRank.has(entry.src) ? lockRank.get(entry.src) : 0;
+          const isAffordable = rank < creditsLeft;
           dlBtn.innerText = isAffordable ? '⬇' : '🔒';
           if (isAffordable) {
             dlBtn.title = guideLang === 'cz'
@@ -18008,13 +18017,14 @@
               : `Download MP3 (costs ${DOWNLOAD_XP_STEP} XP)`;
             dlBtn.addEventListener('click', (e) => {
               e.stopPropagation();
+              if (computeAvailableXP(stats) < DOWNLOAD_XP_STEP) { renderCustomQueue(); return; } // XP mezitím nestačí (např. reset v jiném okně)
               spendXPForDownload(entry.src);
               downloadTrackFile(entry.src, entry.title);
               renderCustomQueue();
               renderStats();
             });
           } else {
-            const neededXP = (notPurchasedIndex + 1) * DOWNLOAD_XP_STEP - availableXP;
+            const neededXP = (rank + 1) * DOWNLOAD_XP_STEP - availableXP;
             dlBtn.disabled = true;
             dlBtn.title = guideLang === 'cz'
               ? `Odemkne se za ${neededXP} XP (nyní ${availableXP} XP k utracení)`
