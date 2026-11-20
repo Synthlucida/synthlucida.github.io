@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.4">
+<meta name="app-version" content="2.9.5">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -15398,10 +15398,20 @@
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   }
 
+  // Na konci prolnutí hraje nová skladba chvíli jen v druhém prvku (crossfadeAudio), než ji hlavní prvek načte a
+  // přetočí na stejné místo (beginCrossfadeHandoff). Hlavní prvek je v tu chvíli prázdný (délka NaN, čas 0), takže
+  // se čas a ukazatel dřív vynulovaly a po předání skočily o délku prolnutí (u 8 s na 0:07). Po dobu předání se proto
+  // čas, ukazatel i poloha pro zamykací obrazovku berou z druhého prvku, který nová skladba opravdu hraje.
+  function cfShowsNew() {
+    return !!(crossfadeActive && cfHandoff && !crossfadeAudio.paused &&
+              isFinite(crossfadeAudio.duration) && crossfadeAudio.duration > 0);
+  }
+
   function updateTrackTime() {
     if (timerEndsAt) checkSleepTimer(); // review 09/2026: pojistka časovače spánku
+    const media = cfShowsNew() ? crossfadeAudio : audio; // prvek, který právě slyšíme
     // Sčítání odposlechnutého času pro statistiky - jen malé přírůstky, aby seek/skip nevytvořil skok
-    if (!audio.paused) {
+    if (!media.paused) {
       const now = Date.now();
       if (statsLastTick !== null) {
         const delta = (now - statsLastTick) / 1000;
@@ -15412,8 +15422,8 @@
       statsLastTick = null;
     }
 
-    const current = audio.currentTime;
-    const duration = audio.duration;
+    const current = media.currentTime;
+    const duration = media.duration;
     if (isNaN(duration)) {
       setTrackTimeText("00:00 / 00:00");
       progressBar.style.width = "0%";
@@ -15440,6 +15450,7 @@
 
   audio.addEventListener('timeupdate', updateTrackTime);
   audio.addEventListener('loadedmetadata', updateTrackTime);
+  crossfadeAudio.addEventListener('timeupdate', () => { if (cfShowsNew()) updateTrackTime(); }); // jen během předání zvuku (viz cfShowsNew)
 
   // Počet skladeb v právě zobrazeném playlistu (ASMR / PIANO / CHILL, My Playlist, playlisty z My Files).
   // Jen čte seznam #playlist a nic v přehrávání nemění; při jakékoli chybě se číslo prostě nezobrazí.
@@ -16148,11 +16159,16 @@
       ? getTrackByRef(target.playlist, findTrackIndexByRef(target.playlist, target.index, target.title, target.src))
       : getTrackByRef(currentPlaylistKey, target.pos);
     setTrackTitle(target.title, isTrackNew(targetTrackRef));
-    setTrackTimeText("00:00 / 00:00");
-    progressBar.style.width = "0%";
+    // Čas a ukazatel zůstanou plynule na poloze nové skladby (hraje v druhém prvku); vynulují se jen když ji
+    // druhý prvek ještě nezná.
+    if (!(isFinite(crossfadeAudio.duration) && crossfadeAudio.duration > 0)) {
+      setTrackTimeText("00:00 / 00:00");
+      progressBar.style.width = "0%";
+    }
     showLoading();
 
     beginCrossfadeHandoff(target);
+    try { updateTrackTime(); } catch (e) { /* ignore */ } // hned přepnout zobrazení na novou skladbu (bez mezikroku 00:00)
 
     isPlaying = true;
     playBtn.innerText = "⏸";
