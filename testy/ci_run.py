@@ -15,7 +15,10 @@ Udělá:
 Skončí vždy kódem 0 (aby se stránka s výsledky uložila i při chybě). Jestli vše prošlo, předá GitHubu
 v proměnné result (ok / fail); podle ní pak workflow svítí zeleně nebo červeně.
 """
+import base64
 import datetime
+import hashlib
+import hmac
 import html
 import json
 import os
@@ -302,6 +305,132 @@ def build_page(entry, history):
                .replace("__REPO__", json.dumps(os.environ.get("GITHUB_REPOSITORY", ""))) + "\n</body>")
 
 
+# --------------------------------------------------------------------------- #
+#  Heslo na stránce s výsledky
+#  Celá stránka se před uložením zašifruje heslem (PBKDF2-SHA256, 300 000 kol + HMAC-SHA256 jako proud + kontrolní součet).
+#  V souboru index.html tedy není ani heslo, ani čitelný obsah – jen šifra a malé přihlašovací okno.
+#  Heslo čte GitHub z tajné hodnoty TESTY_HESLO (Settings → Secrets and variables → Actions), v kódu není.
+# --------------------------------------------------------------------------- #
+PBKDF2_ROUNDS = 300000
+
+
+def _stream(key, nonce, n):
+    out = bytearray()
+    i = 0
+    while len(out) < n:
+        out += hmac.new(key, nonce + i.to_bytes(4, "big"), hashlib.sha256).digest()
+        i += 1
+    return bytes(out[:n])
+
+
+def encrypt_page(page_html, password):
+    salt, nonce = os.urandom(16), os.urandom(16)
+    km = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ROUNDS, 64)
+    ke, km2 = km[:32], km[32:]
+    data = page_html.encode("utf-8")
+    ks = _stream(ke, nonce, len(data))
+    ct = (int.from_bytes(data, "big") ^ int.from_bytes(ks, "big")).to_bytes(len(data), "big") if data else b""
+    tag = hmac.new(km2, salt + nonce + ct, hashlib.sha256).digest()
+    return base64.b64encode(salt + nonce + tag + ct).decode("ascii")
+
+
+GATE_JS = r"""
+(async function () {
+  var DATA = __DATA__, ROUNDS = __ROUNDS__;
+  var raw = Uint8Array.from(atob(DATA), function (c) { return c.charCodeAt(0); });
+  var salt = raw.slice(0, 16), nonce = raw.slice(16, 32), tag = raw.slice(32, 64), ct = raw.slice(64);
+  var enc = new TextEncoder(), S = crypto.subtle;
+  var form = document.getElementById('f'), pw = document.getElementById('pw'), msg = document.getElementById('msg');
+  function b64(u) { var s = ''; for (var i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); }
+  function hk(bytes, use) { return S.importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, use); }
+  async function open(km) {
+    var ke = await hk(km.slice(0, 32), ['sign']), km2 = await hk(km.slice(32), ['verify']);
+    var all = new Uint8Array(salt.length + nonce.length + ct.length);
+    all.set(salt, 0); all.set(nonce, 16); all.set(ct, 32);
+    if (!(await S.verify('HMAC', km2, tag, all))) return false;
+    var out = new Uint8Array(ct.length), blocks = Math.ceil(ct.length / 32);
+    for (var s = 0; s < blocks; s += 256) {
+      var jobs = [];
+      for (var i = s; i < Math.min(blocks, s + 256); i++) {
+        var m = new Uint8Array(20); m.set(nonce, 0); new DataView(m.buffer).setUint32(16, i);
+        jobs.push(S.sign('HMAC', ke, m));
+      }
+      var res = await Promise.all(jobs);
+      for (var j = 0; j < res.length; j++) {
+        var k = new Uint8Array(res[j]), off = (s + j) * 32;
+        for (var b = 0; b < 32 && off + b < ct.length; b++) out[off + b] = ct[off + b] ^ k[b];
+      }
+    }
+    try { sessionStorage.setItem('testy-key', b64(km)); } catch (e) {}
+    var html = new TextDecoder().decode(out);
+    document.open(); document.write(html); document.close();
+    return true;
+  }
+  async function fromPassword(p) {
+    var base = await S.importKey('raw', enc.encode(p), 'PBKDF2', false, ['deriveBits']);
+    var bits = await S.deriveBits({ name: 'PBKDF2', salt: salt, iterations: ROUNDS, hash: 'SHA-256' }, base, 512);
+    return new Uint8Array(bits);
+  }
+  try {
+    var saved = sessionStorage.getItem('testy-key');
+    if (saved && await open(Uint8Array.from(atob(saved), function (c) { return c.charCodeAt(0); }))) return;
+    sessionStorage.removeItem('testy-key');
+  } catch (e) {}
+  form.hidden = false; pw.focus();
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    msg.textContent = 'Ověřuji…';
+    var ok = false;
+    try { ok = await open(await fromPassword(pw.value)); } catch (e) { msg.textContent = 'Tento prohlížeč to neumí otevřít.'; return; }
+    if (!ok) { msg.textContent = 'Špatné heslo.'; pw.value = ''; pw.focus(); }
+  });
+})();
+"""
+
+
+def build_gate(page_html, password):
+    data = encrypt_page(page_html, password)
+    js = GATE_JS.replace("__DATA__", json.dumps(data)).replace("__ROUNDS__", str(PBKDF2_ROUNDS))
+    return """<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Test playeru</title>
+<style>
+  :root { color-scheme: dark light; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#120d0b; color:#efe6e1;
+         font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+  @media (prefers-color-scheme: light) { body { background:#f7f2ef; color:#2a1f1a; } }
+  form { width:min(320px,86vw); text-align:center; }
+  h1 { font-size:13px; letter-spacing:3px; text-transform:uppercase; color:#f0a070; margin:0 0 18px; font-weight:600; }
+  input, button { font:inherit; width:100%%; box-sizing:border-box; padding:11px 12px; border-radius:10px; border:1px solid #3a2b24; }
+  input { background:transparent; color:inherit; margin-bottom:10px; }
+  button { background:#f0a070; color:#1a0f0a; border:0; font-weight:600; cursor:pointer; }
+  #msg { min-height:1.4em; margin:10px 0 0; font-size:13px; color:#ff7d7d; }
+</style>
+</head>
+<body>
+<form id="f" hidden autocomplete="off">
+  <h1>SYNTHLUCIDA · Test playeru</h1>
+  <input id="pw" type="password" placeholder="Heslo" autocomplete="current-password" aria-label="Heslo">
+  <button type="submit">Otevřít</button>
+  <p id="msg"></p>
+</form>
+<noscript>Pro zobrazení výsledků je potřeba JavaScript.</noscript>
+<script>%s</script>
+</body>
+</html>
+""" % js
+
+
+def build_locked_notice():
+    return ("<!doctype html><html lang=\"cs\"><meta charset=\"utf-8\"><meta name=\"robots\" content=\"noindex, nofollow\">"
+            "<title>Test playeru</title><body style=\"font:15px system-ui;padding:40px;max-width:520px;margin:auto\">"
+            "<p>Stránka s výsledky se nezveřejnila, protože na GitHubu není nastavené heslo (tajná hodnota TESTY_HESLO).</p></body></html>")
+
+
 def main(argv):
     if len(argv) < 3:
         print("Použití: python testy/ci_run.py player.html sw.js testy")
@@ -351,8 +480,14 @@ def main(argv):
     history = [short] + [h for h in history if isinstance(h, dict)][:HISTORY_MAX - 1]
     with open(hist_path, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, indent=1)
+    password = os.environ.get("TESTY_HESLO", "")
+    if password:
+        out_page = build_gate(build_page(entry, history), password)
+    else:
+        print("POZOR: není nastavené TESTY_HESLO – stránka s výsledky se nezveřejní.", flush=True)
+        out_page = build_locked_notice()
     with open(os.path.join(outdir, "index.html"), "w", encoding="utf-8") as f:
-        f.write(build_page(entry, history))
+        f.write(out_page)
 
     ok = entry["result"] in ("ok", "warn")
     gh_output("result", "ok" if ok else "fail")
