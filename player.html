@@ -18,10 +18,11 @@
     var ua = navigator.userAgent || '';
     c.ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (c.ios) {
-      try { var t = new Audio(); t.volume = 0.5; c.noVolume = Math.abs(t.volume - 0.5) > 0.01; } catch (e) { c.noVolume = true; }
+      c.noVolume = true; // iOS nikdy nedovolí webu měnit hlasitost (audio.volume se ignoruje) - bez testu, ten se na některých iPhonech nemusel spolehlivě vyhodnotit
       c.noFullscreen = typeof document.documentElement.requestFullscreen !== 'function';
       c.noWakeLock = !('wakeLock' in navigator);
       c.noNotify = !('Notification' in window);
+      document.documentElement.classList.add('is-ios');
       if (c.noVolume) document.documentElement.classList.add('ios-novol');
     }
   } catch (e) { /* ignore */ }
@@ -3927,6 +3928,10 @@
   /* ---- iPhone / iPad: nepodporované funkce zašedlé ---- */
   .ios-off { opacity: 0.32 !important; cursor: not-allowed !important; filter: grayscale(0.6); }
   .ios-off * { pointer-events: none !important; }
+  .guide-ios-tip { display: none; border-color: rgba(255,180,120,0.75); background: rgba(255,160,90,0.10); }
+  html.is-ios .guide-ios-tip { display: flex; }
+  .guide-ios-tip .guide-tip-title { color: #ffb98a; }
+  .guide-ios-list { margin: 4px 0 0; padding-left: 16px; font-size: 10.5px; line-height: 1.6; opacity: 0.9; }
   .ios-vol-note { display: none; font-size: 10px; line-height: 1.35; color: #ffb4b4; opacity: 0.9; text-align: center; margin: -2px 14px 8px; }
   html.ios-novol .ios-vol-note { display: block; }
   body.focus-mode .ios-vol-note, body.is-fullscreen .ios-vol-note { display: none !important; }
@@ -4494,6 +4499,18 @@
     <h3 data-i18n="guide_title">SYNTHLUCIDA — User Guide</h3>
     <p class="main-guide-note" id="app-version-top" style="margin: -6px 0 14px;"></p>
     <p class="main-guide-intro" data-i18n="guide_intro">Experience 24/7 uninterrupted streaming. Enjoy continuous, free listening. Whether you need background music for focus, deep relaxation, or daily activities, this stream provides the perfect atmospheric soundtrack. Find out more at www.SYNTHLUCIDA.com.</p>
+
+    <div class="guide-tip guide-ios-tip" id="guide-ios-tip" role="note">
+      <span class="guide-tip-title" data-i18n="ios_guide_title">📱 Using an iPhone or iPad?</span>
+      <span class="guide-tip-text" data-i18n="ios_guide_text">Apple doesn't let web pages do a few things, so these controls are greyed out on your device (tap one to see why):</span>
+      <ul class="guide-ios-list">
+        <li data-i18n="ios_guide_li_volume">Volume knobs and sliders, including the second ASMR layer volume – use the volume buttons on your device.</li>
+        <li data-i18n="ios_guide_li_crossfade">Crossfade between tracks.</li>
+        <li data-i18n="ios_guide_li_fullscreen">Fullscreen – add the player to your Home Screen instead (Share &gt; Add to Home Screen).</li>
+        <li data-i18n="ios_guide_li_wakelock">Keeping the screen on – only on iOS 16.4 or newer.</li>
+        <li data-i18n="ios_guide_li_notify">Reminders – only after adding the player to your Home Screen (iOS 16.4 or newer).</li>
+      </ul>
+    </div>
 
     <div class="guide-tip guide-tour" role="note">
       <span class="guide-tip-title" data-i18n="tour_card_title">Quick tour</span>
@@ -11753,6 +11770,13 @@
     plsort_btn: { en: "Sort this playlist", cz: "Seřadit tento playlist" },
     plfind_btn: { en: "Search in this playlist", cz: "Hledat v tomto playlistu" },
     plfind_title: { en: "Search in", cz: "Hledat v" },
+    ios_guide_title: { en: "📱 Using an iPhone or iPad?", cz: "📱 Používáš iPhone nebo iPad?" },
+    ios_guide_text: { en: "Apple doesn't let web pages do a few things, so these controls are greyed out on your device (tap one to see why):", cz: "Apple webovým stránkám několik věcí nedovoluje, proto jsou tyto ovladače na tvém zařízení zašedlé (po klepnutí se zobrazí proč):" },
+    ios_guide_li_volume: { en: "Volume knobs and sliders, including the second ASMR layer volume – use the volume buttons on your device.", cz: "Knoby a posuvníky hlasitosti včetně hlasitosti druhé ASMR vrstvy – používej tlačítka hlasitosti na zařízení." },
+    ios_guide_li_crossfade: { en: "Crossfade between tracks.", cz: "Prolínání skladeb." },
+    ios_guide_li_fullscreen: { en: "Fullscreen – add the player to your Home Screen instead (Share > Add to Home Screen).", cz: "Celá obrazovka – místo toho si přidej player na plochu (Sdílet > Přidat na plochu)." },
+    ios_guide_li_wakelock: { en: "Keeping the screen on – only on iOS 16.4 or newer.", cz: "Držení displeje zapnutého – jen na iOS 16.4 a novějším." },
+    ios_guide_li_notify: { en: "Reminders – only after adding the player to your Home Screen (iOS 16.4 or newer).", cz: "Připomínky – až po přidání playeru na plochu (iOS 16.4 nebo novější)." },
     ios_vol_note: { en: "On iPhone and iPad the volume is set with the buttons on your device.", cz: "Na iPhonu a iPadu se hlasitost nastavuje tlačítky na zařízení." },
     ios_no_volume: { en: "iPhone and iPad don't let a web page change the volume. Use the volume buttons on your device.", cz: "iPhone a iPad nedovolují webové stránce měnit hlasitost. Použij tlačítka hlasitosti na zařízení." },
     ios_no_crossfade: { en: "Crossfade isn't available on iPhone and iPad - the volume can't be faded there.", cz: "Prolínání skladeb na iPhonu a iPadu nefunguje - hlasitost tam nejde plynule měnit." },
