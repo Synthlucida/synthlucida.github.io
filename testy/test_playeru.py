@@ -11,6 +11,8 @@ Co dela:
 
 Nic se neposila na skutecny web, GitHub ani R2. Prohlizec ma behem testu zakazany
 pristup na internet (jen localhost), takze se nepocitaji navstevy ani chat.
+Chat a spolecne dychani (TOGETHER) se zkousi na falesnem Firebase, ktery bezi jen v pameti stranky
+(chovaji se v nem jako ostatni posluchaci) - na skutecny Firebase se nic neposila.
 
 Spusteni bez okna (pro kontrolu):  python test_playeru.py --cli player.html sw.js
 """
@@ -1830,6 +1832,717 @@ def t_media_session(s, c):
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
+# --------------------------------------------------------------------------- #
+#  Chat a společné dýchání: falešný Firebase + "stroj času"
+# --------------------------------------------------------------------------- #
+# Chat i společné dýchání jedou přes Firebase. Prohlížeč má během testu zakázaný internet, takže se skutečný Firebase
+# nikdy nenačte. Pro tyhle testy mu proto podstrčíme malou "falešnou" databázi v paměti stránky (nic se neposílá ven).
+# Přes window.__fb pak testy hrají roli ostatních posluchačů (píšou zprávy, reagují, dýchají v místnosti...).
+FAKE_FB_JS = r"""
+(function(){
+ if(window.__fb) return;
+ var RST=window.setTimeout.bind(window);
+ var offset=__OFFSET__, connected=__CONNECTED__, seq=0, user=null;
+ var root={}, listeners=[], disc={}, fail={write:false,presence:false}, authCbs=[], pend=false;
+ function now(){return Date.now()+offset}
+ function split(p){return String(p||'').split('/').filter(Boolean)}
+ function clone(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v))}
+ function getAt(p){var n=root,a=split(p);for(var i=0;i<a.length;i++){if(n==null||typeof n!=='object')return undefined;n=n[a[i]]}return n}
+ function prune(a){for(var k=a.length-1;k>=1;k--){var path=a.slice(0,k),par=getAt(path.join('/'));
+   if(par&&typeof par==='object'&&Object.keys(par).length===0){var gp=path.length===1?root:getAt(path.slice(0,-1).join('/'));delete gp[path[path.length-1]]}else break}}
+ function setAt(p,v){var a=split(p);if(!a.length){root=(v==null?{}:v);return}
+   var n=root;for(var i=0;i<a.length-1;i++){if(n[a[i]]==null||typeof n[a[i]]!=='object'){if(v==null)return;n[a[i]]={}}n=n[a[i]]}
+   if(v==null)delete n[a[a.length-1]];else n[a[a.length-1]]=v;prune(a)}
+ function resolve(v){if(v&&typeof v==='object'){if(v['.sv']==='timestamp')return now();var o=Array.isArray(v)?[]:{};for(var k in v)o[k]=resolve(v[k]);return o}return v}
+ function cmp(a,b){return a<b?-1:(a>b?1:0)}
+ function applyQuery(node,q){
+   var ents=[];if(node&&typeof node==='object')Object.keys(node).forEach(function(k){ents.push([k,node[k]])});
+   function ov(e){return q.orderBy==='child'?(e[1]&&typeof e[1]==='object'?e[1][q.child]:undefined):(q.orderBy==='value'?e[1]:e[0])}
+   ents.sort(function(x,y){return cmp(ov(x),ov(y))||cmp(x[0],y[0])});
+   if(q.start!==undefined)ents=ents.filter(function(e){var o=ov(e);return o!==undefined&&o>=q.start});
+   if(q.end!==undefined)ents=ents.filter(function(e){var o=ov(e);return o!==undefined&&o<=q.end});
+   if(q.limit)ents=ents.slice(-q.limit);
+   var obj={},ord=[];ents.forEach(function(e){obj[e[0]]=e[1];ord.push(e[0])});return {obj:obj,ord:ord}}
+ function Snap(path,qv,isNode){this._p=path;this.key=split(path).slice(-1)[0]||null;this._qv=qv;this.ref=new Ref(path)}
+ Snap.prototype.val=function(){var v=this._qv.leaf!==undefined?this._qv.leaf:this._qv.obj;
+   if(this._qv.leaf===undefined&&!this._qv.ord.length)return null;return clone(v)};
+ Snap.prototype.exists=function(){return this.val()!==null};
+ Snap.prototype.numChildren=function(){return this._qv.leaf!==undefined?0:this._qv.ord.length};
+ Snap.prototype.forEach=function(fn){var qv=this._qv,self=this;if(qv.leaf!==undefined)return false;
+   for(var i=0;i<qv.ord.length;i++){var k=qv.ord[i];var c=new Snap(self._p+'/'+k,{leaf:clone(qv.obj[k])});
+     if(c._qv.leaf&&typeof c._qv.leaf==='object'){c._qv={obj:c._qv.leaf,ord:Object.keys(c._qv.leaf)}}
+     if(fn(c)===true)return true}return false};
+ function mkSnap(path,q){var node=getAt(path);
+   if(node!==undefined&&(node===null||typeof node!=='object'))return new Snap(path,{leaf:node});
+   var qv=applyQuery(node,q||{});return new Snap(path,qv)}
+ function changed(){if(pend)return;pend=true;RST(function(){pend=false;listeners.slice().forEach(function(L){if(listeners.indexOf(L)>=0)evalL(L,false)})},0)}
+ function evalL(L,first){
+   if(L.path==='.info/connected'||L.path==='.info/serverTimeOffset')return;
+   if(fail.presence&&L.path==='together'&&L.type==='value')return;
+   var node=getAt(L.path);
+   if(L.type==='value'){var s=JSON.stringify([L.q,node===undefined?null:node]);
+     if(first||s!==L.last){L.last=s;L.cb(mkSnap(L.path,L.q))}return}
+   var qv=applyQuery(node,L.q);
+   qv.ord.forEach(function(k){var cs=JSON.stringify(qv.obj[k]);
+     if(!(k in L.seen)){L.seen[k]=cs;if(L.type==='child_added')L.cb(childSnap(L.path,k,qv.obj[k]))}
+     else if(L.seen[k]!==cs){L.seen[k]=cs;if(L.type==='child_changed')L.cb(childSnap(L.path,k,qv.obj[k]))}})}
+ function childSnap(path,k,v){if(v&&typeof v==='object')return new Snap(path+'/'+k,{obj:clone(v),ord:Object.keys(v)});return new Snap(path+'/'+k,{leaf:v})}
+ function write(fn){if(fail.write)return Promise.reject(new Error('PERMISSION_DENIED'));fn();changed();return Promise.resolve()}
+ function Ref(path,q){this.path=path;this.key=split(path).slice(-1)[0]||null;this.q=q||{}}
+ Ref.prototype.child=function(c){return new Ref(this.path+'/'+c)};
+ Ref.prototype.push=function(v){var k='-K'+String(++seq).padStart(6,'0')+Math.random().toString(36).slice(2,5);var r=new Ref(this.path+'/'+k);
+   if(v!==undefined){var pr=r.set(v);r.then=pr.then.bind(pr);r['catch']=pr['catch'].bind(pr)}return r};
+ Ref.prototype.set=function(v){var p=this.path;return write(function(){setAt(p,resolve(clone(v)))})};
+ Ref.prototype.remove=function(){var p=this.path;return write(function(){setAt(p,null)})};
+ Ref.prototype.update=function(o){var p=this.path;return write(function(){for(var k in o){setAt((p?p+'/':'')+k,o[k]==null?null:resolve(clone(o[k])))}})};
+ Ref.prototype.transaction=function(fn){var p=this.path;if(fail.write)return Promise.reject(new Error('PERMISSION_DENIED'));
+   var cur=clone(getAt(p));var nv=fn(cur===undefined?null:cur);if(nv!==undefined)setAt(p,nv);changed();return Promise.resolve({committed:true,snapshot:mkSnap(p)})};
+ Ref.prototype.onDisconnect=function(){var p=this.path;return {remove:function(){disc[p]=true;return Promise.resolve()},cancel:function(){delete disc[p];return Promise.resolve()}}};
+ function qref(r,o){var q={};for(var k in r.q)q[k]=r.q[k];for(var j in o)q[j]=o[j];return new Ref(r.path,q)}
+ Ref.prototype.orderByChild=function(c){return qref(this,{orderBy:'child',child:c})};
+ Ref.prototype.orderByValue=function(){return qref(this,{orderBy:'value'})};
+ Ref.prototype.startAt=function(x){return qref(this,{start:x})};
+ Ref.prototype.endAt=function(x){return qref(this,{end:x})};
+ Ref.prototype.limitToLast=function(n){return qref(this,{limit:n})};
+ Ref.prototype.on=function(type,cb,err){var L={path:this.path,q:this.q,type:type,cb:cb,err:err,last:undefined,seen:{}};listeners.push(L);
+   RST(function(){if(listeners.indexOf(L)<0)return;
+     if(L.path==='.info/connected'){cb(new Snap(L.path,{leaf:connected}));return}
+     if(L.path==='.info/serverTimeOffset'){cb(new Snap(L.path,{leaf:offset}));return}
+     if(fail.presence&&L.path==='together'&&type==='value'){if(err)err(new Error('PERMISSION_DENIED'));return}
+     evalL(L,true)},0);return cb};
+ Ref.prototype.off=function(type,cb){var p=this.path;listeners=listeners.filter(function(L){return !(L.path===p&&(!type||L.type===type)&&(!cb||L.cb===cb))})};
+ Ref.prototype.once=function(type){var self=this;return new Promise(function(res){RST(function(){res(mkSnap(self.path,self.q))},0)})};
+ var DB={ref:function(p){return new Ref(p||'')}};
+ var AUTH={onAuthStateChanged:function(cb){authCbs.push(cb);RST(function(){cb(user)},0);return function(){}},
+   signInWithEmailAndPassword:function(e,p){if(e==='admin@test.cz'&&p==='dobreheslo'){user={uid:'admin1',email:e};authCbs.forEach(function(f){f(user)});return Promise.resolve({user:user})}
+     return Promise.reject(new Error('auth/invalid-credential'))},
+   signOut:function(){user=null;authCbs.forEach(function(f){f(null)});return Promise.resolve()}};
+ var apps=[];
+ var dbfn=function(){return DB};dbfn.ServerValue={TIMESTAMP:{'.sv':'timestamp'}};
+ window.firebase={apps:apps,
+   initializeApp:function(cfg,name){var n=name||'[DEFAULT]';for(var i=0;i<apps.length;i++){if(apps[i].name===n)throw new Error('duplicate app')}
+     var app={name:n,options:cfg,database:function(){return DB}};apps.push(app);return app},
+   database:dbfn,auth:function(){return AUTH}};
+ function infoFire(path,val){listeners.forEach(function(L){if(L.path===path)L.cb(new Snap(path,{leaf:val}))})}
+ window.__fb={
+  get:function(p){var v=getAt(p);return v===undefined?null:clone(v)},
+  set:function(p,v){setAt(p,resolve(clone(v)));changed()},
+  now:now,
+  seed:function(text,o){o=o||{};var k='-K'+String(++seq).padStart(6,'0')+'s';var m={text:text,ts:now()-(o.ageMs||0)};if(o.isAdmin)m.isAdmin=true;setAt('messages/'+k,m);changed();return k},
+  react:function(id,emoji,n){var p='reactions/'+id+'/'+emoji;setAt(p,(getAt(p)||0)+(n||1));changed()},
+  others:function(n,ageMs){for(var i=0;i<n;i++){setAt('together/-O'+String(++seq).padStart(6,'0'),now()-(ageMs||0))}changed()},
+  onlineOthers:function(n){for(var i=0;i<n;i++){setAt('presence/-P'+String(++seq).padStart(6,'0'),true)}changed()},
+  setConnected:function(b){connected=!!b;infoFire('.info/connected',connected)},
+  setOffset:function(ms){offset=ms;infoFire('.info/serverTimeOffset',offset)},
+  denyPresence:function(b){fail.presence=(b!==false);if(fail.presence)listeners.filter(function(L){return L.path==='together'&&L.type==='value'}).forEach(function(L){if(L.err)L.err(new Error('PERMISSION_DENIED'))})},
+  failWrites:function(b){fail.write=(b!==false)},
+  listeners:function(prefix){return listeners.filter(function(L){return L.path.indexOf(prefix)===0}).length},
+  disconnectPaths:function(){return Object.keys(disc)},
+  user:function(){return user}
+ };
+})();
+"""
+
+# Stroj času: posune hodiny stránky (Date.now), případně je zrychlí nebo zafixuje na daný okamžik.
+# Časovače (setTimeout/setInterval) se zrychlují stejně, takže "minuta dýchání" trvá jen pár vteřin.
+TIME_JS = r"""
+(function(){
+ var S=__SPEED__, B=__BASE__, SH=__SHIFT__;
+ var rn=Date.now.bind(Date), p0=performance.now(), t0=rn();
+ var rst=window.setTimeout.bind(window), rsi=window.setInterval.bind(window);
+ Date.now=function(){return (B!==null?B+(performance.now()-p0)*S:t0+(rn()-t0)*S)+SH};
+ if(S!==1){window.setTimeout=function(f,ms){var a=Array.prototype.slice.call(arguments,2);return rst.apply(window,[f,(ms||0)/S].concat(a))};
+  window.setInterval=function(f,ms){var a=Array.prototype.slice.call(arguments,2);return rsi.apply(window,[f,(ms||0)/S].concat(a))}}
+})();
+"""
+
+# pro zkoušku tlačítka POZVAT: bez sdílení z telefonu, schránka se jen zapíše do proměnné
+INVITE_JS = """try{Object.defineProperty(navigator,'share',{value:undefined,configurable:true,writable:true})}catch(e){}
+try{Object.defineProperty(navigator,'clipboard',{value:{writeText:function(t){window.__clip=t;return Promise.resolve()}},configurable:true})}catch(e){}"""
+
+
+def fb_init(offset=0, connected=True, speed=1, base=None, shift=0, extra=""):
+    parts = []
+    if speed != 1 or base is not None or shift:
+        parts.append(TIME_JS.replace("__SPEED__", repr(float(speed))).replace("__BASE__", "null" if base is None else str(int(base)))
+                     .replace("__SHIFT__", str(int(shift))))
+    parts.append(FAKE_FB_JS.replace("__OFFSET__", str(int(offset))).replace("__CONNECTED__", "true" if connected else "false"))
+    parts.append(extra)
+    return "\n".join(parts)
+
+
+def fb_page(s, wait=1300, w=390, h=800, **kw):
+    """Stránka s falešným Firebase. Parametry: offset, connected, speed, base, shift, extra (+ to, co bere Session.page)."""
+    keys = ("offset", "connected", "speed", "base", "shift", "extra")
+    fk = {k: kw.pop(k) for k in keys if k in kw}
+    return s.page(w=w, h=h, init=fb_init(**fk), wait=wait, **kw)
+
+
+def set_lang(p, lang):
+    p.evaluate("(l)=>{if(guideLang!==l)toggleGuideLanguage()}", lang)
+    p.wait_for_timeout(250)
+
+
+def open_chat_input(p):
+    p.evaluate("()=>{const r=document.getElementById('community-input-row');if(!r.classList.contains('visible'))toggleCommunityInput(true)}")
+    p.wait_for_timeout(150)
+
+
+def chat_send(p, text, wait=500):
+    open_chat_input(p)
+    p.evaluate("(t)=>{document.getElementById('community-input').value=t;sendCommunityMessage()}", text)
+    p.wait_for_timeout(wait)
+
+
+def err_visible(p):
+    return p.evaluate("document.getElementById('community-error').classList.contains('visible')")
+
+
+def chat_msgs(p):
+    return p.evaluate("__fb.get('messages')") or {}
+
+
+def t_chat_offline(s, c):
+    """Bez Firebase (jako když je chat nedostupný): nic nepadá a uživatel dostane srozumitelnou hlášku."""
+    ctx, p, errs = s.page()
+    c.ok(p.evaluate("typeof firebase") == "undefined", "Zkouška běží bez Firebase (nedostupný chat)")
+    p.click("#community-toggle-btn")
+    p.wait_for_timeout(250)
+    c.ok(p.evaluate("document.getElementById('community-input-row').classList.contains('visible')"), "Tlačítko 💬 otevře pole pro zprávu")
+    chat_send(p, "Ahoj", wait=250)
+    c.ok(err_visible(p), "Odeslání bez připojení ukáže chybovou hlášku")
+    c.ok(p.evaluate("document.getElementById('community-input').value") == "Ahoj", "Napsaný text zůstane v poli (nepřijde se o něj)")
+    c.ok(p.evaluate("!localStorage.getItem('sl-last-community-msg-ts')"), "Neodeslaná zpráva nespustí hodinový/minutový limit")
+    p.evaluate("toggleCommunityInput(false)")
+    p.evaluate("toggleCommunityHistory(true)")
+    p.wait_for_timeout(300)
+    h = p.evaluate("()=>({vis:document.getElementById('community-history-panel').classList.contains('visible'),txt:document.getElementById('community-history-list').innerText.trim()})")
+    c.ok(h["vis"] and h["txt"], "Historie zpráv se otevře a řekne, že je chat nedostupný (%s)" % h["txt"][:40])
+    p.evaluate("toggleCommunityHistory(false)")
+    p.wait_for_timeout(200)
+    c.ok(not p.evaluate("document.getElementById('community-history-panel').classList.contains('visible')"), "Historie jde zavřít")
+    c.ok(p.evaluate("document.getElementById('online-count-badge').textContent") == "–", "Počet posluchačů ukazuje pomlčku")
+    # skrytý vstup pro admina (666)
+    chat_send(p, "666", wait=250)
+    c.ok(p.evaluate("document.getElementById('community-admin-login-row').classList.contains('visible')"), "„666“ otevře skrytá pole pro admina")
+    c.ok(p.evaluate("document.getElementById('community-input').value") == "", "„666“ se nikdy neodešle jako zpráva")
+    p.evaluate("()=>{document.getElementById('community-admin-email').value='a@b.cz';document.getElementById('community-admin-password').value='x';adminLogin()}")
+    p.wait_for_timeout(250)
+    c.ok(err_visible(p), "Přihlášení admina bez připojení jen ukáže chybu")
+    c.ok(not p.evaluate("!!window.__slIsAdmin"), "Admin se bez připojení nepřihlásí")
+    p.evaluate("cancelAdminLogin()")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_chat(s, c):
+    """Chat: odeslání, limity, zobrazení zprávy, reakce, počet posluchačů."""
+    ctx, p, errs = fb_page(s, extra="__fb.onlineOthers(2);")
+    set_lang(p, "en")
+    c.ok(p.evaluate("document.getElementById('online-count-badge').textContent") == "3", "Počet posluchačů u 💬: já + 2 další = 3")
+    p.evaluate("__fb.onlineOthers(1)")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("document.getElementById('online-count-badge').textContent") == "4", "Když se připojí další posluchač, číslo naskočí na 4")
+    # --- odeslání ---
+    p.click("#community-toggle-btn")
+    p.wait_for_timeout(200)
+    p.fill("#community-input", "Dobrou noc všem")
+    p.press("#community-input", "Enter")
+    p.wait_for_timeout(700)
+    ms = chat_msgs(p)
+    mid = next(iter(ms), None)
+    m = ms.get(mid) or {}
+    c.ok(len(ms) == 1 and m.get("text") == "Dobrou noc všem" and isinstance(m.get("ts"), (int, float)) and "isAdmin" not in m,
+         "Zpráva se uloží (text + čas, bez příznaku admina)")
+    c.ok(p.evaluate("document.getElementById('community-input').value") == "" and
+         not p.evaluate("document.getElementById('community-input-row').classList.contains('visible')"), "Po odeslání se pole vyprázdní a schová")
+    sl = p.evaluate("()=>{const e=document.getElementById('slogan-container');return {t:e.innerText,msg:e.classList.contains('community-msg'),adm:e.classList.contains('community-msg-admin'),vis:e.classList.contains('visible')}}")
+    c.ok(sl["t"] == "Dobrou noc všem" and sl["msg"] and sl["vis"] and not sl["adm"], "Zpráva se zobrazí na hlavní obrazovce místo sloganu")
+    rb = p.evaluate("()=>({vis:document.getElementById('community-reactions').classList.contains('visible'),n:document.querySelectorAll('#community-reactions .reaction-btn').length})")
+    c.ok(rb["vis"] and rb["n"] == 6, "Pod zprávou je 6 tlačítek reakcí")
+    # --- limity ---
+    chat_send(p, "Druhá hned potom")
+    c.ok(err_visible(p) and len(chat_msgs(p)) == 1, "Druhá zpráva do minuty se neodešle (limit 1 zpráva/min)")
+    p.evaluate("()=>{localStorage.removeItem('sl-last-community-msg-ts');document.getElementById('community-error').classList.remove('visible')}")
+    chat_send(p, "x" * 90, wait=700)
+    lens = sorted(len(v.get("text", "")) for v in chat_msgs(p).values())
+    c.ok(len(lens) == 2 and lens[-1] == 60, "Příliš dlouhý text se ořízne na 60 znaků (uloženo %s)" % (lens[-1] if lens else "-"))
+    p.evaluate("()=>{localStorage.removeItem('sl-last-community-msg-ts');document.getElementById('community-error').classList.remove('visible');communityBannedWords.push('zakazane')}")
+    chat_send(p, "tohle je ZAKAZANE slovo", wait=300)
+    c.ok(err_visible(p) and len(chat_msgs(p)) == 2, "Zakázané slovo se neodešle (bez ohledu na velikost písmen)")
+    p.evaluate("()=>{communityBannedWords.length=0;toggleCommunityInput(false)}")
+    p.evaluate("()=>{localStorage.removeItem('sl-last-community-msg-ts');__fb.failWrites(true)}")
+    chat_send(p, "nepůjde to", wait=500)
+    c.ok(err_visible(p) and p.evaluate("!localStorage.getItem('sl-last-community-msg-ts')"), "Když zápis selže, ukáže se chyba a limit se nespustí")
+    p.evaluate("__fb.failWrites(false)")
+    # --- zpráva od někoho jiného + reakce ---
+    oid = p.evaluate("__fb.seed('Pěkný večer')")
+    p.wait_for_timeout(500)
+    sl = p.evaluate("document.getElementById('slogan-container').innerText")
+    c.ok(sl == "Pěkný večer", "Zpráva od jiného posluchače se objeví živě")
+    p.evaluate("document.querySelectorAll('#community-reactions .reaction-btn')[0].click()")
+    p.wait_for_timeout(500)
+    r = p.evaluate("()=>({db:__fb.get('reactions/%s'),cnt:document.querySelector('#community-reactions .reaction-count').innerText,"
+                   "done:document.querySelector('#community-reactions .reaction-btn').classList.contains('reacted'),ls:!!localStorage.getItem('sl-reacted-%s-🔥')})" % (oid, oid))
+    c.ok(r["db"] == {"🔥": 1} and r["cnt"] == "1" and r["done"] and r["ls"], "Kliknutí na 🔥 zapíše reakci a zobrazí číslo 1")
+    p.evaluate("document.querySelectorAll('#community-reactions .reaction-btn')[0].click()")
+    p.wait_for_timeout(400)
+    c.ok(p.evaluate("__fb.get('reactions/%s')" % oid) == {"🔥": 1}, "Stejným emoji jde na jednu zprávu reagovat jen jednou")
+    p.evaluate("__fb.react('%s','❤️')" % oid)
+    p.wait_for_timeout(400)
+    cnts = p.evaluate("Array.from(document.querySelectorAll('#community-reactions .reaction-count')).map(x=>x.innerText).join()")
+    c.ok(cnts.split(",")[:2] == ["1", "1"], "Reakce ostatních se promítnou do čísel hned (%s)" % cnts)
+    # --- zpráva admina + bezpečnost textu ---
+    p.evaluate("__fb.seed('NEWS z webu',{isAdmin:true})")
+    p.wait_for_timeout(400)
+    c.ok(p.evaluate("document.getElementById('slogan-container').classList.contains('community-msg-admin')"), "Zpráva admina je zvýrazněná")
+    p.evaluate("""__fb.seed('<img src=x onerror="window.__xss=1"><b>tučně</b>')""")
+    p.wait_for_timeout(500)
+    x = p.evaluate("()=>({t:document.getElementById('slogan-container').innerText,tags:document.querySelectorAll('#slogan-container img,#slogan-container b').length,xss:!!window.__xss})")
+    c.ok(x["tags"] == 0 and not x["xss"] and "<b>" in x["t"], "Zpráva s HTML kódem se ukáže jako obyčejný text (nic se nespustí)")
+    # --- zpráva zmizí po 10 s ---
+    p.wait_for_timeout(10300)
+    gone = p.evaluate("()=>({vis:document.getElementById('slogan-container').classList.contains('community-msg'),bar:document.getElementById('community-reactions').classList.contains('visible')})")
+    c.ok(not gone["vis"] and not gone["bar"], "Po 10 sekundách zpráva i reakce zmizí a vrátí se slogany")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_chat_history(s, c):
+    """Chat: historie za 24 h, mazání starých zpráv, ADMIN zprávy, oznámení o nové reakci."""
+    seeds = """window.__ids={};
+      __ids.A=__fb.seed('Nedávná zpráva',{ageMs:30*60000});
+      __ids.B=__fb.seed('Stará běžná zpráva',{ageMs:25*3600000});
+      __ids.C=__fb.seed('Zpráva admina před 3 dny',{ageMs:3*86400000,isAdmin:true});
+      __ids.D=__fb.seed('Admin po uplynutí 14 dnů',{ageMs:15*86400000,isAdmin:true});
+      __ids.E=__fb.seed('Skoro 24 hodin stará',{ageMs:24*3600000-120000});
+      __ids.F=__fb.seed('Těsně přes 24 hodin',{ageMs:24*3600000+120000});
+      __fb.react(__ids.A,'❤️');__fb.react(__ids.B,'🔥');__fb.react(__ids.D,'🔥');"""
+    ctx, p, errs = fb_page(s, extra=seeds)
+    set_lang(p, "en")
+    ids = p.evaluate("__ids")
+    left = set(chat_msgs(p).keys())
+    c.ok(left == {ids["A"], ids["C"], ids["E"], ids["F"]},
+         "Po startu se smažou jen zprávy po životnosti (běžná po 24 h, admin po 14 dnech) – zbylo %d z 6" % len(left))
+    c.ok(p.evaluate("__fb.get('reactions/%s')" % ids["B"]) is None and p.evaluate("__fb.get('reactions/%s')" % ids["D"]) is None and
+         p.evaluate("__fb.get('reactions/%s')" % ids["A"]) == {"❤️": 1}, "Smazaným zprávám zmizí i reakce, ostatním zůstanou")
+    c.ok(not p.evaluate("document.getElementById('slogan-container').classList.contains('community-msg')"), "Staré zprávy se po načtení appky znovu nepřehrávají")
+    p.evaluate("toggleCommunityHistory(true)")
+    p.wait_for_timeout(700)
+    items = p.evaluate("""()=>Array.from(document.querySelectorAll('.community-history-item')).map(i=>({t:i.querySelector('.community-history-text').innerText.replace('ADMIN','').trim(),
+      adm:i.classList.contains('is-admin'),badge:!!i.querySelector('.community-history-badge'),time:i.querySelector('.community-history-time').innerText}))""")
+    c.ok([i["t"] for i in items] == ["Nedávná zpráva", "Skoro 24 hodin stará", "Zpráva admina před 3 dny"],
+         "Historie ukáže zprávy z posledních 24 h a admin zprávu, od nejnovější (%d položky)" % len(items))
+    c.ok(len(items) == 3 and items[2]["adm"] and items[2]["badge"] and not items[0]["adm"], "Admin zpráva má v historii štítek ADMIN")
+    c.ok(items and items[0]["time"] == "30m ago", "U zprávy je stáří (%s)" % (items[0]["time"] if items else "-"))
+    c.ok(p.evaluate("__fb.listeners('reactions/')") >= 3, "Dokud je historie otevřená, sleduje reakce u zpráv")
+    cnt = p.evaluate("Array.from(document.querySelectorAll('.community-history-item')[0].querySelectorAll('.reaction-count')).map(x=>x.innerText).join()")
+    c.ok(cnt.split(",")[:2] == ["0", "1"], "Počty reakcí v historii sedí (%s)" % cnt)
+    p.evaluate("document.querySelectorAll('.community-history-item')[0].querySelector('.reaction-btn-sm').click()")
+    p.wait_for_timeout(500)
+    r = p.evaluate("()=>({db:__fb.get('reactions/%s'),done:document.querySelectorAll('.community-history-item')[0].querySelector('.reaction-btn-sm').classList.contains('reacted')})" % ids["A"])
+    c.ok(r["db"] == {"❤️": 1, "🔥": 1} and r["done"], "Z historie jde na zprávu zpětně reagovat")
+    p.click("#community-history-close-btn")
+    p.wait_for_timeout(300)
+    c.ok(not p.evaluate("document.getElementById('community-history-panel').classList.contains('visible')") and p.evaluate("__fb.listeners('reactions/')") == 0,
+         "Po zavření historie se přestanou sledovat reakce")
+    # oznámení o nové reakci (animace) – jen při zapnutých REMINDERS
+    pop = "document.getElementById('history-reaction-toast').classList.contains('pop')"
+    p.evaluate("remindersEnabled=false")
+    p.evaluate("__fb.react('%s','👍')" % ids["A"])
+    p.wait_for_timeout(500)
+    c.ok(not p.evaluate(pop), "S vypnutými REMINDERS se animace nové reakce nespustí")
+    p.evaluate("remindersEnabled=true")
+    p.evaluate("__fb.react('%s','✨')" % ids["A"])
+    p.wait_for_timeout(600)
+    t = p.evaluate("()=>({pop:%s,e:(document.querySelector('#history-reaction-toast .toast-emoji')||{}).textContent,t:(document.querySelector('#history-reaction-toast .toast-text')||{}).textContent})" % pop)
+    c.ok(t["pop"] and t["e"] == "✨" and t["t"] == "Nedávná zpráva", "Reakce někoho jiného se ukáže jako animace s textem zprávy (%s %s)" % (t["e"], t["t"]))
+    p.wait_for_timeout(2500)
+    c.ok(not p.evaluate(pop), "Animace po chvíli zmizí")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_chat_admin(s, c):
+    """Chat: skryté přihlášení admina přes 666 (účet ověřuje Firebase, ne kód v appce)."""
+    ctx, p, errs = fb_page(s)
+    set_lang(p, "en")
+    row = "document.getElementById('community-admin-login-row').classList.contains('visible')"
+    logout = "document.getElementById('admin-logout-btn').classList.contains('visible')"
+    chat_send(p, "666", wait=250)
+    c.ok(p.evaluate(row) and len(chat_msgs(p)) == 0, "„666“ otevře pole pro přihlášení a nic neodešle")
+    p.press("#community-admin-email", "Escape")
+    p.wait_for_timeout(200)
+    c.ok(not p.evaluate(row), "Esc pole pro přihlášení zavře")
+    chat_send(p, "666", wait=250)
+    p.evaluate("()=>{document.getElementById('community-admin-email').value='admin@test.cz';document.getElementById('community-admin-password').value='spatne';adminLogin()}")
+    p.wait_for_timeout(500)
+    c.ok(err_visible(p) and not p.evaluate("!!window.__slIsAdmin") and p.evaluate(row) and p.evaluate("__fb.user()") is None, "Špatné heslo: chyba, nikdo se nepřihlásí")
+    p.evaluate("()=>{document.getElementById('community-admin-password').value='dobreheslo';adminLogin()}")
+    p.wait_for_timeout(500)
+    c.ok(p.evaluate("!!window.__slIsAdmin") and not p.evaluate(row) and p.evaluate(logout), "Správné heslo: admin přihlášen, pole zmizí, objeví se odhlášení 🔓")
+    c.ok(p.evaluate("document.getElementById('community-admin-password').value") == "", "Heslo se po přihlášení z pole smaže")
+    chat_send(p, "Novinka pro všechny", wait=500)
+    chat_send(p, "Ještě jedna novinka", wait=500)
+    ms = list(chat_msgs(p).values())
+    c.ok(len(ms) == 2 and all(m.get("isAdmin") is True for m in ms), "Admin může poslat víc zpráv po sobě (bez limitu) a jsou označené jako admin")
+    c.ok(p.evaluate("document.getElementById('slogan-container').classList.contains('community-msg-admin')"), "Admin zpráva se ukáže zvýrazněně")
+    p.click("#admin-logout-btn")
+    p.wait_for_timeout(400)
+    c.ok(not p.evaluate("!!window.__slIsAdmin") and not p.evaluate(logout) and p.evaluate("__fb.user()") is None, "Odhlášení vrátí běžný režim")
+    p.evaluate("localStorage.removeItem('sl-last-community-msg-ts')")
+    chat_send(p, "Zase obyčejná zpráva", wait=500)
+    n_adm = sum(1 for m in chat_msgs(p).values() if m.get("isAdmin"))
+    chat_send(p, "A hned další", wait=300)
+    c.ok(len(chat_msgs(p)) == 3 and n_adm == 2 and err_visible(p), "Po odhlášení je zpráva zase obyčejná a platí limit 1 zpráva/min")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+# --------------------------------------------------------------------------- #
+#  Společné dýchání (TOGETHER)
+# --------------------------------------------------------------------------- #
+from datetime import datetime, timezone, timedelta
+
+TG = {  # anglické texty místnosti (test si jazyk přepne na EN)
+    "wait": "Join on the next inhale", "in": "Inhale through the nose", "hold": "Hold your breath", "out": "Exhale through the mouth",
+    "title": "BREATHE TOGETHER", "many": "Breathing together right now: ", "alone": "You're the only one here", "offline": "Offline", "connecting": "Connecting",
+}
+TG_STATE_JS = """()=>{const g=id=>document.getElementById(id);const o=g('together-orb').style.transform.match(/scale\\(([\\d.]+)\\)/);
+  const ov=g('together-overlay');
+  return {open:document.body.classList.contains('together-active'),shown:getComputedStyle(ov).display!=='none',
+    count:g('together-count-text').textContent,phase:g('together-phase').textContent,cd:g('together-countdown').textContent,
+    type:g('together-arrow').getAttribute('data-type'),scale:o?+o[1]:null,sw:g('together-stopwatch').textContent,
+    dots:document.querySelectorAll('#together-dots .together-dot').length,me:document.querySelectorAll('#together-dots .together-dot.me').length,
+    evening:g('together-evening-text').textContent,banner:g('together-evening-banner').hidden?'':g('together-evening-banner').textContent,
+    breathing:document.body.classList.contains('breathing-active')}}"""
+
+
+def tg_state(p):
+    return p.evaluate(TG_STATE_JS)
+
+
+def prague_ms(y, mo, d, h, mi, sec, summer=False):
+    tz = timezone(timedelta(hours=2 if summer else 1))
+    return int(datetime(y, mo, d, h, mi, sec, tzinfo=tz).timestamp() * 1000)
+
+
+def tg_open(p, lang="en", wait=500):
+    """Otevře BREATHE a v něm místnost společného dýchání (tlačítkem TOGETHER, jako uživatel)."""
+    set_lang(p, lang)
+    p.evaluate("startBreathing()")
+    p.wait_for_timeout(1300)
+    p.click("#breath-together-btn")
+    p.wait_for_timeout(wait)
+
+
+def tg_set_cycle(p, ms_in_cycle):
+    """Posune hodiny serveru tak, aby byl rytmus právě v daném místě 19s cyklu."""
+    p.evaluate("(t)=>__fb.setOffset(t-(Date.now()%19000))", ms_in_cycle)
+
+
+def t_together_offline(s, c):
+    """Společné dýchání bez Firebase: místnost se otevře, rytmus běží podle hodin, nic nepadá."""
+    ctx, p, errs = s.page()
+    set_lang(p, "en")
+    p.evaluate("startBreathing()")
+    p.wait_for_timeout(1200)
+    c.ok(p.evaluate("typeof firebase") == "undefined", "Zkouška běží bez Firebase")
+    c.ok(p.evaluate("document.getElementById('breath-together-count').hidden"), "Na tlačítku TOGETHER není žádný počet lidí")
+    p.click("#breath-together-btn")
+    p.wait_for_timeout(700)
+    st = tg_state(p)
+    c.ok(st["open"] and st["shown"], "Místnost se otevře i bez připojení")
+    c.ok(st["count"].startswith(TG["offline"]), "Nahoře stojí, že je bez připojení (%s)" % st["count"][:30])
+    c.ok(st["phase"] == TG["wait"] and st["cd"].isdigit() and 1 <= int(st["cd"]) <= 19, "Čeká se na další celý nádech (zbývá %s s)" % st["cd"])
+    ok = 0
+    n = 0
+    for _ in range(6):
+        v = p.evaluate("()=>({t:Date.now()%19000,type:document.getElementById('together-arrow').getAttribute('data-type')})")
+        t = v["t"]
+        if min(abs(t - 4000), abs(t - 11000), t, 19000 - t) < 350:
+            p.wait_for_timeout(400)
+            continue
+        n += 1
+        ok += v["type"] == ("in" if t < 4000 else ("hold" if t < 11000 else "out"))
+        p.wait_for_timeout(700)
+    c.ok(n >= 3 and ok == n, "Rytmus 4-7-8 běží podle místních hodin (nádech 4 s, zádrž 7 s, výdech 8 s)")
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(400)
+    st = tg_state(p)
+    c.ok(not st["open"] and st["breathing"], "Esc zavře jen místnost, dechové cvičení pod ní zůstane")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_together(s, c):
+    """Společné dýchání: počet lidí, tečky, odchod, odpojení, skrytá karta, chyby připojení."""
+    ctx, p, errs = fb_page(s, extra="__fb.others(3);")
+    set_lang(p, "en")
+    p.evaluate("startBreathing()")
+    p.wait_for_timeout(1500)
+    entry = p.evaluate("()=>({hidden:document.getElementById('breath-together-count').hidden,txt:document.querySelector('#breath-together-count .tg-entry-count-text').textContent})")
+    c.ok(not entry["hidden"] and entry["txt"] == "3 now", "Na tlačítku TOGETHER je vidět, kolik lidí právě dýchá (%s)" % entry["txt"])
+    p.click("#breath-together-btn")
+    p.wait_for_timeout(800)
+    st = tg_state(p)
+    c.ok(st["open"] and st["shown"], "Tlačítko TOGETHER otevře místnost")
+    c.ok(p.evaluate("breathingPaused"), "Rozběhnuté dechové cvičení se při tom pozastaví")
+    c.ok(st["count"] == TG["many"] + "4", "Ukazuje počet lidí včetně mě: %s" % st["count"])
+    c.ok(st["dots"] == 4 and st["me"] == 1, "Na kruhu je 4 teček a jedna je moje")
+    c.ok(len([k for k in (p.evaluate("__fb.get('together')") or {})]) == 4 and any(x.startswith("together/") for x in p.evaluate("__fb.disconnectPaths()")),
+         "Zapíšu se do místnosti a mám nastavený úklid při výpadku spojení")
+    p.evaluate("__fb.others(2)")
+    p.wait_for_timeout(400)
+    c.ok(tg_state(p)["count"] == TG["many"] + "6", "Když se připojí dva další, číslo naskočí na 6")
+    p.evaluate("__fb.others(2, 4*3600*1000);__fb.others(1, 7*3600*1000)")
+    p.wait_for_timeout(500)
+    c.ok(tg_state(p)["count"] == TG["many"] + "6", "Záznamy starší než 3 hodiny se nepočítají")
+    c.ok(len(p.evaluate("__fb.get('together')")) == 8, "Zapomenuté záznamy starší než 6 hodin se samy uklidí")
+    # schovaná karta / zhasnutý displej
+    hide = "()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>%s});document.dispatchEvent(new Event('visibilitychange'))}"
+    p.evaluate(hide % "true")
+    p.wait_for_timeout(400)
+    c.ok(tg_state(p)["count"] == TG["many"] + "5", "Když mám stránku schovanou, nepočítám se mezi dýchající")
+    p.evaluate(hide % "false")
+    p.wait_for_timeout(500)
+    c.ok(tg_state(p)["count"] == TG["many"] + "6", "Po návratu na stránku se zase počítám")
+    p.click("#together-close-btn")
+    p.wait_for_timeout(500)
+    st = tg_state(p)
+    c.ok(not st["open"] and st["breathing"], "✖ zavře místnost, dechové cvičení zůstane otevřené")
+    c.ok(len(p.evaluate("__fb.get('together')")) == 7 and p.evaluate("__fb.listeners('together')") == 0,
+         "Po odchodu zmizím z místnosti a přestanu sledovat ostatní")
+    # přístup odepřen
+    p.click("#breath-together-btn")
+    p.wait_for_timeout(500)
+    p.evaluate("__fb.denyPresence()")
+    p.wait_for_timeout(400)
+    c.ok(tg_state(p)["count"].startswith(TG["offline"]), "Když databáze počet nepustí, ukáže se „bez připojení“ a rytmus běží dál")
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(300)
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+    # ztráta spojení
+    ctx.close()
+    ctx, p, errs = fb_page(s, connected=False)
+    tg_open(p)
+    c.ok(tg_state(p)["count"].startswith(TG["connecting"]), "Při navazování spojení se ukáže „Connecting…“")
+    p.wait_for_timeout(6800)
+    c.ok(tg_state(p)["count"].startswith(TG["offline"]), "Když se spojení nepodaří déle než pár vteřin, ukáže se „bez připojení“")
+    p.evaluate("__fb.setConnected(true)")
+    p.wait_for_timeout(1500)
+    c.ok(tg_state(p)["count"].startswith(TG["alone"]), "Po obnovení spojení se text sám vrátí (%s)" % tg_state(p)["count"][:30])
+    c.ok(not errs, "Bez chyby ve stránce (výpadek spojení)" + (": " + errs[0] if errs else ""))
+
+
+def t_together_sync(s, c):
+    """Společné dýchání: všichni dýchají ve stejnou vteřinu podle času serveru, i když mají špatně hodiny."""
+    ctx, p, errs = fb_page(s)
+    tg_set_cycle(p, 0)  # hodiny serveru zatím neřešíme, jen aby byly "známé"
+    set_lang(p, "en")
+    p.evaluate("startBreathing()")
+    p.wait_for_timeout(1000)
+    tg_set_cycle(p, 14000)
+    p.wait_for_timeout(100)
+    p.evaluate("openTogether()")
+    p.wait_for_timeout(500)
+    st = tg_state(p)
+    c.ok(st["phase"] == TG["wait"] and st["cd"].isdigit() and 3 <= int(st["cd"]) <= 5,
+         "Uprostřed výdechu ostatních se čeká na další celý nádech (zbývá %s s)" % st["cd"])
+    p.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=9000)
+    st = tg_state(p)
+    c.ok(st["phase"] == TG["in"] and st["type"] == "in", "S dalším nádechem naskočím do rytmu ostatních (%s)" % st["phase"])
+    p.wait_for_timeout(2300)
+    c.ok(tg_state(p)["sw"] in ("00:02", "00:03"), "Stopky počítají, jak dlouho dýchám (%s)" % tg_state(p)["sw"])
+    for target, kind, label in ((2000, "in", TG["in"]), (7000, "hold", TG["hold"]), (14500, "out", TG["out"])):
+        tg_set_cycle(p, target)
+        p.wait_for_timeout(350)
+        st = tg_state(p)
+        ok_scale = (0.7 < st["scale"] < 1.06) if kind == "in" else ((st["scale"] > 1.1) if kind == "hold" else (0.64 < st["scale"] < 1.1))
+        c.ok(st["type"] == kind and st["phase"] == label and ok_scale,
+             "V %.1f s cyklu serveru je %s (koule %.2f×, %s)" % (target / 1000.0, kind, st["scale"] or 0, label))
+    ctx.close()
+    # tři posluchači s různě špatnými hodinami v telefonu, server má čas správný
+    pages = []
+    for shift in (0, 7300, -4100):
+        cx, pg, er = fb_page(s, shift=shift, offset=-shift, extra="__fb.others(1);")
+        set_lang(pg, "en")
+        pg.evaluate("startBreathing()")
+        pg.wait_for_timeout(900)
+        pg.evaluate("openTogether()")
+        pages.append((pg, er, shift))
+    for pg, _, _ in pages:  # počkat, až naskočí do rytmu (nejdéle jeden celý cyklus 19 s)
+        pg.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=22000)
+    pages[0][0].wait_for_timeout(500)
+    same_type = 0
+    worst = 0.0
+    cd_ok = 0
+    rounds = 5
+    for _ in range(rounds):
+        sts = [tg_state(pg) for pg, _, _ in pages]
+        same_type += len({x["type"] for x in sts}) == 1
+        worst = max(worst, max(x["scale"] for x in sts) - min(x["scale"] for x in sts))
+        cds = [int(x["cd"]) for x in sts if x["cd"].isdigit()]
+        cd_ok += bool(cds) and max(cds) - min(cds) <= 1
+        pages[0][0].wait_for_timeout(1700)
+    c.ok(same_type >= rounds - 1, "Tři zařízení s hodinami posunutými o +7,3 s a −4,1 s mají vždy stejnou fázi (%d z %d měření)" % (same_type, rounds))
+    c.ok(worst < 0.05, "Koule se u všech tří hýbe současně (největší rozdíl %.3f)" % worst)
+    c.ok(cd_ok >= rounds - 1, "Odpočet vteřin je u všech stejný (±1 s)")
+    c.ok(all(not er for _, er, _ in pages), "Bez chyby ve stránce (3 zařízení)")
+
+
+def t_together_extras(s, c):
+    """Společné dýchání: srdíčka, VIBE, tvar, POZVAT, kalendář (.ics), jazyk, odkaz #together, Esc."""
+    ctx, p, errs = fb_page(s, extra=INVITE_JS + "__fb.others(2);", wait=1300)
+    tg_open(p, "en", wait=700)
+    p.wait_for_timeout(600)
+    # srdíčka
+    p.click("#together-heart-btn")
+    p.wait_for_timeout(500)
+    h = p.evaluate("()=>({n:document.querySelectorAll('#together-hearts .together-heart').length,db:__fb.get('togetherHearts/count'),"
+                   "on:document.getElementById('together-heart-btn').classList.contains('tg-alt')})")
+    c.ok(h["n"] == 1 and h["db"] == 1 and h["on"], "POSLAT KLID: vznikne srdíčko, počet se zvýší o 1 a tlačítko ukáže „poslané“")
+    p.click("#together-heart-btn")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("__fb.get('togetherHearts/count')") == 1, "Dvakrát za sebou to nejde (pauza 3 s)")
+    p.evaluate("__fb.set('togetherHearts/count', 4)")
+    mx = 0
+    for _ in range(8):
+        p.wait_for_timeout(300)
+        mx = max(mx, p.evaluate("document.querySelectorAll('#together-hearts .together-heart').length"))
+    c.ok(mx >= 3, "Srdíčka od ostatních se ukážou (naráz až %d)" % mx)
+    p.wait_for_timeout(1000)
+    p.click("#together-heart-btn")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("__fb.get('togetherHearts/count')") == 5, "Po pauze jde poslat další srdíčko")
+    # VIBE a tvar
+    v0 = p.evaluate("vibrationEnabled")
+    p.click("#together-vibe-btn")
+    p.wait_for_timeout(200)
+    v1 = p.evaluate("vibrationEnabled")
+    p.click("#together-vibe-btn")
+    p.wait_for_timeout(200)
+    c.ok(v0 != v1 and p.evaluate("vibrationEnabled") == v0, "VIBE se přepíná zapnuto/vypnuto")
+    sh0 = p.evaluate("document.body.classList.contains('shape-mandala')")
+    p.click("#together-shape-btn")
+    p.wait_for_timeout(250)
+    sh1 = p.evaluate("document.body.classList.contains('shape-mandala')")
+    p.click("#together-shape-btn")
+    p.wait_for_timeout(250)
+    c.ok(sh0 != sh1 and p.evaluate("document.body.classList.contains('shape-mandala')") == sh0, "Tvar uprostřed jde přepnout z koule na mandalu a zpět")
+    # POZVAT
+    p.click("#together-invite-btn")
+    p.wait_for_timeout(400)
+    clip = p.evaluate("window.__clip||''")
+    c.ok("https://synthlucida.com/player.html#together" in clip and p.evaluate("document.getElementById('together-invite-btn').classList.contains('tg-alt')"),
+         "POZVAT bez sdílení v telefonu zkopíruje odkaz a tlačítko ukáže „zkopírováno“")
+    p.evaluate("navigator.share=function(d){window.__shared=d;return Promise.resolve()}")
+    p.click("#together-invite-btn")
+    p.wait_for_timeout(300)
+    sh = p.evaluate("window.__shared||null")
+    c.ok(sh and sh.get("url") == "https://synthlucida.com/player.html#together" and sh.get("title") and sh.get("text"), "S podporou sdílení se otevře sdílení s odkazem na místnost")
+    # připomínka do kalendáře
+    with p.expect_download() as dl:
+        p.click(".together-link-btn")
+    d = dl.value
+    ics = open(d.path(), encoding="utf-8", newline="").read()
+    c.ok(d.suggested_filename == "breathe-together.ics", "Stáhne se soubor do kalendáře (%s)" % d.suggested_filename)
+    c.ok(all(x in ics for x in ("BEGIN:VCALENDAR", "BEGIN:VEVENT", "RRULE:FREQ=DAILY", "DURATION:PT10M", "BEGIN:VALARM", "TRIGGER:-PT5M", "END:VCALENDAR")) and
+         re.search(r"DTSTART;TZID=Europe/Prague:\d{8}T210000", ics), "V kalendáři je denní událost ve 21:00 pražského času na 10 minut s upozorněním 5 minut předem")
+    c.ok("\r\n" in ics and "URL:https://synthlucida.com/player.html#together" in ics, "Soubor má správné konce řádků a odkaz zpět do playeru")
+    # jazyk
+    p.evaluate("toggleGuideLanguage()")
+    p.wait_for_timeout(500)
+    cz = p.evaluate("()=>({title:document.getElementById('together-title').textContent,heart:document.querySelector('#together-heart-btn .tg-lbl-a').textContent,"
+                    "count:document.getElementById('together-count-text').textContent,entry:document.querySelector('#breath-together-btn [data-tg=entryBtn]').textContent})")
+    c.ok(cz["title"] == "SPOLEČNÉ DÝCHÁNÍ" and "POSLAT KLID" in cz["heart"] and cz["entry"] == "SPOLEČNĚ" and "dýchá" in cz["count"],
+         "Po přepnutí do češtiny se přeloží celá místnost (%s)" % cz["title"])
+    with p.expect_download() as dl:
+        p.click(".together-link-btn")
+    c.ok(dl.value.suggested_filename == "spolecne-dychani.ics", "Česká připomínka má český název souboru")
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(400)
+    st = tg_state(p)
+    c.ok(not st["open"] and st["breathing"], "Esc zavře jen místnost")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+    ctx.close()
+    # odkaz #together otevře místnost rovnou
+    ctx, p, errs = fb_page(s, extra="try{location.hash='together'}catch(e){}", wait=2200)
+    st = tg_state(p)
+    c.ok(st["open"] and st["breathing"], "Odkaz s #together (pozvánka, kalendář) otevře místnost rovnou")
+    c.ok(not errs, "Bez chyby ve stránce (odkaz #together)" + (": " + errs[0] if errs else ""))
+
+
+def t_together_evening(s, c):
+    """Společné dýchání: večerní sezení ve 21:00 pražského času (i při letním/zimním času a v jiném časovém pásmu)."""
+    def case(base, tz="Europe/Prague"):
+        cx, pg, er = fb_page(s, base=base, timezone_id=tz, wait=900)
+        set_lang(pg, "en")
+        pg.evaluate("startBreathing()")
+        pg.wait_for_timeout(1300)
+        live_btn = pg.evaluate("document.getElementById('breath-together-btn').classList.contains('live')")
+        pg.click("#breath-together-btn")
+        pg.wait_for_timeout(700)
+        st = tg_state(pg)
+        st["live_btn"] = live_btn
+        st["errs"] = er
+        return cx, pg, st
+    cx, pg, st = case(prague_ms(2026, 12, 15, 12, 0, 0))
+    c.ok(st["banner"] == "" and not st["live_btn"] and re.match(r"Evening group session today at 21:00 · in (9 h|8 h 59 min)", st["evening"]),
+         "Ve 12:00: „večerní sezení dnes ve 21:00 za 9 h“ (%s)" % st["evening"])
+    c.ok(not st["errs"], "Bez chyby ve stránce (12:00)")
+    cx.close()
+    cx, pg, st = case(prague_ms(2026, 12, 15, 21, 3, 30))
+    c.ok(re.match(r"EVENING SESSION LIVE · [56]:\d\d left", st["banner"]) and st["live_btn"] and st["evening"] == "",
+         "Ve 21:03:30 běží sezení: nahoře pruh se zbývajícím časem, tlačítko TOGETHER svítí (%s)" % st["banner"])
+    cx.close()
+    cx, pg, st = case(prague_ms(2026, 12, 15, 21, 10, 30))
+    c.ok(st["banner"] == "" and not st["live_btn"] and "tomorrow at 21:00" in st["evening"], "Po 21:10 sezení skončí a nabídne se zítřek (%s)" % st["evening"][:45])
+    with pg.expect_download() as dl:
+        pg.click(".together-link-btn")
+    ics = open(dl.value.path(), encoding="utf-8").read()
+    c.ok("DTSTART;TZID=Europe/Prague:20261216T210000" in ics, "Připomínka do kalendáře začíná od zítřka (16. 12.) ve 21:00")
+    cx.close()
+    cx, pg, st = case(prague_ms(2026, 7, 15, 21, 5, 0, summer=True))
+    c.ok(st["banner"].startswith("EVENING SESSION LIVE") and st["live_btn"], "V létě (21:05 letního času) sezení také běží – posun času se počítá správně")
+    cx.close()
+    cx, pg, st = case(prague_ms(2026, 7, 15, 20, 59, 20, summer=True))
+    c.ok(st["banner"] == "" and re.match(r"Evening group session today at 21:00 · in 1 min", st["evening"]), "V 20:59 je do sezení 1 minuta (%s)" % st["evening"])
+    cx.close()
+    cx, pg, st = case(prague_ms(2026, 12, 15, 12, 0, 0), tz="America/New_York")
+    c.ok("Prague time (" in st["evening"] and "your time)" in st["evening"], "V jiném časovém pásmu text říká i čas u uživatele (%s)" % st["evening"][:70])
+    cx.close()
+
+
+def t_together_stats(s, c):
+    """Společné dýchání: stopky, denní statistika (lidé, minuty) a započtení do XP / progresu. Čas je zrychlený."""
+    ctx, p, errs = fb_page(s, speed=8, extra="__fb.others(1);")
+    set_lang(p, "en")
+    p.evaluate("startBreathing()")
+    p.wait_for_timeout(500)
+    before = p.evaluate("stats.breathingSessions||0")
+    p.evaluate("openTogether()")
+    p.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=8000)
+    sw = "()=>document.getElementById('together-stopwatch').textContent"
+    p.wait_for_function("()=>document.getElementById('together-stopwatch').textContent>='00:31'", timeout=15000)
+    day = p.evaluate("Object.keys(__fb.get('togetherStats')||{})[0]")
+    st = p.evaluate("__fb.get('togetherStats/%s')" % day) if day else None
+    c.ok(st and st.get("people") == 1 and re.match(r"\d{4}-\d\d-\d\d$", day or ""), "Po 30 s dýchání se počítám do dnešní statistiky lidí (%s)" % st)
+    c.ok(p.evaluate("localStorage.getItem('synthlucida_together_counted')") == day, "Dnešní započtení si zařízení pamatuje")
+    p.wait_for_function("()=>document.getElementById('together-stopwatch').textContent>='01:02'", timeout=15000)
+    st = p.evaluate("__fb.get('togetherStats/%s')" % day)
+    c.ok(st.get("minutes", 0) >= 1 and st.get("people") == 1, "Každá celá minuta se přičte do společných minut (%s)" % st.get("minutes"))
+    c.ok(re.match(r"People today: 1 · minutes together: \d+", p.evaluate("document.getElementById('together-today-text').textContent")),
+         "V místnosti je vidět „dnes tu dýchalo lidí / společných minut“")
+    p.click("#together-close-btn")
+    p.wait_for_timeout(600)
+    after = p.evaluate("stats.breathingSessions||0")
+    c.ok(after == before + 1, "Minutové společné dýchání se započítá do statistik a XP (%d → %d)" % (before, after))
+    p.click("#breath-together-btn")
+    p.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=8000)
+    p.wait_for_function("()=>document.getElementById('together-stopwatch').textContent>='00:33'", timeout=15000)
+    c.ok(p.evaluate("__fb.get('togetherStats/%s')" % day).get("people") == 1, "Ve stejný den se jeden člověk nepočítá dvakrát")
+    p.click("#together-close-btn")
+    p.wait_for_timeout(500)
+    c.ok(p.evaluate("stats.breathingSessions||0") == after, "Krátké sezení (pod minutu) se do XP nepočítá")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
 def _probe(url, timeout=20):
     """True = soubor je na serveru, False = server řekl, že tam není (404/410), None = nepodařilo se zjistit."""
     import urllib.request
@@ -1856,19 +2569,15 @@ def t_online(s, c):
         res = list(ex.map(lambda j: (j[0], j[1], _probe(j[2])), jobs))
     for where in ("GitHub", "R2") if r2 else ("GitHub",):
         mine = [r for r in res if r[0] == where]
-        missing = [u.rsplit("/", 1)[-1] for w, u, ok in mine if ok is False]
-        unknown = [u for w, u, ok in mine if ok is None]
-        if len(unknown) == len(mine):
+        found = sum(1 for w, u, ok in mine if ok is True)
+        gone = sum(1 for w, u, ok in mine if ok is False)
+        unknown = sum(1 for w, u, ok in mine if ok is None)
+        if unknown == len(mine):
             c.ok(True, "%s: nepodařilo se ověřit (není internet?) – kontrola přeskočena" % where)
             continue
-        if missing:
-            n = len(missing)
-            word = "skladba CHYBÍ" if n == 1 else ("skladby CHYBÍ" if 2 <= n <= 4 else "skladeb CHYBÍ")
-            # jen upozornění: chybějící skladba se ukáže v seznamu, ale test kvůli ní neselže
-            c.ok(True, "UPOZORNĚNÍ – %s: na serveru %d %s (nebo má jinak napsaný název): %s – test to nepočítá jako chybu" % (where, n, word, ", ".join(missing[:8])))
-        else:
-            c.ok(True, "%s: všech %d skladeb je opravdu na serveru" % (where, len(mine) - len(unknown)) +
-                 (" (%d se nepodařilo ověřit)" % len(unknown) if unknown else ""))
+        # jen informace, test kvůli chybějící skladbě nikdy neselže
+        c.ok(True, "%s: online – na serveru je teď %d skladeb (v playeru jich je %d)" % (where, found, len(mine)) +
+             (", %d na serveru není" % gone if gone else "") + (", %d se nepodařilo ověřit" % unknown if unknown else ""))
     if not r2:
         c.ok(False, "V sw.js jsem nenašel adresu zálohy R2")
 
@@ -1912,6 +2621,16 @@ TESTS = [
     ("Uložené nastavení", t_settings),
     ("Témata, dýchání, binaurální tóny, historie, hledání", t_extras),
     ("Ovládání ze zamčené obrazovky", t_media_session),
+    ("Chat bez připojení (Firebase nedostupný)", t_chat_offline),
+    ("Chat – odeslání zprávy, limity, zobrazení, reakce", t_chat),
+    ("Chat – historie, mazání starých zpráv, upozornění na reakce", t_chat_history),
+    ("Chat – přihlášení admina (666)", t_chat_admin),
+    ("Společné dýchání bez připojení", t_together_offline),
+    ("Společné dýchání – místnost, počet lidí, odchod", t_together),
+    ("Společné dýchání – jeden rytmus pro všechny", t_together_sync),
+    ("Společné dýchání – srdíčka, pozvánka, připomínka, jazyk", t_together_extras),
+    ("Společné dýchání – večerní sezení ve 21:00", t_together_evening),
+    ("Společné dýchání – statistiky a XP", t_together_stats),
     ("Skladby jsou opravdu na GitHubu a R2 (online)", t_online),
 ]
 
