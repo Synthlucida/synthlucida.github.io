@@ -2095,7 +2095,9 @@
   }
 
   function placeKey(place){
-    return place.name + "|" + Math.round(place.latitude*100) + "|" + Math.round(place.longitude*100);
+    // poloha uložená v EN verzi ("Your location") je stejné místo jako "Vaše poloha" v CZ verzi
+    var nm = (place.isGeo || place.name === "Vaše poloha" || place.name === "Your location") ? "@geo" : place.name;
+    return nm + "|" + Math.round(place.latitude*100) + "|" + Math.round(place.longitude*100);
   }
 
   function isFavorite(place){
@@ -2676,9 +2678,15 @@
     var graphCount = Math.min(24, data.hourly.time.length - nowIdx);
     var graphTemps = data.hourly.temperature_2m.slice(nowIdx, nowIdx + graphCount);
     var graphTimes = data.hourly.time.slice(nowIdx, nowIdx + graphCount);
+    // chybějící hodnoty (null) na konci dat by graf vykreslil jako 0° – graf radši utneme před nimi
+    for(var gi = 0; gi < graphTemps.length; gi++){
+      if(typeof graphTemps[gi] !== "number" || !isFinite(graphTemps[gi])){
+        graphTemps = graphTemps.slice(0, gi); graphTimes = graphTimes.slice(0, gi); graphCount = gi; break;
+      }
+    }
     var gMin = Math.min.apply(null, graphTemps);
     var gMax = Math.max.apply(null, graphTemps);
-    html += '<div class="hg-caption"><span>Teplota na dalších '+graphCount+' h</span><span class="hg-range">'+icon("trendDown")+Math.round(gMin)+'° &nbsp;·&nbsp; '+icon("trendUp")+Math.round(gMax)+'°</span></div>';
+    if(graphCount >= 2) html += '<div class="hg-caption"><span>Teplota na dalších '+graphCount+' h</span><span class="hg-range">'+icon("trendDown")+Math.round(gMin)+'° &nbsp;·&nbsp; '+icon("trendUp")+Math.round(gMax)+'°</span></div>';
     html += '<div class="hourly-graph-wrap">'+buildHourlyGraphSvg(graphTemps, graphTimes)+'</div>';
     html += '<div class="hourly">';
     for(var i=nowIdx; i<Math.min(nowIdx+24, data.hourly.time.length); i++){
@@ -2687,7 +2695,8 @@
       html += '<div class="hour'+(isNow?" now":"")+'">';
       html += '<div class="hour-time">'+(isNow?"Nyní":fmtHour(data.hourly.time[i]))+'</div>';
       html += icon(hi.icon);
-      html += '<div class="hour-temp">'+Math.round(data.hourly.temperature_2m[i])+'°</div>';
+      var hTemp = data.hourly.temperature_2m[i];
+      html += '<div class="hour-temp">'+(typeof hTemp === "number" && isFinite(hTemp) ? Math.round(hTemp)+'°' : '–')+'</div>';
       var hProb = data.hourly.precipitation_probability ? data.hourly.precipitation_probability[i] : null;
       if(hProb != null && hProb >= 15){
         html += '<div class="hour-precip">'+icon("drop")+'<span>'+Math.round(hProb)+'%</span></div>';
@@ -2731,6 +2740,13 @@
     }
     html += '</div>';
 
+    // při automatické obnově (každých 15 min) nechceme uživateli zavřít rozbalené dny ani odscrollovat hodinovou lištu
+    var keepOpenDays = [], keepHourlyScroll = 0;
+    var oldOpen = els.content.querySelectorAll('.day[aria-expanded="true"]');
+    for(var ko=0; ko<oldOpen.length; ko++) keepOpenDays.push(oldOpen[ko].getAttribute("data-day-idx"));
+    var oldHourly = els.content.querySelector(".hourly");
+    if(oldHourly) keepHourlyScroll = oldHourly.scrollLeft;
+
     els.content.innerHTML = html;
 
     var dayBtns = els.content.querySelectorAll(".day");
@@ -2744,6 +2760,13 @@
         this.setAttribute("aria-expanded", willOpen ? "true" : "false");
       });
     }
+
+    for(var ro=0; ro<keepOpenDays.length; ro++){
+      var reopenBtn = els.content.querySelector('.day[data-day-idx="'+keepOpenDays[ro]+'"]');
+      if(reopenBtn) reopenBtn.click();
+    }
+    var newHourly = els.content.querySelector(".hourly");
+    if(newHourly && keepHourlyScroll) newHourly.scrollLeft = keepHourlyScroll;
 
     setupDayCondMarquees();
     setupHourlyGraphRepaintFix();
@@ -2841,6 +2864,8 @@
     if(n < 2) return "";
     var minT = Math.min.apply(null, temps);
     var maxT = Math.max.apply(null, temps);
+    // indexy extrémů hledáme PŘED roztažením rozsahu – jinak by u úplně stejných teplot vyšlo -1 a graf spadl
+    var minIdx = temps.indexOf(minT), maxIdx = temps.indexOf(maxT);
     if(minT === maxT){ minT -= 1; maxT += 1; }
     // coordinate space is 0-100 on both axes so point positions double as
     // CSS percentages for the HTML value/hour labels overlaid on the SVG.
@@ -2856,7 +2881,6 @@
     var areaPath = linePath + " L" + pts[n-1][0].toFixed(2) + "," + (100-padBottom) +
                    " L" + pts[0][0].toFixed(2) + "," + (100-padBottom) + " Z";
 
-    var minIdx = temps.indexOf(minT), maxIdx = temps.indexOf(maxT);
     // Kandidáti na popisky podle priority: nyní, extrémy, konec, pak každá 4. hodina.
     // Popisky, které by se překrývaly se sousedním (méně než 3 hodiny od sebe), vynecháme.
     var order = [0, minIdx, maxIdx, n-1];
