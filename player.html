@@ -1123,7 +1123,15 @@
     color: var(--accent-color); border-color: var(--accent-color); background: color-mix(in srgb, var(--accent-color) 14%, transparent);
     box-shadow: 0 0 calc(10px * var(--gb)) color-mix(in srgb, color-mix(in srgb, var(--accent-color) 30%, transparent) var(--glow-pct), transparent);
   }
-  #plfind-panel .search-results .search-queue { padding-left: 0; font-size: 14px; font-weight: 700; font-family: Arial, sans-serif; flex: 0 0 auto; }
+  #plfind-panel .search-results .search-queue {
+    width: 32px; height: 32px; border-radius: 50%; margin-left: 0; opacity: 1; padding: 0;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.18);
+    font-size: 14px; font-weight: 700; font-family: Arial, sans-serif; flex: 0 0 auto;
+  }
+  #plfind-panel .search-results .search-queue:not(.in-queue):hover, #plfind-panel .search-results .search-queue:not(.in-queue):focus-visible {
+    color: var(--accent-color); border-color: var(--accent-color); background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  }
+  @media (max-width: 360px) { #plfind-panel .search-results .search-queue { width: 30px; height: 30px; } }
   #plfind-panel .search-results .search-queue.in-queue { font-size: 12px; color: #000; background: var(--accent-color); border-color: var(--accent-color); }
   #plfind-panel .search-results .search-queue:disabled { opacity: 0.25; cursor: default; }
   #plfind-panel .search-results .search-play { flex: 0 0 auto; }
@@ -14603,6 +14611,7 @@
     return idx >= 0 ? pqEntryFromRow(playlist[idx], currentPlaylistKey) : null;
   }
   function pqDecorateRow(li, nameSpan, entry) {
+    if (!pqMode) return; // čísla a zvýraznění jen v režimu fronty (fronta sama zůstává, počet ukazuje tlačítko se seznamem)
     const i = pqIndexOf(entry);
     if (i < 0) return;
     li.classList.add('pq-in');
@@ -14635,6 +14644,7 @@
     pqMode = !pqMode;
     if (pqMode) { try { if (layerPickMode) { layerPickMode = false; updateLayerUI(); } } catch (e) { /* ignore */ } }
     pqRefreshUI();
+    try { updatePlaylistUI(); } catch (e) { /* ignore */ } // ukázat / schovat čísla u skladeb hned
     showToast(pqMode ? mfT('Queue mode ON: tap tracks to add them to the queue', 'Režim fronty: klepnutím na skladby je přidáš do fronty')
       : mfT('Queue mode OFF: tapping a track plays it again', 'Režim fronty vypnutý: klepnutí skladbu zase přehraje'), '➕');
   };
@@ -14793,6 +14803,7 @@
       pqNow = { title: target.title };
       customQueueActive = false; // My Playlist počká, až fronta dohraje
       pqSave(); pqRefreshUI();
+      try { updatePlaylistUI(); } catch (e) { /* ignore */ } // přečíslovat skladby ve frontě (odehraná zmizí)
       try { slPlayLog('fronta (prolnutí)', target.title); } catch (e) { /* ignore */ }
     } else if (target.pqResume) {
       pqRet = null; pqNow = null; pqSave();
@@ -15673,7 +15684,7 @@
         const qEntry = pqEntryForMainRow(findRow(r.pos, r.title));
         const qBtn = document.createElement('button');
         qBtn.type = 'button';
-        qBtn.className = 'icon-btn search-play search-queue';
+        qBtn.className = 'icon-btn search-queue'; // vlastní třída - .search-play patří jen tlačítku ▶
         const qi = pqIndexOf(qEntry);
         qBtn.textContent = qi >= 0 ? String(qi + 1) : '＋';
         qBtn.classList.toggle('in-queue', qi >= 0);
