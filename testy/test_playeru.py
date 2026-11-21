@@ -1574,6 +1574,350 @@ def t_last_source(s, c):
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
+# --------------------------------------------------------------------------- #
+#  11/2026: přání, motivační texty, fronta přehrávání, ASMR vrstva, GAIN, prolnutí, záloha F
+# --------------------------------------------------------------------------- #
+BTN_JS = "(k)=>[...document.querySelectorAll('.btn-atmos')].find(b=>b.getAttribute('onclick')&&b.getAttribute('onclick').indexOf(\"'\"+k+\"'\")!==-1)"
+
+
+def fake_date_js(iso):
+    """Init skript: hodiny stránky ukazují zadané místní datum a čas (a dál běží)."""
+    return ("(()=>{const T=new Date(%r).getTime();const D0=Date;const off=T-D0.now();"
+            "class FD extends D0{constructor(...a){if(a.length===0)super(D0.now()+off);else super(...a);}static now(){return D0.now()+off;}}"
+            "window.Date=FD;})();" % iso)
+
+
+def slogan_state(p):
+    return p.evaluate("()=>({vis:document.getElementById('slogan-container').classList.contains('visible'),"
+                      "txt:document.getElementById('slogan-container').innerText})")
+
+
+def t_greetings(s, c):
+    """Páteční / nedělní přání se ukazují i s vypnutými motivačními texty; Vánoce a Nový rok mají vlastní přání."""
+    def look(iso, loads=1, wait=900):
+        ctx, p, errs = s.page(init=fake_date_js(iso))
+        p.wait_for_timeout(wait)
+        shown = []
+        r = slogan_state(p)
+        if r["vis"]:
+            shown.append(r["txt"])
+        motiv = p.evaluate("motivationTextsEnabled")
+        for _ in range(loads - 1):
+            p.reload()
+            p.wait_for_timeout(1500 + wait)
+            r = slogan_state(p)
+            if r["vis"]:
+                shown.append(r["txt"])
+        return ctx, p, errs, shown, motiv
+
+    ctx, p, errs, shown, motiv = look("2026-11-27T12:00:00")  # obyčejný pátek
+    if not p.evaluate("typeof holidayGreetingToday==='function'"):
+        c.ok(False, "Player nemá sváteční přání (je to aktuální player.html?)")
+        return
+    c.ok(not motiv and len(shown) == 1 and re.search("weekend|víkend", shown[0], re.I),
+         "Páteční přání se ukáže i s vypnutými motivačními texty (MOTIVATION: OFF)")
+    p.evaluate("toggleMotivationTexts()")  # zapnout a hned vypnout během přání
+    p.evaluate("toggleMotivationTexts()")
+    p.wait_for_timeout(200)
+    c.ok(slogan_state(p)["vis"], "Vypnutí MOTIVATION během přání přání neschová")
+    ctx.close()
+    ctx, p, errs2, shown, _ = look("2026-11-22T18:00:00")
+    c.ok(len(shown) == 1, "Nedělní přání (večer) se ukáže i s vypnutými motivačními texty")
+    ctx.close()
+    ctx, p, errs3, shown, _ = look("2026-11-22T10:00:00")
+    c.ok(not shown, "Neděle dopoledne: žádné přání")
+    ctx.close()
+    ctx, p, errs4, shown, _ = look("2026-12-24T17:00:00", loads=5)
+    c.ok(len(shown) == 3 and all(re.search("Christmas|Vánoc|Štědr", t, re.I) for t in shown),
+         "24. 12.: vánoční přání ke štědrovečerní večeři, nejvýš 3x za den (%dx)" % len(shown))
+    ctx.close()
+    ctx, p, errs5, shown, _ = look("2026-12-18T12:00:00", loads=3)
+    c.ok(len(shown) == 1 and re.search("Christmas|Vánoc", shown[0], re.I),
+         "Týden před Vánoci (i v pátek): předvánoční přání jednou za den, páteční se neukáže")
+    ctx.close()
+    ctx, p, errs6, shown, _ = look("2027-01-01T12:00:00", loads=4)
+    c.ok(len(shown) == 3 and all("2027" in t for t in shown), "1. 1.: novoroční přání s letopočtem, nejvýš 3x")
+    ctx.close()
+    ctx, p, errs7, shown, _ = look("2027-01-04T12:00:00")
+    c.ok(not shown, "4. 1.: žádné přání")
+    ctx.close()
+    allerr = errs + errs2 + errs3 + errs4 + errs5 + errs6 + errs7
+    c.ok(not allerr, "Bez chyby ve stránce" + (": " + allerr[0] if allerr else ""))
+
+
+def t_motiv_editor(s, c):
+    """EXPLORE > SETUP > MOTIVAČNÍ TEXTY: vestavěné texty jdou vypnout (ne smazat), vlastní přidat a smazat."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof toggleMotivationEditor==='function'&&!!document.querySelector('#setup-window #motiv-editor')"):
+        c.ok(False, "Player nemá úpravu motivačních textů v SETUP (je to aktuální player.html?)")
+        return
+    p.evaluate("toggleSetup()")
+    p.wait_for_timeout(300)
+    p.click("#motivation-edit-btn")
+    p.wait_for_timeout(200)
+    n_builtin = p.evaluate("document.querySelectorAll('#motiv-builtin-list .motiv-item').length")
+    c.ok(n_builtin >= 20 and not p.evaluate("document.getElementById('motiv-editor').hidden"),
+         "V SETUP se otevře úprava textů se všemi vestavěnými texty (%d)" % n_builtin)
+    c.ok(p.evaluate("document.querySelectorAll('#motiv-builtin-list .motiv-del').length") == 0, "Vestavěné texty nejdou smazat (jen ZAP / VYP)")
+    p.fill("#motiv-add-input", "Můj klidný text <img src=x onerror=alert(1)>")
+    p.press("#motiv-add-input", "Enter")
+    p.fill("#motiv-add-input", "můj klidný TEXT <img src=x onerror=alert(1)>")
+    p.click("#motiv-add-btn")
+    p.wait_for_timeout(200)
+    r = p.evaluate("()=>({n:document.querySelectorAll('#motiv-custom-list .motiv-item').length,img:document.querySelectorAll('#motiv-editor img').length,"
+                   "inList:currentSlogans().some(t=>t.indexOf('Můj klidný text')===0)})")
+    c.ok(r["n"] == 1 and r["inList"], "Vlastní text se přidá (Enter i + PŘIDAT) a stejný podruhé ne")
+    c.ok(r["img"] == 0, "Vložené HTML se zobrazí jen jako text (nic se nespustí)")
+    first = p.evaluate("slogans[0]")
+    p.evaluate("()=>document.querySelector('#motiv-builtin-list .motiv-item button').click()")
+    p.wait_for_timeout(150)
+    c.ok(p.evaluate("(f)=>currentSlogans().indexOf(f)===-1", first), "Vypnutý vestavěný text se přestane používat")
+    p.reload()
+    p.wait_for_timeout(1500)
+    r = p.evaluate("(f)=>({off:currentSlogans().indexOf(f)===-1,own:currentSlogans().some(t=>t.indexOf('Můj klidný text')===0)})", first)
+    c.ok(r["off"] and r["own"], "Úpravy se pamatují i po novém spuštění")
+    p.evaluate("()=>{localStorage.setItem('sl-motivation-texts',JSON.stringify({off:slogans.map((_,i)=>i),custom:['Jediný']}));}")
+    p.evaluate("toggleSetup()")
+    p.wait_for_timeout(300)
+    p.click("#motivation-edit-btn")
+    p.wait_for_timeout(150)
+    p.evaluate("()=>document.querySelector('#motiv-custom-list .motiv-del').click()")
+    p.wait_for_timeout(150)
+    c.ok(p.evaluate("currentSlogans().length===1&&currentSlogans()[0]==='Jediný'"), "Poslední zapnutý text nejde vypnout ani smazat (vždy zůstane aspoň jeden)")
+    p.evaluate("enableAllMotivationTexts()")
+    p.wait_for_timeout(100)
+    c.ok(p.evaluate("currentSlogans().length===slogans.length+1"), "ZAPNOUT VŠE vrátí všechny vestavěné texty")
+    p.evaluate("()=>{localStorage.setItem('sl-motivation-texts','{\"off\":[null,\"x\",9999],\"custom\":[5,null,\"  ok  \"]}')}")
+    c.ok(p.evaluate("currentSlogans().length===slogans.length+1&&currentSlogans().indexOf('ok')!==-1"), "Poškozený záznam: nesmysly se ignorují")
+    p.evaluate("toggleGuideLanguage()")
+    p.wait_for_timeout(200)
+    c.ok(re.search("MOTIVAČNÍ|MOTIVATIONAL", p.evaluate("document.getElementById('su-motiv-sec').textContent")), "Texty sekce se přeloží s jazykem")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def wait_next(p, timeout=30000):
+    """Počká, až začne hrát jiná skladba než teď (bez rozběhnutého prolnutí)."""
+    first = p.evaluate("audio.src")
+    p.wait_for_function("(f)=>audio.src!==f&&!crossfadeActive&&!audio.paused&&audio.currentTime>0.2", arg=first, timeout=timeout)
+
+
+def near_end(p, left=2.5, rate=2):
+    p.evaluate("(a)=>{audio.currentTime=Math.max(0,(audio.duration||60)-a.left);audio.playbackRate=a.rate}", {"left": left, "rate": rate})
+
+
+def t_asmr_view_next(s, c):
+    """ASMR otevřené jen kvůli druhé vrstvě: další skladba pokračuje v seznamu, ze kterého hraje (ne z ASMR)."""
+    for cf in (0, 3):
+        ctx, p, errs = s.page()
+        if not p.evaluate("typeof asmrViewForeignSource==='function'"):
+            c.ok(False, "Player nemá opravu dalšího tracku při prohlížení ASMR (je to aktuální player.html?)")
+            return
+        p.evaluate("(cf)=>{const B=%s;setCrossfade(cf,null);shuffleEnabled=false;repeatEnabled=false;setPlaylist('piano',B('piano'));playTrack(1)}" % BTN_JS, cf)
+        p.wait_for_timeout(1200)
+        p.evaluate("()=>{const B=%s;setPlaylist('asmr',B('asmr'));pickLayerTrack(3,true)}" % BTN_JS)
+        p.wait_for_timeout(500)
+        near_end(p, left=(cf + 2.5), rate=2)
+        try:
+            wait_next(p)
+            ok = True
+        except Exception:
+            ok = False
+        r = p.evaluate("()=>({src:audio.src.split('/').pop(),want:tracks.piano[2].src.split('/').pop(),view:currentPlaylistKey,layer:layerActive&&!layerAudio.paused,ref:playingRef&&playingRef.key})")
+        c.ok(ok and r["src"] == r["want"] and r["view"] == "asmr" and r["layer"] and r["ref"] == "piano",
+             "Prolnutí %s: hraje další skladba z PIANO, okno zůstane na ASMR a druhá vrstva hraje dál%s" % ("ZAP" if cf else "VYP", "" if ok else " (%s)" % r))
+        c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+        ctx.close()
+
+
+PQ_NUMS = "()=>[...document.querySelectorAll('#playlist li')].map((li,i)=>{const n=li.querySelector('.pq-num');return n?i+':'+n.textContent:null}).filter(Boolean).join(' ')"
+
+
+def t_play_queue(s, c):
+    """Fronta přehrávání (hrát jako další): režim fronty, čísla, pořadí, návrat do playlistu, okno, paměť, hledání."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof togglePlayQueueMode==='function'&&!!document.getElementById('pl-pq-btn')&&!!document.getElementById('pq-window')"):
+        c.ok(False, "Player nemá frontu přehrávání (je to aktuální player.html?)")
+        return
+    c.ok(p.evaluate("()=>{const a=document.getElementById('pl-sort-btn').getBoundingClientRect(),b=document.getElementById('pl-pq-btn').getBoundingClientRect(),d=document.getElementById('pl-pqlist-btn').getBoundingClientRect();return b.top-a.bottom>=8&&d.top>b.bottom}"),
+         "Tlačítka fronty jsou vlevo pod řazením, s mezerou")
+    p.evaluate("()=>{const B=%s;setCrossfade(0,null);shuffleEnabled=false;repeatEnabled=false;setPlaylist('piano',B('piano'));playTrack(1)}" % BTN_JS)
+    p.wait_for_timeout(1000)
+    p.click("#pl-pq-btn")
+    p.evaluate("()=>{const B=%s;setPlaylist('chill',B('chill'))}" % BTN_JS)
+    p.wait_for_timeout(200)
+    p.evaluate("()=>{const li=document.querySelectorAll('#playlist li');li[4].click();li[2].click();li[6].click();li[6].click()}")  # 6 přidat a zase vyndat
+    p.wait_for_timeout(300)
+    r = p.evaluate("()=>({nums:(%s)(),piano:audio.src.indexOf(tracks.piano[1].src.split('/').pop())!==-1,cnt:document.getElementById('pq-count').textContent})" % PQ_NUMS)
+    c.ok(r["nums"] == "2:2 4:1" and r["piano"] and r["cnt"] == "2",
+         "Režim fronty: klepnutí skladbu přidá (zvýraznění s pořadím), znovu klepnutí vyndá, nic se nespustí (%s)" % r["nums"])
+    p.click("#pl-pq-btn")
+    p.wait_for_timeout(200)
+    c.ok(p.evaluate(PQ_NUMS) == "" and p.evaluate("document.getElementById('pq-count').textContent") == "2",
+         "Vypnutí režimu fronty schová čísla u skladeb (fronta zůstane, počet je u tlačítka)")
+    p.click("#pl-pq-btn")
+    p.wait_for_timeout(200)
+    c.ok(p.evaluate(PQ_NUMS) == "2:2 4:1", "Zapnutí režimu čísla zase ukáže")
+    p.click("#pl-pq-btn")
+    p.evaluate("()=>{const B=%s;setPlaylist('piano',B('piano'))}" % BTN_JS)
+    seen = []
+    for _ in range(3):
+        near_end(p)
+        wait_next(p)
+        seen.append(p.evaluate("()=>playingRef.key+':'+playingRef.index"))
+    c.ok(seen == ["chill:4", "chill:2", "piano:2"],
+         "Po skončení skladby hraje fronta v pořadí přidání, pak se vrátí do PIANO za původní skladbu (%s)" % ", ".join(seen))
+    c.ok(p.evaluate("pqItems.length===0&&document.getElementById('pq-count').hidden"), "Odehraná fronta je prázdná")
+    # fronta z My Playlist + prolnutí: návrat do My Playlist za původní pozici
+    p.evaluate("""()=>{customQueue.length=0;['chill','piano'].forEach(k=>[0,1,2].forEach(i=>customQueue.push({title:tracks[k][i].title,src:tracks[k][i].src,playlist:k,index:i})));
+      saveCustomQueue();setCrossfade(3,null);playCustomQueueAt(1,null)}""")
+    p.wait_for_timeout(900)
+    p.evaluate("()=>{togglePlayQueueMode();document.querySelectorAll('#playlist li')[4].click();togglePlayQueueMode()}")
+    near_end(p, left=5.5)
+    wait_next(p)
+    a = p.evaluate("()=>({q:customQueueActive,ref:playingRef.key+':'+playingRef.index})")
+    near_end(p, left=5.5)
+    wait_next(p)
+    b = p.evaluate("()=>({q:customQueueActive,pos:customQueueIndex})")
+    c.ok(not a["q"] and a["ref"] == "piano:1" and b["q"] and b["pos"] == 2,
+         "My Playlist + prolnutí: zahraje skladba z fronty, pak My Playlist pokračuje za původní pozicí (%s / %s)" % (a, b))
+    # okno fronty, paměť, VYMAZAT
+    p.evaluate("()=>{setCrossfade(0,null);const B=%s;setPlaylist('chill',B('chill'));togglePlayQueueMode();[5,6,7].forEach(i=>document.querySelectorAll('#playlist li')[i].click());togglePlayQueueMode()}" % BTN_JS)
+    p.click("#pl-pqlist-btn")
+    p.wait_for_timeout(300)
+    rows = "()=>[...document.querySelectorAll('#pq-list .pq-item-title')].map(e=>e.textContent)"
+    a = p.evaluate(rows)
+    p.evaluate("()=>document.querySelectorAll('#pq-list .pq-item')[2].querySelectorAll('button')[0].click()")  # ▲ u třetí
+    b = p.evaluate(rows)
+    p.evaluate("()=>{const it=document.querySelectorAll('#pq-list .pq-item')[0];it.querySelector('.pq-del').click()}")
+    cc = p.evaluate(rows)
+    c.ok(not p.evaluate("document.getElementById('pq-window').hidden") and len(a) == 3 and b == [a[0], a[2], a[1]] and cc == [a[2], a[1]],
+         "Okno fronty: posun ▲▼ a odebrání ✖ fungují")
+    p.reload()
+    p.wait_for_timeout(1500)
+    c.ok(p.evaluate("pqItems.length===2&&document.getElementById('pq-count').textContent==='2'"), "Fronta se pamatuje i po novém spuštění")
+    # úplně nové spuštění bez připravené poslední skladby (jen fronta) -> ▶ začne frontou
+    saved = p.evaluate("localStorage.getItem('sl-play-queue')")
+    ctx2, p2, errs_q = s.page(init="try{localStorage.setItem('sl-play-queue',%s)}catch(e){}" % json.dumps(saved))
+    p2.click("#btn-play")
+    p2.wait_for_timeout(1500)
+    c.ok(p2.evaluate("()=>!audio.paused&&audio.src.indexOf(tracks.chill[7].src.split('/').pop())!==-1"), "Když nic nehraje, ▶ začne první skladbou z fronty")
+    c.ok(not errs_q, "Bez chyby ve stránce (nové spuštění)" + (": " + errs_q[0] if errs_q else ""))
+    ctx2.close()
+    p.evaluate("openPlayQueueWindow()")
+    p.click("#pq-clear-btn")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("pqItems.length===0&&!!document.querySelector('#pq-list .pq-empty')&&localStorage.getItem('sl-play-queue')===null"), "VYMAZAT FRONTU frontu smaže (reset)")
+    p.evaluate("closePlayQueueWindow()")
+    # hledání v playlistu: ＋ přidá do fronty, ▶ přehraje (i v režimu fronty)
+    p.evaluate("()=>{const B=%s;setPlaylist('piano',B('piano'))}" % BTN_JS)
+    p.wait_for_timeout(200)
+    p.click("#pl-find-btn")
+    p.fill("#plfind-input", "piano")
+    p.wait_for_timeout(200)
+    p.evaluate("()=>document.querySelectorAll('#plfind-results li')[1].querySelector('.search-queue').click()")
+    p.wait_for_timeout(200)
+    r = p.evaluate("()=>({open:document.getElementById('plfind-panel').classList.contains('visible'),q:pqItems.length,btn:document.querySelectorAll('#plfind-results li')[1].querySelector('.search-queue').textContent,"
+                   "name:document.querySelectorAll('#plfind-results li')[1].querySelector('.history-name').textContent,qt:(pqItems[0]||{}).title||''})")
+    c.ok(r["open"] and r["q"] == 1 and r["btn"] == "1" and r["qt"].endswith(r["name"]),
+         "Hledání v playlistu: ＋ přidá výsledek do fronty, okno zůstane otevřené a ukáže pořadí")
+    p.evaluate("togglePlayQueueMode()")
+    p.evaluate("()=>document.querySelectorAll('#plfind-results li')[2].querySelector('.search-play').click()")
+    p.wait_for_timeout(800)
+    c.ok(p.evaluate("()=>pqItems.length===1&&!audio.paused&&!document.getElementById('plfind-panel').classList.contains('visible')"),
+         "▶ ve výsledku hledání skladbu přehraje i se zapnutým režimem fronty")
+    p.evaluate("togglePlayQueueMode()")
+    p.evaluate("toggleGuideLanguage()")
+    p.evaluate("openPlayQueueWindow()")
+    p.wait_for_timeout(200)
+    c.ok(re.search("FRONTA|QUEUE", p.evaluate("document.getElementById('pq-title').textContent")) and
+         p.evaluate("!!document.querySelector('[data-i18n=\"h_playqueue\"]')"), "Okno fronty je přeložené a fronta má sekci v návodu")
+    c.ok(not p.evaluate(OVERFLOW_JS), "Okno fronty se vejde na telefon")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_queue_layer(s, c):
+    """ASMR skladba ve frontě jde použít jako druhá vrstva (ASMR MIX) a vrstva hraje dál i v jiném seznamu."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof pqHasAsmr==='function'"):
+        c.ok(False, "Player nemá druhou vrstvu z fronty (je to aktuální player.html?)")
+        return
+    p.evaluate("()=>{const B=%s;setPlaylist('piano',B('piano'));playTrack(0)}" % BTN_JS)
+    p.wait_for_timeout(1000)
+    c.ok(p.evaluate("document.getElementById('btn-layer').disabled"), "V PIANO bez ASMR ve frontě je ASMR MIX neaktivní")
+    p.evaluate("()=>{const B=%s;setPlaylist('asmr',B('asmr'));togglePlayQueueMode();document.querySelectorAll('#playlist li')[2].click();togglePlayQueueMode();setPlaylist('piano',B('piano'))}" % BTN_JS)
+    p.wait_for_timeout(300)
+    c.ok(not p.evaluate("document.getElementById('btn-layer').disabled"), "S ASMR skladbou ve frontě je ASMR MIX aktivní i v PIANO")
+    p.click("#btn-layer")
+    p.wait_for_timeout(300)
+    c.ok(not p.evaluate("document.getElementById('pq-window').hidden") and p.evaluate("document.querySelectorAll('#pq-list .pq-layer').length") == 1,
+         "ASMR MIX otevře okno fronty, u ASMR skladby je tlačítko 🎧")
+    p.evaluate("()=>document.querySelector('#pq-list .pq-layer').click()")
+    p.wait_for_timeout(800)
+    p.evaluate("()=>{closePlayQueueWindow();const B=%s;setPlaylist('chill',B('chill'))}" % BTN_JS)
+    p.wait_for_timeout(1300)
+    r = p.evaluate("()=>({on:layerActive,play:!layerAudio.paused,src:layerSrc.split('/').pop(),want:tracks.asmr[2].src.split('/').pop(),q:pqItems.length,knob:!document.getElementById('layer-group').classList.contains('knob-off')})")
+    c.ok(r["on"] and r["play"] and r["src"] == r["want"] and r["q"] == 0 and r["knob"],
+         "🎧 pustí skladbu jako druhou vrstvu (z fronty se odebere) a ta hraje dál i v jiném seznamu")
+    p.click("#btn-layer")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("!layerActive&&layerAudio.paused"), "ASMR MIX vrstvu zase vypne")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_gain_crossfade(s, c):
+    """GAIN 0.25x-4x (nikdy přes 100 %), prolnutí během ztišování časovačem, nenačtená další skladba při prolnutí."""
+    ctx, p, errs = s.page()
+    r = p.evaluate("()=>{const o=mainGainPos;const g=[0,0.5,1].map(x=>{mainGainPos=x;return +mainGainMul().toFixed(3)});volumeSlider.value=0.6;mainGainPos=1;const v=mainVol();mainGainPos=o;return {g,v}}")
+    c.ok(r["g"] == [0.25, 1, 4] and r["v"] == 1, "GAIN zesiluje/zeslabuje 0.25x - 4x a hlasitost nikdy nepřekročí 100 %% (%s)" % r["g"])
+    # časovač ztišuje i během prolnutí (dřív se nová skladba rozjela nahlas)
+    p.evaluate("()=>{const B=%s;volumeSlider.value=0.6;mainGainPos=0.5;setCrossfade(6,null);shuffleEnabled=false;setPlaylist('piano',B('piano'));playTrack(0)}" % BTN_JS)
+    p.wait_for_timeout(1000)
+    p.evaluate("()=>{audio.currentTime=audio.duration-7;setTimer(15);timerEndsAt=Date.now()+50000}")  # ztišování běží, ještě dost nahlas
+    samples = p.evaluate("""async()=>{const out=[];for(let i=0;i<36;i++){await new Promise(r=>setTimeout(r,250));
+      if(crossfadeActive)out.push(Math.max(audio.volume,crossfadeAudio.volume)-(0.6*sleepFadeMul+0.03));}return out}""")
+    c.ok(samples and max(samples[2:] or samples) <= 0.001, "Prolnutí během ztišování časovačem: hlasitost dál klesá (nepoposkočí)")
+    p.evaluate("cancelTimer()")
+    ctx.close()
+    # nenačtená další skladba během prolnutí: současná dohraje nahlas (dřív se ztlumila do ticha)
+    ctx, p, errs2 = s.page()
+    p.evaluate("()=>{const B=%s;volumeSlider.value=0.6;setCrossfade(6,null);shuffleEnabled=false;setPlaylist('piano',B('piano'));tracks.piano[1].src='http://127.0.0.1:1/neni.mp3';playTrack(0)}" % BTN_JS)
+    p.wait_for_timeout(1000)
+    p.evaluate("()=>{audio.currentTime=audio.duration-8}")
+    vols = p.evaluate("""async()=>{const out=[];const s0=audio.src;for(let i=0;i<24;i++){await new Promise(r=>setTimeout(r,250));if(audio.src===s0&&audio.currentTime>audio.duration-4)out.push(audio.volume);}return out}""")
+    c.ok(vols and min(vols) > 0.4, "Další skladba se při prolnutí nenačte: současná dohraje nahlas, bez ticha")
+    try:
+        p.wait_for_function("()=>!audio.paused&&audio.src.indexOf(tracks.piano[2].src.split('/').pop())!==-1", timeout=20000)
+        skip = True
+    except Exception:
+        skip = False
+    c.ok(skip, "Pak se nedostupná skladba přeskočí a hraje další")
+    allerr = errs + errs2
+    c.ok(not allerr, "Bez chyby ve stránce" + (": " + allerr[0] if allerr else ""))
+
+
+def t_backup_spaces(s, c):
+    """Záloha F: soubor se dvěma mezerami v názvu se po obnovení spáruje (dřív zůstal navždy „chybějící“)."""
+    ctx, p, errs = s.page()
+    p.evaluate("toggleMainFiles()")
+    p.set_input_files("#myfiles-input", [{"name": "Rain  Night.wav", "mimeType": "audio/wav", "buffer": make_wav(2, 8000)}])
+    p.wait_for_function("!document.getElementById('myfiles-add-btn').disabled", timeout=20000)
+    p.wait_for_timeout(400)
+    p.evaluate("""()=>{const f=myFilesLibrary.find(x=>x.name==='Rain  Night');document.getElementById('myfiles-folder-name').value='Spaní';createMyFolder();moveFilesToFolder([f.id],myFolders[0].id);
+      myPlaylists.push({id:'sp1',name:'Noc',createdAt:1,items:[{type:'file',fileId:f.id,title:f.name}]});saveMyPlaylistsToStorage();renderMyFiles()}""")
+    with p.expect_download() as dl:
+        p.evaluate("exportMyFilesBackup()")
+    path = os.path.join(tempfile.gettempdir(), "testplayeru_mezery.json")
+    dl.value.save_as(path)
+    p.evaluate("()=>{myPlaylists.length=0;saveMyPlaylistsToStorage();myFolders.length=0;for(const k in myFolderMap)delete myFolderMap[k];saveMyFolders();renderMyFiles()}")
+    p.set_input_files("#myfiles-backup-input", path)
+    p.wait_for_timeout(1000)
+    r = p.evaluate("()=>({items:(myPlaylists.find(x=>x.name==='Noc')||{items:[]}).items.length,folder:(myFolders.find(f=>f.id===fileFolderId((myFilesLibrary[0]||{}).id))||{}).name||'',"
+                   "pending:localStorage.getItem('synthlucida_myfiles_pending'),box:document.getElementById('myfiles-pending').hidden})")
+    c.ok(r["items"] == 1 and r["folder"] == "Spaní" and r["pending"] is None and r["box"],
+         "Soubor „Rain  Night“ (2 mezery) se po obnovení zařadí do playlistu i složky a nečeká se na něj")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
 def t_robust(s, c):
     keys = sorted(set(re.findall(r"""['"]((?:sl-[a-z0-9-]+)|(?:synthlucida_[a-z0-9_]+))['"]""", s.env.player_src)))
     panels = ["", "toggleCustomQueue()", "toggleMainStats()", "toggleMainFiles()", "toggleSetup()", "playTrack(3)"]
@@ -2611,6 +2955,13 @@ TESTS = [
     ("Historie poslechu", t_history),
     ("Přehrávání se zhasnutým displejem", t_background),
     ("Zapamatování posledního seznamu (F, My Playlist)", t_last_source),
+    ("Víkendová, nedělní a sváteční přání", t_greetings),
+    ("Úprava motivačních textů (SETUP)", t_motiv_editor),
+    ("ASMR otevřené kvůli vrstvě nepřepne další skladbu", t_asmr_view_next),
+    ("Fronta přehrávání (hrát jako další)", t_play_queue),
+    ("Fronta a druhá vrstva ASMR", t_queue_layer),
+    ("GAIN a prolnutí (časovač, nenačtená skladba)", t_gain_crossfade),
+    ("Záloha F – názvy s dvojitou mezerou", t_backup_spaces),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
