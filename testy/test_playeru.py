@@ -76,6 +76,12 @@ class Env:
             self.player_src = f.read()
         with open(sw_path, "r", encoding="utf-8") as f:
             self.sw_src = f.read()
+        self.onair_src = None  # onair.html (ON AIR) – hledá se vedle player.html
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(player_path)), "onair.html"), "r", encoding="utf-8") as f:
+                self.onair_src = f.read()
+        except Exception:
+            pass
         self.wav = make_wav()
         self.gh = {"mode": "ok", "ms": 0, "hits": 0}
         self.r2 = {"mode": "ok", "cors": True, "status": 200, "hits": 0}
@@ -201,6 +207,8 @@ class Env:
                     return self.send_bytes(200, env.page_html().encode("utf-8"), dict(nc, **{"Content-Type": "text/html; charset=utf-8"}))
                 if path == "/sw.js":
                     return self.send_bytes(200, env.sw.encode("utf-8"), dict(nc, **{"Content-Type": "application/javascript"}))
+                if path == "/onair.html" and env.onair_src is not None:
+                    return self.send_bytes(200, env.onair_src.encode("utf-8"), dict(nc, **{"Content-Type": "text/html; charset=utf-8"}))
                 if path in ("/favicon.png", "/icon.png", "/logo.jpg"):
                     return self.send_bytes(200, b"", dict(nc, **{"Content-Type": "image/png"}))
                 if path == "/manifest.json":
@@ -2241,7 +2249,7 @@ FAKE_FB_JS = r"""
  Ref.prototype.update=function(o){var p=this.path;return write(function(){for(var k in o){setAt((p?p+'/':'')+k,o[k]==null?null:resolve(clone(o[k])))}})};
  Ref.prototype.transaction=function(fn){var p=this.path;if(fail.write)return Promise.reject(new Error('PERMISSION_DENIED'));
    var cur=clone(getAt(p));var nv=fn(cur===undefined?null:cur);if(nv!==undefined)setAt(p,nv);changed();return Promise.resolve({committed:true,snapshot:mkSnap(p)})};
- Ref.prototype.onDisconnect=function(){var p=this.path;return {remove:function(){disc[p]=true;return Promise.resolve()},cancel:function(){delete disc[p];return Promise.resolve()}}};
+ Ref.prototype.onDisconnect=function(){var p=this.path;return {remove:function(){disc[p]=true;return Promise.resolve()},update:function(){disc[p]=true;return Promise.resolve()},cancel:function(){delete disc[p];return Promise.resolve()}}};
  function qref(r,o){var q={};for(var k in r.q)q[k]=r.q[k];for(var j in o)q[j]=o[j];return new Ref(r.path,q)}
  Ref.prototype.orderByChild=function(c){return qref(this,{orderBy:'child',child:c})};
  Ref.prototype.orderByValue=function(){return qref(this,{orderBy:'value'})};
@@ -2926,6 +2934,210 @@ def t_online(s, c):
         c.ok(False, "V sw.js jsem nenašel adresu zálohy R2")
 
 
+# --------------------------------------------------------------------------- #
+#  ON AIR (co Dave právě poslouchá)
+# --------------------------------------------------------------------------- #
+ONAIR_LIVE_JS = """()=>{const g=id=>document.getElementById(id);return {btn:g('btn-onair').classList.contains('onair-live'),
+  explore:g('atmos-toggle-explore').classList.contains('onair-live'),brand:!g('brand-onair').hidden}}"""
+OWN_BLOB_JS = """async(a)=>{const r=await fetch(a.url);const bu=URL.createObjectURL(await r.blob());
+  tracks['custom:file:onair1']=[{title:a.title,src:bu,fileId:'onair1'}];playlist=tracks['custom:file:onair1'];currentPlaylistKey='custom:file:onair1';playTrack(0)}"""
+
+
+def onair_ready(p, c):
+    if not p.evaluate("typeof openOnAir==='function'&&!!document.getElementById('btn-onair')&&!!document.getElementById('onair-window')"):
+        c.ok(False, "Player nemá ON AIR (je to aktuální player.html?)")
+        return False
+    return True
+
+
+def t_onair_admin(s, c):
+    """ON AIR: přihlášený admin při hraní zapisuje název skladby, playlist, pauzu; úprava názvu; odhlášení."""
+    ctx, p, errs = fb_page(s)
+    if not onair_ready(p, c):
+        return
+    set_lang(p, "cz")
+    p.evaluate("()=>{const B=%s;setCrossfade(0,null);shuffleEnabled=false;repeatEnabled=false;setPlaylist('piano',B('piano'));playTrack(2)}" % BTN_JS)
+    p.wait_for_timeout(1200)
+    c.ok(p.evaluate("__fb.get('onair')") is None, "Nepřihlášený uživatel do ON AIR nic nezapisuje")
+    p.evaluate("()=>firebase.auth().signInWithEmailAndPassword('admin@test.cz','dobreheslo')")
+    p.wait_for_timeout(900)
+    r = p.evaluate("()=>({o:__fb.get('onair'),want:tracks.piano[2].title,disc:__fb.disconnectPaths()})")
+    o = r["o"] or {}
+    c.ok(o.get("playing") is True and o.get("title") == r["want"] and o.get("list") == "piano" and o.get("own") is False
+         and isinstance(o.get("ts"), (int, float)) and isinstance(o.get("since"), (int, float)),
+         "Admin po přihlášení zapíše: název skladby, hraje, playlist PIANO, čas (%s)" % o.get("title"))
+    c.ok("onair" in r["disc"], "Během hraní je zapnutá pojistka: při ztrátě spojení ON AIR zhasne")
+    lv = p.evaluate(ONAIR_LIVE_JS)
+    c.ok(lv["btn"] and lv["explore"] and lv["brand"], "ON AIR svítí červeně v EXPLORE, tečka na EXPLORE a nápis u SYNTHLUCIDA")
+    p.evaluate("()=>{const B=%s;setPlaylist('asmr',B('asmr'));playTrack(4)}" % BTN_JS)
+    p.wait_for_timeout(1200)
+    r = p.evaluate("()=>({o:__fb.get('onair'),want:tracks.asmr[4].title})")
+    c.ok(r["o"]["title"] == r["want"] and r["o"]["list"] == "asmr" and r["o"]["playing"] is True, "Změna skladby (ASMR) se hned propíše i s playlistem")
+    p.evaluate("()=>{const B=%s;setPlaylist('chill',B('chill'))}" % BTN_JS)
+    p.wait_for_timeout(800)
+    c.ok(p.evaluate("__fb.get('onair').title") == r["want"], "Jen otevřený jiný playlist (nic z něj nehraje) ON AIR nezmění")
+    p.click("#btn-play")
+    p.wait_for_timeout(900)
+    r = p.evaluate("()=>({o:__fb.get('onair'),disc:__fb.disconnectPaths()})")
+    c.ok(r["o"]["playing"] is False and not p.evaluate(ONAIR_LIVE_JS)["btn"] and "onair" not in r["disc"],
+         "Pauza: ON AIR zhasne a pojistka se vypne")
+    p.click("#btn-play")
+    p.wait_for_timeout(900)
+    c.ok(p.evaluate("__fb.get('onair').playing") is True, "Znovu ▶: ON AIR zase svítí")
+    # vlastní soubor z F, název s mp3clan.com
+    p.evaluate(OWN_BLOB_JS, {"url": s.env.r2_url + "onair_own.mp3", "title": "Enya_-_Only_Time_(mp3clan.com)"})
+    p.wait_for_timeout(1300)
+    o = p.evaluate("__fb.get('onair')")
+    c.ok(o["title"] == "Enya - Only Time" and o["own"] is True and not o.get("list"),
+         "Vlastní soubor: název bez „mp3clan.com“ a podtržítek, příznak vlastní, bez playlistu (%s)" % o["title"])
+    # úprava názvu v okně (jen admin)
+    p.evaluate("()=>{const B=%s;setPlaylist('piano',B('piano'));playTrack(2)}" % BTN_JS)
+    p.wait_for_timeout(1200)
+    since0 = p.evaluate("__fb.get('onair').since")
+    p.wait_for_timeout(300)
+    p.evaluate("openOnAir()")
+    p.wait_for_timeout(600)
+    r = p.evaluate("()=>({hid:document.getElementById('onair-admin').hidden,v:document.getElementById('onair-name').value,want:tracks.piano[2].title})")
+    c.ok(not r["hid"] and r["v"] == r["want"], "Admin vidí v okně pole s názvem právě hrající skladby")
+    p.fill("#onair-name", "Synthlucida Nebula Piano relaxing music")
+    p.press("#onair-name", "Enter")
+    p.wait_for_timeout(500)
+    o = p.evaluate("__fb.get('onair')")
+    c.ok(o["title"] == "Synthlucida Nebula Piano relaxing music" and o["list"] == "piano" and o["since"] == since0,
+         "Upravený název se hned pošle (playlist i „hraje od“ zůstanou)")
+    c.ok("Původní" in p.evaluate("document.getElementById('onair-name-hint').textContent"), "Pod polem je vidět původní název")
+    p.evaluate("()=>playTrack(3)")
+    p.wait_for_timeout(1200)
+    r = p.evaluate("()=>({t:__fb.get('onair').title,v:document.getElementById('onair-name').value,want:tracks.piano[3].title})")
+    c.ok(r["t"] == r["want"] and r["v"] == r["want"], "Další skladba má zase svůj název (pole se přepne samo)")
+    p.evaluate("()=>playTrack(2)")
+    p.wait_for_timeout(1200)
+    c.ok(p.evaluate("__fb.get('onair').title") == "Synthlucida Nebula Piano relaxing music", "Upravená skladba použije uložený název i příště")
+    p.click("#onair-name-reset")
+    p.wait_for_timeout(500)
+    c.ok(p.evaluate("__fb.get('onair').title") == p.evaluate("tracks.piano[2].title"), "PŮVODNÍ vrátí původní název")
+    p.evaluate("closeOnAir()")
+    # "jsem tu" každou minutu
+    ts0 = p.evaluate("__fb.get('onair').ts")
+    p.evaluate("()=>{const rn=Date.now.bind(Date);Date.now=()=>rn()+61000}")
+    p.wait_for_timeout(1500)
+    c.ok(p.evaluate("__fb.get('onair').ts") > ts0 + 50000, "Každou minutu pošle „jsem tu“ (jinak by ON AIR po 4 min zhasl)")
+    # pravidla bez položky list
+    p.evaluate("""()=>{const P=Object.getPrototypeOf(firebase.database().ref('x'));const o=P.update;window.__oUpd=o;
+      P.update=function(d){if(this.path==='onair'&&d&&'list' in d)return Promise.reject(new Error('PERMISSION_DENIED'));return o.call(this,d)};playTrack(5)}""")
+    p.wait_for_timeout(1200)
+    r = p.evaluate("()=>({o:__fb.get('onair'),want:tracks.piano[5].title})")
+    c.ok(r["o"]["title"] == r["want"] and r["o"]["playing"] is True, "Starší pravidla bez playlistu: ON AIR funguje dál (jen bez playlistu)")
+    p.evaluate("()=>{Object.getPrototypeOf(firebase.database().ref('x')).update=window.__oUpd}")
+    # výpadek spojení a návrat
+    p.evaluate("()=>{__fb.setConnected(false);__fb.set('onair',Object.assign({},__fb.get('onair'),{playing:false}));__fb.setConnected(true)}")
+    p.wait_for_timeout(600)
+    c.ok(p.evaluate("__fb.get('onair').playing") is True, "Po výpadku sítě ON AIR hned zase svítí")
+    p.evaluate("adminLogout()")
+    p.wait_for_timeout(700)
+    r = p.evaluate("()=>({o:__fb.get('onair'),u:__fb.user(),hid:document.getElementById('onair-admin').hidden})")
+    c.ok(r["o"]["playing"] is False and r["u"] is None and r["hid"], "Odhlášení: ON AIR nejdřív zhasne, pak se odhlásí; pole pro název zmizí")
+    p.evaluate("()=>playTrack(6)")
+    p.wait_for_timeout(1000)
+    c.ok(p.evaluate("__fb.get('onair').playing") is False, "Po odhlášení se už nic nezapisuje")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+    # druhé zařízení: přihlášený admin, který nic nepustil, nesmí ON AIR přepsat
+    ctx2, q, errs2 = fb_page(s)
+    q.evaluate("()=>__fb.set('onair',{title:'Z jiného zařízení',playing:true,ts:__fb.now(),own:false})")
+    q.evaluate("()=>firebase.auth().signInWithEmailAndPassword('admin@test.cz','dobreheslo')")
+    q.wait_for_timeout(900)
+    o = q.evaluate("__fb.get('onair')")
+    c.ok(o["title"] == "Z jiného zařízení" and o["playing"] is True and "onair" not in q.evaluate("__fb.disconnectPaths()"),
+         "Admin na druhém zařízení (nic nehraje) ON AIR z prvního nezhasne ani nepřepíše")
+    q.evaluate("adminLogout()")
+    q.wait_for_timeout(500)
+    c.ok(q.evaluate("__fb.get('onair').playing") is True and not errs2, "Ani jeho odhlášení ON AIR nezhasne")
+
+
+def t_onair_viewer(s, c):
+    """ON AIR pro návštěvníky: svícení, okno s onair.html, Esc, jazyk, bez internetu; stránka onair.html sama."""
+    ctx, p, errs = fb_page(s)
+    if not onair_ready(p, c):
+        return
+    set_lang(p, "en")
+    head = "()=>{const r=document.querySelector('.brand-wordmark').getBoundingClientRect();return [Math.round(r.top),Math.round(r.height)]}"
+    h0 = p.evaluate(head)
+    lv0 = p.evaluate(ONAIR_LIVE_JS)
+    p.evaluate("()=>__fb.set('onair',{title:'SYNTHLUCIDA - Polaris',playing:true,ts:__fb.now(),since:__fb.now()-60000,own:false,list:'piano'})")
+    p.wait_for_timeout(300)
+    lv1 = p.evaluate(ONAIR_LIVE_JS)
+    c.ok(not any(lv0.values()) and all(lv1.values()), "Zhasnuto → svítí, když Dave hraje (EXPLORE, tečka, nápis u SYNTHLUCIDA)")
+    c.ok(p.evaluate(head) == h0, "Nápis ON AIR u SYNTHLUCIDA neposune nadpis")
+    p.evaluate("()=>__fb.set('onair',{title:'SYNTHLUCIDA - Polaris',playing:true,ts:__fb.now()-5*60000,own:false})")
+    p.wait_for_timeout(300)
+    c.ok(not any(p.evaluate(ONAIR_LIVE_JS).values()), "Bez zprávy déle než 4 min ON AIR zhasne (zavřený player)")
+    p.evaluate("()=>__fb.set('onair',{title:'SYNTHLUCIDA - Polaris',playing:true,ts:__fb.now(),own:false,list:'piano'})")
+    p.evaluate("()=>{const t=document.getElementById('atmos-toggle-explore');if(t)t.click()}")
+    p.wait_for_timeout(300)
+    p.click("#btn-onair")
+    p.wait_for_timeout(1500)
+    src = p.evaluate("document.getElementById('onair-frame').getAttribute('src')") or ""
+    c.ok(not p.evaluate("document.getElementById('onair-window').hidden") and "onair.html?embed=1&lang=en" in src,
+         "Klepnutí na ON AIR otevře okno se stránkou onair.html")
+    c.ok(p.evaluate("document.getElementById('onair-admin').hidden"), "Návštěvník nevidí úpravu názvu")
+    if s.env.onair_src is None:
+        c.ok(False, "Vedle player.html chybí onair.html – okno ON AIR by bylo prázdné")
+    else:
+        fr = p.frame(url=re.compile(r"onair\.html"))
+        ok = False
+        if fr:
+            try:
+                ok = fr.evaluate("document.body.classList.contains('embed')")
+            except Exception:
+                ok = False
+        c.ok(ok, "V okně je onair.html ve zjednodušené podobě (bez hlavičky)")
+        if fr:
+            try:
+                fr.click("body", position={"x": 20, "y": 20})
+            except Exception:
+                pass
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("document.getElementById('onair-window').hidden"), "Esc okno zavře (i po klepnutí dovnitř)")
+    p.evaluate("openOnAir()")
+    p.wait_for_timeout(300)
+    set_lang(p, "cz")
+    c.ok("lang=cz" in (p.evaluate("document.getElementById('onair-frame').getAttribute('src')") or "")
+         and "Dave právě poslouchá" in p.evaluate("document.getElementById('btn-onair').title"),
+         "Přepnutí jazyka: popisek i otevřené okno hned v novém jazyce")
+    p.evaluate("closeOnAir()")
+    ctx.set_offline(True)
+    p.wait_for_timeout(200)
+    p.evaluate("()=>{document.getElementById('onair-frame').removeAttribute('src');openOnAir()}")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("document.getElementById('onair-window').hidden") and "internet" in p.evaluate(TOAST_JS),
+         "Bez internetu se okno neotevře, jen se ukáže hláška")
+    ctx.set_offline(False)
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+    if s.env.onair_src is None:
+        return
+    # samotná stránka onair.html
+    for lang, txt in (("cz", {"live": "právě online", "from": "z playlistu PIANO", "last": "NAPOSLEDY HRÁLO", "yt": "Hledat na YouTube"}),
+                      ("en", {"live": "online right now", "from": "from the PIANO playlist", "last": "LAST PLAYED", "yt": "Search on YouTube"})):
+        ctx2, q, e2 = fb_page(s)
+        q.goto(s.env.url.replace("player.html", "onair.html?lang=" + lang))
+        q.wait_for_timeout(800)
+        off = q.text_content("#status")
+        q.evaluate("()=>__fb.set('onair',{title:'SYNTHLUCIDA - Polaris',playing:true,ts:__fb.now(),since:__fb.now()-60000,own:false,list:'piano'})")
+        q.wait_for_timeout(400)
+        r = q.evaluate("()=>({st:document.getElementById('status').textContent,t:document.getElementById('title').textContent,from:document.getElementById('from').textContent,yt:document.getElementById('yt').href,ytt:document.getElementById('yt-text').textContent})")
+        c.ok(txt["live"] in r["st"] and r["t"] == "Polaris" and r["from"] == txt["from"] and r["ytt"] == txt["yt"]
+             and r["yt"] == "https://www.youtube.com/results?search_query=SYNTHLUCIDA%20-%20Polaris",
+             "onair.html (%s): Dave hraje – název, playlist a hledání na YouTube" % lang)
+        q.evaluate("()=>__fb.set('onair',{title:'<img src=x onerror=window.__x=1> Song - www.mp3clan.com',playing:false,ts:__fb.now()-30*60000,own:true,list:'piano'})")
+        q.wait_for_timeout(400)
+        r = q.evaluate("()=>({lab:document.getElementById('label').textContent,from:document.getElementById('from').hidden,t:document.getElementById('title').textContent,img:document.querySelectorAll('#card img').length,x:window.__x})")
+        c.ok(r["lab"] == txt["last"] and r["from"] and "mp3clan" not in r["t"].lower() and r["img"] == 0 and not r["x"],
+             "onair.html (%s): naposledy hrálo, vlastní soubor bez playlistu, bez mp3clan, HTML se nespustí" % lang)
+        ov = q.evaluate(OVERFLOW_JS)
+        c.ok(off and not ov and not e2, "onair.html (%s): na telefonu nic nepřetéká, bez chyb" % lang + (" " + str(ov or e2) if (ov or e2) else ""))
+
+
 TESTS = [
     ("Kontrola souborů", t_static),
     ("Načtení playeru a okna", t_load),
@@ -2962,6 +3174,8 @@ TESTS = [
     ("Fronta a druhá vrstva ASMR", t_queue_layer),
     ("GAIN a prolnutí (časovač, nenačtená skladba)", t_gain_crossfade),
     ("Záloha F – názvy s dvojitou mezerou", t_backup_spaces),
+    ("ON AIR – admin zapisuje, co hraje (i úprava názvu)", t_onair_admin),
+    ("ON AIR – svícení, okno a stránka onair.html", t_onair_viewer),
     ("Odolnost proti poškozeným datům", t_robust),
     ("Rozložení na malém a velkém displeji", t_layout),
     ("Texty v češtině i angličtině", t_i18n),
