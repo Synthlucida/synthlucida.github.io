@@ -100,9 +100,13 @@
 //  - OPRAVA úklidu při aktivaci: dřív se při nové verzi SW MAZALY stažené skladby z GitHubu, jakmile
 //    v cache existovala R2 kopie (player ale hledá GitHub adresu, takže by "OFFLINE" zmizelo).
 //    Teď se kopie z R2 PŘESUNE pod GitHub adresu a nic se nemaže. Cache zvýšena na v1300.
+// auto - přidána fotka player-bg-sun-13.jpg do LAZY_ASSETS, cache zvýšena na v1590.
+// auto - přidána fotka player-bg-sun-14.jpg do LAZY_ASSETS, cache zvýšena na v1591.
+// auto - přidána fotka player-bg-sun-15.jpg do LAZY_ASSETS, cache zvýšena na v1592.
+// auto - přidána fotka player-bg-sun-16.jpg do LAZY_ASSETS, cache zvýšena na v1593.
 // ==========================================
 
-const APP_CACHE_NAME = 'synthlucida-app-v1589';
+const APP_CACHE_NAME = 'synthlucida-app-v1593';
 const AUDIO_CACHE_NAME = 'synthlucida-audio-v1'; // separate cache, survives app shell updates
 
 // App shell files cached on install (a jako offline záloha)
@@ -225,7 +229,11 @@ const LAZY_ASSETS = [
   './player-bg-sun-5.jpg', './player-bg-sun-6.jpg', './player-bg-sun-7.jpg', './player-bg-sun-8.jpg',
   './player-bg-sun-9.jpg', './player-bg-sun-10.jpg',
   './player-bg-sun-11.jpg',
-  './player-bg-sun-12.jpg'
+  './player-bg-sun-12.jpg',
+  './player-bg-sun-13.jpg',
+  './player-bg-sun-14.jpg',
+  './player-bg-sun-15.jpg',
+  './player-bg-sun-16.jpg'
 ];
 LAZY_ASSETS.forEach((u) => SHELL_PATHS.add(new URL(u, self.registration.scope).pathname));
 
