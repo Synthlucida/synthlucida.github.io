@@ -7,6 +7,7 @@
 <meta name="description" content="ON AIR – see in real time what Dave (SYNTHLUCIDA) is listening to in RelaxPlayer right now, with a YouTube link to play it yourself.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0b0b10">
+<meta name="color-scheme" content="dark">
 <link rel="icon" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +17,21 @@
      Jen ČTE z Firebase uzel /onair, který zapisuje přihlášený admin v playeru. Žádný zvuk se nevysílá. */
   :root { --red: #ff3b3b; --red-soft: rgba(255,59,59,0.35); --txt: #f2f2f5; --muted: rgba(242,242,245,0.62); }
   * { box-sizing: border-box; }
+  /* Posuvník stejně jako v playeru (Windows jinak ukáže bílý se šipkami): tenký tmavý pruh, kulatý jezdec v barvě ON AIR, bez šipek.
+     Chrome/Edge přes ::-webkit-scrollbar, Firefox přes scrollbar-color. */
+  * { scrollbar-width: thin; scrollbar-color: #8a2a2e rgba(255,255,255,0.06); }
+  @supports selector(::-webkit-scrollbar) {
+    * { scrollbar-width: auto; scrollbar-color: auto; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #8a2a2e; border-radius: 4px; border: 1px solid rgba(255,255,255,0.18); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--red); }
+    ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+    ::-webkit-scrollbar-corner { background: transparent; }
+  }
   html, body { margin: 0; min-height: 100%; }
+  html { background: #0b0b10; }
+  html.embed { background: transparent; }
   body {
     font-family: 'Poppins', system-ui, sans-serif; color: var(--txt); background: #0b0b10;
     background-image: radial-gradient(ellipse at 50% -10%, rgba(255,59,59,0.10), transparent 60%), linear-gradient(180deg, #121218 0%, #08080c 100%);
@@ -92,7 +107,15 @@
 (function () {
   'use strict';
   var params = new URLSearchParams(location.search);
-  if (params.get('embed') === '1') document.body.classList.add('embed');
+  var embed = params.get('embed') === '1';
+  if (embed) {
+    document.body.classList.add('embed'); document.documentElement.classList.add('embed');
+    // Esc uvnitř okna (po klepnutí do stránky) zavře okno ON AIR v playeru
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      try { if (window.parent !== window && typeof window.parent.closeOnAir === 'function') { e.preventDefault(); window.parent.closeOnAir(); } } catch (err) { /* jiný původ */ }
+    });
+  }
   var lang = params.get('lang');
   if (lang !== 'cz' && lang !== 'en') lang = /^(cs|sk)/i.test(navigator.language || '') ? 'cz' : 'en';
   document.documentElement.lang = lang === 'cz' ? 'cs' : 'en';
@@ -138,9 +161,18 @@
   $('status').textContent = T.connecting;
 
   var LIVE_MS = 4 * 60 * 1000;   // bez zprávy od playeru déle než 4 min = už nehraje (zavřený player, výpadek)
-  var offset = 0, state = null;
+  var offset = 0, state = null, lastStatus = '';
 
-  function clean(t) { return typeof t === 'string' ? t.replace(/[\u0000-\u001f]+/g, ' ').trim().slice(0, 300) : ''; }
+  function clean(t) {
+    if (typeof t !== 'string') return '';
+    var raw = t.replace(/[\u0000-\u001f]+/g, ' ').trim();
+    // pojistka i pro starší záznamy: bez "mp3clan.com" a podobných zbytků z názvů souborů
+    if (!/mp3clan/i.test(raw)) return raw.slice(0, 300);
+    var c = raw.replace(/(?:https?:\/\/)?(?:www\.)?mp3clan(?:\.(?:com|net|org|top))?/gi, ' ')
+      .replace(/[\[(\{]\s*[-_.,:|]*\s*[\])\}]/g, ' ').replace(/_+/g, ' ').replace(/\s+/g, ' ')
+      .replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '').trim();
+    return (c || raw).slice(0, 300);
+  }
   function shortTitle(t) { var s = t.replace(/^\s*SYNTHLUCIDA\s*[-–—:]\s*/i, ''); return s || t; }
   function hhmm(ts) { try { return new Date(ts).toLocaleTimeString(lang === 'cz' ? 'cs-CZ' : 'en-GB', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
   function ago(ms) {
@@ -159,7 +191,8 @@
     var live = !!(fresh && s.playing === true && title);
     var paused = !!(fresh && s.playing === false && title);
     document.body.classList.toggle('live', live);
-    $('status').innerHTML = live ? T.live : (paused ? T.paused : T.offline); // jen pevné texty z této stránky
+    var st = live ? T.live : (paused ? T.paused : T.offline);
+    if (st !== lastStatus) { $('status').innerHTML = st; lastStatus = st; } // jen pevné texty z této stránky; beze změny se nepřepisuje (čtečka obrazovky by to hlásila znovu)
     if (!title) { $('card').hidden = true; return; }
     $('card').hidden = false;
     $('label').textContent = live ? T.nowLabel : T.lastLabel;
@@ -195,7 +228,9 @@
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     var db = firebase.database();
     db.ref('.info/serverTimeOffset').on('value', function (snap) { offset = Number(snap.val()) || 0; if (state) paint(); });
-    db.ref('onair').on('value', function (snap) { state = snap.val() || {}; paint(); }, function () { $('status').textContent = T.error; });
+    db.ref('onair').on('value', function (snap) { state = snap.val() || {}; paint(); }, function () { lastStatus = ''; $('status').textContent = T.error; });
+    // bez odpovědi (bez internetu) by navždy svítilo "Připojuji…"; data, až dorazí, text zase přepíšou
+    setTimeout(function () { if (!state) { lastStatus = ''; $('status').textContent = T.error; } }, 15000);
     setInterval(function () { if (state) paint(); }, 30000); // "hrálo před X min" a zhasnutí po 4 min bez zprávy
   } catch (e) {
     $('status').textContent = T.error;
