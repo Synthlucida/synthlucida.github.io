@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ON AIR – SYNTHLUCIDA</title>
+<meta name="description" content="ON AIR – see in real time what Dave (SYNTHLUCIDA) is listening to in RelaxPlayer right now, with a YouTube link to play it yourself.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0b0b10">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  /* ON AIR (samostatná stránka; v playeru se otevírá v okně přes iframe ?embed=1).
+     Jen ČTE z Firebase uzel /onair, který zapisuje přihlášený admin v playeru. Žádný zvuk se nevysílá. */
+  :root { --red: #ff3b3b; --red-soft: rgba(255,59,59,0.35); --txt: #f2f2f5; --muted: rgba(242,242,245,0.62); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Poppins', system-ui, sans-serif; color: var(--txt); background: #0b0b10;
+    background-image: radial-gradient(ellipse at 50% -10%, rgba(255,59,59,0.10), transparent 60%), linear-gradient(180deg, #121218 0%, #08080c 100%);
+    display: flex; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 22px) 16px calc(env(safe-area-inset-bottom, 0px) + 22px);
+    -webkit-font-smoothing: antialiased;
+  }
+  body.embed { padding: 14px 14px 18px; background: transparent; background-image: none; }
+  main { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+  .brand { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 3px; opacity: 0.55; }
+  body.embed .brand { display: none; }
+  .sign {
+    display: inline-flex; align-items: center; gap: 10px; padding: 9px 18px; border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.18); font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 4px;
+    color: rgba(255,255,255,0.35); transition: color .4s, border-color .4s, box-shadow .4s;
+  }
+  .sign .dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.25); transition: background .4s, box-shadow .4s; }
+  body.live .sign { color: var(--red); border-color: var(--red); box-shadow: 0 0 18px var(--red-soft), inset 0 0 12px rgba(255,59,59,0.15); animation: signPulse 2.4s ease-in-out infinite; }
+  body.live .sign .dot { background: var(--red); box-shadow: 0 0 10px var(--red); animation: dotBlink 1.2s ease-in-out infinite; }
+  @keyframes signPulse { 50% { box-shadow: 0 0 30px rgba(255,59,59,0.55), inset 0 0 16px rgba(255,59,59,0.22); } }
+  @keyframes dotBlink { 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { body.live .sign, body.live .sign .dot { animation: none; } }
+  .status { font-size: 14px; line-height: 1.5; margin: 0; }
+  .status strong { color: #fff; font-weight: 600; }
+  .card {
+    width: 100%; padding: 18px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.14);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); display: flex; flex-direction: column; gap: 10px; align-items: center;
+  }
+  body.live .card { border-color: rgba(255,59,59,0.45); }
+  .label { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 2px; color: var(--muted); }
+  .title { font-family: 'Orbitron', sans-serif; font-size: 19px; line-height: 1.35; letter-spacing: 0.5px; overflow-wrap: anywhere; margin: 0; }
+  .meta { font-size: 12px; color: var(--muted); margin: 0; min-height: 1em; }
+  .yt {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; padding: 8px 16px; border-radius: 999px; text-decoration: none;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.22); color: var(--txt); font-weight: 400; font-size: 13px;
+    transition: background .15s, border-color .15s;
+  }
+  .yt:hover, .yt:focus-visible { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.45); outline: none; }
+  .yt svg { width: 17px; height: 17px; fill: #e8424f; flex: none; opacity: 0.9; }
+  .yt[hidden], .card[hidden], .meta[hidden], .yt-note[hidden], .from[hidden] { display: none; }
+  .from { font-size: 12px; color: var(--muted); }
+  .from b { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 1.5px; color: #fff; font-weight: 700; padding: 2px 8px; margin-left: 4px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; }
+  .yt-note { font-size: 11px; color: var(--muted); margin: 0; opacity: 0.85; }
+  .about { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 0; text-align: left; }
+  .about h2 { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--txt); margin: 0 0 6px; text-align: center; }
+  .back { font-size: 12px; color: var(--muted); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.25); }
+  .back:hover { color: #fff; }
+  body.embed .back { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">SYNTHLUCIDA · RELAXPLAYER</div>
+  <div class="sign" aria-hidden="true"><span class="dot"></span>ON AIR</div>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+  <section class="card" id="card" hidden>
+    <span class="label" id="label"></span>
+    <p class="title" id="title"></p>
+    <span class="from" id="from" hidden></span>
+    <p class="meta" id="meta"></p>
+    <a class="yt" id="yt" href="#" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg><span id="yt-text"></span></a>
+    <p class="yt-note" id="yt-note" hidden></p>
+  </section>
+  <section class="about">
+    <h2 id="about-h"></h2>
+    <p id="about-p"></p>
+  </section>
+  <a class="back" href="player.html" id="back"></a>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+(function () {
+  'use strict';
+  var params = new URLSearchParams(location.search);
+  if (params.get('embed') === '1') document.body.classList.add('embed');
+  var lang = params.get('lang');
+  if (lang !== 'cz' && lang !== 'en') lang = /^(cs|sk)/i.test(navigator.language || '') ? 'cz' : 'en';
+  document.documentElement.lang = lang === 'cz' ? 'cs' : 'en';
+  var T = {
+    en: {
+      live: '<strong>Dave, the author of the SYNTHLUCIDA project, is online right now</strong> and playing live in RelaxPlayer.',
+      paused: '<strong>Dave, the author of the SYNTHLUCIDA project, is online</strong> – the music is paused for a moment.',
+      offline: 'Dave, the author of the SYNTHLUCIDA project, is not listening right now. Come back later – the ON AIR sign lights up red when he is.',
+      connecting: 'Connecting…',
+      error: 'Could not connect. Check your internet connection and try again.',
+      nowLabel: 'NOW PLAYING', lastLabel: 'LAST PLAYED',
+      ownFile: 'From Dave\'s own collection – it may not be on YouTube.',
+      since: 'playing since ', ago: 'last played ',
+      from: 'from the', fromPost: ' playlist', yt: 'Search on YouTube', ytNote: 'Opens YouTube search results – the track may not be there.',
+      aboutH: 'WHAT IS ON AIR?',
+      aboutP: 'ON AIR shows in real time what Dave – the author of the SYNTHLUCIDA project – is listening to in RelaxPlayer right now: from ASMR, PIANO, CHILL, his playlists or his own collection. It is not a radio and no sound is streamed – playing the track is up to you. If a track catches your ear, search for it on YouTube with the button and listen along with him. This page updates by itself, so you can leave it open.',
+      back: 'Open RelaxPlayer',
+      min: 'min', h: 'h', d: 'd', justNow: 'just now', agoSuffix: ' ago'
+    },
+    cz: {
+      live: '<strong>Dave, autor projektu SYNTHLUCIDA, je právě online</strong> a hraje live v RelaxPlayeru.',
+      paused: '<strong>Dave, autor projektu SYNTHLUCIDA, je online</strong> – hudbu má zrovna na chvíli pozastavenou.',
+      offline: 'Dave, autor projektu SYNTHLUCIDA, teď neposlouchá. Mrkni sem později – když bude hrát, nápis ON AIR se rozsvítí červeně.',
+      connecting: 'Připojuji…',
+      error: 'Nepodařilo se připojit. Zkontroluj internet a zkus to znovu.',
+      nowLabel: 'PRÁVĚ HRAJE', lastLabel: 'NAPOSLEDY HRÁLO',
+      ownFile: 'Z Daveovy vlastní sbírky – na YouTube být nemusí.',
+      since: 'hraje od ', ago: 'hrálo ',
+      from: 'z playlistu', fromPost: '', yt: 'Hledat na YouTube', ytNote: 'Otevře vyhledávání na YouTube – skladba tam být nemusí.',
+      aboutH: 'CO JE ON AIR?',
+      aboutP: 'ON AIR ukazuje v reálném čase, co si Dave – autor projektu SYNTHLUCIDA – právě pouští v RelaxPlayeru: z ASMR, PIANO, CHILL, ze svých playlistů nebo z vlastní sbírky. Není to rádio a žádný zvuk se nevysílá – pustit si skladbu je na tobě. Když tě něco zaujme, vyhledej si to tlačítkem na YouTube a poslouchej s ním. Stránka se aktualizuje sama, klidně ji nech otevřenou.',
+      back: 'Otevřít RelaxPlayer',
+      min: 'min', h: 'h', d: 'd', justNow: 'právě teď', agoSuffix: ''
+    }
+  }[lang];
+
+  var $ = function (id) { return document.getElementById(id); };
+  $('about-h').textContent = T.aboutH;
+  $('about-p').textContent = T.aboutP;
+  $('back').textContent = T.back;
+  $('yt-text').textContent = T.yt;
+  $('yt-note').textContent = T.ytNote;
+  $('status').textContent = T.connecting;
+
+  var LIVE_MS = 4 * 60 * 1000;   // bez zprávy od playeru déle než 4 min = už nehraje (zavřený player, výpadek)
+  var offset = 0, state = null;
+
+  function clean(t) { return typeof t === 'string' ? t.replace(/[\u0000-\u001f]+/g, ' ').trim().slice(0, 300) : ''; }
+  function shortTitle(t) { var s = t.replace(/^\s*SYNTHLUCIDA\s*[-–—:]\s*/i, ''); return s || t; }
+  function hhmm(ts) { try { return new Date(ts).toLocaleTimeString(lang === 'cz' ? 'cs-CZ' : 'en-GB', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  function ago(ms) {
+    var m = Math.round(ms / 60000);
+    if (m < 1) return T.justNow;
+    var s = m < 60 ? m + ' ' + T.min : (m < 48 * 60 ? Math.round(m / 60) + ' ' + T.h : Math.round(m / 1440) + ' ' + T.d);
+    return (lang === 'cz' ? 'před ' : '') + s + T.agoSuffix;
+  }
+  function now() { return Date.now() + offset; }
+
+  function paint() {
+    var s = state || {};
+    var title = clean(s.title);
+    var ts = typeof s.ts === 'number' ? s.ts : 0;
+    var fresh = ts && now() - ts < LIVE_MS;
+    var live = !!(fresh && s.playing === true && title);
+    var paused = !!(fresh && s.playing === false && title);
+    document.body.classList.toggle('live', live);
+    $('status').innerHTML = live ? T.live : (paused ? T.paused : T.offline); // jen pevné texty z této stránky
+    if (!title) { $('card').hidden = true; return; }
+    $('card').hidden = false;
+    $('label').textContent = live ? T.nowLabel : T.lastLabel;
+    $('title').textContent = shortTitle(title);
+    var list = (typeof s.list === 'string' && /^[a-z0-9_-]{1,20}$/.test(s.list) && s.own !== true) ? s.list.toUpperCase() : '';
+    var from = $('from');
+    from.textContent = '';
+    if (list) { from.appendChild(document.createTextNode(T.from + ' ')); var b = document.createElement('b'); b.textContent = list; from.appendChild(b); if (T.fromPost) from.appendChild(document.createTextNode(T.fromPost)); }
+    from.hidden = !list;
+    var meta = [];
+    if (live && typeof s.since === 'number') meta.push(T.since + hhmm(s.since));
+    if (!live && ts) meta.push(T.ago + ago(now() - ts));
+    if (s.own === true) meta.push(T.ownFile);
+    $('meta').textContent = meta.join(' · ');
+    $('meta').hidden = !meta.length;
+    var yt = $('yt');
+    yt.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(title);
+    yt.hidden = false;
+    $('yt-note').hidden = false;
+    document.title = (live ? '🔴 ' : '') + 'ON AIR – ' + shortTitle(title);
+  }
+
+  try {
+    var cfg = {
+      apiKey: "AIzaSyCHuoYFQUVCyF0X34vt6ysdz_FtO5fnNIg",
+      authDomain: "synthlucida.firebaseapp.com",
+      databaseURL: "https://synthlucida-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "synthlucida",
+      storageBucket: "synthlucida.firebasestorage.app",
+      messagingSenderId: "244515647380",
+      appId: "1:244515647380:web:c7f75f3bea55434f9b6981"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    var db = firebase.database();
+    db.ref('.info/serverTimeOffset').on('value', function (snap) { offset = Number(snap.val()) || 0; if (state) paint(); });
+    db.ref('onair').on('value', function (snap) { state = snap.val() || {}; paint(); }, function () { $('status').textContent = T.error; });
+    setInterval(function () { if (state) paint(); }, 30000); // "hrálo před X min" a zhasnutí po 4 min bez zprávy
+  } catch (e) {
+    $('status').textContent = T.error;
+  }
+})();
+</script>
+</body>
+</html>
