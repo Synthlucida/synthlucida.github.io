@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.8">
+<meta name="app-version" content="2.9.9">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -4016,8 +4016,32 @@
   @keyframes onair-glow { 50% { box-shadow: 0 0 11px 2px rgba(255,59,59,0.95); } }
   @media (prefers-reduced-motion: reduce) { .btn-onair.onair-live .onair-dot, #atmos-toggle-explore.onair-live::before, .onair-window.onair-live .onair-title .onair-dot { animation: none; } }
   .onair-title { display: inline-flex; align-items: center; gap: 7px; }
+  /* malý nápis ON AIR vpravo dole pod "CIDA" u SYNTHLUCIDA - jen když Dave hraje; klepnutí otevře okno ON AIR */
+  .brand-onair {
+    position: absolute; right: 0.1em; bottom: -7px; z-index: 3; display: inline-flex; align-items: center; gap: 3px;
+    padding: 0; margin: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    font-family: inherit; font-size: 7.5px; font-weight: 700; letter-spacing: 0.2em; line-height: 1; white-space: nowrap;
+    color: #ff4d4d; text-shadow: 0 0 6px rgba(255,59,59,0.8), 0 0 3px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,0.9);
+  }
+  .brand-onair[hidden] { display: none; }
+  .brand-onair::after { content: ''; position: absolute; inset: -8px -6px; } /* větší plocha pro prst */
+  .brand-onair .onair-dot { width: 5px; height: 5px; border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 6px #ff3b3b; animation: onair-blink 1.2s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .brand-onair .onair-dot { animation: none; } }
   .onair-window { max-width: 440px; padding: 10px 10px 8px; gap: 6px; }
   .onair-frame { width: 100%; height: min(560px, calc(100vh - 120px)); height: min(560px, calc(100dvh - 120px)); border: 0; border-radius: 10px; background: transparent; display: block; }
+  /* jen pro přihlášeného admina: úprava názvu, který ON AIR ukáže a hledá na YouTube */
+  .onair-admin { display: flex; flex-direction: column; gap: 5px; padding: 8px; border: 1px solid rgba(255,59,59,0.35); border-radius: 10px; background: rgba(255,59,59,0.06); }
+  .onair-admin[hidden] { display: none; }
+  .onair-admin-label { font-size: 10px; letter-spacing: 0.08em; opacity: 0.8; }
+  .onair-admin-row { display: flex; gap: 5px; min-width: 0; }
+  .onair-name { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.35); color: #fff; font: inherit; font-size: 13px; }
+  .onair-name:focus { outline: none; border-color: #ff4d4d; }
+  .onair-admin-btn { flex: none; padding: 5px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: none; color: #fff; font: inherit; font-size: 10px; letter-spacing: 0.06em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .onair-admin-btn:disabled { opacity: 0.35; cursor: default; }
+  .onair-admin-btn:not(:disabled):hover { border-color: #ff4d4d; color: #ff8080; }
+  .onair-admin-hint { font-size: 10px; opacity: 0.6; overflow-wrap: anywhere; }
+  .onair-admin-hint:empty { display: none; }
+  .onair-window.has-admin .onair-frame { height: min(480px, calc(100vh - 220px)); height: min(480px, calc(100dvh - 220px)); }
 </style>
 <script data-goatcounter="https://player.goatcounter.com/count"
         async src="https://gc.zgo.at/count.js"></script>
@@ -4142,6 +4166,7 @@
     <div class="brand-wordmark">
       <span class="brand-sub" aria-hidden="true">RelaxPlayer<span class="brand-sub-num">2</span></span>
       <div class="brand-name" onclick="handleBrandClick()">SYNTHLUCIDA</div>
+      <button type="button" class="brand-onair" id="brand-onair" onclick="openOnAir()" hidden title="ON AIR – Dave is listening right now" aria-label="ON AIR – Dave is listening right now"><span class="onair-dot" aria-hidden="true"></span>ON AIR</button>
     </div>
     <button class="logo-glow-toggle-btn active" id="btn-logo-glow" onclick="toggleLogoGlow()" title="Toggle logo backlight" aria-label="Toggle logo backlight"><svg class="ico-svg ico-tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.500 10.900c.6.5 1 1.200 1 2V16h5v-.1c0-.8.4-1.500 1-2A6 6 0 0 0 12 3z"/></svg></button>
   </div>
@@ -5039,6 +5064,15 @@
 <div class="tm-overlay" id="onair-window" role="dialog" aria-modal="true" aria-label="ON AIR" hidden>
   <div class="tm-window onair-window">
     <div class="tm-head"><span class="tm-title onair-title"><span class="onair-dot" aria-hidden="true"></span>ON AIR</span><button type="button" class="tm-close" onclick="closeOnAir()" aria-label="Close" title="Close">✕</button></div>
+    <div class="onair-admin" id="onair-admin" hidden>
+      <label class="onair-admin-label" for="onair-name" id="onair-name-label">Name shown in ON AIR (and searched on YouTube)</label>
+      <div class="onair-admin-row">
+        <input type="text" id="onair-name" class="onair-name" maxlength="300" autocomplete="off" spellcheck="false">
+        <button type="button" class="onair-admin-btn" id="onair-name-save">SAVE</button>
+        <button type="button" class="onair-admin-btn" id="onair-name-reset">ORIGINAL</button>
+      </div>
+      <div class="onair-admin-hint" id="onair-name-hint"></div>
+    </div>
     <iframe id="onair-frame" class="onair-frame" title="ON AIR"></iframe>
   </div>
 </div>
@@ -5669,6 +5703,8 @@
       { title: "SYNTHLUCIDA - Ethereal Memories", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Ethereal_Memories.mp3" },
       { title: "SYNTHLUCIDA - Dreams Without Borders", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Dreams_Without_Borders.mp3" },
       { title: "SYNTHLUCIDA - Good Days", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Good_Days.mp3" },
+      { title: "SYNTHLUCIDA - Slow Tide", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Slow_Tide.mp3", added: "2026-11-21" },
+      { title: "SYNTHLUCIDA - Three Rivers", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/Three_Rivers.mp3", added: "2026-11-21" },
     ],
     chill: [
       { title: "SYNTHLUCIDA - Spirits Of Summer", src: "https://github.com/Synthlucida/synthlucida.github.io/releases/download/v1.0/spirits_of_summer.mp3" },
@@ -12248,6 +12284,7 @@
     if (typeof pqRefreshUI === 'function') pqRefreshUI();
     if (typeof window.togetherOnLanguage === 'function') window.togetherOnLanguage();
     if (typeof window.bpOnLanguage === 'function') window.bpOnLanguage();
+    if (typeof window.onAirOnLanguage === 'function') window.onAirOnLanguage();
   }
 
   window.toggleGuideLanguage = function() {
@@ -21583,15 +21620,34 @@
     const exploreToggle = document.getElementById('atmos-toggle-explore');
     const win = document.getElementById('onair-window');
     const frame = document.getElementById('onair-frame');
+    const onAirSrc = () => 'onair.html?embed=1&lang=' + (guideLang === 'cz' ? 'cz' : 'en');
+    let onAirOpener = null;
     window.openOnAir = function () {
       if (!win || !frame) return;
-      const want = 'onair.html?embed=1&lang=' + (guideLang === 'cz' ? 'cz' : 'en');
+      // bez internetu by se v okně ukázala jen chybová stránka prohlížeče (onair.html ani Firebase offline nejsou)
+      if (navigator.onLine === false) { showToast(mfT('ON AIR needs an internet connection', 'ON AIR potřebuje připojení k internetu'), '📡'); return; }
+      clearTimeout(onAirUnloadTimer);
+      const want = onAirSrc();
       if (frame.getAttribute('src') !== want) frame.setAttribute('src', want);
+      onAirOpener = document.activeElement;
       win.hidden = false;
+      if (typeof window.__onAirAdminRefresh === 'function') window.__onAirAdminRefresh(true);
+      const x = win.querySelector('.tm-close'); if (x) { try { x.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
     };
-    window.closeOnAir = function () { if (win) win.hidden = true; };
+    // Stránka v okně má vlastní spojení s Firebase. Po zavření okna ji minutu necháme (rychlé znovuotevření),
+    // pak ji uvolníme - jinak by každý, kdo okno jednou otevřel, držel dvě spojení (bezplatný Firebase má strop souběžných spojení).
+    let onAirUnloadTimer = null;
+    window.closeOnAir = function () {
+      if (!win || win.hidden) return;
+      win.hidden = true;
+      clearTimeout(onAirUnloadTimer);
+      onAirUnloadTimer = setTimeout(() => { if (win.hidden && frame) frame.removeAttribute('src'); }, 60000);
+      if (onAirOpener && typeof onAirOpener.focus === 'function' && document.contains(onAirOpener)) { try { onAirOpener.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+      onAirOpener = null;
+    };
     if (win) win.addEventListener('click', (e) => { if (e.target === win) closeOnAir(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && win && !win.hidden) closeOnAir(); });
+    // Esc zavře jen okno ON AIR (ne i panely / tóny pod ním)
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && win && !win.hidden) { e.preventDefault(); e.stopImmediatePropagation(); closeOnAir(); } }, true);
 
     const LIVE_MS = 4 * 60 * 1000;
     let state = null, offset = 0;
@@ -21608,10 +21664,22 @@
         btn.title = t; btn.setAttribute('aria-label', t);
       }
       if (exploreToggle) exploreToggle.classList.toggle('onair-live', live);
+      const brandTag = document.getElementById('brand-onair');
+      if (brandTag) {
+        brandTag.hidden = !live;
+        const bt = mfT('ON AIR – Dave is listening right now (tap to see what)', 'ON AIR – Dave právě poslouchá (klepni a uvidíš co)');
+        brandTag.title = bt; brandTag.setAttribute('aria-label', bt);
+      }
       const w = win && win.querySelector('.onair-window');
       if (w) w.classList.toggle('onair-live', live);
     }
     window.__slOnAirLive = isLive;
+    // přepnutí jazyka: popisky hned v novém jazyce, otevřené okno se přenačte v novém jazyce
+    window.onAirOnLanguage = function () {
+      paint();
+      if (typeof window.__onAirAdminRefresh === 'function') window.__onAirAdminRefresh(false);
+      if (frame && frame.getAttribute('src')) { const want = onAirSrc(); if (frame.getAttribute('src') !== want) { if (win && !win.hidden) frame.setAttribute('src', want); else frame.removeAttribute('src'); } }
+    };
 
     let db = null, ref = null;
     try {
@@ -21628,9 +21696,25 @@
     // ---- zápis (jen přihlášený admin) ----
     if (!ref) return;
     const TS = (firebase.database && firebase.database.ServerValue) ? firebase.database.ServerValue.TIMESTAMP : Date.now();
-    let lastTitle = null, lastPlaying = null, lastBeat = 0, discSet = false, lastSince = null;
+    let lastTitle = null, lastOrig = null, lastPlaying = null, lastBeat = 0, discSet = false, lastSince = null;
+    // Zapisuje jen zařízení, na kterém se v tomhle spuštění opravdu hrálo - když máš appku otevřenou
+    // i na druhém zařízení (jen tak, bez hraní), nesmí tím zhasnout ON AIR toho, kde hraješ.
+    let hasPlayed = false;
     const admin = () => window.__slIsAdmin === true;
-    function curTitle() { try { return String((window.slPlayback && window.slPlayback.nowPlaying()) || '').replace(/[\u0000-\u001f]+/g, ' ').trim().slice(0, 300); } catch (e) { return ''; } }
+    // Z názvů vlastních souborů pryč reklamní přípony stahovacích webů (např. "mp3clan.com") - v ON AIR ani v hledání na YouTube nemají co dělat
+    function stripJunk(t) {
+      let s = String(t || '');
+      const junk = /mp3clan/i.test(s);
+      if (junk) {
+        s = s.replace(/(?:https?:\/\/)?(?:www\.)?mp3clan(?:\.(?:com|net|org|top))?/gi, ' ')
+          .replace(/[\[(\{]\s*[-_.,:|]*\s*[\])\}]/g, ' '); // po odstranění zbylé prázdné závorky
+      }
+      s = s.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim(); // "Enya_-_Only_Time" -> "Enya - Only Time" (lepší i pro YouTube)
+      // zbylé oddělovače na kraji ("Píseň -") jen tam, kde byl mp3clan - jinak se název nemění
+      if (junk) s = s.replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '').trim();
+      return s;
+    }
+    function curTitle() { try { const raw = String((window.slPlayback && window.slPlayback.nowPlaying()) || '').replace(/[\u0000-\u001f]+/g, ' ').trim(); return (stripJunk(raw) || raw).slice(0, 300); } catch (e) { return ''; } }
     function curOwn() { try { return isOwnFileSrc(audio.currentSrc || audio.src); } catch (e) { return false; } }
     // Ze kterého playlistu skladba pochází (asmr / piano / chill …) - i když hraje z My Playlist nebo z playlistu v F.
     // Vlastní soubory nemají žádný.
@@ -21644,32 +21728,114 @@
         return (typeof k === 'string' && /^[a-z0-9_-]{1,20}$/.test(k)) ? k : '';
       } catch (e) { return ''; }
     }
+    // Vlastní názvy (jen admin, uložené v tomto zařízení): původní název skladby -> název pro ON AIR / YouTube.
+    // Platí pro tu skladbu i příště, až znovu zahraje.
+    const NAMES_KEY = 'sl-onair-names';
+    function loadNames() {
+      try { const o = JSON.parse(localStorage.getItem(NAMES_KEY) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; } catch (e) { return {}; }
+    }
+    function saveNames(o) {
+      try {
+        const k = Object.keys(o);
+        if (k.length > 500) k.slice(0, k.length - 500).forEach((x) => delete o[x]); // strop, nejstarší pryč
+        localStorage.setItem(NAMES_KEY, JSON.stringify(o));
+        return true;
+      } catch (e) { return false; }
+    }
+    function cleanName(t) { return String(t || '').replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300); }
+    let namesCache = loadNames();
+    function pubTitle(orig) { const v = orig && namesCache[orig]; return (typeof v === 'string' && cleanName(v)) ? cleanName(v) : orig; }
     function publish(force) {
       if (!admin()) return;
       const playing = !!(isPlaying && !audio.paused);
-      const title = curTitle();
+      if (playing) hasPlayed = true;
+      if (!hasPlayed) return;
+      const orig = curTitle();
+      const title = orig ? pubTitle(orig) : '';
       const now = Date.now();
       if (!title && !lastTitle) return;
       if (!force && title === lastTitle && playing === lastPlaying && (!playing || now - lastBeat < 60000)) return;
-      if (!discSet) {
+      // Pojistka "při ztrátě spojení zhasnout" jen během hraní: zavřením pozastavené appky
+      // se tak nezhasne ON AIR, když mezitím hraješ na jiném zařízení.
+      if (playing && !discSet) {
         try { ref.onDisconnect().update({ playing: false, ts: TS }); } catch (e) { /* starší SDK / test */ }
         discSet = true;
+      } else if (!playing && discSet) {
+        try { ref.onDisconnect().cancel(); } catch (e) { /* ignore */ }
+        discSet = false;
       }
       const data = { playing, ts: TS, own: curOwn() };
-      if (title) { data.title = title; data.list = curList(title); }
-      if (playing && (title !== lastTitle || lastPlaying !== true || lastSince === null)) { data.since = TS; lastSince = now; }
+      if (title) { data.title = title; data.list = curList(orig); }
+      // "hraje od" se nuluje jen u jiné skladby (ne když jen upravíš název)
+      if (playing && ((orig && orig !== lastOrig) || lastPlaying !== true || lastSince === null)) { data.since = TS; lastSince = now; }
       // Pravidla bez položky "list" by celý zápis odmítla -> zkusit znovu bez ní (ON AIR pak jen neukáže playlist)
       try { ref.update(data).catch(() => { if ('list' in data) { const d2 = Object.assign({}, data); delete d2.list; ref.update(d2).catch(() => {}); } }); } catch (e) { /* ignore */ }
-      lastTitle = title || lastTitle; lastPlaying = playing; lastBeat = now;
+      lastTitle = title || lastTitle; lastOrig = orig || lastOrig; lastPlaying = playing; lastBeat = now;
     }
     ['playing', 'pause', 'ended'].forEach((ev) => audio.addEventListener(ev, () => setTimeout(() => publish(false), 300)));
     audio.addEventListener('timeupdate', () => { if (admin() && isPlaying && Date.now() - lastBeat >= 60000) publish(false); }); // "jsem tu" každou minutu (i se zhasnutým displejem)
     const titleEl = document.getElementById('track-title');
-    if (titleEl && window.MutationObserver) new MutationObserver(() => setTimeout(() => publish(false), 300)).observe(titleEl, { childList: true, characterData: true, subtree: true });
-    document.addEventListener('sladminchange', () => { if (admin()) { discSet = false; lastTitle = null; publish(true); } });
+    if (titleEl && window.MutationObserver) new MutationObserver(() => setTimeout(() => { publish(false); adminRefresh(false); }, 300)).observe(titleEl, { childList: true, characterData: true, subtree: true });
+    document.addEventListener('sladminchange', () => { if (admin()) { discSet = false; lastTitle = null; publish(true); } adminRefresh(true); });
+
+    // ---- úprava názvu v okně ON AIR (vidí jen přihlášený admin) ----
+    const aBox = document.getElementById('onair-admin');
+    const aInput = document.getElementById('onair-name');
+    const aSave = document.getElementById('onair-name-save');
+    const aReset = document.getElementById('onair-name-reset');
+    const aHint = document.getElementById('onair-name-hint');
+    const aLabel = document.getElementById('onair-name-label');
+    const aWin = win && win.querySelector('.onair-window');
+    function adminRefresh(fillInput) {
+      if (!aBox || !aInput) return;
+      const show = admin();
+      aBox.hidden = !show;
+      if (aWin) aWin.classList.toggle('has-admin', show);
+      if (!show) return;
+      if (aLabel) aLabel.textContent = mfT('Name shown in ON AIR (and searched on YouTube)', 'Název pro ON AIR (a hledání na YouTube)');
+      if (aSave) aSave.textContent = mfT('SAVE', 'ULOŽIT');
+      if (aReset) aReset.textContent = mfT('ORIGINAL', 'PŮVODNÍ');
+      aInput.placeholder = mfT('Nothing is playing', 'Nic nehraje');
+      const orig = curTitle();
+      const changed = (aInput.dataset.orig || '') !== orig;
+      // rozepsaný text se nepřepíše - jen když se změní skladba nebo se okno právě otevřelo
+      if (fillInput || changed || document.activeElement !== aInput) { aInput.value = orig ? pubTitle(orig) : ''; aInput.dataset.orig = orig; }
+      const o = aInput.dataset.orig || '';
+      aInput.disabled = !o;
+      if (aSave) aSave.disabled = !o;
+      if (aReset) aReset.disabled = !o || pubTitle(o) === o;
+      if (aHint) aHint.textContent = (o && pubTitle(o) !== o) ? mfT('Original: ', 'Původní: ') + o : '';
+    }
+    window.__onAirAdminRefresh = adminRefresh;
+    function adminStore(orig, val) {
+      if (!admin() || !orig) return;
+      namesCache = loadNames();
+      const v = cleanName(val);
+      if (!v || v === orig) delete namesCache[orig]; else { delete namesCache[orig]; namesCache[orig] = v; }
+      const ok = saveNames(namesCache);
+      if (orig === curTitle()) publish(true);
+      aInput.dataset.orig = '';
+      adminRefresh(true);
+      showToast(ok ? mfT('ON AIR name saved', 'Název pro ON AIR uložen') : mfT('Saved only until the app is closed (storage is blocked)', 'Uloženo jen do zavření appky (úložiště je zablokované)'), '✏️');
+    }
+    if (aSave) aSave.addEventListener('click', () => adminStore(aInput.dataset.orig || '', aInput.value));
+    if (aReset) aReset.addEventListener('click', () => adminStore(aInput.dataset.orig || '', ''));
+    if (aInput) aInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); adminStore(aInput.dataset.orig || '', aInput.value); } });
+    adminRefresh(true);
+    // Po výpadku sítě (mobil v tunelu…) server už jednou "playing:false" zapsal a pojistka zmizela ->
+    // po návratu spojení ji nastavit znovu a hned poslat aktuální stav (jinak by ON AIR až minutu nesvítil).
+    let wasConnected = null;
+    try {
+      db.ref('.info/connected').on('value', (snap) => {
+        const c = snap.val() === true;
+        if (c && wasConnected === false) { discSet = false; if (admin()) publish(true); }
+        wasConnected = c;
+      });
+    } catch (e) { /* ignore */ }
     // Odhlášení admina: nejdřív zhasnout ON AIR (po odhlášení už zápis nejde)
     window.__slOnAirStop = function () {
-      if (!admin() || !ref) return Promise.resolve();
+      if (!admin() || !ref || !hasPlayed) return Promise.resolve();
+      if (discSet) { try { ref.onDisconnect().cancel(); } catch (e) { /* ignore */ } discSet = false; }
       lastPlaying = false;
       try { return ref.update({ playing: false, ts: TS }).catch(() => {}); } catch (e) { return Promise.resolve(); }
     };
