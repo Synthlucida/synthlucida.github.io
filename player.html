@@ -21765,23 +21765,43 @@
         return (typeof k === 'string' && /^[a-z0-9_-]{1,20}$/.test(k)) ? k : '';
       } catch (e) { return ''; }
     }
-    // Vlastní názvy (jen admin, uložené v tomto zařízení): původní název skladby -> název pro ON AIR / YouTube.
-    // Platí pro tu skladbu i příště, až znovu zahraje.
+    // Vlastní názvy (jen admin): původní název skladby -> název pro ON AIR / YouTube.
+    // Platí pro tu skladbu i příště, až znovu zahraje. Hlavní uložení je ve Firebase (onairnames, číst i psát smí
+    // jen admin), takže je máš na všech zařízeních; v zařízení zůstává kopie (bez připojení / před načtením).
     const NAMES_KEY = 'sl-onair-names';
+    const NAMES_MIG_KEY = 'sl-onair-names-synced'; // úpravy z doby před Firebase už byly z tohoto zařízení přeneseny
+    function cleanName(t) { return String(t || '').replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300); }
+    function toDict(o) { // jen platné dvojice text -> text; objekt bez prototypu (název "constructor" apod. nic nerozbije)
+      const d = Object.create(null);
+      if (o && typeof o === 'object' && !Array.isArray(o)) {
+        Object.keys(o).forEach((k) => { const n = typeof o[k] === 'string' ? cleanName(o[k]) : ''; if (k && n && n !== k) d[k] = n; });
+      }
+      return d;
+    }
     function loadNames() {
-      try { const o = JSON.parse(localStorage.getItem(NAMES_KEY) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; } catch (e) { return {}; }
+      try { return toDict(JSON.parse(localStorage.getItem(NAMES_KEY) || '{}')); } catch (e) { return Object.create(null); }
     }
     function saveNames(o) {
       try {
         const k = Object.keys(o);
-        if (k.length > 500) k.slice(0, k.length - 500).forEach((x) => delete o[x]); // strop, nejstarší pryč
+        if (k.length > 500) k.slice(0, k.length - 500).forEach((x) => delete o[x]); // strop kopie v zařízení
         localStorage.setItem(NAMES_KEY, JSON.stringify(o));
         return true;
       } catch (e) { return false; }
     }
-    function cleanName(t) { return String(t || '').replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300); }
     let namesCache = loadNames();
-    function pubTitle(orig) { const v = orig && namesCache[orig]; return (typeof v === 'string' && cleanName(v)) ? cleanName(v) : orig; }
+    function pubTitle(orig) { const v = orig ? namesCache[orig] : ''; return (typeof v === 'string' && v) ? v : orig; }
+    // Klíč ve Firebase: název skladby obsahuje znaky, které Firebase v klíči nedovolí (. / # $ [ ]), proto otisk
+    // z názvu; samotný původní název je uložený uvnitř (o) a při čtení se podle něj páruje.
+    function nameKey(orig) {
+      let h1 = 0x811c9dc5, h2 = 0x5bd1e995;
+      for (let i = 0; i < orig.length; i++) {
+        const c = orig.charCodeAt(i);
+        h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+        h2 = Math.imul(h2 ^ c, 0x5bd1e995) >>> 0; h2 = (h2 ^ (h2 >>> 15)) >>> 0;
+      }
+      return 'k' + h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+    }
     function publish(force) {
       if (!admin()) return;
       const playing = !!(isPlaying && !audio.paused);
@@ -21813,7 +21833,10 @@
     audio.addEventListener('timeupdate', () => { if (admin() && isPlaying && Date.now() - lastBeat >= 60000) publish(false); }); // "jsem tu" každou minutu (i se zhasnutým displejem)
     const titleEl = document.getElementById('track-title');
     if (titleEl && window.MutationObserver) new MutationObserver(() => setTimeout(() => { publish(false); adminRefresh(false); }, 300)).observe(titleEl, { childList: true, characterData: true, subtree: true });
-    document.addEventListener('sladminchange', () => { if (admin()) { discSet = false; lastTitle = null; publish(true); } adminRefresh(true); });
+    document.addEventListener('sladminchange', () => {
+      if (admin()) { namesSubscribe(); discSet = false; lastTitle = null; publish(true); } else namesUnsubscribe();
+      adminRefresh(true);
+    });
 
     // ---- úprava názvu v okně ON AIR (vidí jen přihlášený admin) ----
     const aBox = document.getElementById('onair-admin');
@@ -21835,8 +21858,8 @@
       aInput.placeholder = mfT('Nothing is playing', 'Nic nehraje');
       const orig = curTitle();
       const changed = (aInput.dataset.orig || '') !== orig;
-      // rozepsaný text se nepřepíše - jen když se změní skladba nebo se okno právě otevřelo
-      if (fillInput || changed || document.activeElement !== aInput) { aInput.value = orig ? pubTitle(orig) : ''; aInput.dataset.orig = orig; }
+      // rozepsaný (neuložený) text se nepřepíše - jen když se změní skladba nebo se okno právě otevřelo
+      if (fillInput || changed || aInput.dataset.dirty !== '1') { aInput.value = orig ? pubTitle(orig) : ''; aInput.dataset.orig = orig; aInput.dataset.dirty = ''; }
       const o = aInput.dataset.orig || '';
       aInput.disabled = !o;
       if (aSave) aSave.disabled = !o;
@@ -21844,21 +21867,77 @@
       if (aHint) aHint.textContent = (o && pubTitle(o) !== o) ? mfT('Original: ', 'Původní: ') + o : '';
     }
     window.__onAirAdminRefresh = adminRefresh;
+
+    // ---- upravené názvy ve Firebase (sdílené mezi tvými zařízeními) ----
+    let namesOn = false; // odebírám onairnames (jsem admin a pravidla čtení dovolí)
+    function namesFromDb(v) {
+      const d = Object.create(null);
+      if (v && typeof v === 'object') {
+        Object.keys(v).forEach((k) => {
+          const e = v[k];
+          if (!e || typeof e.o !== 'string' || typeof e.n !== 'string') return;
+          const n = cleanName(e.n);
+          if (e.o && n && n !== e.o) d[e.o] = n;
+        });
+      }
+      return d;
+    }
+    function namesSubscribe() {
+      if (namesOn || !admin()) return;
+      namesOn = true;
+      try {
+        db.ref('onairnames').on('value', (snap) => {
+          const fromDb = namesFromDb(snap.val());
+          // jednorázově: úpravy, které už byly jen v tomhle zařízení, přenést do Firebase
+          let migrated = false;
+          try { migrated = localStorage.getItem(NAMES_MIG_KEY) === '1'; } catch (e) { migrated = true; }
+          if (!migrated) {
+            const local = loadNames(), ups = {};
+            Object.keys(local).forEach((o) => { if (!(o in fromDb)) { ups[nameKey(o)] = { o: o.slice(0, 300), n: local[o], t: TS }; fromDb[o] = local[o]; } });
+            const done = () => { try { localStorage.setItem(NAMES_MIG_KEY, '1'); } catch (e) { /* ignore */ } };
+            if (Object.keys(ups).length) db.ref('onairnames').update(ups).then(done).catch(() => { /* zkusí se příště */ });
+            else done();
+          }
+          namesCache = fromDb;
+          saveNames(namesCache);
+          publish(false);      // když se změnil název právě hrající skladby (třeba z druhého zařízení), hned ho pošle
+          adminRefresh(false);
+        }, () => { namesOn = false; /* pravidla ještě bez onairnames: úpravy zůstanou jen v tomhle zařízení */ });
+      } catch (e) { namesOn = false; }
+    }
+    function namesUnsubscribe() {
+      if (!namesOn) return;
+      try { db.ref('onairnames').off('value'); } catch (e) { /* ignore */ }
+      namesOn = false;
+    }
     function adminStore(orig, val) {
       if (!admin() || !orig) return;
-      namesCache = loadNames();
       const v = cleanName(val);
-      if (!v || v === orig) delete namesCache[orig]; else { delete namesCache[orig]; namesCache[orig] = v; }
-      const ok = saveNames(namesCache);
+      const drop = !v || v === orig;
+      if (!namesOn) namesCache = loadNames(); // bez Firebase vzít čerstvý stav z tohoto zařízení
+      delete namesCache[orig];
+      if (!drop) namesCache[orig] = v;
+      const okLocal = saveNames(namesCache);
       if (orig === curTitle()) publish(true);
       aInput.dataset.orig = '';
       adminRefresh(true);
-      showToast(ok ? mfT('ON AIR name saved', 'Název pro ON AIR uložen') : mfT('Saved only until the app is closed (storage is blocked)', 'Uloženo jen do zavření appky (úložiště je zablokované)'), '✏️');
+      if (namesOn) {
+        // bez internetu Firebase zápis podrží a pošle, až se spojení vrátí
+        const r = db.ref('onairnames/' + nameKey(orig));
+        const p = drop ? r.remove() : r.set({ o: orig, n: v, t: TS });
+        showToast(mfT('ON AIR name saved (on all your devices)', 'Název pro ON AIR uložen (na všech tvých zařízeních)'), '✏️');
+        Promise.resolve(p).catch(() => showToast(mfT('Not saved – Firebase refused the write (check the rules)', 'Neuloženo – Firebase zápis odmítl (zkontroluj pravidla)'), '⚠️'));
+      } else {
+        showToast(okLocal ? mfT('ON AIR name saved on this device', 'Název pro ON AIR uložen v tomto zařízení')
+          : mfT('Saved only until the app is closed (storage is blocked)', 'Uloženo jen do zavření appky (úložiště je zablokované)'), '✏️');
+      }
     }
     if (aSave) aSave.addEventListener('click', () => adminStore(aInput.dataset.orig || '', aInput.value));
     if (aReset) aReset.addEventListener('click', () => adminStore(aInput.dataset.orig || '', ''));
+    if (aInput) aInput.addEventListener('input', () => { aInput.dataset.dirty = '1'; });
     if (aInput) aInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); adminStore(aInput.dataset.orig || '', aInput.value); } });
     adminRefresh(true);
+    if (admin()) namesSubscribe();
     // Po výpadku sítě (mobil v tunelu…) server už jednou "playing:false" zapsal a pojistka zmizela ->
     // po návratu spojení ji nastavit znovu a hned poslat aktuální stav (jinak by ON AIR až minutu nesvítil).
     let wasConnected = null;
