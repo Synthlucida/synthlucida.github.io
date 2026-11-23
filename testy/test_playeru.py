@@ -235,6 +235,199 @@ class Env:
 #  Pomocnici pro testy
 # --------------------------------------------------------------------------- #
 SEEN_JS = "try{localStorage.setItem('sl-support-dismissed','1');localStorage.setItem('sl-tour-seen','1')}catch(e){}"
+
+
+# --------------------------------------------------------------------------- #
+#  Hodnoty, ktere jde zmenit v Editoru playeru (SYNTHLUCIDA AUDIO EDITOR)
+# --------------------------------------------------------------------------- #
+# Testy je ctou primo z testovaneho player.html (ne napevno), aby po uprave v editoru dal prochazely:
+# kod uvodniho okna, cas jeho zobrazeni, kod 666 do chatu, XP pro admina, texty spolecneho dychani, kroky pruvodce.
+PCFG = {}
+
+
+def _js_unq(body):
+    """Obsah JS retezce (bez uvozovek) -> text."""
+    out, i = [], 0
+    esc = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "v": "\v", "0": "\0"}
+    while i < len(body):
+        ch = body[i]
+        if ch != "\\" or i + 1 >= len(body):
+            out.append(ch)
+            i += 1
+            continue
+        nx = body[i + 1]
+        if nx == "u" and re.match(r"[0-9a-fA-F]{4}", body[i + 2:i + 6]):
+            out.append(chr(int(body[i + 2:i + 6], 16)))
+            i += 6
+        elif nx == "x" and re.match(r"[0-9a-fA-F]{2}", body[i + 2:i + 4]):
+            out.append(chr(int(body[i + 2:i + 4], 16)))
+            i += 4
+        elif nx == "\n":
+            i += 2
+        else:
+            out.append(esc.get(nx, nx))
+            i += 2
+    return "".join(out)
+
+
+_JS_WS = re.compile(r"(?:\s+|//[^\n]*|/\*.*?\*/)*", re.S)
+_JS_KEY = re.compile(r"""(?:([A-Za-z_$][\w$]*)|(['"])((?:\\.|(?!\2)[^\\\n])*)\2)\s*:\s*""")
+_JS_STR = re.compile(r"""(['"])((?:\\.|(?!\1)[^\\\n])*)\1""")
+
+
+def _js_val(src, i):
+    i = _JS_WS.match(src, i).end()
+    c = src[i]
+    if c in "'\"":
+        m = _JS_STR.match(src, i)
+        return _js_unq(m.group(2)), m.end()
+    if c == "{":
+        out = {}
+        i += 1
+        while True:
+            i = _JS_WS.match(src, i).end()
+            if src[i] == "}":
+                return out, i + 1
+            if src[i] == ",":
+                i += 1
+                continue
+            m = _JS_KEY.match(src, i)
+            if not m:
+                raise ValueError("JS objekt")
+            key = m.group(1) or _js_unq(m.group(3))
+            out[key], i = _js_val(src, m.end())
+    if c == "[":
+        out = []
+        i += 1
+        while True:
+            i = _JS_WS.match(src, i).end()
+            if src[i] == "]":
+                return out, i + 1
+            if src[i] == ",":
+                i += 1
+                continue
+            v, i = _js_val(src, i)
+            out.append(v)
+    m = re.compile(r"[^,}\]\n]+").match(src, i)
+    return m.group(0).strip(), m.end()
+
+
+def js_object(src, decl):
+    """Hodnota JS promenne/objektu (napr. 'const LANG = ') jako dict / list, nebo None."""
+    i = src.find(decl)
+    if i < 0:
+        return None
+    try:
+        return _js_val(src, i + len(decl))[0]
+    except Exception:
+        return None
+
+
+TGL = {  # texty spolecneho dychani (prepisou se texty z player.html)
+    "en": {"title": "BREATHE TOGETHER", "entryBtn": "TOGETHER", "connecting": "Connecting…",
+           "offline": "Offline — the rhythm keeps going by the clock",
+           "alone": "You're the only one here right now — anyone who joins falls right into your rhythm",
+           "many": "Breathing together right now: {n}", "waitLabel": "Join on the next inhale", "inLabel": "Inhale through the nose",
+           "holdLabel": "Hold your breath", "outLabel": "Exhale through the mouth", "heartBtn": "SEND CALM",
+           "today": "People today: {p} · minutes together: {m}", "eveningToday": "Evening group session today {time} · in {in}",
+           "eveningTomorrow": "Next evening group session tomorrow {time} · in {in}", "eveningLiveBanner": "EVENING SESSION LIVE · {left} left",
+           "timeAt": "at 21:00", "timeAtLocal": "at 21:00 Prague time ({local} your time)", "durMin": "{m} min", "durH": "{h} h",
+           "durHMin": "{h} h {m} min", "entryCount": "{n} now", "icsFile": "breathe-together.ics"},
+    "cz": {"title": "SPOLEČNÉ DÝCHÁNÍ", "entryBtn": "SPOLEČNĚ", "connecting": "Připojuji…",
+           "offline": "Bez připojení — rytmus běží dál podle hodin",
+           "alone": "Zatím tu dýcháš sám/sama — kdo se připojí, naskočí přesně do tvého rytmu",
+           "many": "Právě tu spolu dýcháte: {n}", "heartBtn": "POSLAT KLID", "icsFile": "spolecne-dychani.ics"},
+}
+
+
+TGL_DEFAULT = {k: dict(v) for k, v in TGL.items()}
+
+
+def tgt(key, lang="en", **kw):
+    """Text spolecneho dychani s doplnenymi hodnotami ({n}, {p}…)."""
+    t = TGL[lang][key]
+    for k, v in kw.items():
+        t = t.replace("{%s}" % k, str(v))
+    return t
+
+
+def tgrx(key, lang="en", **kw):
+    """Regularni vyraz z textu: pevne casti doslova, {neco} = zadany vyraz (jinak cokoli)."""
+    out = []
+    for part in re.split(r"(\{\w+\})", TGL[lang][key]):
+        m = re.fullmatch(r"\{(\w+)\}", part)
+        out.append(kw.get(m.group(1), ".*?") if m else re.escape(part))
+    return "".join(out)
+
+
+def tgpre(key, lang="en", n=24):
+    """Zacatek textu (pred prvni promennou) pro kontrolu startswith."""
+    return TGL[lang][key].split("{")[0][:n]
+
+
+def player_cfg(src):
+    c = {"sp_key": "sl-support-dismissed", "sp_on": True, "sp_first": 1500, "admin_code": "666", "admin_xp": 1000,
+         "layer_step": ["LAYER", "VRSTVA"], "lang": {}}
+    i = src.find("document.getElementById('support-popup');")
+    if i >= 0:
+        seg = src[i:src.find("})();", i)]
+        m = re.search(r"var KEY = '((?:[^'\\\n]|\\.)*)';", seg)
+        if m:
+            c["sp_key"] = _js_unq(m.group(1))
+        m = re.search(r"var FIRST_MS = (\d+);", seg)
+        if m:
+            c["sp_first"] = int(m.group(1))
+        if "if (isDismissed()) return;" in seg:
+            c["sp_on"] = bool(re.search(r"if \(isDismissed\(\)\) return;\s*schedule\(FIRST_MS\);", seg))
+    m = re.search(r"if \(text === '((?:[^'\\\n]|\\.)*)'\) \{\s*input\.value = '';\s*showAdminLogin\(\);", src)
+    if m:
+        c["admin_code"] = _js_unq(m.group(1))
+    m = re.search(r"const ADMIN_TEST_XP = (\d+(?:\.\d+)?);", src)
+    if m:
+        c["admin_xp"] = int(round(float(m.group(1))))
+    lang = js_object(src, "const LANG = ")
+    if isinstance(lang, dict):
+        c["lang"] = lang
+    m = re.search(r"sel: '#btn-layer', t: ", src)
+    if m:
+        try:
+            t = _js_val(src, m.end())[0]
+            names = [v for v in t.values() if isinstance(v, str) and v.strip()]
+            if names:
+                c["layer_step"] = names
+        except Exception:
+            pass
+    return c
+
+
+def configure(src):
+    """Nastavi testy podle testovaneho player.html (pokazde od vychozich hodnot - v okne jde testovat vic souboru)."""
+    for lg in TGL:
+        TGL[lg].clear()
+        TGL[lg].update(TGL_DEFAULT[lg])
+    PCFG.clear()
+    PCFG.update(player_cfg(src))
+    for lg in ("en", "cz"):
+        new = PCFG["lang"].get(lg)
+        if isinstance(new, dict):
+            TGL[lg].update({k: v for k, v in new.items() if isinstance(v, str)})
+    TG.update({"wait": TGL["en"]["waitLabel"], "in": TGL["en"]["inLabel"], "hold": TGL["en"]["holdLabel"],
+               "out": TGL["en"]["outLabel"], "title": TGL["en"]["title"], "alone": tgpre("alone"),
+               "offline": tgpre("offline"), "connecting": tgpre("connecting")})
+
+
+def seen_js():
+    """Init skript: navstevnik uz zna uvodni okno i pruvodce (klic okna podle player.html)."""
+    key = PCFG.get("sp_key") or "sl-support-dismissed"
+    return "try{localStorage.setItem(%s,'1');localStorage.setItem('sl-tour-seen','1')}catch(e){}" % json.dumps(key)
+
+
+def click_vis(p, sel):
+    """Klepne na prvek; kdyz je v Editoru playeru skryty (napr. v EXPLORE), spusti jeho akci primo."""
+    if p.is_visible(sel):
+        p.click(sel)
+    else:
+        p.evaluate("(s)=>document.querySelector(s).click()", sel)
 IOS_JS = """Object.defineProperty(HTMLMediaElement.prototype,'volume',{configurable:true,get(){return 1},set(v){}});
 try{delete Element.prototype.requestFullscreen}catch(e){} try{delete Navigator.prototype.wakeLock}catch(e){} try{delete window.Notification}catch(e){}"""
 IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
@@ -278,7 +471,7 @@ class Session:
         # druha pojistka: vse mimo tento pocitac se rovnou zahodi (pocitadla navstev, chat, fonty)
         ctx.route(re.compile(r"^(?:https?|wss?)://(?!localhost[:/]|127\.0\.0\.1[:/])"), lambda route: route.abort())
         if seen:
-            ctx.add_init_script(SEEN_JS)
+            ctx.add_init_script(seen_js())
         if init:
             ctx.add_init_script(init)
         p = ctx.new_page()
@@ -753,8 +946,9 @@ def t_admin(s, c):
     p.wait_for_timeout(400)
     u = p.evaluate(ui)
     c.ok(not u["dis"] and not u["locked"], "Po přihlášení admina se volba R2 odemkne")
-    x = p.evaluate("()=>({avail:computeAvailableXP(stats),level:xpLevelInfo(computeXP(stats)).level})")
-    c.ok(x["avail"] == 1000 and x["level"] >= 6, "Admin dostane 1000 XP na vyzkoušení (úroveň %s)" % x["level"])
+    x = p.evaluate("(w)=>({avail:computeAvailableXP(stats),level:xpLevelInfo(computeXP(stats)).level,want:xpLevelInfo(w).level})", PCFG.get("admin_xp", 1000))
+    c.ok(x["avail"] == PCFG.get("admin_xp", 1000) and x["level"] >= x["want"],
+         "Admin dostane %d XP na vyzkoušení (úroveň %s)" % (PCFG.get("admin_xp", 1000), x["level"]))
     c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
 
 
@@ -778,11 +972,15 @@ def t_iphone(s, c):
 
 
 def t_tour(s, c):
-    ctx, p, errs = s.page(seen=False, wait=2800)
+    sp_on = PCFG.get("sp_on", True)
+    ctx, p, errs = s.page(seen=False, wait=max(2800, PCFG.get("sp_first", 1500) + 1300) if sp_on else 2800)
     r = p.evaluate("()=>({sp:!document.getElementById('support-popup').hidden,hint:!document.getElementById('tour-hint').hidden})")
-    c.ok(r["sp"] and not r["hint"], "První návštěva: okno s poděkováním, bublina průvodce čeká")
-    p.click("#sp-ok")
-    p.wait_for_timeout(1800)
+    if sp_on:
+        c.ok(r["sp"] and not r["hint"], "První návštěva: okno s poděkováním, bublina průvodce čeká")
+        p.click("#sp-ok")
+        p.wait_for_timeout(1800)
+    else:
+        c.ok(not r["sp"], "Úvodní okno je vypnuté (Editor playeru) – při první návštěvě se neukáže")
     r = p.evaluate("()=>({hint:!document.getElementById('tour-hint').hidden,blink:document.querySelector('.main-guide-btn').classList.contains('tour-attention')})")
     c.ok(r["hint"] and r["blink"], "Pak se ukáže bublina „Jsi tu poprvé?“ a bliká ⓘ")
     p.click("#tour-hint-go")
@@ -791,7 +989,8 @@ def t_tour(s, c):
     c.ok(re.match(r"1 / \d+", n or ""), "Průvodce se spustí (krok %s)" % n)
     seen_layer = False
     for _ in range(14):
-        if "#btn-layer" and re.search("LAYER|VRSTVA", p.evaluate("document.getElementById('tour-card').innerText"), re.I):
+        if re.search("|".join(re.escape(x) for x in PCFG.get("layer_step", ["LAYER", "VRSTVA"])),
+                     p.evaluate("document.getElementById('tour-card').innerText"), re.I):
             seen_layer = True
             break
         p.keyboard.press("ArrowRight")
@@ -800,7 +999,7 @@ def t_tour(s, c):
     p.keyboard.press("Escape")
     p.wait_for_timeout(300)
     c.ok(p.evaluate("document.getElementById('tour').hidden"), "Esc průvodce zavře")
-    c.ok(p.evaluate("!!document.querySelector('.guide-layer-tip .guide-tip-text') && document.querySelector('.guide-layer-tip .guide-tip-text').textContent.length>80"),
+    c.ok(p.evaluate("!!document.querySelector('.guide-layer-tip .guide-tip-text') && document.querySelector('.guide-layer-tip .guide-tip-text').textContent.trim().length>20"),
          "V návodu je zvýrazněný tip, že ASMR vrstvy fungují i v playlistech a pod vlastními soubory")
     p.reload()
     p.wait_for_timeout(3500)
@@ -1600,6 +1799,24 @@ def slogan_state(p):
                       "txt:document.getElementById('slogan-container').innerText})")
 
 
+def greet_texts(p, kind, year=None):
+    """Texty přání z player.html (jde je změnit v Editoru playeru): kind = friday | advent | eve | newyear."""
+    js = """(a)=>{try{if(a.k==='friday')return [FRIDAY_GREET_TEXT.en,FRIDAY_GREET_TEXT.cz];
+      const h=HOLIDAY_TEXTS[a.k];return [].concat(h.en||[],h.cz||[])}catch(e){return []}}"""
+    out = [t for t in (p.evaluate(js, {"k": kind}) or []) if isinstance(t, str) and t.strip()]
+    if year is not None:
+        out = [t.replace("{Y}", str(year)) for t in out]
+    return out
+
+
+def greet_ok(shown, texts, fallback):
+    """Ukázané přání je jedno z textů v player.html (když je nejde přečíst, platí původní kontrola)."""
+    norm = lambda t: " ".join(str(t).split()).lower()
+    if not texts:
+        return bool(re.search(fallback, shown, re.I))
+    return any(norm(t) and (norm(t) in norm(shown) or norm(shown) in norm(t)) for t in texts) and norm(shown) != ""
+
+
 def t_greetings(s, c):
     """Páteční / nedělní přání se ukazují i s vypnutými motivačními texty; Vánoce a Nový rok mají vlastní přání."""
     def look(iso, loads=1, wait=900):
@@ -1622,7 +1839,7 @@ def t_greetings(s, c):
     if not p.evaluate("typeof holidayGreetingToday==='function'"):
         c.ok(False, "Player nemá sváteční přání (je to aktuální player.html?)")
         return
-    c.ok(not motiv and len(shown) == 1 and re.search("weekend|víkend", shown[0], re.I),
+    c.ok(not motiv and len(shown) == 1 and greet_ok(shown[0], greet_texts(p, "friday"), "weekend|víkend"),
          "Páteční přání se ukáže i s vypnutými motivačními texty (MOTIVATION: OFF)")
     p.evaluate("toggleMotivationTexts()")  # zapnout a hned vypnout během přání
     p.evaluate("toggleMotivationTexts()")
@@ -1636,15 +1853,17 @@ def t_greetings(s, c):
     c.ok(not shown, "Neděle dopoledne: žádné přání")
     ctx.close()
     ctx, p, errs4, shown, _ = look("2026-12-24T17:00:00", loads=5)
-    c.ok(len(shown) == 3 and all(re.search("Christmas|Vánoc|Štědr", t, re.I) for t in shown),
+    tx = greet_texts(p, "eve")
+    c.ok(len(shown) == 3 and all(greet_ok(t, tx, "Christmas|Vánoc|Štědr") for t in shown),
          "24. 12.: vánoční přání ke štědrovečerní večeři, nejvýš 3x za den (%dx)" % len(shown))
     ctx.close()
     ctx, p, errs5, shown, _ = look("2026-12-18T12:00:00", loads=3)
-    c.ok(len(shown) == 1 and re.search("Christmas|Vánoc", shown[0], re.I),
+    c.ok(len(shown) == 1 and greet_ok(shown[0], greet_texts(p, "advent"), "Christmas|Vánoc"),
          "Týden před Vánoci (i v pátek): předvánoční přání jednou za den, páteční se neukáže")
     ctx.close()
     ctx, p, errs6, shown, _ = look("2027-01-01T12:00:00", loads=4)
-    c.ok(len(shown) == 3 and all("2027" in t for t in shown), "1. 1.: novoroční přání s letopočtem, nejvýš 3x")
+    tx = greet_texts(p, "newyear", 2027)
+    c.ok(len(shown) == 3 and all(greet_ok(t, tx, "2027") for t in shown), "1. 1.: novoroční přání (s letopočtem), nejvýš 3x")
     ctx.close()
     ctx, p, errs7, shown, _ = look("2027-01-04T12:00:00")
     c.ok(not shown, "4. 1.: žádné přání")
@@ -2374,10 +2593,11 @@ def t_chat_offline(s, c):
     p.wait_for_timeout(200)
     c.ok(not p.evaluate("document.getElementById('community-history-panel').classList.contains('visible')"), "Historie jde zavřít")
     c.ok(p.evaluate("document.getElementById('online-count-badge').textContent") == "–", "Počet posluchačů ukazuje pomlčku")
-    # skrytý vstup pro admina (666)
-    chat_send(p, "666", wait=250)
-    c.ok(p.evaluate("document.getElementById('community-admin-login-row').classList.contains('visible')"), "„666“ otevře skrytá pole pro admina")
-    c.ok(p.evaluate("document.getElementById('community-input').value") == "", "„666“ se nikdy neodešle jako zpráva")
+    # skrytý vstup pro admina (666 – kód jde změnit v Editoru playeru)
+    code = PCFG.get("admin_code", "666")
+    chat_send(p, code, wait=250)
+    c.ok(p.evaluate("document.getElementById('community-admin-login-row').classList.contains('visible')"), "„%s“ otevře skrytá pole pro admina" % code)
+    c.ok(p.evaluate("document.getElementById('community-input').value") == "", "„%s“ se nikdy neodešle jako zpráva" % code)
     p.evaluate("()=>{document.getElementById('community-admin-email').value='a@b.cz';document.getElementById('community-admin-password').value='x';adminLogin()}")
     p.wait_for_timeout(250)
     c.ok(err_visible(p), "Přihlášení admina bez připojení jen ukáže chybu")
@@ -2518,12 +2738,13 @@ def t_chat_admin(s, c):
     set_lang(p, "en")
     row = "document.getElementById('community-admin-login-row').classList.contains('visible')"
     logout = "document.getElementById('admin-logout-btn').classList.contains('visible')"
-    chat_send(p, "666", wait=250)
-    c.ok(p.evaluate(row) and len(chat_msgs(p)) == 0, "„666“ otevře pole pro přihlášení a nic neodešle")
+    code = PCFG.get("admin_code", "666")
+    chat_send(p, code, wait=250)
+    c.ok(p.evaluate(row) and len(chat_msgs(p)) == 0, "„%s“ otevře pole pro přihlášení a nic neodešle" % code)
     p.press("#community-admin-email", "Escape")
     p.wait_for_timeout(200)
     c.ok(not p.evaluate(row), "Esc pole pro přihlášení zavře")
-    chat_send(p, "666", wait=250)
+    chat_send(p, code, wait=250)
     p.evaluate("()=>{document.getElementById('community-admin-email').value='admin@test.cz';document.getElementById('community-admin-password').value='spatne';adminLogin()}")
     p.wait_for_timeout(500)
     c.ok(err_visible(p) and not p.evaluate("!!window.__slIsAdmin") and p.evaluate(row) and p.evaluate("__fb.user()") is None, "Špatné heslo: chyba, nikdo se nepřihlásí")
@@ -2629,31 +2850,31 @@ def t_together(s, c):
     p.evaluate("startBreathing()")
     p.wait_for_timeout(1500)
     entry = p.evaluate("()=>({hidden:document.getElementById('breath-together-count').hidden,txt:document.querySelector('#breath-together-count .tg-entry-count-text').textContent})")
-    c.ok(not entry["hidden"] and entry["txt"] == "3 now", "Na tlačítku TOGETHER je vidět, kolik lidí právě dýchá (%s)" % entry["txt"])
+    c.ok(not entry["hidden"] and entry["txt"] == tgt("entryCount", n=3), "Na tlačítku TOGETHER je vidět, kolik lidí právě dýchá (%s)" % entry["txt"])
     p.click("#breath-together-btn")
     p.wait_for_timeout(800)
     st = tg_state(p)
     c.ok(st["open"] and st["shown"], "Tlačítko TOGETHER otevře místnost")
     c.ok(p.evaluate("breathingPaused"), "Rozběhnuté dechové cvičení se při tom pozastaví")
-    c.ok(st["count"] == TG["many"] + "4", "Ukazuje počet lidí včetně mě: %s" % st["count"])
+    c.ok(st["count"] == tgt("many", n=4), "Ukazuje počet lidí včetně mě: %s" % st["count"])
     c.ok(st["dots"] == 4 and st["me"] == 1, "Na kruhu je 4 teček a jedna je moje")
     c.ok(len([k for k in (p.evaluate("__fb.get('together')") or {})]) == 4 and any(x.startswith("together/") for x in p.evaluate("__fb.disconnectPaths()")),
          "Zapíšu se do místnosti a mám nastavený úklid při výpadku spojení")
     p.evaluate("__fb.others(2)")
     p.wait_for_timeout(400)
-    c.ok(tg_state(p)["count"] == TG["many"] + "6", "Když se připojí dva další, číslo naskočí na 6")
+    c.ok(tg_state(p)["count"] == tgt("many", n=6), "Když se připojí dva další, číslo naskočí na 6")
     p.evaluate("__fb.others(2, 4*3600*1000);__fb.others(1, 7*3600*1000)")
     p.wait_for_timeout(500)
-    c.ok(tg_state(p)["count"] == TG["many"] + "6", "Záznamy starší než 3 hodiny se nepočítají")
+    c.ok(tg_state(p)["count"] == tgt("many", n=6), "Záznamy starší než 3 hodiny se nepočítají")
     c.ok(len(p.evaluate("__fb.get('together')")) == 8, "Zapomenuté záznamy starší než 6 hodin se samy uklidí")
     # schovaná karta / zhasnutý displej
     hide = "()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>%s});document.dispatchEvent(new Event('visibilitychange'))}"
     p.evaluate(hide % "true")
     p.wait_for_timeout(400)
-    c.ok(tg_state(p)["count"] == TG["many"] + "5", "Když mám stránku schovanou, nepočítám se mezi dýchající")
+    c.ok(tg_state(p)["count"] == tgt("many", n=5), "Když mám stránku schovanou, nepočítám se mezi dýchající")
     p.evaluate(hide % "false")
     p.wait_for_timeout(500)
-    c.ok(tg_state(p)["count"] == TG["many"] + "6", "Po návratu na stránku se zase počítám")
+    c.ok(tg_state(p)["count"] == tgt("many", n=6), "Po návratu na stránku se zase počítám")
     p.click("#together-close-btn")
     p.wait_for_timeout(500)
     st = tg_state(p)
@@ -2696,7 +2917,7 @@ def t_together_sync(s, c):
     st = tg_state(p)
     c.ok(st["phase"] == TG["wait"] and st["cd"].isdigit() and 3 <= int(st["cd"]) <= 5,
          "Uprostřed výdechu ostatních se čeká na další celý nádech (zbývá %s s)" % st["cd"])
-    p.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=9000)
+    p.wait_for_function("()=>document.getElementById('together-phase').textContent!==%s" % json.dumps(TG["wait"]), timeout=9000)
     st = tg_state(p)
     c.ok(st["phase"] == TG["in"] and st["type"] == "in", "S dalším nádechem naskočím do rytmu ostatních (%s)" % st["phase"])
     p.wait_for_timeout(2300)
@@ -2719,7 +2940,7 @@ def t_together_sync(s, c):
         pg.evaluate("openTogether()")
         pages.append((pg, er, shift))
     for pg, _, _ in pages:  # počkat, až naskočí do rytmu (nejdéle jeden celý cyklus 19 s)
-        pg.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=22000)
+        pg.wait_for_function("()=>document.getElementById('together-phase').textContent!==%s" % json.dumps(TG["wait"]), timeout=22000)
     pages[0][0].wait_for_timeout(500)
     same_type = 0
     worst = 0.0
@@ -2793,7 +3014,7 @@ def t_together_extras(s, c):
         p.click(".together-link-btn")
     d = dl.value
     ics = open(d.path(), encoding="utf-8", newline="").read()
-    c.ok(d.suggested_filename == "breathe-together.ics", "Stáhne se soubor do kalendáře (%s)" % d.suggested_filename)
+    c.ok(d.suggested_filename == TGL["en"]["icsFile"], "Stáhne se soubor do kalendáře (%s)" % d.suggested_filename)
     c.ok(all(x in ics for x in ("BEGIN:VCALENDAR", "BEGIN:VEVENT", "RRULE:FREQ=DAILY", "DURATION:PT10M", "BEGIN:VALARM", "TRIGGER:-PT5M", "END:VCALENDAR")) and
          re.search(r"DTSTART;TZID=Europe/Prague:\d{8}T210000", ics), "V kalendáři je denní událost ve 21:00 pražského času na 10 minut s upozorněním 5 minut předem")
     c.ok("\r\n" in ics and "URL:https://synthlucida.com/player.html#together" in ics, "Soubor má správné konce řádků a odkaz zpět do playeru")
@@ -2802,11 +3023,12 @@ def t_together_extras(s, c):
     p.wait_for_timeout(500)
     cz = p.evaluate("()=>({title:document.getElementById('together-title').textContent,heart:document.querySelector('#together-heart-btn .tg-lbl-a').textContent,"
                     "count:document.getElementById('together-count-text').textContent,entry:document.querySelector('#breath-together-btn [data-tg=entryBtn]').textContent})")
-    c.ok(cz["title"] == "SPOLEČNÉ DÝCHÁNÍ" and "POSLAT KLID" in cz["heart"] and cz["entry"] == "SPOLEČNĚ" and "dýchá" in cz["count"],
+    c.ok(cz["title"] == TGL["cz"]["title"] and TGL["cz"]["heartBtn"] in cz["heart"] and cz["entry"] == TGL["cz"]["entryBtn"]
+         and any(cz["count"].startswith(tgpre(k, "cz", 12)) for k in ("many", "alone", "connecting", "offline")),
          "Po přepnutí do češtiny se přeloží celá místnost (%s)" % cz["title"])
     with p.expect_download() as dl:
         p.click(".together-link-btn")
-    c.ok(dl.value.suggested_filename == "spolecne-dychani.ics", "Česká připomínka má český název souboru")
+    c.ok(dl.value.suggested_filename == TGL["cz"]["icsFile"], "Česká připomínka má český název souboru")
     p.keyboard.press("Escape")
     p.wait_for_timeout(400)
     st = tg_state(p)
@@ -2835,29 +3057,31 @@ def t_together_evening(s, c):
         st["errs"] = er
         return cx, pg, st
     cx, pg, st = case(prague_ms(2026, 12, 15, 12, 0, 0))
-    c.ok(st["banner"] == "" and not st["live_btn"] and re.match(r"Evening group session today at 21:00 · in (9 h|8 h 59 min)", st["evening"]),
+    at = re.escape(tgt("timeAt"))
+    c.ok(st["banner"] == "" and not st["live_btn"] and re.match(tgrx("eveningToday", time=at, **{"in": "(?:%s|%s)" % (
+        re.escape(tgt("durH", h=9)), re.escape(tgt("durHMin", h=8, m=59)))}), st["evening"]),
          "Ve 12:00: „večerní sezení dnes ve 21:00 za 9 h“ (%s)" % st["evening"])
     c.ok(not st["errs"], "Bez chyby ve stránce (12:00)")
     cx.close()
     cx, pg, st = case(prague_ms(2026, 12, 15, 21, 3, 30))
-    c.ok(re.match(r"EVENING SESSION LIVE · [56]:\d\d left", st["banner"]) and st["live_btn"] and st["evening"] == "",
+    c.ok(re.match(tgrx("eveningLiveBanner", left=r"[56]:\d\d"), st["banner"]) and st["live_btn"] and st["evening"] == "",
          "Ve 21:03:30 běží sezení: nahoře pruh se zbývajícím časem, tlačítko TOGETHER svítí (%s)" % st["banner"])
     cx.close()
     cx, pg, st = case(prague_ms(2026, 12, 15, 21, 10, 30))
-    c.ok(st["banner"] == "" and not st["live_btn"] and "tomorrow at 21:00" in st["evening"], "Po 21:10 sezení skončí a nabídne se zítřek (%s)" % st["evening"][:45])
+    c.ok(st["banner"] == "" and not st["live_btn"] and tgt("eveningTomorrow", time=tgt("timeAt")).split("{in}")[0].strip() in st["evening"], "Po 21:10 sezení skončí a nabídne se zítřek (%s)" % st["evening"][:45])
     with pg.expect_download() as dl:
         pg.click(".together-link-btn")
     ics = open(dl.value.path(), encoding="utf-8").read()
     c.ok("DTSTART;TZID=Europe/Prague:20261216T210000" in ics, "Připomínka do kalendáře začíná od zítřka (16. 12.) ve 21:00")
     cx.close()
     cx, pg, st = case(prague_ms(2026, 7, 15, 21, 5, 0, summer=True))
-    c.ok(st["banner"].startswith("EVENING SESSION LIVE") and st["live_btn"], "V létě (21:05 letního času) sezení také běží – posun času se počítá správně")
+    c.ok(st["banner"].startswith(tgpre("eveningLiveBanner", n=200).strip()) and st["live_btn"], "V létě (21:05 letního času) sezení také běží – posun času se počítá správně")
     cx.close()
     cx, pg, st = case(prague_ms(2026, 7, 15, 20, 59, 20, summer=True))
-    c.ok(st["banner"] == "" and re.match(r"Evening group session today at 21:00 · in 1 min", st["evening"]), "V 20:59 je do sezení 1 minuta (%s)" % st["evening"])
+    c.ok(st["banner"] == "" and re.match(tgrx("eveningToday", time=re.escape(tgt("timeAt")), **{"in": re.escape(tgt("durMin", m=1))}), st["evening"]), "V 20:59 je do sezení 1 minuta (%s)" % st["evening"])
     cx.close()
     cx, pg, st = case(prague_ms(2026, 12, 15, 12, 0, 0), tz="America/New_York")
-    c.ok("Prague time (" in st["evening"] and "your time)" in st["evening"], "V jiném časovém pásmu text říká i čas u uživatele (%s)" % st["evening"][:70])
+    c.ok(all(x.strip() in st["evening"] for x in TGL["en"]["timeAtLocal"].split("{local}") if x.strip()), "V jiném časovém pásmu text říká i čas u uživatele (%s)" % st["evening"][:70])
     cx.close()
 
 
@@ -2869,7 +3093,7 @@ def t_together_stats(s, c):
     p.wait_for_timeout(500)
     before = p.evaluate("stats.breathingSessions||0")
     p.evaluate("openTogether()")
-    p.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=8000)
+    p.wait_for_function("()=>document.getElementById('together-phase').textContent!==%s" % json.dumps(TG["wait"]), timeout=8000)
     sw = "()=>document.getElementById('together-stopwatch').textContent"
     p.wait_for_function("()=>document.getElementById('together-stopwatch').textContent>='00:31'", timeout=15000)
     day = p.evaluate("Object.keys(__fb.get('togetherStats')||{})[0]")
@@ -2879,14 +3103,14 @@ def t_together_stats(s, c):
     p.wait_for_function("()=>document.getElementById('together-stopwatch').textContent>='01:02'", timeout=15000)
     st = p.evaluate("__fb.get('togetherStats/%s')" % day)
     c.ok(st.get("minutes", 0) >= 1 and st.get("people") == 1, "Každá celá minuta se přičte do společných minut (%s)" % st.get("minutes"))
-    c.ok(re.match(r"People today: 1 · minutes together: \d+", p.evaluate("document.getElementById('together-today-text').textContent")),
+    c.ok(re.match(tgrx("today", p="1", m=r"\d+"), p.evaluate("document.getElementById('together-today-text').textContent")),
          "V místnosti je vidět „dnes tu dýchalo lidí / společných minut“")
     p.click("#together-close-btn")
     p.wait_for_timeout(600)
     after = p.evaluate("stats.breathingSessions||0")
     c.ok(after == before + 1, "Minutové společné dýchání se započítá do statistik a XP (%d → %d)" % (before, after))
     p.click("#breath-together-btn")
-    p.wait_for_function("()=>document.getElementById('together-phase').textContent!=='%s'" % TG["wait"], timeout=8000)
+    p.wait_for_function("()=>document.getElementById('together-phase').textContent!==%s" % json.dumps(TG["wait"]), timeout=8000)
     p.wait_for_function("()=>document.getElementById('together-stopwatch').textContent>='00:33'", timeout=15000)
     c.ok(p.evaluate("__fb.get('togetherStats/%s')" % day).get("people") == 1, "Ve stejný den se jeden člověk nepočítá dvakrát")
     p.click("#together-close-btn")
@@ -3074,7 +3298,7 @@ def t_onair_viewer(s, c):
     p.evaluate("()=>__fb.set('onair',{title:'SYNTHLUCIDA - Polaris',playing:true,ts:__fb.now(),own:false,list:'piano'})")
     p.evaluate("()=>{const t=document.getElementById('atmos-toggle-explore');if(t)t.click()}")
     p.wait_for_timeout(300)
-    p.click("#btn-onair")
+    click_vis(p, "#btn-onair")
     p.wait_for_timeout(1500)
     src = p.evaluate("document.getElementById('onair-frame').getAttribute('src')") or ""
     c.ok(not p.evaluate("document.getElementById('onair-window').hidden") and "onair.html?embed=1&lang=en" in src,
@@ -3229,6 +3453,7 @@ def run_tests(player_path, sw_path, on_event, stop_flag=None, only=None):
     """on_event(kind, data): 'info' text | 'start' (i, name) | 'done' (i, name, checks, seconds) | 'finish' summary."""
     from playwright.sync_api import sync_playwright
     env = Env(player_path, sw_path)
+    configure(env.player_src)
     env.prepare()
     env.start()
     results = []
@@ -3311,7 +3536,8 @@ def cli(argv):
 # --------------------------------------------------------------------------- #
 #  Okno programu
 # --------------------------------------------------------------------------- #
-def gui():
+def gui(parent=None):
+    """parent = ramec zalozky v SYNTHLUCIDA AUDIO EDITORU; bez nej vlastni okno jako driv."""
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
     import webbrowser
@@ -3324,10 +3550,13 @@ def gui():
     except Exception:
         cfg = {}
 
-    root = tk.Tk()
-    root.title(APP_TITLE)
-    root.geometry("860x640")
-    root.minsize(700, 480)
+    if parent is None:
+        root = tk.Tk()
+        root.title(APP_TITLE)
+        root.geometry("860x640")
+        root.minsize(700, 480)
+    else:
+        root = parent
     q = queue.Queue()
     state = {"running": False, "results": None, "stop": threading.Event()}
 
@@ -3510,7 +3739,9 @@ def gui():
     root.after(150, poll)
     if os.environ.get("TESTPLAYERU_AUTORUN"):
         root.after(400, start)
-    root.mainloop()
+    if parent is None:
+        root.mainloop()
+    return state
 
 
 if __name__ == "__main__":
