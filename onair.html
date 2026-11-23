@@ -96,6 +96,25 @@
   .hist-clear.confirm { color: #fff; border-color: var(--red); }
   .about { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 0; text-align: left; }
   .about h2 { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--txt); margin: 0 0 6px; text-align: center; }
+  /* Kopírovat název (karta i historie) */
+  .actions { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .actions[hidden] { display: none; }
+  .actions .yt { margin-top: 0; }
+  .copy-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.05); color: rgba(242,242,245,0.85); cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s; -webkit-tap-highlight-color: transparent; }
+  .copy-btn:hover, .copy-btn:focus-visible { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.45); color: #fff; outline: none; }
+  .copy-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .copy-btn.done { color: #5be39a; border-color: rgba(91,227,154,0.6); }
+  .hist .copy-btn { width: 34px; height: 34px; }
+  .hist .h-btns { flex: none; display: flex; gap: 6px; }
+  @media (max-width: 340px) { .hist li { gap: 7px; padding-left: 9px; } .hist .h-time { min-width: 2.8em; } .hist .copy-btn, .hist .h-yt { width: 32px; height: 32px; } }
+  .copied { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); transform: translate(-50%, 12px); max-width: calc(100% - 32px);
+    padding: 8px 14px; border-radius: 999px; background: rgba(20,20,26,0.96); border: 1px solid rgba(91,227,154,0.55); color: #fff; font-size: 12.5px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 5; overflow-wrap: anywhere; text-align: center; }
+  .copied.show { opacity: 1; transform: translate(-50%, 0); }
+  .copied.fail { border-color: var(--red); }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
   /* Upozornění dole: nejde o rádio, jen tip */
   .notice { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 14px; border-radius: 14px;
     border: 1px solid rgba(255,59,59,0.45); background: linear-gradient(180deg, rgba(255,59,59,0.10), rgba(255,59,59,0.04)); }
@@ -119,9 +138,13 @@
     <p class="title" id="title"></p>
     <span class="from" id="from" hidden></span>
     <p class="meta" id="meta"></p>
-    <a class="yt" id="yt" href="#" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg><span id="yt-text"></span></a>
+    <div class="actions" id="actions" hidden>
+      <a class="yt" id="yt" href="#" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg><span id="yt-text"></span></a>
+      <button type="button" class="copy-btn" id="copy-now"></button>
+    </div>
     <p class="yt-note" id="yt-note" hidden></p>
   </section>
+  <div class="copied" id="copied" role="status" aria-live="polite"></div>
   <section class="hist" id="hist" hidden>
     <h2 id="hist-h"></h2>
     <p class="hist-note" id="hist-note"></p>
@@ -180,6 +203,7 @@
       histNote: 'What this page caught while it was open on this device (last 10).',
       histClear: 'Clear history', histConfirm: 'Really clear? Tap again',
       histYt: 'Search on YouTube: ',
+      copy: 'Copy title: ', copied: 'Copied: ', copyFail: 'Could not copy – select the title and copy it manually.',
       min: 'min', h: 'h', d: 'd', justNow: 'just now', agoSuffix: ' ago'
     },
     cz: {
@@ -201,6 +225,7 @@
       histNote: 'Co tahle stránka zachytila, když byla otevřená na tomto zařízení (posledních 10).',
       histClear: 'Smazat historii', histConfirm: 'Opravdu smazat? Klepni znovu',
       histYt: 'Hledat na YouTube: ',
+      copy: 'Kopírovat název: ', copied: 'Zkopírováno: ', copyFail: 'Kopírování nejde – označ název a zkopíruj ho ručně.',
       min: 'min', h: 'h', d: 'd', justNow: 'právě teď', agoSuffix: ''
     }
   }[lang];
@@ -244,6 +269,54 @@
   // ---- Historie: jen v tomto zařízení (localStorage), nic se nikam neposílá ----
   var HIST_KEY = 'sl-onair-history', HIST_MAX = 10;
   var YT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg>';
+  var COPY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+  var OK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var copiedTimer = null;
+  function showCopied(text, ok) {
+    var el = $('copied');
+    el.textContent = ok ? T.copied + text : T.copyFail;
+    el.classList.toggle('fail', !ok);
+    el.classList.add('show');
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(function () { el.classList.remove('show'); }, ok ? 1800 : 3500);
+  }
+  function legacyCopy(text) { // starší prohlížeče / zakázaná schránka
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(ta);
+    var ok = false;
+    try { ta.select(); ta.setSelectionRange(0, text.length); ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copyText(text, btn) {
+    if (!text) return;
+    var done = function (ok) {
+      showCopied(text, ok);
+      if (ok && btn) {
+        btn.classList.add('done'); btn.innerHTML = OK_SVG;
+        clearTimeout(btn._t); btn._t = setTimeout(function () { btn.classList.remove('done'); btn.innerHTML = COPY_SVG; }, 1500);
+      }
+    };
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacyCopy(text)); });
+        return;
+      }
+    } catch (e) { /* zkusit postaru */ }
+    done(legacyCopy(text));
+  }
+  function makeCopyBtn(text, label) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'copy-btn'; b.innerHTML = COPY_SVG; // pevná ikona, žádný text skladby
+    b.setAttribute('aria-label', T.copy + label); b.title = T.copy + label;
+    b.addEventListener('click', function () { copyText(text, b); });
+    return b;
+  }
+  var nowCopy = ''; // název právě zobrazený v kartě
+  $('copy-now').innerHTML = COPY_SVG;
+  $('copy-now').addEventListener('click', function () { copyText(nowCopy, $('copy-now')); });
   function histLoad() {
     var a = [];
     try { a = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) { a = []; }
@@ -301,7 +374,9 @@
       yt.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(x.t);
       yt.setAttribute('aria-label', T.histYt + shortTitle(x.t)); yt.title = T.histYt + shortTitle(x.t);
       yt.innerHTML = YT_SVG; // pevná ikona z této stránky, žádný text skladby
-      li.appendChild(tm); li.appendChild(main); li.appendChild(yt);
+      var btns = document.createElement('span'); btns.className = 'h-btns';
+      btns.appendChild(makeCopyBtn(x.t, shortTitle(x.t))); btns.appendChild(yt);
+      li.appendChild(tm); li.appendChild(main); li.appendChild(btns);
       ol.appendChild(li);
     });
     $('hist').hidden = !a.length;
@@ -352,8 +427,11 @@
     $('meta').hidden = !meta.length;
     var yt = $('yt');
     yt.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(title);
-    yt.hidden = false;
+    $('actions').hidden = false;
     $('yt-note').hidden = false;
+    nowCopy = title;
+    var cl = T.copy + shortTitle(title);
+    if ($('copy-now').getAttribute('aria-label') !== cl) { $('copy-now').setAttribute('aria-label', cl); $('copy-now').title = cl; }
     document.title = (live ? '🔴 ' : '') + 'ON AIR – ' + shortTitle(title);
   }
 
