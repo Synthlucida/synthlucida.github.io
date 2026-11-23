@@ -74,6 +74,26 @@
   .from { font-size: 12px; color: var(--muted); }
   .from b { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 1.5px; color: #fff; font-weight: 700; padding: 2px 8px; margin-left: 4px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; }
   .yt-note { font-size: 11px; color: var(--muted); margin: 0; opacity: 0.85; }
+  /* Historie: co tahle stránka zachytila na tomto zařízení (posledních 10) */
+  .hist { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+  .hist[hidden] { display: none; }
+  .hist h2 { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--txt); margin: 0; text-align: center; }
+  .hist-note { font-size: 11px; color: var(--muted); margin: 0; text-align: center; opacity: 0.85; }
+  .hist ol { list-style: none; margin: 0; padding: 0; border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; overflow: hidden; }
+  .hist li { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; min-width: 0; }
+  .hist li + li { border-top: 1px solid rgba(255,255,255,0.07); }
+  .hist .h-time { flex: none; min-width: 3.2em; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hist .h-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .hist .h-title { font-size: 13px; line-height: 1.35; color: var(--txt); overflow-wrap: anywhere; }
+  .hist .h-from { font-family: 'Orbitron', sans-serif; font-size: 8.5px; letter-spacing: 1.2px; color: var(--muted); }
+  .hist .h-yt { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.04); transition: background .15s, border-color .15s; }
+  .hist .h-yt:hover, .hist .h-yt:focus-visible { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.45); outline: none; }
+  .hist .h-yt svg { width: 16px; height: 16px; fill: #e8424f; opacity: 0.9; }
+  .hist-clear { align-self: center; font: inherit; font-size: 11px; color: var(--muted); background: none; border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px; padding: 5px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .hist-clear:hover, .hist-clear:focus-visible { color: #fff; border-color: rgba(255,255,255,0.45); outline: none; }
+  .hist-clear.confirm { color: #fff; border-color: var(--red); }
   .about { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 0; text-align: left; }
   .about h2 { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--txt); margin: 0 0 6px; text-align: center; }
   .back { font-size: 12px; color: var(--muted); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.25); }
@@ -93,6 +113,12 @@
     <p class="meta" id="meta"></p>
     <a class="yt" id="yt" href="#" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg><span id="yt-text"></span></a>
     <p class="yt-note" id="yt-note" hidden></p>
+  </section>
+  <section class="hist" id="hist" hidden>
+    <h2 id="hist-h"></h2>
+    <p class="hist-note" id="hist-note"></p>
+    <ol id="hist-list"></ol>
+    <button type="button" class="hist-clear" id="hist-clear"></button>
   </section>
   <section class="about">
     <h2 id="about-h"></h2>
@@ -133,6 +159,10 @@
       aboutH: 'WHAT IS ON AIR?',
       aboutP: 'ON AIR shows in real time what Dave – the author of the SYNTHLUCIDA project – is listening to in RelaxPlayer right now: from ASMR, PIANO, CHILL, his playlists or his own collection. It is not a radio and no sound is streamed – playing the track is up to you. If a track catches your ear, search for it on YouTube with the button and listen along with him. This page updates by itself, so you can leave it open.',
       back: 'Open RelaxPlayer',
+      histH: 'RECENTLY PLAYED',
+      histNote: 'What this page caught while it was open on this device (last 10).',
+      histClear: 'Clear history', histConfirm: 'Really clear? Tap again',
+      histYt: 'Search on YouTube: ',
       min: 'min', h: 'h', d: 'd', justNow: 'just now', agoSuffix: ' ago'
     },
     cz: {
@@ -148,6 +178,10 @@
       aboutH: 'CO JE ON AIR?',
       aboutP: 'ON AIR ukazuje v reálném čase, co si Dave – autor projektu SYNTHLUCIDA – právě pouští v RelaxPlayeru: z ASMR, PIANO, CHILL, ze svých playlistů nebo z vlastní sbírky. Není to rádio a žádný zvuk se nevysílá – pustit si skladbu je na tobě. Když tě něco zaujme, vyhledej si to tlačítkem na YouTube a poslouchej s ním. Stránka se aktualizuje sama, klidně ji nech otevřenou.',
       back: 'Otevřít RelaxPlayer',
+      histH: 'PŘEDTÍM HRÁLO',
+      histNote: 'Co tahle stránka zachytila, když byla otevřená na tomto zařízení (posledních 10).',
+      histClear: 'Smazat historii', histConfirm: 'Opravdu smazat? Klepni znovu',
+      histYt: 'Hledat na YouTube: ',
       min: 'min', h: 'h', d: 'd', justNow: 'právě teď', agoSuffix: ''
     }
   }[lang];
@@ -159,6 +193,9 @@
   $('yt-text').textContent = T.yt;
   $('yt-note').textContent = T.ytNote;
   $('status').textContent = T.connecting;
+  $('hist-h').textContent = T.histH;
+  $('hist-note').textContent = T.histNote;
+  $('hist-clear').textContent = T.histClear;
 
   var LIVE_MS = 4 * 60 * 1000;   // bez zprávy od playeru déle než 4 min = už nehraje (zavřený player, výpadek)
   var offset = 0, state = null, lastStatus = '';
@@ -183,6 +220,88 @@
   }
   function now() { return Date.now() + offset; }
 
+  // ---- Historie: jen v tomto zařízení (localStorage), nic se nikam neposílá ----
+  var HIST_KEY = 'sl-onair-history', HIST_MAX = 10;
+  var YT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg>';
+  function histLoad() {
+    var a = [];
+    try { a = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) { a = []; }
+    if (!Array.isArray(a)) return [];
+    var out = [];
+    a.forEach(function (x) { // jen platné záznamy (poškozená / cizí data se přeskočí)
+      if (!x || typeof x !== 'object') return;
+      var t = clean(x.t), ts = Number(x.ts);
+      if (!t || !isFinite(ts) || ts <= 0) return;
+      out.push({ t: t, ts: ts, l: (typeof x.l === 'string' && /^[a-z0-9_-]{1,20}$/.test(x.l)) ? x.l : '', o: x.o === true, sk: (typeof x.sk === 'number' && isFinite(x.sk)) ? x.sk : 0 });
+    });
+    return out.slice(0, HIST_MAX);
+  }
+  function histSave(a) { try { localStorage.setItem(HIST_KEY, JSON.stringify(a.slice(0, HIST_MAX))); } catch (e) { /* úložiště zablokované: historie jen do zavření */ } }
+  var histMem = histLoad();   // záloha v paměti, kdyby úložiště nešlo
+  function histRecord(title, s) {
+    var a = histLoad(); if (!a.length && histMem.length) a = histMem.slice(); // znovu načíst: mohla zapsat jiná otevřená stránka
+    var sk = (typeof s.since === 'number' && isFinite(s.since)) ? s.since : 0; // "hraje od" z playeru = otisk tohoto přehrání
+    if (a.length && a[0].t === title) { // stejná skladba (třeba po pauze) se nezapíše dvakrát
+      if (sk && a[0].sk !== sk) { a[0].sk = sk; histMem = a.slice(0, HIST_MAX); histSave(histMem); }
+      return false;
+    }
+    var start = (typeof s.since === 'number' && isFinite(s.since) && s.since > 0 && s.since <= now() + 60000) ? s.since : now();
+    var l = (typeof s.list === 'string' && /^[a-z0-9_-]{1,20}$/.test(s.list) && s.own !== true) ? s.list : '';
+    var e = { t: title, ts: start, l: l, o: s.own === true, sk: sk };
+    // stejná skladba, jen Dave mezitím upravil název (stejné "hraje od") -> přepsat, ne přidat
+    if (a.length && sk && a[0].sk === sk) { e.ts = a[0].ts; a[0] = e; } else a.unshift(e);
+    histMem = a.slice(0, HIST_MAX);
+    histSave(histMem);
+    return true;
+  }
+  function whenText(ts) {
+    var d = new Date(ts), n = new Date(now());
+    var same = d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+    return same ? hhmm(ts) : (lang === 'cz' ? d.getDate() + '. ' + (d.getMonth() + 1) + '.' : d.getDate() + '/' + (d.getMonth() + 1));
+  }
+  var lastHistSig = null;
+  function histPaint(liveTitle) {
+    var a = histLoad(); if (!a.length && histMem.length) a = histMem;
+    // skladba z karty nahoře by v historii byla dvakrát
+    if (liveTitle && a.length && a[0].t === liveTitle) a = a.slice(1);
+    var sig = JSON.stringify(a) + '|' + new Date(now()).toDateString();
+    if (sig === lastHistSig) return; // beze změny nepřekreslovat
+    lastHistSig = sig;
+    var ol = $('hist-list'); ol.textContent = '';
+    a.forEach(function (x) {
+      var li = document.createElement('li');
+      var tm = document.createElement('time'); tm.className = 'h-time'; tm.textContent = whenText(x.ts);
+      try { tm.dateTime = new Date(x.ts).toISOString(); } catch (e) { /* ignore */ }
+      var main = document.createElement('span'); main.className = 'h-main';
+      var tt = document.createElement('span'); tt.className = 'h-title'; tt.textContent = shortTitle(x.t);
+      main.appendChild(tt);
+      if (x.l) { var f = document.createElement('span'); f.className = 'h-from'; f.textContent = x.l.toUpperCase(); main.appendChild(f); }
+      var yt = document.createElement('a'); yt.className = 'h-yt'; yt.target = '_blank'; yt.rel = 'noopener noreferrer';
+      yt.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(x.t);
+      yt.setAttribute('aria-label', T.histYt + shortTitle(x.t)); yt.title = T.histYt + shortTitle(x.t);
+      yt.innerHTML = YT_SVG; // pevná ikona z této stránky, žádný text skladby
+      li.appendChild(tm); li.appendChild(main); li.appendChild(yt);
+      ol.appendChild(li);
+    });
+    $('hist').hidden = !a.length;
+  }
+  var clearTimer = null;
+  $('hist-clear').addEventListener('click', function () {
+    var b = $('hist-clear');
+    if (!b.classList.contains('confirm')) { // dvojí klepnutí, ať se nesmaže omylem
+      b.classList.add('confirm'); b.textContent = T.histConfirm;
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(function () { b.classList.remove('confirm'); b.textContent = T.histClear; }, 3500);
+      return;
+    }
+    clearTimeout(clearTimer); b.classList.remove('confirm'); b.textContent = T.histClear;
+    histMem = [];
+    try { localStorage.removeItem(HIST_KEY); } catch (e) { /* ignore */ }
+    lastHistSig = null; paint();
+  });
+  // jiná otevřená stránka ON AIR (okno v playeru / samostatná stránka) historii změnila
+  window.addEventListener('storage', function (e) { if (e.key === HIST_KEY || e.key === null) { lastHistSig = null; if (state) paint(); else histPaint(''); } });
+
   function paint() {
     var s = state || {};
     var title = clean(s.title);
@@ -191,6 +310,8 @@
     var live = !!(fresh && s.playing === true && title);
     var paused = !!(fresh && s.playing === false && title);
     document.body.classList.toggle('live', live);
+    if (live) histRecord(title, s);
+    histPaint(title); // skladba z karty nahoře (hraje / naposledy hrálo) se v historii neopakuje
     var st = live ? T.live : (paused ? T.paused : T.offline);
     if (st !== lastStatus) { $('status').innerHTML = st; lastStatus = st; } // jen pevné texty z této stránky; beze změny se nepřepisuje (čtečka obrazovky by to hlásila znovu)
     if (!title) { $('card').hidden = true; return; }
@@ -215,6 +336,7 @@
     document.title = (live ? '🔴 ' : '') + 'ON AIR – ' + shortTitle(title);
   }
 
+  histPaint('');
   try {
     var cfg = {
       apiKey: "AIzaSyCHuoYFQUVCyF0X34vt6ysdz_FtO5fnNIg",
