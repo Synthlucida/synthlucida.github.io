@@ -2823,7 +2823,11 @@ def t_together_offline(s, c):
     st = tg_state(p)
     c.ok(st["open"] and st["shown"], "Místnost se otevře i bez připojení")
     c.ok(st["count"].startswith(TG["offline"]), "Nahoře stojí, že je bez připojení (%s)" % st["count"][:30])
-    c.ok(st["phase"] == TG["wait"] and st["cd"].isdigit() and 1 <= int(st["cd"]) <= 19, "Čeká se na další celý nádech (zbývá %s s)" % st["cd"])
+    # Rytmus jede podle hodin (19s cyklus). Když se místnost otevře těsně před začátkem nádechu, za 0,7 s čekání
+    # už nádech začne a správně se ukáže "Inhale" - to není chyba (dřív to test náhodně hlásil zhruba 1× z 25).
+    waiting = st["phase"] == TG["wait"] and st["cd"].isdigit() and 1 <= int(st["cd"]) <= 19
+    just_started = st["phase"] == TG["in"] and st["cd"].isdigit() and 1 <= int(st["cd"]) <= 4
+    c.ok(waiting or just_started, "Čeká se na další celý nádech (zbývá %s s)" % st["cd"])
     ok = 0
     n = 0
     for _ in range(6):
