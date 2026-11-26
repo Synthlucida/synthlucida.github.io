@@ -83,6 +83,7 @@
   .hist { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
   .hist[hidden] { display: none; }
   .hist h2 { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--txt); margin: 0; text-align: center; }
+  .hist-note[hidden] { display: none; }
   .hist-note { font-size: 11px; color: var(--muted); margin: 0; text-align: center; opacity: 0.85; }
   .hist ol { list-style: none; margin: 0; padding: 0; border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; overflow: hidden; }
   .hist li { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; min-width: 0; }
@@ -95,9 +96,10 @@
     border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.04); transition: background .15s, border-color .15s; }
   .hist .h-yt:hover, .hist .h-yt:focus-visible { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.45); outline: none; }
   .hist .h-yt svg { width: 16px; height: 16px; fill: #e8424f; opacity: 0.9; }
-  .hist-clear { align-self: center; font: inherit; font-size: 11px; color: var(--muted); background: none; border: 1px solid rgba(255,255,255,0.18);
+  .hist-tools { display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hist-clear, .hist-export { align-self: center; font: inherit; font-size: 11px; color: var(--muted); background: none; border: 1px solid rgba(255,255,255,0.18);
     border-radius: 999px; padding: 5px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .hist-clear:hover, .hist-clear:focus-visible { color: #fff; border-color: rgba(255,255,255,0.45); outline: none; }
+  .hist-clear:hover, .hist-clear:focus-visible, .hist-export:hover, .hist-export:focus-visible { color: #fff; border-color: rgba(255,255,255,0.45); outline: none; }
   .hist-clear.confirm { color: #fff; border-color: var(--red); }
   .about { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 0; text-align: left; }
   .about h2 { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; color: var(--txt); margin: 0 0 6px; text-align: center; }
@@ -161,7 +163,11 @@
     <h2 id="hist-h"></h2>
     <p class="hist-note" id="hist-note"></p>
     <ol id="hist-list"></ol>
-    <button type="button" class="hist-clear" id="hist-clear"></button>
+    <div class="hist-tools">
+      <button type="button" class="hist-export" id="hist-export"></button>
+      <button type="button" class="hist-clear" id="hist-clear"></button>
+    </div>
+    <p class="hist-note" id="hist-fb" hidden><span id="hist-fb-t"></span> <button type="button" class="hist-export" id="hist-fb-copy"></button></p>
   </section>
   <section class="about">
     <h2 id="about-h"></h2>
@@ -216,6 +222,7 @@
       histH: 'RECENTLY PLAYED',
       histNote: 'What this page caught while it was open on this device (last 10).',
       histClear: 'Clear history', histConfirm: 'Really clear? Tap again',
+      histExport: 'Export TXT', fbText: 'Nothing downloaded?', fbCopy: 'Copy as text', fbWhat: 'history', expTitle: 'SYNTHLUCIDA ON AIR – play history', expDate: 'Exported', expLast: 'Tracks caught on this device: {n}',
       histYt: 'Search on YouTube: ',
       copy: 'Copy title: ', copied: 'Copied: ', copyFail: 'Could not copy – select the title and copy it manually.',
       min: 'min', h: 'h', d: 'd', justNow: 'just now', agoSuffix: ' ago'
@@ -239,6 +246,7 @@
       histH: 'PŘEDTÍM HRÁLO',
       histNote: 'Co tahle stránka zachytila, když byla otevřená na tomto zařízení (posledních 10).',
       histClear: 'Smazat historii', histConfirm: 'Opravdu smazat? Klepni znovu',
+      histExport: 'Exportovat TXT', fbText: 'Nic se nestáhlo?', fbCopy: 'Zkopírovat jako text', fbWhat: 'historie', expTitle: 'SYNTHLUCIDA ON AIR – historie přehrávání', expDate: 'Exportováno', expLast: 'Skladeb zachycených na tomto zařízení: {n}',
       histYt: 'Hledat na YouTube: ',
       copy: 'Kopírovat název: ', copied: 'Zkopírováno: ', copyFail: 'Kopírování nejde – označ název a zkopíruj ho ručně.',
       min: 'min', h: 'h', d: 'd', justNow: 'právě teď', agoSuffix: ''
@@ -263,6 +271,9 @@
   $('hist-h').textContent = T.histH;
   $('hist-note').textContent = T.histNote;
   $('hist-clear').textContent = T.histClear;
+  $('hist-export').textContent = T.histExport;
+  $('hist-fb-t').textContent = T.fbText;
+  $('hist-fb-copy').textContent = T.fbCopy;
 
   var LIVE_MS = 4 * 60 * 1000;   // bez zprávy od playeru déle než 4 min = už nehraje (zavřený player, výpadek)
   var offset = 0, state = null, lastStatus = '';
@@ -288,7 +299,7 @@
   function now() { return Date.now() + offset; }
 
   // ---- Historie: jen v tomto zařízení (localStorage), nic se nikam neposílá ----
-  var HIST_KEY = 'sl-onair-history', HIST_MAX = 10;
+  var HIST_KEY = 'sl-onair-history', HIST_MAX = 100, HIST_SHOW = 10; // ukládá se 100 (pro export), na stránce se ukazuje posledních 10
   var YT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6z"/></svg>';
   var COPY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
   var OK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -379,6 +390,7 @@
     var a = histLoad(); if (!a.length && histMem.length) a = histMem;
     // skladba z karty nahoře by v historii byla dvakrát
     if (liveTitle && a.length && a[0].t === liveTitle) a = a.slice(1);
+    a = a.slice(0, HIST_SHOW);
     var sig = JSON.stringify(a) + '|' + new Date(now()).toDateString();
     if (sig === lastHistSig) return; // beze změny nepřekreslovat
     lastHistSig = sig;
@@ -402,6 +414,56 @@
     });
     $('hist').hidden = !a.length;
   }
+  // ---- Export historie do TXT (celá uložená historie, včetně skladby z karty nahoře) ----
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fullDate(ts) {
+    var d = new Date(ts);
+    return d.getDate() + '. ' + (d.getMonth() + 1) + '. ' + d.getFullYear() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function histText() {
+    var a = histLoad(); if (!a.length && histMem.length) a = histMem;
+    if (!a.length) return '';
+    var lines = [T.expTitle, T.expDate + ': ' + fullDate(now()), T.expLast.replace('{n}', a.length), ''];
+    a.forEach(function (x) {
+      lines.push(fullDate(x.ts) + '  ' + shortTitle(x.t) + (x.l ? '  [' + x.l.toUpperCase() + ']' : ''));
+    });
+    return lines.join('\r\n') + '\r\n';
+  }
+  function histExport() {
+    var text = histText();
+    if (!text) return;
+    $('hist-fb').hidden = false; // záloha: kdyby prohlížeč / okno v playeru stahování zablokoval
+    try {
+      var d = new Date(now());
+      var name = 'synthlucida-onair-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '.txt';
+      var blob = new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' });
+      // starý Edge / IE: vlastní uložení souboru
+      if (navigator.msSaveOrOpenBlob) { navigator.msSaveOrOpenBlob(blob, name); return; }
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url; link.download = name; link.rel = 'noopener';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function () { document.body.removeChild(link); URL.revokeObjectURL(url); }, 1500);
+    } catch (e) {
+      /* stažení selhalo: záloha (kopírování textu) je už vidět pod tlačítky */
+    }
+  }
+  function histCopyAll() { // záloha: celá historie jako text do schránky
+    var text = histText();
+    if (!text) return;
+    var done = function (ok) { showCopied(T.fbWhat, ok); };
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacyCopy(text)); });
+        return;
+      }
+    } catch (e) { /* zkusit postaru */ }
+    done(legacyCopy(text));
+  }
+  $('hist-fb-copy').addEventListener('click', histCopyAll);
+  $('hist-export').addEventListener('click', histExport);
   var clearTimer = null;
   $('hist-clear').addEventListener('click', function () {
     var b = $('hist-clear');
