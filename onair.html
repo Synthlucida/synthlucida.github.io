@@ -281,11 +281,24 @@
   function clean(t) {
     if (typeof t !== 'string') return '';
     var raw = t.replace(/[\u0000-\u001f]+/g, ' ').trim();
-    // pojistka i pro starší záznamy: bez "mp3clan.com" a podobných zbytků z názvů souborů
-    if (!/mp3clan/i.test(raw)) return raw.slice(0, 300);
-    var c = raw.replace(/(?:https?:\/\/)?(?:www\.)?mp3clan(?:\.(?:com|net|org|top))?/gi, ' ')
-      .replace(/[\[(\{]\s*[-_.,:|]*\s*[\])\}]/g, ' ').replace(/_+/g, ' ').replace(/\s+/g, ' ')
-      .replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '').trim();
+    var c = raw;
+    // zbytky z názvů souborů: "mp3clan.com" a podobně
+    if (/mp3clan/i.test(c)) {
+      c = c.replace(/(?:https?:\/\/)?(?:www\.)?mp3clan(?:\.(?:com|net|org|top))?/gi, ' ')
+        .replace(/[\[(\{]\s*[-_.,:|]*\s*[\])\}]/g, ' ').replace(/_+/g, ' ');
+    }
+    // slova "Official", "Lyric(s)", "Video" (dohromady i zvlášť) včetně závorek kolem nich
+    var JUNK = /\b(?:official|lyrics?|video)\b/i;
+    // 1) uvnitř závorek ( ) [ ] { } – vyhodí slova a prázdné závorky
+    c = c.replace(/([\[(\{])([^\[\](){}]*)([\])\}])/g, function (m, o, inner, cl) {
+      if (!JUNK.test(inner)) return m;
+      var r = inner.replace(/\b(?:official|lyrics?|video)\b/gi, ' ').replace(/\s+/g, ' ')
+        .replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '');
+      return r ? o + r + cl : ' ';
+    });
+    // 2) bez závorek – jen na konci názvu ("Song - Official Lyric Video"), aby se nerozbily názvy typu "Video Games"
+    c = c.replace(/(?:[\s\-–—_.,:|]+(?:official|lyrics?|video))+\s*$/gi, '');
+    c = c.replace(/\s+/g, ' ').replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '').trim();
     return (c || raw).slice(0, 300);
   }
   function shortTitle(t) { var s = t.replace(/^\s*SYNTHLUCIDA\s*[-–—:]\s*/i, ''); return s || t; }
