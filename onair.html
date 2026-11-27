@@ -287,18 +287,23 @@
       c = c.replace(/(?:https?:\/\/)?(?:www\.)?mp3clan(?:\.(?:com|net|org|top))?/gi, ' ')
         .replace(/[\[(\{]\s*[-_.,:|]*\s*[\])\}]/g, ' ').replace(/_+/g, ' ');
     }
-    // slova "Official", "Lyric(s)", "Video" (dohromady i zvlášť) včetně závorek kolem nich
-    var JUNK = /\b(?:official|lyrics?|video)\b/i;
-    // 1) uvnitř závorek ( ) [ ] { } – vyhodí slova a prázdné závorky
+    // "Official (Lyric/Music) Video/Audio", "Lyric(s)/Music Video", "HD", "4K" – včetně závorek kolem nich
+    var WORDS = /\b(?:official|lyrics?|video|audio|music|hd|4k)\b/gi;
+    var PHRASE = /\bofficial\s+(?:(?:lyrics?|music)\s+)?(?:video|audio|lyrics?)\b|\b(?:lyrics?|music)\s+video\b|\b(?:hd|4k)\b/gi;
+    var TRIM = /^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g;
+    // 1) uvnitř závorek ( ) [ ] { }: když je uvnitř jen tahle slova, zmizí celá závorka; jinak se vyhodí jen tyhle fráze
     c = c.replace(/([\[(\{])([^\[\](){}]*)([\])\}])/g, function (m, o, inner, cl) {
-      if (!JUNK.test(inner)) return m;
-      var r = inner.replace(/\b(?:official|lyrics?|video)\b/gi, ' ').replace(/\s+/g, ' ')
-        .replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '');
+      if (!WORDS.test(inner)) { WORDS.lastIndex = 0; return m; }
+      WORDS.lastIndex = 0;
+      if (!inner.replace(WORDS, ' ').replace(/[\s\-–—_.,:|&+]+/g, '')) return ' ';
+      var r = inner.replace(PHRASE, ' ').replace(/\s+/g, ' ').replace(TRIM, '');
       return r ? o + r + cl : ' ';
     });
-    // 2) bez závorek – jen na konci názvu ("Song - Official Lyric Video"), aby se nerozbily názvy typu "Video Games"
-    c = c.replace(/(?:[\s\-–—_.,:|]+(?:official|lyrics?|video))+\s*$/gi, '');
-    c = c.replace(/\s+/g, ' ').replace(/^[\s\-–—_.,:|]+|[\s\-–—_.,:|]+$/g, '').trim();
+    // 2) mimo závorky: fráze kdekoli v názvu ("Song Official Video Remix")
+    c = c.replace(PHRASE, ' ');
+    // 3) na konci názvu i samotná slova ("Song - Official" / "Song Lyrics"); uprostřed zůstanou, aby se nerozbily názvy jako "Video Games"
+    c = c.replace(/(?:[\s\-–—_.,:|]+(?:official|lyrics?|video|audio|hd|4k))+\s*$/gi, '');
+    c = c.replace(/\s+/g, ' ').replace(TRIM, '').trim();
     return (c || raw).slice(0, 300);
   }
   function shortTitle(t) { var s = t.replace(/^\s*SYNTHLUCIDA\s*[-–—:]\s*/i, ''); return s || t; }
