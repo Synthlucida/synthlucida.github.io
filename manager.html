@@ -96,6 +96,20 @@
   .bulk { flex: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 7px 10px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 6%, transparent); }
   .bulk[hidden] { display: none; }
   .bulk .n { font-size: 12px; font-weight: 600; margin-right: 4px; }
+  /* Hromadné úpravy: lišta je vidět pořád (jako v sekci F), tlačítka se zapnou, až je něco vybrané */
+  .bulk { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 5px; }
+  .bulk .br { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .bulk .br .n { margin-left: auto; color: var(--muted); font-weight: 500; }
+  .bulk .br .n.on { color: var(--accent); font-weight: 600; }
+  .bulk .lbl { font-size: 10px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; margin-right: 2px; }
+  /* malé okno: nápověda pod seznamem pryč a lišta nesmí zabrat celý seznam (posouvá se) */
+  @media (max-width: 900px), (max-height: 720px) {
+    .hint { display: none; }
+    .bulk { flex: 0 1 auto; min-height: 36px; max-height: 42%; overflow-y: auto; padding: 5px 8px; gap: 4px; }
+    .bulk .br { flex: none; }
+    #mid-body, #tgt-body { min-height: 96px; }
+    .bulk .lbl { display: none; }
+  }
   ul.rows { list-style: none; margin: 0; padding: 4px; }
   .row {
     display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: default; user-select: none;
@@ -282,12 +296,17 @@
       size: function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' kB'; },
       busy: 'Files are still being added…', ok: 'OK', cancel: 'Cancel', notAudio: 'Only audio files can be added here.',
       playlistTag: 'PL', sec: 'Section: ', choose: 'Choose…',
+      selAll: '☑ All', selNone: '☐ None', selInv: '⇄ Invert', selPick: '☑ Select ▾', selOf: function (a, b) { return a + ' / ' + b + ' selected'; },
+      pickNoPl: 'Not in any playlist', pickNoQ: 'Not in My Playlist', pickNoFolder: 'Files without a folder', pickFolder: 'Files in folder ', pickNone: 'Nothing like that here.',
+      withSel: 'Selected:', order: 'Order:', copyTo: '⧉ Copy to ▾', moveTo: '➜ Move to ▾', sortMenu: '⇅ Sort ▾',
+      sortAZ: 'By name A–Z', sortZA: 'By name Z–A', sortRev: 'Reverse order', sortShuffle: 'Shuffle', sortHint: '(the whole list, or the open section)',
+      movedTo: function (n, name) { return 'Moved to ' + name + ': ' + n; }, sorted: 'Order changed.',
       help: '? Guide', helpTitle: 'HOW THE FILE MANAGER WORKS', langBtn: 'CZ', langTitle: 'Přepnout do češtiny',
       helpBody: [
         ['WHAT IT IS', ['One big window for your own files (section F), your playlists from F and 🎵 MY PLAYLIST - all side by side. Everything you change here is saved straight into the player and shows up in F and My Playlist right away (and the other way round). It is made for a computer with a mouse, so it is not shown on phones.']],
         ['LEFT - SOURCES', ['„All files“ and „Without folder“ show your uploaded files, below them are your folders. ✎ renames a folder, 🗑 deletes it (the files stay, they only move to „Without folder“).', 'Type a name into „New folder“ and press Enter to create one.', 'SYNTHLUCIDA ASMR / PIANO / CHILL lists the player\'s own tracks, so you can add them to your playlists too.']],
-        ['MIDDLE - CONTENT', ['A click selects a row, Ctrl+click adds more rows, Shift+click selects a whole range, Ctrl+A selects everything. A double-click plays the track.', 'The bar under the list works with the selected rows: ＋ To playlist, ♥ To My Playlist (also straight into a section), 📁 To folder and 🗑 Delete (deletes the files from this device).', 'Search and sorting are at the top. The tags show whether a file is in My Playlist (♥), in how many playlists it is (PL) and in which folder.']],
-        ['RIGHT - TARGET', ['Pick 🎵 MY PLAYLIST or one of your F playlists at the top, or create a new one with „＋ Playlist“. ▶ plays it, ✎ renames it, 🗑 deletes it.', 'Drag rows to change the order, or use ▲ ▼ and ✕. The bar under the list moves the selected rows to the top / bottom or removes them.', 'In My Playlist the chips at the top are your sections: VŠE/ALL shows everything, a chip shows one section, ＋ Section creates a new one. Drag tracks onto a chip to move them into that section.']],
+        ['MIDDLE - CONTENT', ['A click selects a row, Ctrl+click adds more rows, Shift+click selects a whole range, Ctrl+A selects everything. A double-click plays the track.', 'The bar under the list is always there for bulk edits: ☑ All, ☐ None, ⇄ Invert and ☑ Select ▾ (e.g. everything that is not in any playlist yet, or the files of one folder). Then the selected rows go ＋ To playlist, ♥ To My Playlist (also straight into a section), 📁 To folder, or 🗑 Delete (deletes the files from this device).', 'Search and sorting are at the top. The tags show whether a file is in My Playlist (♥), in how many playlists it is (PL) and in which folder.']],
+        ['RIGHT - TARGET', ['Pick 🎵 MY PLAYLIST or one of your F playlists at the top, or create a new one with „＋ Playlist“. ▶ plays it, ✎ renames it, 🗑 deletes it.', 'Drag rows to change the order, or use ▲ ▼ and ✕. The bar under the list selects (☑ All / ☐ None / ⇄ Invert) and works with the selection: ⤒ Top, ⤓ Bottom, ⧉ Copy to or ➜ Move to another playlist or My Playlist, ✕ Remove. ⇅ Sort orders the whole list (or the open section) by name, reverses it or shuffles it.', 'In My Playlist the chips at the top are your sections: VŠE/ALL shows everything, a chip shows one section, ＋ Section creates a new one. Drag tracks onto a chip to move them into that section.']],
         ['DRAG AND DROP', ['Middle → right: adds the tracks exactly where you drop them.', 'Middle → a folder on the left: moves the files into the folder.', 'MP3 / WAV files from your computer (Explorer) → left or middle column: uploads them (into the open folder, if one is open).']],
         ['BACKUP', ['💾 Backup lists saves your playlists, folders and My Playlist links into one small file (not the audio itself). 📂 Restore backup loads it back - then add the audio files again with „＋ Add audio files“ and they sort themselves into their playlists and folders.', 'Importing many files or files stored in the cloud (OneDrive, Google Drive) takes a while - they have to download first.']],
         ['KEYBOARD', ['<kbd>Esc</kbd> closes a menu or the manager · <kbd>Ctrl</kbd>+<kbd>A</kbd> selects all · <kbd>Delete</kbd> removes / deletes the selection · <kbd>Enter</kbd> confirms a name.']]
@@ -327,12 +346,17 @@
       size: function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' kB'; },
       busy: 'Soubory se ještě přidávají…', ok: 'OK', cancel: 'Zrušit', notAudio: 'Sem jde přidat jen audio soubory.',
       playlistTag: 'PL', sec: 'Sekce: ', choose: 'Vyberte…',
+      selAll: '☑ Vše', selNone: '☐ Nic', selInv: '⇄ Obrátit', selPick: '☑ Vybrat ▾', selOf: function (a, b) { return 'vybráno ' + a + ' / ' + b; },
+      pickNoPl: 'Co není v žádném playlistu', pickNoQ: 'Co není v My Playlist', pickNoFolder: 'Soubory bez složky', pickFolder: 'Soubory ve složce ', pickNone: 'Nic takového tu není.',
+      withSel: 'Vybrané:', order: 'Pořadí:', copyTo: '⧉ Kopírovat do ▾', moveTo: '➜ Přesunout do ▾', sortMenu: '⇅ Seřadit ▾',
+      sortAZ: 'Podle názvu A–Z', sortZA: 'Podle názvu Z–A', sortRev: 'Obrátit pořadí', sortShuffle: 'Zamíchat', sortHint: '(celý seznam, nebo otevřená sekce)',
+      movedTo: function (n, name) { return 'Přesunuto do ' + name + ': ' + n; }, sorted: 'Pořadí změněno.',
       help: '? Návod', helpTitle: 'JAK FUNGUJE FILE MANAGER', langBtn: 'EN', langTitle: 'Switch to English',
       helpBody: [
         ['CO TO JE', ['Jedno velké okno pro vaše vlastní soubory (sekce F), vaše playlisty z F a 🎵 MY PLAYLIST - všechno vedle sebe. Co tady změníte, uloží se rovnou do playeru a hned to uvidíte i v F a v My Playlist (a naopak). Je dělaný pro počítač s myší, proto se na mobilu nezobrazuje.']],
         ['VLEVO - ZDROJE', ['„Všechny soubory“ a „Bez složky“ ukazují vaše nahrané soubory, pod nimi jsou vaše složky. ✎ složku přejmenuje, 🗑 ji smaže (soubory zůstanou, jen se přesunou do „Bez složky“).', 'Novou složku vytvoříte tak, že napíšete název do pole „Nová složka“ a zmáčknete Enter.', 'SYNTHLUCIDA ASMR / PIANO / CHILL jsou skladby playeru - i ty můžete přidávat do svých playlistů.']],
-        ['UPROSTŘED - OBSAH', ['Klik vybere řádek, Ctrl+klik přidá další, Shift+klik vybere celý úsek, Ctrl+A vybere vše. Dvojklik skladbu přehraje.', 'Lišta pod seznamem pracuje s vybranými řádky: ＋ Do playlistu, ♥ Do My Playlist (i rovnou do sekce), 📁 Do složky a 🗑 Smazat (smaže soubory z tohoto zařízení).', 'Nahoře je hledání a řazení. Štítky ukazují, jestli je soubor v My Playlist (♥), v kolika playlistech je (PL) a v jaké složce.']],
-        ['VPRAVO - CÍL', ['Nahoře vyberte 🎵 MY PLAYLIST nebo některý playlist z F, nebo vytvořte nový tlačítkem „＋ Playlist“. ▶ ho přehraje, ✎ přejmenuje, 🗑 smaže.', 'Pořadí změníte přetažením řádků myší, nebo tlačítky ▲ ▼ a ✕. Lišta pod seznamem posune vybrané řádky úplně nahoru / dolů nebo je odebere.', 'V My Playlist jsou nahoře vaše sekce: VŠE ukáže všechno, sekce ukáže jen svoje skladby, ＋ Sekce vytvoří novou. Přetažením skladeb na sekci je do ní přesunete.']],
+        ['UPROSTŘED - OBSAH', ['Klik vybere řádek, Ctrl+klik přidá další, Shift+klik vybere celý úsek, Ctrl+A vybere vše. Dvojklik skladbu přehraje.', 'Lišta pod seznamem je pro hromadné úpravy vidět pořád: ☑ Vše, ☐ Nic, ⇄ Obrátit a ☑ Vybrat ▾ (např. všechno, co ještě není v žádném playlistu, nebo soubory jedné složky). Vybrané pak pošlete ＋ Do playlistu, ♥ Do My Playlist (i rovnou do sekce), 📁 Do složky nebo 🗑 Smazat (smaže soubory z tohoto zařízení).', 'Nahoře je hledání a řazení. Štítky ukazují, jestli je soubor v My Playlist (♥), v kolika playlistech je (PL) a v jaké složce.']],
+        ['VPRAVO - CÍL', ['Nahoře vyberte 🎵 MY PLAYLIST nebo některý playlist z F, nebo vytvořte nový tlačítkem „＋ Playlist“. ▶ ho přehraje, ✎ přejmenuje, 🗑 smaže.', 'Pořadí změníte přetažením řádků myší, nebo tlačítky ▲ ▼ a ✕. Lišta pod seznamem vybírá (☑ Vše / ☐ Nic / ⇄ Obrátit) a pracuje s výběrem: ⤒ Nahoru, ⤓ Dolů, ⧉ Kopírovat do nebo ➜ Přesunout do jiného playlistu či My Playlist, ✕ Odebrat. ⇅ Seřadit srovná celý seznam (nebo otevřenou sekci) podle názvu, obrátí ho nebo zamíchá.', 'V My Playlist jsou nahoře vaše sekce: VŠE ukáže všechno, sekce ukáže jen svoje skladby, ＋ Sekce vytvoří novou. Přetažením skladeb na sekci je do ní přesunete.']],
         ['PŘETAHOVÁNÍ', ['Prostřední sloupec → pravý: skladby se přidají přesně tam, kam je pustíte.', 'Prostřední sloupec → složka vlevo: soubory se přesunou do složky.', 'MP3 / WAV soubory z počítače (Průzkumník) → levý nebo prostřední sloupec: nahrají se (do otevřené složky, pokud je nějaká otevřená).']],
         ['ZÁLOHA', ['💾 Zálohovat seznamy uloží vaše playlisty, složky a odkazy v My Playlist do jednoho malého souboru (bez samotných zvukových souborů). 📂 Obnovit ze zálohy ho načte zpět - pak soubory znovu přidejte tlačítkem „＋ Přidat audio soubory“ a samy se zařadí do svých playlistů a složek.', 'Import většího množství souborů nebo souborů uložených v cloudu (OneDrive, Google Disk) chvíli trvá - nejdřív se musí stáhnout.']],
         ['KLÁVESNICE', ['<kbd>Esc</kbd> zavře nabídku nebo manager · <kbd>Ctrl</kbd>+<kbd>A</kbd> vybere vše · <kbd>Delete</kbd> odebere / smaže vybrané · <kbd>Enter</kbd> potvrdí název.']]
@@ -657,26 +681,63 @@
     body.scrollTop = st;
     renderMidBulk();
   }
+  // Výběrová tlačítka (Vše / Nic / Obrátit) - stejná pro oba seznamy
+  function selRow(bar, keys, set, which, extra) {
+    var r = el('div', 'br');
+    var n = keys.filter(function (k) { return set.has(k); }).length;
+    var bA = btn(T.selAll, 'sm', function () { keys.forEach(function (k) { set.add(k); }); updateSel(which); });
+    bA.disabled = !keys.length || n === keys.length;
+    var bN = btn(T.selNone, 'sm', function () { set.clear(); updateSel(which); });
+    bN.disabled = !n;
+    var bI = btn(T.selInv, 'sm', function () { keys.forEach(function (k) { if (set.has(k)) set.delete(k); else set.add(k); }); updateSel(which); });
+    bI.disabled = !keys.length;
+    r.appendChild(bA); r.appendChild(bN); r.appendChild(bI);
+    if (extra) extra(r);
+    r.appendChild(el('span', 'n' + (n ? ' on' : ''), T.selOf(n, keys.length)));
+    bar.appendChild(r);
+    return n;
+  }
+  function pickMid(fn) {
+    var items = midItems().filter(fn);
+    midSel.clear();
+    items.forEach(function (x) { midSel.add(x.key); });
+    if (!items.length) toast(T.pickNone);
+    updateSel('mid');
+  }
   function renderMidBulk() {
     var bar = $('mid-bulk');
     var refs = midSelectedRefs();
     bar.innerHTML = '';
-    bar.hidden = !refs.length;
-    if (!refs.length) return;
-    var all = el('input'); all.type = 'checkbox'; all.checked = refs.length === midKeys.length; all.title = T.choose;
-    all.style.accentColor = 'var(--accent)';
-    all.addEventListener('click', function () { if (all.checked) midKeys.forEach(function (k) { midSel.add(k); }); else midSel.clear(); updateSel('mid'); });
-    bar.appendChild(all);
-    bar.appendChild(el('span', 'n', refs.length + ' ' + T.selected));
-    var bPl = btn(T.toPl, 'sm', function () { playlistMenu(bPl, refs); });
-    var bQ = btn(T.toQueue, 'sm', function () { queueMenu(bQ, refs); });
-    bar.appendChild(bPl); bar.appendChild(bQ);
-    var onlyFiles = refs.every(function (r) { return r.k === 'f'; });
-    if (onlyFiles) {
-      var bF = btn(T.toFolder, 'sm', function () { folderMenu(bF, refs.map(function (r) { return r.id; })); });
-      bar.appendChild(bF);
-      bar.appendChild(btn(T.del, 'sm danger', function () { deleteFiles(refs.map(function (r) { return r.id; })); }));
+    bar.hidden = !midKeys.length;
+    if (!midKeys.length) return;
+    selRow(bar, midKeys, midSel, 'mid', function (r) {
+      var bP = btn(T.selPick, 'sm', function () {
+        var es = [];
+        es.push({ label: T.pickNoPl, fn: function () { pickMid(function (x) { return !inPlaylists(x.ref).length; }); } });
+        es.push({ label: T.pickNoQ, fn: function () { pickMid(function (x) { return !inQueue(x.ref); }); } });
+        if (src.kind === 'files' && !src.id) {
+          es.push({ label: T.pickNoFolder, fn: function () { pickMid(function (x) { return !x.file.folder; }); } });
+          S.folders.slice().sort(function (a, b) { return cmp(a.name, b.name); }).forEach(function (fo) {
+            es.push({ label: T.pickFolder + '📁 ' + fo.name, fn: function () { pickMid(function (x) { return x.file.folder === fo.id; }); } });
+          });
+        }
+        menu(bP, es);
+      });
+      r.appendChild(bP);
+    });
+    var none = !refs.length;
+    var r2 = el('div', 'br');
+    r2.appendChild(el('span', 'lbl', T.withSel));
+    var bPl = btn(T.toPl, 'sm', function () { playlistMenu(bPl, midSelectedRefs()); }); bPl.disabled = none;
+    var bQ = btn(T.toQueue, 'sm', function () { queueMenu(bQ, midSelectedRefs()); }); bQ.disabled = none;
+    r2.appendChild(bPl); r2.appendChild(bQ);
+    if (src.kind === 'files') {
+      var onlyFiles = refs.every(function (r) { return r.k === 'f'; });
+      var bF = btn(T.toFolder, 'sm', function () { folderMenu(bF, midSelectedRefs().map(function (r) { return r.id; })); }); bF.disabled = none || !onlyFiles;
+      var bD = btn(T.del + (none ? '' : ' (' + refs.length + ')'), 'sm danger', function () { deleteFiles(midSelectedRefs().map(function (r) { return r.id; })); }); bD.disabled = none || !onlyFiles;
+      r2.appendChild(bF); r2.appendChild(bD);
     }
+    bar.appendChild(r2);
   }
   // Výběr se jen přebarví (bez nového vykreslení seznamu - jinak by nefungoval dvojklik a seznam by poskakoval)
   function updateSel(which) {
@@ -711,7 +772,7 @@
       if (v === null) return;
       var r = P.createPlaylist(v);
       if (!result(r)) return;
-      if (then) then(r.id); else { tgt = { kind: 'pl', id: r.id }; tgtSel.clear(); refresh(true); }
+      if (then) then(r.id, r.name || v); else { tgt = { kind: 'pl', id: r.id }; tgtSel.clear(); refresh(true); }
     });
   }
   function playlistMenu(anchor, refs) {
@@ -905,18 +966,82 @@
   function renderTgtBulk() {
     var bar = $('tgt-bulk');
     bar.innerHTML = '';
+    bar.hidden = !tgtKeys.length;
+    if (!tgtKeys.length) return;
+    selRow(bar, tgtKeys, tgtSel, 'tgt');
     var keys = tgtKeys.filter(function (k) { return tgtSel.has(k); });
-    bar.hidden = !keys.length;
-    if (!keys.length) return;
-    bar.appendChild(el('span', 'n', keys.length + ' ' + T.selected));
-    bar.appendChild(btn(T.top, 'sm', function () { moveKeysTo(keys, 0); }));
-    bar.appendChild(btn(T.bottom, 'sm', function () { moveKeysTo(keys, Infinity); }));
+    var none = !keys.length;
+    var r2 = el('div', 'br');
+    r2.appendChild(el('span', 'lbl', T.withSel));
+    var b1 = btn(T.top, 'sm', function () { moveKeysTo(keys, 0); }); b1.disabled = none;
+    var b2 = btn(T.bottom, 'sm', function () { moveKeysTo(keys, Infinity); }); b2.disabled = none;
+    r2.appendChild(b1); r2.appendChild(b2);
     if (tgt.kind === 'queue') {
-      var bS = btn(T.toSec, 'sm', function () { sectionMenu(bS, keys, false); });
-      bar.appendChild(bS);
-      if (S.moods.length) { var bC = btn(T.copySec, 'sm', function () { sectionMenu(bC, keys, true); }); bar.appendChild(bC); }
+      var bS = btn(T.toSec, 'sm', function () { sectionMenu(bS, keys, false); }); bS.disabled = none;
+      r2.appendChild(bS);
+      if (S.moods.length) { var bC = btn(T.copySec, 'sm', function () { sectionMenu(bC, keys, true); }); bC.disabled = none; r2.appendChild(bC); }
     }
-    bar.appendChild(btn(T.remove, 'sm danger', function () { removeKeys(keys); }));
+    var bCp = btn(T.copyTo, 'sm', function () { transferMenu(bCp, keys, false); }); bCp.disabled = none;
+    var bMv = btn(T.moveTo, 'sm', function () { transferMenu(bMv, keys, true); }); bMv.disabled = none;
+    var bR = btn(T.remove + (none ? '' : ' (' + keys.length + ')'), 'sm danger', function () { removeKeys(keys); }); bR.disabled = none;
+    r2.appendChild(bCp); r2.appendChild(bMv); r2.appendChild(bR);
+    bar.appendChild(r2);
+    var r3 = el('div', 'br');
+    r3.appendChild(el('span', 'lbl', T.order));
+    var bO = btn(T.sortMenu, 'sm', function () {
+      menu(bO, [{ head: T.sortHint },
+        { label: T.sortAZ, fn: function () { sortVisible('az'); } }, { label: T.sortZA, fn: function () { sortVisible('za'); } },
+        { label: T.sortRev, fn: function () { sortVisible('rev'); } }, { label: T.sortShuffle, fn: function () { sortVisible('mix'); } }]);
+    });
+    bO.disabled = tgtKeys.length < 2;
+    r3.appendChild(bO);
+    bar.appendChild(r3);
+  }
+  // Položka cílového seznamu -> odkaz pro přidání jinam ({k:'f',id} / {k:'t',pl,i}); null = nejde (skladba už v playeru není)
+  function refOfEntry(e) {
+    if (e.fileId) return fileById(e.fileId) ? { k: 'f', id: e.fileId } : null;
+    var pl = String(e.playlist || '');
+    var lists = S.catalog[pl] ? [pl] : ['asmr', 'piano', 'chill'];
+    for (var j = 0; j < lists.length; j++) {
+      var arr = S.catalog[lists[j]] || [];
+      for (var i = 0; i < arr.length; i++) if ((e.src && arr[i].src === e.src) || (!e.src && arr[i].title === e.title)) return { k: 't', pl: lists[j], i: arr[i].i };
+    }
+    return null;
+  }
+  // Kopírovat / přesunout vybrané do jiného playlistu z F nebo do My Playlist (přesun = přidat tam + odebrat tady)
+  function transferMenu(anchor, keys, move) {
+    var items = tgtItems().filter(function (x) { return keys.indexOf(x.key) >= 0; });
+    var refs = [], pos = [];
+    items.forEach(function (x) { var r = refOfEntry(x.entry); if (r) { refs.push(r); pos.push(x.pos); } });
+    var from = { kind: tgt.kind, id: tgt.id }; // odkud se přesouvá (cíl se mezitím může změnit, např. na nový playlist)
+    var done = function (name, res) {
+      if (res && res.error) { toast('⚠ ' + res.error); return; }
+      if (move && pos.length) { if (from.kind === 'queue') P.queueRemove(pos); else P.removeFromPlaylist(from.id, pos); keys.forEach(function (k) { tgtSel.delete(k); }); }
+      toast(move ? T.movedTo(refs.length, name) : (res && res.added ? T.added(res.added, res.skipped) : T.nothingAdded));
+      refresh(true);
+    };
+    var toPl = function (id, name) { done(name, P.addToPlaylist(id, refs)); };
+    var toQ = function (m) { Promise.resolve(P.queueAdd(refs, m || '')).then(function (r) { done(m ? 'My Playlist · ' + m : 'My Playlist', r); }); };
+    var es = [];
+    if (tgt.kind !== 'queue') {
+      es.push({ label: T.myPl, fn: function () { toQ(''); } });
+      S.moods.forEach(function (m) { es.push({ label: '\u00a0\u00a0\u00a0📁 ' + m, fn: function () { toQ(m); } }); });
+    }
+    var others = S.playlists.filter(function (pl) { return !(tgt.kind === 'pl' && pl.id === tgt.id); });
+    if (others.length) { if (es.length) es.push('-'); others.forEach(function (pl) { es.push({ label: '▸ ' + pl.name + '  (' + pl.items.length + ')', fn: function () { toPl(pl.id, pl.name); } }); }); }
+    if (es.length) es.push('-');
+    es.push({ label: T.newPlMenu, fn: function () { newPlaylist(function (id, name) { var r = P.addToPlaylist(id, refs); tgt = { kind: 'pl', id: id }; tgtSel.clear(); done(name || '', r); }); } });
+    if (!refs.length) { toast(T.pickNone); return; }
+    menu(anchor, es);
+  }
+  function sortVisible(how) {
+    var items = tgtItems().slice();
+    if (how === 'az') items.sort(function (a, b) { return cmp(a.name, b.name); });
+    else if (how === 'za') items.sort(function (a, b) { return cmp(b.name, a.name); });
+    else if (how === 'rev') items.reverse();
+    else for (var i = items.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = items[i]; items[i] = items[j]; items[j] = t; }
+    applyVisibleOrder(items);
+    toast(T.sorted);
   }
   function posOfKeys(keys) { var items = tgtItems(); return items.filter(function (x) { return keys.indexOf(x.key) >= 0; }).map(function (x) { return x.pos; }); }
   function sectionMenu(anchor, keys, copy) {
