@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FILE MANAGER – SYNTHLUCIDA</title>
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&family=Exo+2:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* FILE MANAGER pro SYNTHLUCIDA Player (jen PC). Otevírá se z EXPLORE v okně (iframe) nad playerem.
+     Sám nic neukládá: všechno čte a mění přes window.parent.SLFM, tedy přes stejná data a funkce jako sekce F
+     a MY PLAYLIST - změny se tak hned propíší tam i do hlavního okna a naopak. */
+  :root {
+    --accent: #00f0ff;
+    --bg: #0d0d12; --panel: rgba(255,255,255,0.035); --line: rgba(255,255,255,0.10); --line2: rgba(255,255,255,0.18);
+    --txt: #f2f2f5; --muted: rgba(242,242,245,0.58); --danger: #ff8080;
+    --sel: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  * { box-sizing: border-box; }
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 45%, #333) rgba(255,255,255,0.05); }
+  @supports selector(::-webkit-scrollbar) {
+    * { scrollbar-width: auto; scrollbar-color: auto; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 40%, #2a2a33); border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--txt); overflow: hidden;
+    font: 500 13px/1.35 'Exo 2', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+    display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  .orb { font-family: 'Orbitron', 'Segoe UI', sans-serif; letter-spacing: 0.12em; }
+
+  /* ---------- Horní lišta ---------- */
+  .top { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01)); }
+  .brand { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 0.18em; color: var(--accent); text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent); white-space: nowrap; }
+  .top .stat { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .top .sp { flex: 1 1 auto; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 9px; cursor: pointer; white-space: nowrap;
+    border: 1px solid var(--line2); background: rgba(255,255,255,0.05); font-size: 12px; font-weight: 600; letter-spacing: 0.03em;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .btn:hover:not(:disabled), .btn:focus-visible { background: rgba(255,255,255,0.11); border-color: color-mix(in srgb, var(--accent) 55%, transparent); outline: none; }
+  .btn:disabled { opacity: 0.38; cursor: default; }
+  .btn.primary { border-color: color-mix(in srgb, var(--accent) 60%, transparent); color: color-mix(in srgb, var(--accent) 70%, #fff); }
+  .btn.danger { color: var(--danger); border-color: rgba(255,128,128,0.45); }
+  .btn.sm { padding: 4px 8px; font-size: 11px; border-radius: 8px; }
+  .btn.icon { padding: 4px 7px; }
+  .close { width: 32px; height: 32px; justify-content: center; padding: 0; border-radius: 50%; font-size: 14px; }
+
+  .notice { flex: none; margin: 8px 14px 0; padding: 7px 11px; border-radius: 9px; font-size: 12px; border: 1px solid rgba(255,200,80,0.4); background: rgba(255,200,80,0.07); }
+  .notice[hidden] { display: none; }
+
+  /* ---------- Tři sloupce ---------- */
+  .cols { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(200px, 250px) minmax(320px, 1fr) minmax(320px, 0.9fr); gap: 10px; padding: 10px 14px 12px; }
+  .col { min-height: 0; min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+  .col-h { flex: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  .col-h h2 { margin: 0; font: 600 10px 'Orbitron', sans-serif; letter-spacing: 0.16em; color: var(--muted); }
+  .col-b { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+  /* Zdroje (vlevo) */
+  .src-group { padding: 8px 8px 4px; }
+  .src-group h3 { margin: 4px 6px 6px; font: 600 9px 'Orbitron', sans-serif; letter-spacing: 0.16em; color: var(--muted); }
+  .src {
+    display: flex; align-items: center; gap: 7px; width: 100%; padding: 7px 8px; border-radius: 8px; cursor: pointer; text-align: left;
+    background: none; border: 1px solid transparent; font-size: 13px;
+  }
+  .src:hover { background: rgba(255,255,255,0.06); }
+  .src.on { background: var(--sel); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .src.drop-ok { outline: 2px dashed var(--accent); outline-offset: -2px; }
+  .src .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .src .cnt { flex: none; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .src .act { display: none; gap: 2px; }
+  .src:hover .act, .src.on .act { display: inline-flex; }
+  .mini { background: none; border: none; padding: 2px 4px; border-radius: 5px; cursor: pointer; opacity: 0.7; font-size: 12px; }
+  .mini:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+  .newrow { display: flex; gap: 5px; padding: 4px 6px 8px; }
+  .inp {
+    flex: 1 1 auto; min-width: 0; padding: 6px 9px; border-radius: 8px; border: 1px solid var(--line2); background: rgba(0,0,0,0.3); color: var(--txt); font: inherit; font-size: 12px;
+  }
+  .inp:focus { outline: none; border-color: var(--accent); }
+
+  /* Seznam (uprostřed i vpravo) */
+  .tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tools .inp { max-width: 230px; }
+  select.inp { flex: 0 0 auto; padding-right: 4px; }
+  .bulk { flex: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 7px 10px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .bulk[hidden] { display: none; }
+  .bulk .n { font-size: 12px; font-weight: 600; margin-right: 4px; }
+  ul.rows { list-style: none; margin: 0; padding: 4px; }
+  .row {
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: default; user-select: none;
+    border: 1px solid transparent; min-height: 32px;
+  }
+  .row:hover { background: rgba(255,255,255,0.05); }
+  .row.sel { background: var(--sel); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .row.playing .rt { color: var(--accent); }
+  .row.playing .rt::before { content: '▶ '; font-size: 10px; }
+  .row.dragging { opacity: 0.45; }
+  .row.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+  .row.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+  .row input[type=checkbox] { flex: none; accent-color: var(--accent); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+  .row .num { flex: none; width: 2.6em; text-align: right; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row .grip { flex: none; cursor: grab; opacity: 0.45; font-size: 13px; padding: 0 2px; }
+  .row .rt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .meta { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tag { flex: none; font-size: 10px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line2); color: var(--muted); white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+  .tag.heart { color: #ff7aa8; border-color: rgba(255,122,168,0.45); }
+  .tag.sec { color: color-mix(in srgb, var(--accent) 75%, #fff); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .row .ra { flex: none; display: inline-flex; gap: 2px; opacity: 0; }
+  .row:hover .ra, .row.sel .ra { opacity: 1; }
+  .empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+  .drop-zone-active .col-b { outline: 2px dashed var(--accent); outline-offset: -6px; border-radius: 12px; }
+
+  /* Cíl (vpravo) */
+  .tgt-sel { flex: 1 1 auto; min-width: 0; }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  .chips[hidden] { display: none; }
+  .chip { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line2); background: none; cursor: pointer; font-size: 11.5px; }
+  .chip.on { background: var(--sel); border-color: var(--accent); color: color-mix(in srgb, var(--accent) 70%, #fff); }
+  .chip.drop-ok { outline: 2px dashed var(--accent); }
+  .hint { flex: none; padding: 6px 12px 8px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+
+  /* Rozbalovací nabídka a malé okno */
+  .menu { position: fixed; z-index: 50; min-width: 190px; max-width: 300px; max-height: 60vh; overflow: auto; padding: 5px; border-radius: 10px; border: 1px solid var(--line2); background: #17171e; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+  .menu button { display: block; width: 100%; text-align: left; padding: 6px 9px; border-radius: 7px; background: none; border: none; cursor: pointer; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu button:hover, .menu button:focus-visible { background: var(--sel); outline: none; }
+  .menu hr { border: none; border-top: 1px solid var(--line); margin: 4px 2px; }
+  .menu .mh { padding: 4px 9px 2px; font: 600 9px 'Orbitron', sans-serif; letter-spacing: 0.14em; color: var(--muted); }
+  .dlg-back { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; }
+  .dlg { width: min(380px, calc(100vw - 32px)); padding: 16px; border-radius: 14px; border: 1px solid var(--line2); background: #15151c; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 14px 40px rgba(0,0,0,0.7); }
+  .dlg h4 { margin: 0; font: 600 11px 'Orbitron', sans-serif; letter-spacing: 0.14em; color: var(--accent); }
+  .dlg .btns { display: flex; justify-content: flex-end; gap: 8px; }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 10px); z-index: 70; padding: 8px 14px; border-radius: 999px; background: rgba(20,20,26,0.97); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); font-size: 12.5px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100% - 40px); text-align: center; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .drag-ghost { position: fixed; top: -100px; left: -100px; padding: 4px 10px; border-radius: 8px; background: #1d1d26; border: 1px solid var(--accent); font-size: 12px; color: #fff; }
+  .btn.lang { min-width: 40px; justify-content: center; font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 0.1em; }
+  /* Návod */
+  .help { width: min(760px, calc(100vw - 48px)); max-height: calc(100vh - 60px); padding: 0; gap: 0; }
+  .help .hh { display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px; border-bottom: 1px solid var(--line); }
+  .help .hh h4 { flex: 1 1 auto; }
+  .help .hb { overflow: auto; padding: 6px 18px 16px; }
+  .help h5 { margin: 14px 0 5px; font: 600 10px 'Orbitron', sans-serif; letter-spacing: 0.14em; color: color-mix(in srgb, var(--accent) 75%, #fff); }
+  .help p { margin: 0 0 4px; font-size: 13px; line-height: 1.55; color: rgba(242,242,245,0.86); }
+  .help ul { margin: 2px 0 4px; padding-left: 18px; font-size: 13px; line-height: 1.55; color: rgba(242,242,245,0.86); }
+  .help kbd { display: inline-block; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line2); background: rgba(255,255,255,0.06); font: 600 11px 'Exo 2', sans-serif; }
+  .err { padding: 40px; text-align: center; color: var(--muted); line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand">FILE MANAGER</span>
+  <span class="stat" id="stat"></span>
+  <span class="sp"></span>
+  <input type="file" id="add-input" accept="audio/*" multiple hidden>
+  <input type="file" id="restore-input" accept=".json,application/json" hidden>
+  <button class="btn primary" id="btn-add"></button>
+  <button class="btn" id="btn-backup"></button>
+  <button class="btn" id="btn-restore"></button>
+  <button class="btn" id="btn-help" aria-haspopup="dialog"></button>
+  <button class="btn lang" id="btn-lang"></button>
+  <button class="btn close" id="btn-close" aria-label="Close" title="Close (Esc)">✕</button>
+</div>
+<div class="notice" id="pending" hidden></div>
+<div class="cols" id="cols">
+  <!-- 1) Zdroje -->
+  <section class="col" id="col-src" aria-labelledby="h-src">
+    <div class="col-h"><h2 id="h-src"></h2></div>
+    <div class="col-b" id="src-list"></div>
+  </section>
+  <!-- 2) Obsah zdroje -->
+  <section class="col" id="col-mid" aria-labelledby="h-mid">
+    <div class="col-h">
+      <h2 id="h-mid"></h2>
+      <span class="sp" style="flex:1"></span>
+      <div class="tools">
+        <input type="search" class="inp" id="mid-q" autocomplete="off" spellcheck="false">
+        <select class="inp" id="mid-sort"></select>
+      </div>
+    </div>
+    <div class="col-b" id="mid-body"></div>
+    <div class="bulk" id="mid-bulk" hidden></div>
+    <div class="hint" id="mid-hint"></div>
+  </section>
+  <!-- 3) Cíl: playlist F nebo MY PLAYLIST -->
+  <section class="col" id="col-tgt" aria-labelledby="h-tgt">
+    <div class="col-h">
+      <h2 id="h-tgt"></h2>
+      <select class="inp tgt-sel" id="tgt-select"></select>
+      <button class="btn sm" id="btn-newpl"></button>
+    </div>
+    <div class="col-h" id="tgt-head" style="padding-top:7px;padding-bottom:7px"></div>
+    <div class="chips" id="tgt-chips" hidden></div>
+    <div class="col-b" id="tgt-body"></div>
+    <div class="bulk" id="tgt-bulk" hidden></div>
+    <div class="hint" id="tgt-hint"></div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+  var P = null;
+  try { P = window.parent && window.parent !== window ? window.parent.SLFM : null; } catch (e) { P = null; }
+  var $ = function (id) { return document.getElementById(id); };
+  if (!P) {
+    document.getElementById('cols').innerHTML = '<div class="err" style="grid-column:1/-1">FILE MANAGER opens from the SYNTHLUCIDA Player (EXPLORE → FILE MANAGER).<br>Otevírá se v SYNTHLUCIDA Playeru (EXPLORE → FILE MANAGER).<br><br><a href="player.html" style="color:inherit">player.html</a></div>';
+    return;
+  }
+
+  // ---------- Texty ----------
+  var TX = {
+    en: {
+      add: '＋ Add audio files', backup: '💾 Backup lists', restore: '📂 Restore backup', close: 'Close (Esc)',
+      sources: 'SOURCES', myFiles: 'MY FILES', allFiles: 'All files', noFolder: 'Without folder', synth: 'SYNTHLUCIDA',
+      newFolder: 'New folder', folderPh: 'New folder name', create: 'Create',
+      search: 'Search…', sortName: 'Name A–Z', sortNew: 'Newest first', sortSize: 'Largest first', sortOrig: 'Original order',
+      target: 'TARGET', myPl: '🎵 MY PLAYLIST', newPl: '＋ Playlist', plName: 'Playlist name', folderName: 'Folder name', secName: 'Section name',
+      selected: 'selected', toPl: '＋ To playlist ▾', toQueue: '♥ To My Playlist ▾', toFolder: '📁 To folder ▾', del: '🗑 Delete', play: '▶ Play',
+      remove: '✕ Remove', up: '▲', down: '▼', top: '⤒ Top', bottom: '⤓ Bottom', toSec: '📁 Section ▾', copySec: '＋ Also to section ▾',
+      rename: '✎ Rename', delPl: '🗑 Delete playlist', playAll: '▶ Play', all: 'ALL', newSec: '＋ Section', renSec: '✎', delSec: '🗑',
+      noSection: 'Without section', wholeQueue: 'My Playlist (no section)', newPlMenu: '＋ New playlist…', newFolderMenu: '＋ New folder…', newSecMenu: '＋ New section…',
+      fileList: 'Files', inQueue: 'In My Playlist', inPls: 'In playlists: ',
+      emptyFiles: 'No files here yet.\nClick „＋ Add audio files“ or drag MP3 / WAV files from your computer right into this window.',
+      emptyFolder: 'This folder is empty.\nDrag files onto the folder name on the left to move them here.',
+      emptySearch: 'Nothing matches your search.',
+      emptyPl: 'This playlist is empty.\nDrag files or SYNTHLUCIDA tracks here from the middle column, or select them and use „＋ To playlist“.',
+      emptyQueue: 'My Playlist is empty.\nDrag tracks here, or select them and use „♥ To My Playlist“.',
+      emptySec: 'This section is empty.\nDrag tracks here to add them to the section.',
+      noPls: 'No playlists yet - create one with „＋ Playlist“.',
+      hintMid: 'Click = select · Ctrl/Shift+click = more · double-click = play · drag to a playlist, a folder or My Playlist',
+      hintTgt: 'Drag rows to change the order · Delete = remove · double-click = play',
+      hintTgtQ: 'Drag rows to change the order · drag onto a section chip = move there · Delete = remove · double-click = play',
+      confirmDel: function (n) { return 'Delete ' + n + ' file(s) from this device?\n\nThey will also be removed from your playlists, My Playlist and History. This cannot be undone.'; },
+      confirmDelPl: function (nm) { return 'Delete the playlist „' + nm + '“? Your files are kept.'; },
+      confirmDelFolder: function (nm, n) { return 'Delete the folder „' + nm + '“?' + (n ? '\n\nThe ' + n + ' file(s) are NOT deleted - they just move to „Without folder“.' : ''); },
+      confirmDelSec: function (nm, n) { return 'Delete the section „' + nm + '“?' + (n ? '\n\nThe ' + n + ' track(s) stay in My Playlist.' : ''); },
+      added: function (a, s) { return 'Added: ' + a + (s ? ' · already there: ' + s : ''); },
+      nothingAdded: 'Already there - nothing was added twice.',
+      moved: function (n) { return 'Moved: ' + n; }, removed: function (n) { return 'Removed: ' + n; },
+      deleted: function (n, f) { return 'Deleted files: ' + n + (f ? ' · failed: ' + f : ''); },
+      stat: function (f, p, q) { return f + ' files · ' + p + ' playlists · My Playlist ' + q; },
+      pending: function (n) { return '⏳ From your backup ' + n + ' file(s) are still missing - add them with „＋ Add audio files“ and they sort themselves into their playlists and folders.'; },
+      size: function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' kB'; },
+      busy: 'Files are still being added…', ok: 'OK', cancel: 'Cancel', notAudio: 'Only audio files can be added here.',
+      playlistTag: 'PL', sec: 'Section: ', choose: 'Choose…',
+      help: '? Guide', helpTitle: 'HOW THE FILE MANAGER WORKS', langBtn: 'CZ', langTitle: 'Přepnout do češtiny',
+      helpBody: [
+        ['WHAT IT IS', ['One big window for your own files (section F), your playlists from F and 🎵 MY PLAYLIST - all side by side. Everything you change here is saved straight into the player and shows up in F and My Playlist right away (and the other way round). It is made for a computer with a mouse, so it is not shown on phones.']],
+        ['LEFT - SOURCES', ['„All files“ and „Without folder“ show your uploaded files, below them are your folders. ✎ renames a folder, 🗑 deletes it (the files stay, they only move to „Without folder“).', 'Type a name into „New folder“ and press Enter to create one.', 'SYNTHLUCIDA ASMR / PIANO / CHILL lists the player\'s own tracks, so you can add them to your playlists too.']],
+        ['MIDDLE - CONTENT', ['A click selects a row, Ctrl+click adds more rows, Shift+click selects a whole range, Ctrl+A selects everything. A double-click plays the track.', 'The bar under the list works with the selected rows: ＋ To playlist, ♥ To My Playlist (also straight into a section), 📁 To folder and 🗑 Delete (deletes the files from this device).', 'Search and sorting are at the top. The tags show whether a file is in My Playlist (♥), in how many playlists it is (PL) and in which folder.']],
+        ['RIGHT - TARGET', ['Pick 🎵 MY PLAYLIST or one of your F playlists at the top, or create a new one with „＋ Playlist“. ▶ plays it, ✎ renames it, 🗑 deletes it.', 'Drag rows to change the order, or use ▲ ▼ and ✕. The bar under the list moves the selected rows to the top / bottom or removes them.', 'In My Playlist the chips at the top are your sections: VŠE/ALL shows everything, a chip shows one section, ＋ Section creates a new one. Drag tracks onto a chip to move them into that section.']],
+        ['DRAG AND DROP', ['Middle → right: adds the tracks exactly where you drop them.', 'Middle → a folder on the left: moves the files into the folder.', 'MP3 / WAV files from your computer (Explorer) → left or middle column: uploads them (into the open folder, if one is open).']],
+        ['BACKUP', ['💾 Backup lists saves your playlists, folders and My Playlist links into one small file (not the audio itself). 📂 Restore backup loads it back - then add the audio files again with „＋ Add audio files“ and they sort themselves into their playlists and folders.', 'Importing many files or files stored in the cloud (OneDrive, Google Drive) takes a while - they have to download first.']],
+        ['KEYBOARD', ['<kbd>Esc</kbd> closes a menu or the manager · <kbd>Ctrl</kbd>+<kbd>A</kbd> selects all · <kbd>Delete</kbd> removes / deletes the selection · <kbd>Enter</kbd> confirms a name.']]
+      ]
+    },
+    cz: {
+      add: '＋ Přidat audio soubory', backup: '💾 Zálohovat seznamy', restore: '📂 Obnovit ze zálohy', close: 'Zavřít (Esc)',
+      sources: 'ZDROJE', myFiles: 'MOJE SOUBORY', allFiles: 'Všechny soubory', noFolder: 'Bez složky', synth: 'SYNTHLUCIDA',
+      newFolder: 'Nová složka', folderPh: 'Název nové složky', create: 'Vytvořit',
+      search: 'Hledat…', sortName: 'Název A–Z', sortNew: 'Nejnovější', sortSize: 'Největší', sortOrig: 'Původní pořadí',
+      target: 'CÍL', myPl: '🎵 MY PLAYLIST', newPl: '＋ Playlist', plName: 'Název playlistu', folderName: 'Název složky', secName: 'Název sekce',
+      selected: 'vybráno', toPl: '＋ Do playlistu ▾', toQueue: '♥ Do My Playlist ▾', toFolder: '📁 Do složky ▾', del: '🗑 Smazat', play: '▶ Přehrát',
+      remove: '✕ Odebrat', up: '▲', down: '▼', top: '⤒ Nahoru', bottom: '⤓ Dolů', toSec: '📁 Do sekce ▾', copySec: '＋ I do sekce ▾',
+      rename: '✎ Přejmenovat', delPl: '🗑 Smazat playlist', playAll: '▶ Přehrát', all: 'VŠE', newSec: '＋ Sekce', renSec: '✎', delSec: '🗑',
+      noSection: 'Bez sekce', wholeQueue: 'My Playlist (bez sekce)', newPlMenu: '＋ Nový playlist…', newFolderMenu: '＋ Nová složka…', newSecMenu: '＋ Nová sekce…',
+      fileList: 'Soubory', inQueue: 'V My Playlist', inPls: 'V playlistech: ',
+      emptyFiles: 'Zatím tu nejsou žádné soubory.\nKlikněte na „＋ Přidat audio soubory“ nebo sem rovnou přetáhněte MP3 / WAV soubory z počítače.',
+      emptyFolder: 'Složka je prázdná.\nPřetáhněte soubory na název složky vlevo a přesunou se sem.',
+      emptySearch: 'Nic neodpovídá hledání.',
+      emptyPl: 'Playlist je prázdný.\nPřetáhněte sem soubory nebo SYNTHLUCIDA skladby z prostředního sloupce, nebo je vyberte a dejte „＋ Do playlistu“.',
+      emptyQueue: 'My Playlist je prázdný.\nPřetáhněte sem skladby, nebo je vyberte a dejte „♥ Do My Playlist“.',
+      emptySec: 'Sekce je prázdná.\nPřetáhněte sem skladby a přidají se do ní.',
+      noPls: 'Zatím žádné playlisty - vytvořte ho tlačítkem „＋ Playlist“.',
+      hintMid: 'Klik = výběr · Ctrl/Shift+klik = víc položek · dvojklik = přehrát · přetažením do playlistu, složky nebo My Playlist',
+      hintTgt: 'Přetažením řádků změníte pořadí · Delete = odebrat · dvojklik = přehrát',
+      hintTgtQ: 'Přetažením řádků změníte pořadí · přetažením na sekci se přesunou do ní · Delete = odebrat · dvojklik = přehrát',
+      confirmDel: function (n) { return 'Smazat soubory (' + n + ') z tohoto zařízení?\n\nOdeberou se i z vašich playlistů, z My Playlist a z historie. Nejde to vrátit zpět.'; },
+      confirmDelPl: function (nm) { return 'Smazat playlist „' + nm + '“? Soubory zůstanou zachované.'; },
+      confirmDelFolder: function (nm, n) { return 'Smazat složku „' + nm + '“?' + (n ? '\n\nSoubory (' + n + ') se NEMAŽOU - jen se přesunou mezi soubory bez složky.' : ''); },
+      confirmDelSec: function (nm, n) { return 'Smazat sekci „' + nm + '“?' + (n ? '\n\nSkladby (' + n + ') zůstanou v My Playlist.' : ''); },
+      added: function (a, s) { return 'Přidáno: ' + a + (s ? ' · už tam bylo: ' + s : ''); },
+      nothingAdded: 'Už tam je - nic se nepřidalo dvakrát.',
+      moved: function (n) { return 'Přesunuto: ' + n; }, removed: function (n) { return 'Odebráno: ' + n; },
+      deleted: function (n, f) { return 'Smazáno souborů: ' + n + (f ? ' · nepodařilo se: ' + f : ''); },
+      stat: function (f, p, q) { return 'souborů ' + f + ' · playlistů ' + p + ' · My Playlist ' + q; },
+      pending: function (n) { return '⏳ Ze zálohy ještě chybí souborů: ' + n + ' - přidejte je tlačítkem „＋ Přidat audio soubory“ a samy se zařadí do svých playlistů a složek.'; },
+      size: function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' kB'; },
+      busy: 'Soubory se ještě přidávají…', ok: 'OK', cancel: 'Zrušit', notAudio: 'Sem jde přidat jen audio soubory.',
+      playlistTag: 'PL', sec: 'Sekce: ', choose: 'Vyberte…',
+      help: '? Návod', helpTitle: 'JAK FUNGUJE FILE MANAGER', langBtn: 'EN', langTitle: 'Switch to English',
+      helpBody: [
+        ['CO TO JE', ['Jedno velké okno pro vaše vlastní soubory (sekce F), vaše playlisty z F a 🎵 MY PLAYLIST - všechno vedle sebe. Co tady změníte, uloží se rovnou do playeru a hned to uvidíte i v F a v My Playlist (a naopak). Je dělaný pro počítač s myší, proto se na mobilu nezobrazuje.']],
+        ['VLEVO - ZDROJE', ['„Všechny soubory“ a „Bez složky“ ukazují vaše nahrané soubory, pod nimi jsou vaše složky. ✎ složku přejmenuje, 🗑 ji smaže (soubory zůstanou, jen se přesunou do „Bez složky“).', 'Novou složku vytvoříte tak, že napíšete název do pole „Nová složka“ a zmáčknete Enter.', 'SYNTHLUCIDA ASMR / PIANO / CHILL jsou skladby playeru - i ty můžete přidávat do svých playlistů.']],
+        ['UPROSTŘED - OBSAH', ['Klik vybere řádek, Ctrl+klik přidá další, Shift+klik vybere celý úsek, Ctrl+A vybere vše. Dvojklik skladbu přehraje.', 'Lišta pod seznamem pracuje s vybranými řádky: ＋ Do playlistu, ♥ Do My Playlist (i rovnou do sekce), 📁 Do složky a 🗑 Smazat (smaže soubory z tohoto zařízení).', 'Nahoře je hledání a řazení. Štítky ukazují, jestli je soubor v My Playlist (♥), v kolika playlistech je (PL) a v jaké složce.']],
+        ['VPRAVO - CÍL', ['Nahoře vyberte 🎵 MY PLAYLIST nebo některý playlist z F, nebo vytvořte nový tlačítkem „＋ Playlist“. ▶ ho přehraje, ✎ přejmenuje, 🗑 smaže.', 'Pořadí změníte přetažením řádků myší, nebo tlačítky ▲ ▼ a ✕. Lišta pod seznamem posune vybrané řádky úplně nahoru / dolů nebo je odebere.', 'V My Playlist jsou nahoře vaše sekce: VŠE ukáže všechno, sekce ukáže jen svoje skladby, ＋ Sekce vytvoří novou. Přetažením skladeb na sekci je do ní přesunete.']],
+        ['PŘETAHOVÁNÍ', ['Prostřední sloupec → pravý: skladby se přidají přesně tam, kam je pustíte.', 'Prostřední sloupec → složka vlevo: soubory se přesunou do složky.', 'MP3 / WAV soubory z počítače (Průzkumník) → levý nebo prostřední sloupec: nahrají se (do otevřené složky, pokud je nějaká otevřená).']],
+        ['ZÁLOHA', ['💾 Zálohovat seznamy uloží vaše playlisty, složky a odkazy v My Playlist do jednoho malého souboru (bez samotných zvukových souborů). 📂 Obnovit ze zálohy ho načte zpět - pak soubory znovu přidejte tlačítkem „＋ Přidat audio soubory“ a samy se zařadí do svých playlistů a složek.', 'Import většího množství souborů nebo souborů uložených v cloudu (OneDrive, Google Disk) chvíli trvá - nejdřív se musí stáhnout.']],
+        ['KLÁVESNICE', ['<kbd>Esc</kbd> zavře nabídku nebo manager · <kbd>Ctrl</kbd>+<kbd>A</kbd> vybere vše · <kbd>Delete</kbd> odebere / smaže vybrané · <kbd>Enter</kbd> potvrdí název.']]
+      ]
+    }
+  };
+  var lang = 'en', T = TX.en;
+
+  // ---------- Stav ----------
+  var S = null;                 // poslední snapshot z playeru
+  var ver = -1;
+  var src = { kind: 'files', id: '' };   // files: '' = vše, '__none' = bez složky, jinak id složky; cat: asmr/piano/chill
+  var tgt = { kind: 'queue', id: '' };   // queue | pl (id)
+  var moodView = '';                     // sekce v cíli MY PLAYLIST ('' = vše)
+  var midSel = new Set(), midAnchor = null, midKeys = [];
+  var tgtSel = new Set(), tgtAnchor = null, tgtKeys = [];
+  var midQ = '', midSort = 'orig';
+  var drag = null;                       // { from: 'mid'|'tgt', refs, keys }
+
+  function load() {
+    try { S = JSON.parse(P.snapshot()); ver = P.version; } catch (e) { S = null; }
+    if (!S) return false;
+    if (S.lang !== lang) { lang = S.lang === 'cz' ? 'cz' : 'en'; T = TX[lang]; document.documentElement.lang = lang === 'cz' ? 'cs' : 'en'; paintStatic(); }
+    try { // barva motivu playeru
+      var ac = window.parent.getComputedStyle(window.parent.document.documentElement).getPropertyValue('--accent-color').trim();
+      if (ac) document.documentElement.style.setProperty('--accent', ac);
+    } catch (e) { /* ignore */ }
+    // neplatný výběr (smazaná složka / playlist) -> výchozí
+    if (src.kind === 'files' && src.id && src.id !== '__none' && !S.folders.some(function (f) { return f.id === src.id; })) src = { kind: 'files', id: '' };
+    if (tgt.kind === 'pl' && !S.playlists.some(function (p) { return p.id === tgt.id; })) tgt = { kind: 'queue', id: '' };
+    if (moodView && S.moods.indexOf(moodView) < 0) moodView = '';
+    return true;
+  }
+  function refresh(force) {
+    if (!force && P.version === ver && S && S.lang === P.lang()) return;
+    if (!load()) return;
+    render();
+  }
+  window.fmRefresh = refresh;
+  function hiddenInPlayer() { try { var o = window.parent.document.getElementById('fm-overlay'); return !!(o && o.hidden); } catch (e) { return false; } }
+  setInterval(function () { if (hiddenInPlayer()) return; try { refresh(false); } catch (e) { /* ignore */ } }, 400); // zavřené okno nic nehlídá
+
+  // ---------- Pomocné ----------
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = text; return e; }
+  function btn(label, cls, fn, title) { var b = el('button', 'btn' + (cls ? ' ' + cls : ''), label); b.type = 'button'; if (title) b.title = title; if (fn) b.addEventListener('click', fn); return b; }
+  var toastT = null;
+  function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { x.classList.remove('show'); }, 2600); }
+  function norm(s) { try { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); } catch (e) { return String(s || '').toLowerCase(); } }
+  var coll = (function () { try { return new Intl.Collator(['cs', 'en'], { sensitivity: 'base', numeric: true }); } catch (e) { return null; } })();
+  function cmp(a, b) { return coll ? coll.compare(a, b) : (a < b ? -1 : a > b ? 1 : 0); }
+  function shortTitle(t) { var s = String(t || '').replace(/^\s*SYNTHLUCIDA\s*[-–—:]\s*/i, ''); return s || String(t || ''); }
+  function fileById(id) { return S.files.find(function (f) { return f.id === id; }); }
+  function folderName(id) { var f = S.folders.find(function (x) { return x.id === id; }); return f ? f.name : ''; }
+  function sameTrack(a, b) { // stejná skladba (vlastní soubor podle id, SYNTHLUCIDA podle adresy)
+    if (!a || !b) return false;
+    if (a.fileId || b.fileId) return a.fileId === b.fileId;
+    if (a.src && b.src) return a.src === b.src;
+    return a.playlist === b.playlist && a.title === b.title;
+  }
+  function refOfFile(f) { return { k: 'f', id: f.id }; }
+  function itemOfRef(r) { // pro porovnání s položkami playlistů / fronty
+    if (r.k === 'f') return { fileId: r.id };
+    var t = S.catalog[r.pl] && S.catalog[r.pl][r.i];
+    return t ? { fileId: null, src: t.src, playlist: r.pl, title: t.title } : null;
+  }
+  function inQueue(r) { var it = itemOfRef(r); return !!it && S.queue.some(function (e) { return sameTrack(e, it); }); }
+  function inPlaylists(r) {
+    var it = itemOfRef(r);
+    if (!it) return [];
+    return S.playlists.filter(function (pl) { return pl.items.some(function (x) { return sameTrack({ fileId: x.type === 'file' ? x.fileId : null, src: x.src, playlist: x.playlist, title: x.title }, it); }); }).map(function (pl) { return pl.name; });
+  }
+  function closeMenus() { document.querySelectorAll('.menu').forEach(function (m) { m.remove(); }); }
+  function menu(anchor, entries) {
+    closeMenus();
+    var m = el('div', 'menu');
+    m.setAttribute('role', 'menu');
+    entries.forEach(function (en) {
+      if (en === '-') { m.appendChild(el('hr')); return; }
+      if (en.head) { m.appendChild(el('div', 'mh', en.head)); return; }
+      var b = el('button', '', en.label);
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      if (en.title) b.title = en.title;
+      b.addEventListener('click', function (ev) { ev.stopPropagation(); closeMenus(); en.fn(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    var r = anchor.getBoundingClientRect();
+    var x = Math.min(r.left, window.innerWidth - m.offsetWidth - 8), y = r.bottom + 4;
+    if (y + m.offsetHeight > window.innerHeight - 8) y = Math.max(8, r.top - m.offsetHeight - 4);
+    m.style.left = Math.max(8, x) + 'px'; m.style.top = y + 'px';
+    var first = m.querySelector('button'); if (first) first.focus();
+  }
+  function ask(title, value) { // malé okno s textem (název)
+    return new Promise(function (res) {
+      var back = el('div', 'dlg-back'), d = el('div', 'dlg');
+      d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+      d.appendChild(el('h4', '', title));
+      var inp = el('input', 'inp'); inp.type = 'text'; inp.maxLength = 40; inp.value = value || ''; inp.autocomplete = 'off';
+      d.appendChild(inp);
+      var row = el('div', 'btns');
+      var done = function (v) { back.remove(); res(v); };
+      row.appendChild(btn(T.cancel, '', function () { done(null); }));
+      row.appendChild(btn(T.ok, 'primary', function () { done(inp.value); }));
+      d.appendChild(row);
+      back.appendChild(d);
+      back.addEventListener('mousedown', function (e) { if (e.target === back) done(null); });
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); done(inp.value); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(null); } });
+      document.body.appendChild(back);
+      inp.focus(); inp.select();
+    });
+  }
+  function result(r) { if (r && r.error) { toast('⚠ ' + r.error); return false; } return true; }
+
+  // ---------- Návod ----------
+  // Texty návodu jsou pevně dané v TX (žádná data od uživatele), proto se smí vložit i <kbd>.
+  function closeHelp() { var b = document.querySelector('.dlg-back.help-back'); if (b) b.remove(); }
+  function openHelp() {
+    closeMenus(); closeHelp();
+    var back = el('div', 'dlg-back help-back'), d = el('div', 'dlg help');
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+    var hh = el('div', 'hh'), h = el('h4', '', T.helpTitle), x = btn('✕', 'close', closeHelp, T.close);
+    d.setAttribute('aria-label', T.helpTitle);
+    hh.appendChild(h); hh.appendChild(x); d.appendChild(hh);
+    var hb = el('div', 'hb');
+    T.helpBody.forEach(function (sec) {
+      hb.appendChild(el('h5', '', sec[0]));
+      sec[1].forEach(function (t) { var pp = el('p'); pp.innerHTML = t; hb.appendChild(pp); });
+    });
+    d.appendChild(hb); back.appendChild(d);
+    back.addEventListener('mousedown', function (e) { if (e.target === back) closeHelp(); });
+    back.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeHelp(); } });
+    document.body.appendChild(back);
+    x.focus();
+  }
+
+  // ---------- Statické texty ----------
+  function paintStatic() {
+    $('btn-add').textContent = T.add; $('btn-backup').textContent = T.backup; $('btn-restore').textContent = T.restore;
+    $('btn-close').title = T.close; $('btn-close').setAttribute('aria-label', T.close);
+    $('btn-help').textContent = T.help;
+    $('btn-lang').textContent = T.langBtn; $('btn-lang').title = T.langTitle; $('btn-lang').setAttribute('aria-label', T.langTitle);
+    var hp = document.querySelector('.help'); if (hp) { closeHelp(); openHelp(); }
+    $('h-src').textContent = T.sources; $('h-tgt').textContent = T.target;
+    $('btn-newpl').textContent = T.newPl;
+    $('mid-q').placeholder = T.search;
+    var so = $('mid-sort'), cur = midSort;
+    so.innerHTML = '';
+    [['orig', T.sortOrig], ['name', T.sortName], ['new', T.sortNew], ['size', T.sortSize]].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; so.appendChild(op); });
+    so.value = cur;
+    $('mid-hint').textContent = T.hintMid;
+  }
+
+  // ---------- Vykreslení ----------
+  function render() {
+    closeMenus();
+    $('stat').textContent = T.stat(S.files.length, S.playlists.length, S.queue.length);
+    var pn = $('pending');
+    pn.hidden = !S.pending; pn.textContent = S.pending ? T.pending(S.pending) : '';
+    $('btn-add').disabled = !!S.uploadBusy;
+    renderSources();
+    renderMid();
+    renderTarget();
+  }
+
+  // 1) zdroje
+  function srcBtn(label, count, on, onClick, extra) {
+    var b = el('div', 'src' + (on ? ' on' : ''));
+    b.setAttribute('role', 'button'); b.tabIndex = 0;
+    b.appendChild(el('span', 'nm', label));
+    if (extra) b.appendChild(extra);
+    b.appendChild(el('span', 'cnt', String(count)));
+    b.addEventListener('click', onClick);
+    b.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } });
+    return b;
+  }
+  function setSrc(s) { src = s; midSel.clear(); midAnchor = null; midQ = ''; $('mid-q').value = ''; render(); }
+  function folderDrop(node, folderId) { // přetažení souborů na složku = přesun
+    node.addEventListener('dragover', function (e) { if (drag && drag.from === 'mid' && drag.refs.every(function (r) { return r.k === 'f'; })) { e.preventDefault(); node.classList.add('drop-ok'); } });
+    node.addEventListener('dragleave', function () { node.classList.remove('drop-ok'); });
+    node.addEventListener('drop', function (e) {
+      node.classList.remove('drop-ok');
+      if (!drag || drag.from !== 'mid') return;
+      e.preventDefault();
+      var ids = drag.refs.filter(function (r) { return r.k === 'f'; }).map(function (r) { return r.id; });
+      drag = null;
+      if (ids.length) { P.moveFiles(ids, folderId || null); refresh(true); }
+    });
+  }
+  function renderSources() {
+    var box = $('src-list');
+    var st = box.scrollTop;
+    box.innerHTML = '';
+    var g = el('div', 'src-group');
+    g.appendChild(el('h3', '', T.myFiles));
+    g.appendChild(srcBtn(T.allFiles, S.files.length, src.kind === 'files' && !src.id, function () { setSrc({ kind: 'files', id: '' }); }));
+    var none = srcBtn(T.noFolder, S.files.filter(function (f) { return !f.folder; }).length, src.kind === 'files' && src.id === '__none', function () { setSrc({ kind: 'files', id: '__none' }); });
+    folderDrop(none, null);
+    g.appendChild(none);
+    S.folders.slice().sort(function (a, b) { return cmp(a.name, b.name); }).forEach(function (fo) {
+      var act = el('span', 'act');
+      var ren = el('button', 'mini', '✎'); ren.type = 'button'; ren.title = T.rename;
+      ren.addEventListener('click', function (e) { e.stopPropagation(); ask(T.folderName, fo.name).then(function (v) { if (v === null) return; if (result(P.renameFolder(fo.id, v))) refresh(true); }); });
+      var del = el('button', 'mini', '🗑'); del.type = 'button'; del.title = T.del;
+      del.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var n = S.files.filter(function (f) { return f.folder === fo.id; }).length;
+        if (!confirm(T.confirmDelFolder(fo.name, n))) return;
+        P.deleteFolder(fo.id); refresh(true);
+      });
+      act.appendChild(ren); act.appendChild(del);
+      var b = srcBtn('📁 ' + fo.name, S.files.filter(function (f) { return f.folder === fo.id; }).length, src.kind === 'files' && src.id === fo.id, function () { setSrc({ kind: 'files', id: fo.id }); }, act);
+      folderDrop(b, fo.id);
+      g.appendChild(b);
+    });
+    var nr = el('div', 'newrow');
+    var ni = el('input', 'inp'); ni.type = 'text'; ni.maxLength = 40; ni.placeholder = T.folderPh; ni.id = 'new-folder';
+    var nb = btn('📁', 'sm icon', function () { if (!ni.value.trim()) { ni.focus(); return; } var r = P.createFolder(ni.value); if (result(r)) { ni.value = ''; refresh(true); } }, T.newFolder);
+    ni.addEventListener('keydown', function (e) { if (e.key === 'Enter') nb.click(); });
+    nr.appendChild(ni); nr.appendChild(nb);
+    g.appendChild(nr);
+    box.appendChild(g);
+    var g2 = el('div', 'src-group');
+    g2.appendChild(el('h3', '', T.synth));
+    ['asmr', 'piano', 'chill'].forEach(function (k) {
+      g2.appendChild(srcBtn(k.toUpperCase(), (S.catalog[k] || []).length, src.kind === 'cat' && src.id === k, function () { setSrc({ kind: 'cat', id: k }); }));
+    });
+    box.appendChild(g2);
+    box.scrollTop = st;
+  }
+
+  // 2) obsah zdroje
+  function midItems() {
+    var out = [];
+    if (src.kind === 'files') {
+      S.files.forEach(function (f, i) {
+        if (src.id === '__none' && f.folder) return;
+        if (src.id && src.id !== '__none' && f.folder !== src.id) return;
+        out.push({ key: 'f:' + f.id, ref: refOfFile(f), name: f.name, size: f.size, added: f.addedAt, order: i, file: f });
+      });
+    } else {
+      (S.catalog[src.id] || []).forEach(function (t) { out.push({ key: 't:' + src.id + ':' + t.i, ref: { k: 't', pl: src.id, i: t.i }, name: t.name, size: 0, added: t.added ? Date.parse(t.added) || 0 : 0, order: t.i, track: t }); });
+    }
+    if (midQ) { var q = norm(midQ); out = out.filter(function (x) { return norm(x.name).indexOf(q) >= 0 || (x.file && norm(folderName(x.file.folder)).indexOf(q) >= 0); }); }
+    if (midSort === 'name') out.sort(function (a, b) { return cmp(a.name, b.name); });
+    else if (midSort === 'new') out.sort(function (a, b) { return (b.added - a.added) || (a.order - b.order); });
+    else if (midSort === 'size') out.sort(function (a, b) { return (b.size - a.size) || cmp(a.name, b.name); });
+    return out;
+  }
+  function selClick(e, key, keys, set, anchorName) {
+    if (e.shiftKey && (anchorName === 'mid' ? midAnchor : tgtAnchor)) {
+      var a = keys.indexOf(anchorName === 'mid' ? midAnchor : tgtAnchor), b = keys.indexOf(key);
+      if (a >= 0 && b >= 0) { if (!(e.ctrlKey || e.metaKey)) set.clear(); for (var i = Math.min(a, b); i <= Math.max(a, b); i++) set.add(keys[i]); return; }
+    }
+    if (e.ctrlKey || e.metaKey) { if (set.has(key)) set.delete(key); else set.add(key); }
+    else { set.clear(); set.add(key); }
+    if (anchorName === 'mid') midAnchor = key; else tgtAnchor = key;
+  }
+  function midSelectedRefs() {
+    var items = midItems();
+    return items.filter(function (x) { return midSel.has(x.key); }).map(function (x) { return x.ref; });
+  }
+  function isPlayingRef(r) {
+    var pl = S.playing || {};
+    if (!pl.playing) return false;
+    if (pl.queueActive) { var e = S.queue[pl.queueIndex]; var it = itemOfRef(r); return !!e && !!it && sameTrack(e, it); }
+    if (r.k === 'f') return pl.key === 'custom:file:' + r.id;
+    var t = S.catalog[r.pl] && S.catalog[r.pl][r.i];
+    return !!t && pl.key === r.pl && pl.src === t.src;
+  }
+  function renderMid() {
+    $('h-mid').textContent = src.kind === 'files'
+      ? (src.id === '__none' ? T.noFolder : (src.id ? '📁 ' + folderName(src.id) : T.allFiles)).toUpperCase()
+      : 'SYNTHLUCIDA · ' + src.id.toUpperCase();
+    var items = midItems();
+    midKeys = items.map(function (x) { return x.key; });
+    midSel.forEach(function (k) { if (midKeys.indexOf(k) < 0) midSel.delete(k); });
+    var body = $('mid-body');
+    var st = body.scrollTop;
+    body.innerHTML = '';
+    if (!items.length) {
+      var msg = midQ ? T.emptySearch : (src.kind === 'files' ? (src.id ? T.emptyFolder : T.emptyFiles) : '');
+      var em = el('div', 'empty'); em.style.whiteSpace = 'pre-line'; em.textContent = msg;
+      body.appendChild(em);
+    } else {
+      var ul = el('ul', 'rows');
+      ul.setAttribute('role', 'listbox'); ul.setAttribute('aria-multiselectable', 'true');
+      items.forEach(function (x) {
+        var li = el('li', 'row' + (midSel.has(x.key) ? ' sel' : '') + (isPlayingRef(x.ref) ? ' playing' : ''));
+        li.setAttribute('role', 'option'); li.setAttribute('aria-selected', midSel.has(x.key) ? 'true' : 'false');
+        li.draggable = true;
+        li.dataset.key = x.key;
+        var cb = el('input'); cb.type = 'checkbox'; cb.checked = midSel.has(x.key); cb.tabIndex = -1;
+        cb.addEventListener('click', function (e) { e.stopPropagation(); if (cb.checked) midSel.add(x.key); else midSel.delete(x.key); midAnchor = x.key; updateSel('mid'); });
+        li.appendChild(cb);
+        li.appendChild(el('span', 'rt', x.name)).title = x.name;
+        if (inQueue(x.ref)) { var h = el('span', 'tag heart', '♥'); h.title = T.inQueue; li.appendChild(h); }
+        var pls = inPlaylists(x.ref);
+        if (pls.length) { var pt = el('span', 'tag', pls.length + ' ' + T.playlistTag); pt.title = T.inPls + pls.join(', '); li.appendChild(pt); }
+        if (x.file && !src.id && x.file.folder) li.appendChild(el('span', 'tag', '📁 ' + folderName(x.file.folder)));
+        if (x.file) li.appendChild(el('span', 'meta', T.size(x.size)));
+        var ra = el('span', 'ra');
+        var pb = el('button', 'mini', '▶'); pb.type = 'button'; pb.title = T.play;
+        pb.addEventListener('click', function (e) { e.stopPropagation(); playRef(x.ref); });
+        ra.appendChild(pb);
+        li.appendChild(ra);
+        li.addEventListener('click', function (e) { selClick(e, x.key, midKeys, midSel, 'mid'); updateSel('mid'); });
+        li.addEventListener('dblclick', function () { playRef(x.ref); });
+        li.addEventListener('dragstart', function (e) {
+          if (!midSel.has(x.key)) { midSel.clear(); midSel.add(x.key); midAnchor = x.key; }
+          var refs = midSelectedRefs();
+          drag = { from: 'mid', refs: refs };
+          try { e.dataTransfer.effectAllowed = 'copyMove'; e.dataTransfer.setData('text/plain', refs.length + ''); } catch (err) { /* ignore */ }
+          ghost(e, refs.length === 1 ? x.name : refs.length + ' × ♪');
+          setTimeout(function () { document.querySelectorAll('#mid-body .row.sel').forEach(function (r) { r.classList.add('dragging'); }); }, 0);
+        });
+        li.addEventListener('dragend', function () { drag = null; clearDropMarks(); document.querySelectorAll('.row.dragging').forEach(function (r) { r.classList.remove('dragging'); }); });
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+    }
+    body.scrollTop = st;
+    renderMidBulk();
+  }
+  function renderMidBulk() {
+    var bar = $('mid-bulk');
+    var refs = midSelectedRefs();
+    bar.innerHTML = '';
+    bar.hidden = !refs.length;
+    if (!refs.length) return;
+    var all = el('input'); all.type = 'checkbox'; all.checked = refs.length === midKeys.length; all.title = T.choose;
+    all.style.accentColor = 'var(--accent)';
+    all.addEventListener('click', function () { if (all.checked) midKeys.forEach(function (k) { midSel.add(k); }); else midSel.clear(); updateSel('mid'); });
+    bar.appendChild(all);
+    bar.appendChild(el('span', 'n', refs.length + ' ' + T.selected));
+    var bPl = btn(T.toPl, 'sm', function () { playlistMenu(bPl, refs); });
+    var bQ = btn(T.toQueue, 'sm', function () { queueMenu(bQ, refs); });
+    bar.appendChild(bPl); bar.appendChild(bQ);
+    var onlyFiles = refs.every(function (r) { return r.k === 'f'; });
+    if (onlyFiles) {
+      var bF = btn(T.toFolder, 'sm', function () { folderMenu(bF, refs.map(function (r) { return r.id; })); });
+      bar.appendChild(bF);
+      bar.appendChild(btn(T.del, 'sm danger', function () { deleteFiles(refs.map(function (r) { return r.id; })); }));
+    }
+  }
+  // Výběr se jen přebarví (bez nového vykreslení seznamu - jinak by nefungoval dvojklik a seznam by poskakoval)
+  function updateSel(which) {
+    var set = which === 'mid' ? midSel : tgtSel;
+    document.querySelectorAll('#' + which + '-body .row').forEach(function (r) {
+      var on = set.has(r.dataset.key);
+      r.classList.toggle('sel', on);
+      r.setAttribute('aria-selected', on ? 'true' : 'false');
+      var cb = r.querySelector('input[type=checkbox]');
+      if (cb) cb.checked = on;
+    });
+    if (which === 'mid') renderMidBulk(); else renderTgtBulk();
+  }
+  function playRef(r) {
+    if (r.k === 'f') P.playFile(r.id); else P.playCatalog(r.pl, r.i);
+    setTimeout(function () { refresh(true); }, 500);
+  }
+  function addToPlaylist(id, refs, at) {
+    var r = P.addToPlaylist(id, refs, at);
+    toast(r.added ? T.added(r.added, r.skipped) : T.nothingAdded);
+    refresh(true);
+  }
+  function addToQueue(refs, mood) {
+    return Promise.resolve(P.queueAdd(refs, mood || '')).then(function (r) {
+      if (r && r.error) { toast('⚠ ' + r.error); return; }
+      toast(r.added ? T.added(r.added, r.skipped) : T.nothingAdded);
+      refresh(true);
+    });
+  }
+  function newPlaylist(then) {
+    ask(T.plName, '').then(function (v) {
+      if (v === null) return;
+      var r = P.createPlaylist(v);
+      if (!result(r)) return;
+      if (then) then(r.id); else { tgt = { kind: 'pl', id: r.id }; tgtSel.clear(); refresh(true); }
+    });
+  }
+  function playlistMenu(anchor, refs) {
+    var es = S.playlists.map(function (pl) { return { label: pl.name + '  (' + pl.items.length + ')', fn: function () { addToPlaylist(pl.id, refs); } }; });
+    if (es.length) es.push('-');
+    es.push({ label: T.newPlMenu, fn: function () { newPlaylist(function (id) { addToPlaylist(id, refs); tgt = { kind: 'pl', id: id }; tgtSel.clear(); refresh(true); }); } });
+    menu(anchor, es);
+  }
+  function newSection(then) {
+    ask(T.secName, '').then(function (v) {
+      if (v === null) return;
+      var r = P.moodCreate(v);
+      if (result(r) && then) then(r.name);
+      refresh(true);
+    });
+  }
+  function queueMenu(anchor, refs) {
+    var es = [{ label: T.wholeQueue, fn: function () { addToQueue(refs, ''); } }];
+    if (S.moods.length) { es.push({ head: T.sec.replace(/:\s*$/, '').toUpperCase() }); S.moods.forEach(function (m) { es.push({ label: '📁 ' + m, fn: function () { addToQueue(refs, m); } }); }); }
+    if (S.moods.length < S.moodMax) { es.push('-'); es.push({ label: T.newSecMenu, fn: function () { newSection(function (m) { addToQueue(refs, m); }); } }); }
+    menu(anchor, es);
+  }
+  function folderMenu(anchor, ids) {
+    var es = [{ label: T.noFolder, fn: function () { P.moveFiles(ids, null); midSel.clear(); refresh(true); } }];
+    S.folders.slice().sort(function (a, b) { return cmp(a.name, b.name); }).forEach(function (fo) { es.push({ label: '📁 ' + fo.name, fn: function () { P.moveFiles(ids, fo.id); midSel.clear(); refresh(true); } }); });
+    if (S.folders.length < S.folderMax) {
+      es.push('-');
+      es.push({ label: T.newFolderMenu, fn: function () { ask(T.folderName, '').then(function (v) { if (v === null) return; var r = P.createFolder(v); if (result(r)) { P.moveFiles(ids, r.id); midSel.clear(); refresh(true); } }); } });
+    }
+    menu(anchor, es);
+  }
+  function deleteFiles(ids) {
+    if (!ids.length || !confirm(T.confirmDel(ids.length))) return;
+    Promise.resolve(P.deleteFiles(ids)).then(function (r) {
+      if (r && r.error) return;
+      midSel.clear();
+      toast(T.deleted(r.deleted, r.failed));
+      refresh(true);
+    });
+  }
+
+  // 3) cíl
+  function tgtItems() { // [{key, pos (pozice v playlistu/frontě), name, entry}]
+    var out = [], occ = Object.create(null);
+    if (tgt.kind === 'queue') {
+      S.queue.forEach(function (e, p) {
+        if (moodView && e.mood !== moodView) return;
+        var base = (e.fileId ? 'f' + e.fileId : (e.src || e.playlist + '|' + e.title)) + '|' + (e.mood || '');
+        occ[base] = (occ[base] || 0) + 1;
+        out.push({ key: base + '#' + occ[base], pos: p, name: e.fileId ? e.title : shortTitle(e.title), entry: e });
+      });
+    } else {
+      var pl = S.playlists.find(function (x) { return x.id === tgt.id; });
+      if (!pl) return out;
+      pl.items.forEach(function (it, p) {
+        var base = it.type === 'file' ? 'f' + it.fileId : (it.src || it.playlist + '|' + it.title);
+        occ[base] = (occ[base] || 0) + 1;
+        var f = it.type === 'file' ? fileById(it.fileId) : null;
+        out.push({ key: base + '#' + occ[base], pos: p, name: it.type === 'file' ? (f ? f.name : it.title) : shortTitle(it.title), entry: { fileId: it.type === 'file' ? it.fileId : null, src: it.src, playlist: it.playlist, title: it.title }, missing: it.type === 'file' && !f, kind: it.type });
+      });
+    }
+    return out;
+  }
+  function renderTargetSelect() {
+    var s = $('tgt-select');
+    s.innerHTML = '';
+    var o = el('option', '', T.myPl + '  (' + S.queue.length + ')'); o.value = 'queue'; s.appendChild(o);
+    if (S.playlists.length) {
+      var g = el('optgroup'); g.label = lang === 'cz' ? 'PLAYLISTY (F)' : 'PLAYLISTS (F)';
+      S.playlists.forEach(function (pl) { var op = el('option', '', '▸ ' + pl.name + '  (' + pl.items.length + ')'); op.value = 'pl:' + pl.id; g.appendChild(op); });
+      s.appendChild(g);
+    }
+    s.value = tgt.kind === 'queue' ? 'queue' : 'pl:' + tgt.id;
+  }
+  function renderTarget() {
+    renderTargetSelect();
+    var head = $('tgt-head');
+    head.innerHTML = '';
+    var isQ = tgt.kind === 'queue';
+    var pl = isQ ? null : S.playlists.find(function (x) { return x.id === tgt.id; });
+    var items = tgtItems();
+    var title = el('span', 'rt orb', isQ ? 'MY PLAYLIST' : (pl ? pl.name : ''));
+    title.style.cssText = 'flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--accent)';
+    head.appendChild(title);
+    head.appendChild(btn(T.playAll, 'sm', function () {
+      if (!items.length) return;
+      if (isQ) P.queuePlay(items[0].pos); else P.playPlaylist(pl.id);
+      setTimeout(function () { refresh(true); }, 500);
+    }));
+    if (pl) {
+      head.appendChild(btn('✎', 'sm icon', function () { ask(T.plName, pl.name).then(function (v) { if (v !== null && result(P.renamePlaylist(pl.id, v))) refresh(true); }); }, T.rename));
+      head.appendChild(btn('🗑', 'sm icon danger', function () { if (confirm(T.confirmDelPl(pl.name))) { P.deletePlaylist(pl.id); tgt = { kind: 'queue', id: '' }; tgtSel.clear(); refresh(true); } }, T.delPl));
+    }
+    // sekce My Playlist
+    var chips = $('tgt-chips');
+    chips.innerHTML = '';
+    chips.hidden = !isQ;
+    if (isQ) {
+      var mk = function (label, val, count) {
+        var c = el('button', 'chip' + (moodView === val ? ' on' : ''), label + (count !== undefined ? ' ' + count : ''));
+        c.type = 'button';
+        c.addEventListener('click', function () { moodView = val; tgtSel.clear(); renderTarget(); });
+        // přetažení na sekci: z prostředního sloupce = přidat do sekce, z My Playlist = přesunout do sekce
+        c.addEventListener('dragover', function (e) { if (drag) { e.preventDefault(); c.classList.add('drop-ok'); } });
+        c.addEventListener('dragleave', function () { c.classList.remove('drop-ok'); });
+        c.addEventListener('drop', function (e) {
+          c.classList.remove('drop-ok');
+          if (!drag) return;
+          e.preventDefault();
+          var d = drag; drag = null;
+          if (d.from === 'mid') addToQueue(d.refs, val);
+          else if (d.from === 'tgt') { var r = P.queueSetMood(d.positions, val, false); toast(T.moved(r.changed || 0)); refresh(true); }
+        });
+        chips.appendChild(c);
+      };
+      mk(T.all, '', S.queue.length);
+      S.moods.forEach(function (m) { mk('📁 ' + m, m, S.queue.filter(function (e) { return e.mood === m; }).length); });
+      if (S.moods.length < S.moodMax) {
+        var nb = el('button', 'chip', T.newSec); nb.type = 'button';
+        nb.addEventListener('click', function () { newSection(function (m) { moodView = m; }); });
+        chips.appendChild(nb);
+      }
+      if (moodView) {
+        var r1 = el('button', 'chip', '✎'); r1.type = 'button'; r1.title = T.rename;
+        r1.addEventListener('click', function () { ask(T.secName, moodView).then(function (v) { if (v === null) return; var r = P.moodRename(moodView, v); if (result(r)) { moodView = r.name; refresh(true); } }); });
+        var d1 = el('button', 'chip', '🗑'); d1.type = 'button'; d1.title = T.del;
+        d1.addEventListener('click', function () {
+          var n = S.queue.filter(function (e) { return e.mood === moodView; }).length;
+          if (!confirm(T.confirmDelSec(moodView, n))) return;
+          P.moodDelete(moodView); moodView = ''; tgtSel.clear(); refresh(true);
+        });
+        chips.appendChild(r1); chips.appendChild(d1);
+      }
+    }
+    tgtKeys = items.map(function (x) { return x.key; });
+    tgtSel.forEach(function (k) { if (tgtKeys.indexOf(k) < 0) tgtSel.delete(k); });
+    var body = $('tgt-body');
+    var st = body.scrollTop;
+    body.innerHTML = '';
+    if (!items.length) {
+      var em = el('div', 'empty'); em.style.whiteSpace = 'pre-line';
+      em.textContent = isQ ? (moodView ? T.emptySec : T.emptyQueue) : (pl ? T.emptyPl : T.noPls);
+      body.appendChild(em);
+    } else {
+      var ul = el('ul', 'rows');
+      ul.setAttribute('role', 'listbox'); ul.setAttribute('aria-multiselectable', 'true');
+      var pq = S.playing || {};
+      items.forEach(function (x, vi) {
+        var playing = pq.playing && (isQ ? (pq.queueActive && pq.queueIndex === x.pos) : (pq.key === 'custom:' + tgt.id && !pq.queueActive && x.entry.src && pq.src === x.entry.src));
+        var li = el('li', 'row' + (tgtSel.has(x.key) ? ' sel' : '') + (playing ? ' playing' : ''));
+        li.setAttribute('role', 'option'); li.setAttribute('aria-selected', tgtSel.has(x.key) ? 'true' : 'false');
+        li.draggable = true;
+        li.dataset.key = x.key;
+        li.appendChild(el('span', 'grip', '⋮⋮'));
+        li.appendChild(el('span', 'num', (vi + 1) + '.'));
+        var t = el('span', 'rt', x.name); t.title = x.name; li.appendChild(t);
+        if (x.missing) li.appendChild(el('span', 'tag', '?'));
+        if (isQ && x.entry.mood && !moodView) li.appendChild(el('span', 'tag sec', '📁 ' + x.entry.mood));
+        if (!x.entry.fileId && x.entry.playlist && !String(x.entry.playlist).startsWith('custom:')) li.appendChild(el('span', 'tag', String(x.entry.playlist).toUpperCase()));
+        var ra = el('span', 'ra');
+        var up = el('button', 'mini', '▲'); up.type = 'button'; up.title = T.up;
+        up.addEventListener('click', function (e) { e.stopPropagation(); moveKeys([x.key], -1); });
+        var dn = el('button', 'mini', '▼'); dn.type = 'button'; dn.title = T.down;
+        dn.addEventListener('click', function (e) { e.stopPropagation(); moveKeys([x.key], 1); });
+        var rm = el('button', 'mini', '✕'); rm.type = 'button'; rm.title = T.remove;
+        rm.addEventListener('click', function (e) { e.stopPropagation(); removeKeys([x.key]); });
+        ra.appendChild(up); ra.appendChild(dn); ra.appendChild(rm);
+        li.appendChild(ra);
+        li.addEventListener('click', function (e) { selClick(e, x.key, tgtKeys, tgtSel, 'tgt'); updateSel('tgt'); });
+        li.addEventListener('dblclick', function () {
+          if (isQ) P.queuePlay(x.pos); else P.playPlaylist(tgt.id, x.pos);
+          setTimeout(function () { refresh(true); }, 500);
+        });
+        li.addEventListener('dragstart', function (e) {
+          if (!tgtSel.has(x.key)) { tgtSel.clear(); tgtSel.add(x.key); tgtAnchor = x.key; }
+          var sel = tgtItems().filter(function (y) { return tgtSel.has(y.key); });
+          drag = { from: 'tgt', keys: sel.map(function (y) { return y.key; }), positions: sel.map(function (y) { return y.pos; }) };
+          try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'x'); } catch (err) { /* ignore */ }
+          ghost(e, sel.length === 1 ? x.name : sel.length + ' × ♪');
+          setTimeout(function () { document.querySelectorAll('#tgt-body .row.sel').forEach(function (r) { r.classList.add('dragging'); }); }, 0);
+        });
+        li.addEventListener('dragend', function () { drag = null; clearDropMarks(); document.querySelectorAll('.row.dragging').forEach(function (r) { r.classList.remove('dragging'); }); });
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+    }
+    body.scrollTop = st;
+    $('tgt-hint').textContent = isQ ? T.hintTgtQ : T.hintTgt;
+    renderTgtBulk();
+  }
+  function renderTgtBulk() {
+    var bar = $('tgt-bulk');
+    bar.innerHTML = '';
+    var keys = tgtKeys.filter(function (k) { return tgtSel.has(k); });
+    bar.hidden = !keys.length;
+    if (!keys.length) return;
+    bar.appendChild(el('span', 'n', keys.length + ' ' + T.selected));
+    bar.appendChild(btn(T.top, 'sm', function () { moveKeysTo(keys, 0); }));
+    bar.appendChild(btn(T.bottom, 'sm', function () { moveKeysTo(keys, Infinity); }));
+    if (tgt.kind === 'queue') {
+      var bS = btn(T.toSec, 'sm', function () { sectionMenu(bS, keys, false); });
+      bar.appendChild(bS);
+      if (S.moods.length) { var bC = btn(T.copySec, 'sm', function () { sectionMenu(bC, keys, true); }); bar.appendChild(bC); }
+    }
+    bar.appendChild(btn(T.remove, 'sm danger', function () { removeKeys(keys); }));
+  }
+  function posOfKeys(keys) { var items = tgtItems(); return items.filter(function (x) { return keys.indexOf(x.key) >= 0; }).map(function (x) { return x.pos; }); }
+  function sectionMenu(anchor, keys, copy) {
+    var pos = posOfKeys(keys);
+    var go = function (m) { var r = P.queueSetMood(pos, m, copy); toast(copy ? T.added(r.changed || 0, 0) : T.moved(r.changed || 0)); refresh(true); };
+    var es = [];
+    if (!copy) es.push({ label: T.noSection, fn: function () { go(''); } });
+    S.moods.forEach(function (m) { es.push({ label: '📁 ' + m, fn: function () { go(m); } }); });
+    if (S.moods.length < S.moodMax) { es.push('-'); es.push({ label: T.newSecMenu, fn: function () { newSection(function (m) { go(m); }); } }); }
+    menu(anchor, es);
+  }
+  function removeKeys(keys) {
+    var pos = posOfKeys(keys);
+    if (!pos.length) return;
+    if (tgt.kind === 'queue') P.queueRemove(pos); else P.removeFromPlaylist(tgt.id, pos);
+    keys.forEach(function (k) { tgtSel.delete(k); });
+    toast(T.removed(pos.length));
+    refresh(true);
+  }
+  // Nové pořadí: viditelné (případně jen jedné sekce) položky se přeskládají, ostatní zůstanou na svých místech
+  function applyVisibleOrder(newVisible) {
+    var items = tgtItems();
+    var total = tgt.kind === 'queue' ? S.queue.length : ((S.playlists.find(function (p) { return p.id === tgt.id; }) || { items: [] }).items.length);
+    var slots = items.map(function (x) { return x.pos; }); // místa viditelných položek (vzestupně)
+    var order = [];
+    for (var i = 0; i < total; i++) order.push(i);
+    newVisible.forEach(function (x, k) { order[slots[k]] = x.pos; });
+    var ok = tgt.kind === 'queue' ? P.queueReorder(order) : P.reorderPlaylist(tgt.id, order);
+    refresh(true);
+    return ok;
+  }
+  function moveKeys(keys, dir) {
+    var items = tgtItems();
+    var idx = items.map(function (x, i) { return keys.indexOf(x.key) >= 0 ? i : -1; }).filter(function (i) { return i >= 0; });
+    if (!idx.length) return;
+    var arr = items.slice();
+    if (dir < 0) { if (idx[0] === 0) return; idx.forEach(function (i) { var t = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = t; }); }
+    else { if (idx[idx.length - 1] === arr.length - 1) return; idx.slice().reverse().forEach(function (i) { var t = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = t; }); }
+    applyVisibleOrder(arr);
+  }
+  function moveKeysTo(keys, at) { // at = index ve viditelném seznamu (0 = nahoru, Infinity = dolů)
+    var items = tgtItems();
+    var moving = items.filter(function (x) { return keys.indexOf(x.key) >= 0; });
+    if (!moving.length) return;
+    var rest = items.filter(function (x) { return keys.indexOf(x.key) < 0; });
+    var cut = Math.max(0, Math.min(rest.length, at));
+    applyVisibleOrder(rest.slice(0, cut).concat(moving).concat(rest.slice(cut)));
+  }
+
+  // ---------- Přetahování ----------
+  var ghostEl = null;
+  function ghost(e, text) {
+    try {
+      if (!ghostEl) { ghostEl = el('div', 'drag-ghost'); document.body.appendChild(ghostEl); }
+      ghostEl.textContent = text;
+      e.dataTransfer.setDragImage(ghostEl, 10, 10);
+    } catch (err) { /* ignore */ }
+  }
+  function clearDropMarks() { document.querySelectorAll('.drop-before,.drop-after,.drop-ok').forEach(function (n) { n.classList.remove('drop-before', 'drop-after', 'drop-ok'); }); $('col-tgt').classList.remove('drop-zone-active'); }
+  function dropIndexIn(container, clientY) { // index ve viditelném seznamu, před který se vkládá
+    var rows = Array.prototype.slice.call(container.querySelectorAll('.row'));
+    for (var i = 0; i < rows.length; i++) { var r = rows[i].getBoundingClientRect(); if (clientY < r.top + r.height / 2) return i; }
+    return rows.length;
+  }
+  var tgtBody = $('tgt-body');
+  tgtBody.addEventListener('dragover', function (e) {
+    if (!drag && !(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0)) return;
+    if (!drag) return; // soubory z počítače patří do levého/prostředního sloupce
+    e.preventDefault();
+    try { e.dataTransfer.dropEffect = drag.from === 'mid' ? 'copy' : 'move'; } catch (err) { /* ignore */ }
+    clearDropMarks();
+    $('col-tgt').classList.add('drop-zone-active');
+    var rows = tgtBody.querySelectorAll('.row');
+    var i = dropIndexIn(tgtBody, e.clientY);
+    if (rows.length) { if (i < rows.length) rows[i].classList.add('drop-before'); else rows[rows.length - 1].classList.add('drop-after'); }
+  });
+  tgtBody.addEventListener('dragleave', function (e) { if (!tgtBody.contains(e.relatedTarget)) clearDropMarks(); });
+  tgtBody.addEventListener('drop', function (e) {
+    if (!drag) return;
+    e.preventDefault();
+    var d = drag; drag = null;
+    var at = dropIndexIn(tgtBody, e.clientY);
+    clearDropMarks();
+    if (d.from === 'tgt') { moveKeysTo(d.keys, at - tgtItems().slice(0, at).filter(function (x) { return d.keys.indexOf(x.key) >= 0; }).length); return; }
+    if (tgt.kind === 'queue') {
+      // do zobrazené sekce; pak přesun na místo, kam se pustilo
+      var before = S.queue.length;
+      addToQueue(d.refs, moodView).then(function () {
+        var added = S.queue.length - before;
+        if (added > 0) {
+          var items = tgtItems();
+          var newKeys = items.slice(items.length - added).map(function (x) { return x.key; });
+          if (at < items.length - added) moveKeysTo(newKeys, at);
+        }
+      });
+    } else {
+      var pl = S.playlists.find(function (x) { return x.id === tgt.id; });
+      var items2 = tgtItems();
+      var pos = at < items2.length ? items2[at].pos : (pl ? pl.items.length : undefined);
+      addToPlaylist(tgt.id, d.refs, pos);
+    }
+  });
+  // soubory přetažené z počítače (Průzkumník) do prostředního nebo levého sloupce = přidat do F
+  ['col-mid', 'col-src'].forEach(function (id) {
+    var c = $(id);
+    c.addEventListener('dragover', function (e) {
+      if (drag) return;
+      var types = e.dataTransfer ? Array.prototype.slice.call(e.dataTransfer.types || []) : [];
+      if (types.indexOf('Files') < 0) return;
+      e.preventDefault();
+      c.classList.add('drop-zone-active');
+    });
+    c.addEventListener('dragleave', function (e) { if (!c.contains(e.relatedTarget)) c.classList.remove('drop-zone-active'); });
+    c.addEventListener('drop', function (e) {
+      c.classList.remove('drop-zone-active');
+      if (drag || !e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+      e.preventDefault();
+      addFiles(e.dataTransfer.files);
+    });
+  });
+  // jinak by prohlížeč přetažený soubor otevřel místo stránky
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+
+  // ---------- Horní tlačítka ----------
+  function addFiles(list) {
+    var files = Array.prototype.slice.call(list || []);
+    if (!files.length) return;
+    if (S && S.uploadBusy) { toast(T.busy); return; }
+    var folderId = src.kind === 'files' && src.id && src.id !== '__none' ? src.id : '';
+    var before = new Set(S.files.map(function (f) { return f.id; }));
+    Promise.resolve(P.addFiles(files)).then(function () {
+      load();
+      // přidané soubory rovnou do otevřené složky
+      if (folderId && S.folders.some(function (f) { return f.id === folderId; })) {
+        var fresh = S.files.filter(function (f) { return !before.has(f.id); }).map(function (f) { return f.id; });
+        if (fresh.length) P.moveFiles(fresh, folderId);
+      }
+      refresh(true);
+    }, function () { refresh(true); });
+  }
+  $('btn-add').addEventListener('click', function () { $('add-input').value = ''; $('add-input').click(); });
+  $('add-input').addEventListener('change', function () { var f = Array.prototype.slice.call(this.files || []); this.value = ''; addFiles(f); });
+  $('btn-backup').addEventListener('click', function () { P.exportBackup(); });
+  $('btn-restore').addEventListener('click', function () { $('restore-input').value = ''; $('restore-input').click(); });
+  $('restore-input').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (f) Promise.resolve(P.restoreBackup(f)).then(function () { refresh(true); }, function () { refresh(true); }); });
+  $('btn-close').addEventListener('click', function () { try { window.parent.closeFileManager(); } catch (e) { /* ignore */ } });
+  $('btn-help').addEventListener('click', function () { openHelp(); });
+  $('btn-lang').addEventListener('click', function () {
+    var want = lang === 'cz' ? 'en' : 'cz';
+    try { if (P.setLang) P.setLang(want); } catch (e) { /* ignore */ }
+    refresh(true);
+  });
+  $('btn-newpl').addEventListener('click', function () { newPlaylist(); });
+  $('tgt-select').addEventListener('change', function () {
+    var v = this.value;
+    tgt = v === 'queue' ? { kind: 'queue', id: '' } : { kind: 'pl', id: v.slice(3) };
+    tgtSel.clear(); tgtAnchor = null;
+    renderTarget();
+  });
+  $('mid-q').addEventListener('input', function () { midQ = this.value; renderMid(); });
+  $('mid-sort').addEventListener('change', function () { midSort = this.value; renderMid(); });
+
+  // ---------- Klávesnice ----------
+  var lastPane = 'mid';
+  $('col-mid').addEventListener('mousedown', function () { lastPane = 'mid'; });
+  $('col-tgt').addEventListener('mousedown', function () { lastPane = 'tgt'; });
+  document.addEventListener('mousedown', function (e) { if (!e.target.closest('.menu')) closeMenus(); });
+  document.addEventListener('keydown', function (e) {
+    var typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT');
+    if (e.key === 'Escape') {
+      if (document.querySelector('.help-back')) { e.preventDefault(); closeHelp(); return; }
+      if (document.querySelector('.dlg-back')) return;
+      if (document.querySelector('.menu')) { closeMenus(); e.preventDefault(); return; }
+      if (typing && e.target.value) { return; }
+      e.preventDefault();
+      try { window.parent.closeFileManager(); } catch (err) { /* ignore */ }
+      return;
+    }
+    if (typing || document.querySelector('.dlg-back')) return;
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      if (lastPane === 'tgt') { tgtKeys.forEach(function (k) { tgtSel.add(k); }); updateSel('tgt'); }
+      else { midKeys.forEach(function (k) { midSel.add(k); }); updateSel('mid'); }
+      return;
+    }
+    if (e.key === 'Delete') {
+      if (lastPane === 'tgt') { var k = tgtKeys.filter(function (x) { return tgtSel.has(x); }); if (k.length) { e.preventDefault(); removeKeys(k); } }
+      else { var refs = midSelectedRefs(); if (refs.length && refs.every(function (r) { return r.k === 'f'; })) { e.preventDefault(); deleteFiles(refs.map(function (r) { return r.id; })); } }
+    }
+  });
+
+  // ---------- Start ----------
+  try { var q = new URLSearchParams(location.search).get('lang'); if (q === 'cz' || q === 'en') { lang = q; T = TX[q]; } } catch (e) { /* ignore */ }
+  paintStatic();
+  refresh(true);
+})();
+</script>
+</body>
+</html>

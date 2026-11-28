@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a0033">
 <!-- VERZE APPKY: meni se spustenim zvysit_verzi.bat. Zobrazuje se dole v napovede (i). -->
-<meta name="app-version" content="2.9.6">
+<meta name="app-version" content="2.9.7">
 <!-- Oznámení o aktualizaci: už tady (než appka cokoli uloží) se zjistí, jestli tu byl uživatel už dřív -->
 <script>
 /* iPhone / iPad: co zařízení neumí (zjištěno hned na začátku). Jinde než na iOS je vše false. */
@@ -631,6 +631,17 @@
   .myfiles-upload-fill { height: 100%; width: 0; border-radius: 3px; background: var(--accent-color); box-shadow: 0 0 calc(6px * var(--gb)) color-mix(in srgb, var(--accent-color) var(--glow-pct), transparent); transition: width 0.2s ease; }
   .myfiles-upload-name { font-size: 9px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .myfiles-upload.is-done .myfiles-upload-fill { transition: none; }
+  /* Okénko při přidávání souborů do F (u většího množství / souborů z cloudu to chvíli trvá) */
+  .mf-busy .tm-window { max-width: 320px; align-items: center; text-align: center; gap: 10px; }
+  .mf-busy-spin { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--accent-color, #fff); animation: mf-busy-spin 0.9s linear infinite; }
+  @keyframes mf-busy-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .mf-busy-spin { animation-duration: 2.4s; } }
+  .mf-busy-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 11px; letter-spacing: 1.5px; color: var(--accent-color, #fff); }
+  .mf-busy-count { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .mf-busy .myfiles-upload-track { width: 100%; }
+  .mf-busy-name { width: 100%; font-size: 10px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mf-busy-note { margin: 2px 0 0; font-size: 10.5px; line-height: 1.5; opacity: 0.75; }
+  .myfiles-cloud-note { margin: -2px 0 8px; font-size: 10px; line-height: 1.5; opacity: 0.6; }
   .myfiles-bulk .btn-feature.myfiles-bulk-del:not(:disabled) { color: #ffb4b4; border-color: rgba(255,140,140,0.55); }
   .myfiles-bulk .btn-feature.myfiles-bulk-del:not(:disabled):hover { color: #fff; border-color: #ff8c8c; background: rgba(255,90,90,0.14); }
   .myfiles-sel-box { flex-shrink: 0; width: 16px; height: 16px; margin: 0 4px 0 0; accent-color: var(--accent-color); cursor: pointer; }
@@ -2765,6 +2776,17 @@
   /* ===== Děkovné okno (support popup): po spuštění přehrávače, OK = znovu za 5 min, kód RELAXPLAYER = už nikdy ===== */
   .sp-overlay { z-index: 10060; }
   .sp-window { max-width: 400px; padding: 14px 18px 18px; gap: 12px; }
+  /* Okno stažení skladby za XP */
+  .xpdl-window { max-width: 380px; gap: 11px; }
+  .xpdl-track { margin: 0; font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 12px; letter-spacing: 0.6px; text-align: center; line-height: 1.4; overflow-wrap: anywhere; }
+  .xpdl-text, .xpdl-donate-text { margin: 0; font-size: 12.5px; line-height: 1.5; opacity: 0.85; text-align: center; }
+  .xpdl-go, .xpdl-donate { align-self: center; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 210px; max-width: 100%; box-sizing: border-box; text-decoration: none; text-align: center; }
+  .xpdl-go, .xpdl-donate { font-size: 10.5px; letter-spacing: 1px; padding: 11px 16px; min-height: 40px; }
+  .xpdl-go { border-color: var(--accent-color); color: var(--accent-color); }
+  .xpdl-go:focus:not(:focus-visible) { outline: none; }
+  .xpdl-sep { height: 1px; background: rgba(255,255,255,0.14); margin: 3px 0; }
+  .xpdl-donate svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .xpdl-donate-text { font-size: 12px; opacity: 0.75; }
   .sp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .sp-title { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 12px; letter-spacing: 1.5px; line-height: 1.4; color: var(--accent-color, #fff); text-shadow: 0 0 calc(8px * var(--gb)) color-mix(in srgb, var(--accent-color, transparent) var(--glow-pct), transparent); }
   /* Přepínač CZ/EN uvnitř okna: stejná třída jako jinde (text i funkce řeší stávající přepínání jazyka), jen není připíchnutý k rohu obrazovky */
@@ -3784,6 +3806,7 @@
   .su-name { font-family: 'Orbitron', 'Orbitron CZ', sans-serif; font-size: 9px; letter-spacing: 1px; }
   .su-main .su-desc { white-space: pre-line; opacity: 0.75; }
   .su-desc[data-i18n="su_anim_d"], .su-desc[data-i18n="su_focus_d"], .su-desc[data-i18n="su_weather_d"], .su-desc[data-i18n="su_sunset_d"] { white-space: pre-line; opacity: 0.75; }
+  .su-seg-backup button { white-space: nowrap; }
   .su-desc { font-size: 9px; line-height: 1.3; opacity: 0.6; }
   .su-sw { flex: none; position: relative; width: 38px; height: 20px; padding: 0; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); cursor: pointer; transition: background 0.2s, border-color 0.2s; -webkit-tap-highlight-color: transparent; }
   .su-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; opacity: 0.7; transition: transform 0.2s, background 0.2s; }
@@ -4007,6 +4030,13 @@
 
   /* ---- ON AIR 11/2026: položka v EXPLORE svítí červeně, když přihlášený admin (Dave) právě hraje; otevře onair.html v okně ---- */
   .btn-onair .onair-dot, .onair-title .onair-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.35); flex: none; }
+  /* FILE MANAGER (EXPLORE): jen na počítači - myš a dost široká obrazovka. Manažer je samostatný soubor manager.html v okně nad playerem. */
+  .btn-fm { display: none !important; }
+  @media (hover: hover) and (pointer: fine) and (min-width: 900px) { .atmos-panel .btn-fm { display: inline-flex !important; } }
+  .fm-overlay { position: fixed; inset: 0; z-index: 10010; display: flex; align-items: stretch; justify-content: center; padding: 18px 22px; box-sizing: border-box; background: rgba(0,0,0,0.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+  .fm-overlay[hidden] { display: none; }
+  .fm-frame { width: 100%; max-width: 1500px; height: 100%; border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; background: #0d0d12; box-shadow: 0 12px 40px rgba(0,0,0,0.7); }
+  html.fm-open .app-toast { z-index: 10045; }
   .btn-onair.onair-live { color: #ff4d4d; border-color: #ff3b3b; box-shadow: 0 0 10px rgba(255,59,59,0.45); }
   .btn-onair.onair-live .onair-dot, .onair-window.onair-live .onair-title .onair-dot { background: #ff3b3b; box-shadow: 0 0 8px #ff3b3b; animation: onair-blink 1.2s ease-in-out infinite; }
   #atmos-toggle-explore.onair-live::before {
@@ -4184,6 +4214,7 @@
   </div>
   <div class="atmos-panel" id="atmos-panel-explore" role="group" aria-label="More pages">
     <button class="btn-atmos btn-onair" id="btn-onair" onclick="openOnAir()" title="ON AIR – what Dave is listening to right now" aria-label="ON AIR – what Dave is listening to right now"><span class="onair-dot" aria-hidden="true"></span>ON AIR</button>
+    <button class="btn-atmos btn-fm" id="btn-fm" onclick="openFileManager()" title="FILE MANAGER – your files, playlists and My Playlist in one place" aria-label="FILE MANAGER"><svg class="ico-inline fm-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8M8 16h5"/></svg>FILE MANAGER</button>
     <button class="btn-atmos" onclick="location.href='game.html'"><svg class="ico-inline game-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v5M4.5 13h5"/><circle class="gi-a" cx="15.5" cy="11.5" r="1.3"/><circle class="gi-b" cx="18.5" cy="14.5" r="1.3"/></svg>GAME</button>
     <button class="btn-atmos" onclick="location.href='relax.html'"><svg class="ico-inline relax-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20C4 10 9 4 20 4c0 11-6 16-16 16z"/><path d="M4 20L13 11"/></svg>RELAX</button>
     <button class="btn-atmos" onclick="location.href='draw.html'"><svg class="ico-inline draw-icon" viewBox="0 0 24 24" aria-hidden="true"><g class="di-pencil"><path d="M16 3.500l4.500 4.500L8 20.500H3.500V16z"/></g><path class="di-line" d="M11 21h10" pathLength="1"/></svg>DRAWING</button>
@@ -4703,7 +4734,7 @@
 
     <div class="main-guide-section">
       <h4 data-i18n="h_playback">Playback</h4>
-      <p data-i18n="p_playback">Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment. Tracks with “special” in their name or description are marked with a ★ and a highlight in the lists. They are there to add variety to a playlist — they can be faster, have a higher BPM, or step outside the classic chillout style — so they are always skipped — when playing in order, with ⏭, in shuffle 🔀 and with the dice. Play them yourself by tapping them. In MY PLAYLIST they play like any other track, so you can build a playlist of them.</p>
+      <p data-i18n="p_playback">Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Shuffle 🔀 (and the 🎲) is smart: it remembers the last 50 tracks you played (even after you close the player), doesn't bring back tracks you heard recently in the same playlist, and tracks you really listen to often come up a little more often. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment. Tracks with “special” in their name or description are marked with a ★ and a highlight in the lists. They are there to add variety to a playlist — they can be faster, have a higher BPM, or step outside the classic chillout style — so they are always skipped — when playing in order, with ⏭, in shuffle 🔀 and with the dice. Play them yourself by tapping them. In MY PLAYLIST they play like any other track, so you can build a playlist of them.</p>
     </div>
 
     <div class="main-guide-section">
@@ -4754,6 +4785,11 @@
     <div class="main-guide-section">
       <h4 data-i18n="h_history">History</h4>
       <p data-i18n="p_history">🕘 HISTORY shows the tracks you've recently played, with the playlist and time. Tap a track name to play it again, use 📄 EXPORT TXT to save the list as a text file to your device, or CLEAR HISTORY to reset it.</p>
+    </div>
+
+    <div class="main-guide-section">
+      <h4 data-i18n="h_filemanager">FILE MANAGER</h4>
+      <p data-i18n="p_filemanager">FILE MANAGER (in EXPLORE, on a computer only) puts your own files, folders, your playlists from F, the SYNTHLUCIDA tracks and 🎵 MY PLAYLIST with its sections side by side in one big window. Select files or tracks in the middle (click, Ctrl+click, Shift+click) and drag them into a playlist, My Playlist, a section or a folder - or use the buttons below the list. Drag rows on the right to change the order, Delete removes them, a double-click plays. You can also drag audio files straight from your computer into the window. Everything you change is saved right away in F and My Playlist, and changes made in the player show up in the manager too. The ? Guide button in the manager explains everything step by step, and the CZ/EN button switches the language.</p>
     </div>
 
     <div class="main-guide-section">
@@ -4873,6 +4909,7 @@
       <button class="btn-feature" id="myfiles-add-btn" data-i18n="mf_btn_add" onclick="document.getElementById('myfiles-input').click()">＋ ADD AUDIO FILES</button>
       <button class="btn-feature" data-i18n="mf_btn_history" onclick="openHistoryFromFiles()">🕘 HISTORY</button>
     </div>
+    <p class="myfiles-cloud-note" data-i18n="mf_cloud_note">Adding many files, or files stored in the cloud (OneDrive, Google Drive, iCloud…), can take a while - cloud files first download to your device and it may look like nothing is happening. Just wait, a small window shows the progress.</p>
     <div class="myfiles-upload" id="myfiles-upload" hidden>
       <div class="myfiles-upload-top"><span id="myfiles-upload-text"></span><span class="myfiles-upload-pct" id="myfiles-upload-pct">0 %</span></div>
       <div class="myfiles-upload-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="myfiles-upload-bar"><div class="myfiles-upload-fill" id="myfiles-upload-fill"></div></div>
@@ -5007,6 +5044,20 @@
   </div>
 </div>
 
+<!-- Stažení skladby za XP (MY PLAYLIST, jen skladby z ASMR / PIANO / CHILL): potvrzení + poděkování a DONATE.
+     Odkaz DONATE se při otevření bere z tlačítka ☕ vlevo nahoře (.main-donate-btn), takže stačí měnit ho tam. -->
+<div class="tm-overlay xpdl-overlay" id="xpdl-window" role="dialog" aria-modal="true" aria-labelledby="xpdl-title" hidden>
+  <div class="tm-window xpdl-window">
+    <div class="tm-head"><span class="tm-title" id="xpdl-title" data-i18n="xpdl_title">⬇ DOWNLOAD TRACK</span><button type="button" class="tm-close" id="xpdl-close" aria-label="Close" title="Close">✕</button></div>
+    <p class="xpdl-track" id="xpdl-track"></p>
+    <p class="xpdl-text" id="xpdl-text"></p>
+    <button type="button" class="btn-feature xpdl-go" id="xpdl-go" data-i18n="xpdl_go">⬇ DOWNLOAD THIS TRACK</button>
+    <div class="xpdl-sep" aria-hidden="true"></div>
+    <p class="xpdl-donate-text" data-i18n="xpdl_donate_text">Do you like the music? If you would like to support the project and the production of new tracks, you can send the author any contribution towards running the project and its further development via DONATE. Thank you!</p>
+    <a class="btn-feature xpdl-donate" id="xpdl-donate" href="#" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3.5c-.8 1 .8 1.8 0 3M12 3.5c-.8 1 .8 1.8 0 3"/></svg><span>DONATE</span></a>
+  </div>
+</div>
+
 <div class="tm-overlay sp-overlay" id="support-popup" role="dialog" aria-modal="true" aria-labelledby="sp-title" hidden>
   <div class="tm-window sp-window">
     <div class="sp-head">
@@ -5059,6 +5110,16 @@
     <div class="dl-pick-tools"><button type="button" class="btn-feature" id="dl-pick-all" data-i18n="dl_pick_all">SELECT ALL</button><button type="button" class="btn-feature" id="dl-pick-none" data-i18n="dl_pick_none">CLEAR</button></div>
     <ul class="dl-pick-list" id="dl-pick-list"></ul>
     <div class="tm-actions"><button type="button" class="btn-feature" data-dl-close data-i18n="dl_pick_cancel">CANCEL</button><button type="button" class="btn-feature" id="dl-pick-go" disabled>⬇ DOWNLOAD</button></div>
+  </div>
+</div>
+<div class="tm-overlay mf-busy" id="mf-busy" role="dialog" aria-modal="true" aria-labelledby="mf-busy-title" hidden>
+  <div class="tm-window">
+    <div class="mf-busy-spin" aria-hidden="true"></div>
+    <div class="mf-busy-title" id="mf-busy-title"></div>
+    <div class="mf-busy-count" id="mf-busy-count" aria-live="polite"></div>
+    <div class="myfiles-upload-track"><div class="myfiles-upload-fill" id="mf-busy-fill"></div></div>
+    <div class="mf-busy-name" id="mf-busy-name"></div>
+    <p class="mf-busy-note" id="mf-busy-note"></p>
   </div>
 </div>
 <div class="tm-overlay" id="onair-window" role="dialog" aria-modal="true" aria-label="ON AIR" hidden>
@@ -5127,6 +5188,9 @@
       <div class="motiv-list" id="motiv-builtin-list"></div>
       <div class="motiv-editor-actions"><button class="btn-feature" id="motiv-all-on-btn" onclick="enableAllMotivationTexts()">ALL ON</button></div>
     </div>
+    <div class="su-sec" data-i18n="su_sec_backup">SETTINGS BACKUP</div>
+    <div class="su-note" data-i18n="su_backup_note"></div>
+    <div class="su-row"><div class="su-txt"><span class="su-name" data-i18n="su_backup_n">EXPORT / IMPORT</span><span class="su-desc" data-i18n="su_backup_d"></span></div><div class="su-seg su-seg-backup" role="group"><button type="button" id="su-set-export" data-i18n="su_backup_exp">💾 EXPORT</button><button type="button" id="su-set-import" data-i18n="su_backup_imp">📂 IMPORT</button></div><input type="file" id="su-set-file" accept=".json,application/json" hidden></div>
     <div class="su-sec" data-i18n="su_sec_admin">ADMIN SECTION</div>
     <div class="su-note" id="su-admin-note"></div>
     <div class="su-row su-locked" id="su-admin-r2-row"><div class="su-txt"><span class="su-name" data-i18n="su_r2mode_n">R2 ONLY</span><span class="su-desc" data-i18n="su_r2mode_d"></span></div><div class="su-seg su-seg-music" data-musicsrc-admin role="group"><button type="button" id="su-r2-mode" data-v="r2" aria-pressed="false" disabled>🔒 R2</button></div></div>
@@ -5813,28 +5877,86 @@
     try { txt = txt.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* ignore */ }
     return /special/i.test(txt);
   }
-  // Paměť naposledy přehraných skladeb (podle názvu) pro náhodné přehrávání: shuffle 🔀, kostka i shuffle v MY PLAYLIST
-  // nevybírají skladbu, která hrála teprve nedávno (dřív se vylučovala jen ta právě hrající, takže se skladby
-  // mohly vracet už po 2-3 kouscích). Plní se v addToHistory, tedy při každém startu skladby (i při crossfade).
-  const RECENT_TRACKS_MAX = 12; // tolik posledních skladeb se nevybírá znovu (u krátkých seznamů nejvýš polovina seznamu)
+  // Paměť naposledy přehraných skladeb (podle názvu) pro náhodné přehrávání: shuffle 🔀, kostka, shuffle v MY PLAYLIST,
+  // playlisty z F i výběr playlistu v mini přehrávačích. Pamatuje se posledních 50 skladeb z celého přehrávání
+  // (plní se v addToHistory, tedy při každém startu skladby i při crossfade) a při startu appky se načte z HISTORY,
+  // takže funguje i po zavření a novém otevření playeru.
+  // Chytrý výběr (11/2026):
+  //  • podle playlistu: z posledních 50 se berou jen skladby, které jsou v právě hraném seznamu, a nevybírá se
+  //    nejvýš polovina takového seznamu (u playlistu s 20 skladbami tedy 10 naposledy hraných z něj);
+  //  • oblíbenost: skladby, které se často opravdu poslouchají (aspoň 20 s, viz addListenSeconds), mají
+  //    trochu vyšší šanci - nejposlouchanější nejvýš 1,5×, nikdy nehrané 1×. Nikdy to nevytlačí ostatní.
+  const RECENT_TRACKS_MAX = 50;
+  const SHUFFLE_FAV_BOOST = 0.5;
+  const SHUFFLE_PLAYS_KEY = 'sl-shuffle-plays';
   let recentTitles = [];
+  try {
+    const h = JSON.parse(localStorage.getItem('synthlucida_history') || '[]'); // nejnovější první
+    if (Array.isArray(h)) {
+      const t = h.filter(x => x && typeof x.title === 'string' && x.title).slice(0, RECENT_TRACKS_MAX).reverse().map(x => x.title);
+      recentTitles = t.filter((x, i) => t.lastIndexOf(x) === i);
+    }
+  } catch (e) { recentTitles = []; }
   function rememberRecentTrack(title) {
     if (!title) return;
     recentTitles = recentTitles.filter(t => t !== title);
     recentTitles.push(title);
-    if (recentTitles.length > 60) recentTitles = recentTitles.slice(-60);
+    if (recentTitles.length > RECENT_TRACKS_MAX) recentTitles = recentTitles.slice(-RECENT_TRACKS_MAX);
   }
-  // Z kandidátů (pole indexů do list, bez právě hrající) vybere náhodně takovou, která nebyla mezi posledními skladbami.
-  // Nezbyde-li nic, okno se postupně zkracuje, až nakonec platí jen "ne právě hrající" (původní chování).
+  let shufflePlays = null; // { název: počet opravdových poslechů }
+  function loadShufflePlays() {
+    if (shufflePlays) return shufflePlays;
+    shufflePlays = {};
+    try {
+      const o = JSON.parse(localStorage.getItem(SHUFFLE_PLAYS_KEY) || '{}');
+      if (o && typeof o === 'object' && !Array.isArray(o)) {
+        Object.keys(o).forEach(k => { const n = Number(o[k]); if (k && k !== '__proto__' && isFinite(n) && n > 0) shufflePlays[k] = Math.min(9999, Math.floor(n)); });
+      }
+    } catch (e) { /* ignore */ }
+    return shufflePlays;
+  }
+  function shufflePlayCount(title) {
+    const m = loadShufflePlays();
+    return (title && Object.prototype.hasOwnProperty.call(m, title)) ? m[title] : 0;
+  }
+  function countShufflePlay(title) {
+    if (!title || title === '__proto__') return;
+    const m = loadShufflePlays();
+    m[title] = (Object.prototype.hasOwnProperty.call(m, title) ? m[title] : 0) + 1;
+    let keys = Object.keys(m);
+    // ať čísla nerostou donekonečna: staré oblíbené časem slábnou (vše se vydělí dvěma) a seznam má nejvýš 600 skladeb
+    if (keys.reduce((a, k) => a + m[k], 0) > 3000) keys.forEach(k => { m[k] = Math.floor(m[k] / 2); if (m[k] <= 0) delete m[k]; });
+    keys = Object.keys(m);
+    if (keys.length > 600) keys.sort((a, b) => m[a] - m[b]).slice(0, keys.length - 600).forEach(k => delete m[k]);
+    try { localStorage.setItem(SHUFFLE_PLAYS_KEY, JSON.stringify(m)); } catch (e) { /* ignore */ }
+  }
+  // Vážený náhodný výběr z pole indexů: častěji poslouchané skladby mají jen o trochu větší šanci.
+  function weightedShufflePick(list, pool) {
+    if (pool.length <= 1) return pool.length ? pool[0] : -1;
+    const counts = pool.map(i => shufflePlayCount(list[i] && list[i].title));
+    let mx = 0;
+    counts.forEach(c => { if (c > mx) mx = c; });
+    if (mx <= 0) return pool[Math.floor(Math.random() * pool.length)];
+    const lm = Math.log(1 + mx);
+    const w = counts.map(c => 1 + SHUFFLE_FAV_BOOST * Math.log(1 + c) / lm);
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r < 0) return pool[k]; }
+    return pool[pool.length - 1];
+  }
+  // Z kandidátů (pole indexů do list, bez právě hrající) vybere skladbu, která nebyla mezi nedávno hranými z TOHOTO
+  // seznamu (nejvýš polovina jeho různých skladeb). Nezbyde-li nic, okno se postupně zkracuje.
   function pickNotRecent(list, cands) {
     if (!cands.length) return -1;
-    const maxK = Math.min(RECENT_TRACKS_MAX, Math.floor((cands.length + 1) / 2));
+    const titleOf = i => (list[i] && list[i].title) || '';
+    const here = new Set(cands.map(titleOf));
+    const recentHere = recentTitles.filter(t => here.has(t)); // od nejstarší po nejnovější
+    const maxK = Math.min(RECENT_TRACKS_MAX, Math.floor((here.size + 1) / 2), recentHere.length);
     for (let k = maxK; k > 0; k--) {
-      const recent = recentTitles.slice(-k);
-      const pool = cands.filter(i => recent.indexOf(list[i] && list[i].title) === -1);
-      if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+      const recent = new Set(recentHere.slice(recentHere.length - k));
+      const pool = cands.filter(i => !recent.has(titleOf(i)));
+      if (pool.length) return weightedShufflePick(list, pool);
     }
-    return cands[Math.floor(Math.random() * cands.length)];
+    return weightedShufflePick(list, cands);
   }
   // Náhodná skladba ze seznamu objektů {title,...}: bez "special", bez právě hrající a (pokud to jde) bez nedávno hraných.
   // Jsou-li všechny special, nic se nefiltruje.
@@ -9489,7 +9611,7 @@
       if (playBtn.getAttribute('data-state') !== 'pause') playBtn.click(); // už je vybraný: jen obnoví přehrávání
     } else {
       setPlaylist(k, mainBtn);
-      if (Array.isArray(playlist) && playlist.length) playTrack(shuffleEnabled ? Math.floor(Math.random() * playlist.length) : 0);
+      if (Array.isArray(playlist) && playlist.length) playTrack(shuffleEnabled ? randomTrackIndex(playlist, -1) : 0);
     }
     try { syncQueueBackBtn(); } catch (err) { /* ignore */ }
   });
@@ -10959,16 +11081,13 @@
       tracks[key].forEach((t, i) => { if (!isSpecialTrack(t)) pool.push({ key, i }); });
     });
     if (!pool.length) return;
-    // pokud to jde, nevybírat nedávno hrané skladby (viz pickNotRecent)
-    const recentSet = recentTitles.slice(-RECENT_TRACKS_MAX);
-    const fresh = pool.filter(q => recentSet.indexOf(tracks[q.key][q.i] && tracks[q.key][q.i].title) === -1);
-    const src = fresh.length ? fresh : pool;
-    let pick = src[Math.floor(Math.random() * src.length)];
-    // nevybírat hned znovu stejnou skladbu, která právě hraje
-    if (pool.length > 1 && pick.key === currentPlaylistKey && pick.i === currentTrackIndex && !customQueueActive) {
-      const others = pool.filter(p => !(p.key === pick.key && p.i === pick.i));
-      pick = others[Math.floor(Math.random() * others.length)];
-    }
+    // stejný chytrý výběr jako 🔀 (viz pickNotRecent): ne právě hrající, ne nedávno hrané, oblíbené o trochu častěji
+    const flat = pool.map(q => tracks[q.key][q.i]);
+    let cands = [];
+    pool.forEach((q, n) => { if (customQueueActive || !(q.key === currentPlaylistKey && q.i === currentTrackIndex)) cands.push(n); });
+    if (!cands.length) cands = pool.map((q, n) => n);
+    const pi = pickNotRecent(flat, cands);
+    const pick = pool[pi >= 0 ? pi : Math.floor(Math.random() * pool.length)];
     const plBtn = Array.from(document.querySelectorAll('#atmos-panel-music .btn-atmos'))
       .find(b => b.textContent.trim().toLowerCase() === pick.key);
     if (plBtn) setPlaylist(pick.key, plBtn);
@@ -11896,7 +12015,7 @@
     link_weather: { en: "WEATHER", cz: "POČASÍ" },
     link_privacy: { en: "PRIVACY POLICY", cz: "ZÁSADY OCHRANY SOUKROMÍ" },
     h_playback: { en: "Playback", cz: "Přehrávání" },
-    p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment. Tracks with “special” in their name or description are marked with a ★ and a highlight in the lists. They are there to add variety to a playlist — they can be faster, have a higher BPM, or step outside the classic chillout style — so they are always skipped — when playing in order, with ⏭, in shuffle 🔀 and with the dice. Play them yourself by tapping them. In MY PLAYLIST they play like any other track, so you can build a playlist of them.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně. Prohlížíte jiný playlist, než ze kterého hraje skladba? Klepněte na 🔍 vedle času a hlavní okno skočí rovnou na právě hrající skladbu - přepne se do jejího playlistu (nebo do MY PLAYLIST), odroluje na ni a krátce ji rozsvítí. Skladby se slovem „special“ v názvu nebo popisu jsou v seznamech označené hvězdičkou ★ a zvýrazněné. Slouží ke zpestření playlistu — mohou být rychlejší, mít vyšší BPM nebo vybočovat z klasického chillout stylu — a proto se vždy přeskakují — při přehrávání popořadě, při ⏭, v náhodném přehrávání 🔀 i u kostky. Pusťte je sami klepnutím na ně. V MY PLAYLIST se hrají jako každá jiná skladba, takže si z nich můžete složit vlastní playlist." },
+    p_playback: { en: "Use the center button to play or pause the current track, and ⏭ to skip to the next one. Tap 🔀 to shuffle the playlist or 🔁 to repeat the current track. Shuffle 🔀 (and the 🎲) is smart: it remembers the last 50 tracks you played (even after you close the player), doesn't bring back tracks you heard recently in the same playlist, and tracks you really listen to often come up a little more often. Drag the progress bar to seek to any point, and use the slider to adjust the volume. The 🔆 button underneath keeps your screen from dimming or locking while it's on, so playback stays visible during a session — tap it again to let your screen sleep normally. Browsing a different playlist than the one that's playing? Tap the 🔍 next to the time to jump straight back to the playing track - the main window switches to its playlist (or to MY PLAYLIST), scrolls to the track and makes it light up for a moment. Tracks with “special” in their name or description are marked with a ★ and a highlight in the lists. They are there to add variety to a playlist — they can be faster, have a higher BPM, or step outside the classic chillout style — so they are always skipped — when playing in order, with ⏭, in shuffle 🔀 and with the dice. Play them yourself by tapping them. In MY PLAYLIST they play like any other track, so you can build a playlist of them.", cz: "Prostřední tlačítko slouží k přehrání nebo pozastavení aktuální skladby, ⏭ přeskočí na další. Klepnutím na 🔀 zamícháte playlist, 🔁 zopakuje aktuální skladbu. Náhodné přehrávání 🔀 (i 🎲) je chytré: pamatuje si posledních 50 přehraných skladeb (i po zavření playeru), nepouští znovu skladby, které jste v tom samém playlistu slyšeli nedávno, a skladby, které opravdu posloucháte často, dostanou o trochu větší šanci. Tažením posuvníku přehrávání přejdete na libovolné místo ve skladbě a jezdcem upravíte hlasitost. Tlačítko 🔆 pod tím zabraňuje ztlumení nebo uzamčení obrazovky, dokud je zapnuté, takže přehrávání zůstává vidět po celou dobu poslechu — dalším klepnutím necháte obrazovku zhasínat normálně. Prohlížíte jiný playlist, než ze kterého hraje skladba? Klepněte na 🔍 vedle času a hlavní okno skočí rovnou na právě hrající skladbu - přepne se do jejího playlistu (nebo do MY PLAYLIST), odroluje na ni a krátce ji rozsvítí. Skladby se slovem „special“ v názvu nebo popisu jsou v seznamech označené hvězdičkou ★ a zvýrazněné. Slouží ke zpestření playlistu — mohou být rychlejší, mít vyšší BPM nebo vybočovat z klasického chillout stylu — a proto se vždy přeskakují — při přehrávání popořadě, při ⏭, v náhodném přehrávání 🔀 i u kostky. Pusťte je sami klepnutím na ně. V MY PLAYLIST se hrají jako každá jiná skladba, takže si z nich můžete složit vlastní playlist." },
     h_atmos: { en: "Atmospheres & playlists", cz: "Atmosféry a playlisty" },
     p_atmos: { en: "Tap MUSIC at the top of the screen to open the ASMR, PIANO and CHILL playlists (the button shows the one you are on), and EXPLORE to open GAME, RELAX, DRAWING (separate pages with their own soundscapes), FORECAST (the SYNTHLUCIDA weather page, opened in a new tab) BREATHE (a guided breathing session), BINAURAL (calming binaural beats - see Binaural beats below) and SEARCH (find a track by name). The playlist you last listened to is remembered automatically the next time you open the player. Feeling like a surprise? Tap the small 🎲 to the left of MUSIC: it picks a completely random track from PIANO and CHILL (not from ASMR or your own files in F), starts playing it and shows its playlist below. Shuffle then switches on (the 🎲 and 🔀 buttons light up), so when the track ends the player keeps picking random tracks from that playlist - tap 🔀 again to turn it off. Want a richer soundscape? In the ASMR playlist tap the small layers button next to 🔀, then tap a second ASMR track: it plays together with the first one on a loop, and a small knob appears next to the button to set its volume (only the knob controls it - the main volume slider does not change it; double-tap the knob to reset it to the middle). Tap the layers button again to stop the second track. The button and knob are always visible, but only work in the ASMR playlist, in MY PLAYLIST once it contains at least one ASMR track added with the ♥, and in your own playlists from the F section (SYNTHLUCIDA tracks mixed with your own files) once they contain at least one ASMR track (they are dimmed elsewhere; outside the ASMR playlist only the ASMR tracks of the list can be layered and the other rows are dimmed). A file you upload yourself in F counts as an ASMR track when the word 'asmr' is in its name, so you can layer your own recordings too, the knob stays dimmed until you pick a second track, and the second track stops automatically when you leave these lists. Tap SAVE to remember the second track and its volume for the next time you open the player. On iPhone/iPad the knob cannot change the volume (iOS does not allow it) - use the device volume buttons.", cz: "Klepnutím na MUSIC v horní části obrazovky otevřete playlisty ASMR, PIANO a CHILL (tlačítko ukazuje ten aktuální), klepnutím na EXPLORE pak GAME, RELAX, DRAWING (samostatné stránky s vlastní zvukovou atmosférou), FORECAST (stránka s předpovědí počasí SYNTHLUCIDA, otevře se na nové kartě) BREATHE (vedené dechové cvičení), BINAURAL (uklidňující binaurální tóny - viz Binaurální tóny níže) a SEARCH (vyhledání skladby podle názvu). Naposledy poslouchaný playlist se při dalším otevření přehrávače automaticky zapamatuje. Chcete překvapení? Klepněte na malou 🎲 vlevo od MUSIC: vybere úplně náhodnou skladbu z PIANO a CHILL (ne z ASMR ani z vašich souborů v sekci F), rovnou ji spustí a dole zobrazí její playlist. Poté se zapne shuffle (rozsvítí se 🎲 i 🔀), takže po dohrání skladby přehrávač dál vybírá náhodné skladby z tohoto playlistu - dalším klepnutím na 🔀 ho vypnete. Chcete bohatší zvukovou atmosféru? V playlistu ASMR klepněte na malé tlačítko s vrstvami vedle 🔀 a pak na druhou ASMR skladbu: hraje společně s první ve smyčce a vedle tlačítka se objeví malý knob na hlasitost druhé skladby (ovládá ji jen knob - hlavní posuvník hlasitosti ji nemění; dvojklepnutím na knob ho vrátíte na střed). Dalším klepnutím na tlačítko s vrstvami druhou skladbu vypnete. Tlačítko i knob jsou vidět pořád, ale fungují jen v playlistu ASMR, v MY PLAYLIST, jakmile obsahuje alespoň jednu ASMR skladbu přidanou srdíčkem ♥, a ve vlastních playlistech ze sekce F (skladby SYNTHLUCIDA smíchané s vlastními soubory), jakmile obsahují alespoň jednu ASMR skladbu (jinde jsou ztlumené; mimo playlist ASMR jde vrstvit jen ASMR skladby ze seznamu a ostatní řádky jsou ztlumené). Soubor, který si v sekci F sám nahraješ, se bere jako ASMR skladba, když má v názvu slovo 'asmr', takže můžeš vrstvit i vlastní nahrávky, knob je ztlumený, dokud druhou skladbu nevyberete, a po odchodu z těchto seznamů se druhá skladba vypne sama. Tlačítkem SAVE si druhou skladbu i její hlasitost uložíte na příště. Na iPhonu/iPadu knob hlasitost změnit nemůže (iOS to nedovoluje) - použijte tlačítka hlasitosti zařízení." },
     h_search: { en: "Search", cz: "Vyhledávání" },
@@ -11955,6 +12074,8 @@
     h_history: { en: "History", cz: "Historie" },
     p_history: { en: "🕘 HISTORY shows the tracks you've recently played, with the playlist and time. Tap a track name to play it again, use 📄 EXPORT TXT to save the list as a text file to your device, or CLEAR HISTORY to reset it.", cz: "🕘 HISTORY zobrazuje naposledy přehrané skladby spolu s playlistem a časem. Klepnutím na název skladby ji spustíte znovu, tlačítkem 📄 EXPORT TXT uložíte seznam jako textový soubor do zařízení a tlačítkem CLEAR HISTORY historii vymažete." },
     h_myplaylist: { en: "My Playlist", cz: "Můj playlist" },
+    h_filemanager: { en: "FILE MANAGER", cz: "FILE MANAGER" },
+    p_filemanager: { en: "FILE MANAGER (in EXPLORE, on a computer only) puts your own files, folders, your playlists from F, the SYNTHLUCIDA tracks and 🎵 MY PLAYLIST with its sections side by side in one big window. Select files or tracks in the middle (click, Ctrl+click, Shift+click) and drag them into a playlist, My Playlist, a section or a folder - or use the buttons below the list. Drag rows on the right to change the order, Delete removes them, a double-click plays. You can also drag audio files straight from your computer into the window. Everything you change is saved right away in F and My Playlist, and changes made in the player show up in the manager too. The ? Guide button in the manager explains everything step by step, and the CZ/EN button switches the language.", cz: "FILE MANAGER (v EXPLORE, jen na počítači) ukáže v jednom velkém okně vedle sebe vaše soubory a složky, playlisty z F, SYNTHLUCIDA skladby a 🎵 MY PLAYLIST se sekcemi. Uprostřed vyberte soubory nebo skladby (klik, Ctrl+klik, Shift+klik) a přetáhněte je do playlistu, do My Playlist, do sekce nebo do složky - nebo použijte tlačítka pod seznamem. Vpravo přetažením řádků měníte pořadí, klávesa Delete je odebere, dvojklik přehraje. Audio soubory můžete do okna přetáhnout i rovnou z počítače. Každá změna se hned uloží v F i v My Playlist a změny udělané v playeru se v manažeru objeví také. Tlačítko ? Návod v manažeru vše vysvětlí krok za krokem a tlačítkem CZ/EN přepnete jazyk." },
     h_onair: { en: "ON AIR", cz: "ON AIR" },
     p_onair: { en: "ON AIR (in EXPLORE) shows what Dave, the author of the SYNTHLUCIDA project, is listening to in RelaxPlayer right now - from any section, including his own collection. When he is playing, ON AIR lights up red (and a red dot appears on EXPLORE). Tap it and a window opens with the track name and a button to search for it on YouTube. Nothing is streamed - playing the track is up to you; the window updates by itself as his tracks change.", cz: "ON AIR (v EXPLORE) ukazuje, co si Dave, autor projektu SYNTHLUCIDA, právě pouští v RelaxPlayeru - z jakékoli sekce, i ze své vlastní sbírky. Když hraje, ON AIR svítí červeně (a na EXPLORE se objeví červená tečka). Po klepnutí se otevře okno s názvem skladby a tlačítkem, které ji vyhledá na YouTube. Nic se nevysílá - pustit si skladbu je na vás; okno se samo mění, jak mu skladby přepínají." },
     h_playqueue: { en: "Play queue (play next)", cz: "Fronta přehrávání (hrát jako další)" },
@@ -11982,6 +12103,7 @@
     mf_btn_add: { en: "＋ ADD AUDIO FILES", cz: "＋ PŘIDAT AUDIO SOUBORY" },
     mf_btn_backup: { en: "💾 BACKUP LISTS", cz: "💾 ZÁLOHA SEZNAMŮ" },
     mf_btn_restore: { en: "📂 RESTORE BACKUP", cz: "📂 OBNOVIT ZE ZÁLOHY" },
+    mf_cloud_note: { en: "Adding many files, or files stored in the cloud (OneDrive, Google Drive, iCloud…), can take a while - cloud files first download to your device and it may look like nothing is happening. Just wait, a small window shows the progress.", cz: "Přidání většího množství souborů nebo souborů z cloudu (OneDrive, Google Disk, iCloud…) chvíli trvá - soubory z cloudu se nejdřív stahují do zařízení a může to vypadat, že se nic neděje. Stačí počkat, průběh ukáže malé okénko." },
     h_myfiles_backup: { en: "Move your lists to another device (backup)", cz: "Přenos seznamů na jiné zařízení (záloha)" },
     p_myfiles_backup: { en: "Tap 💾 BACKUP LISTS to save a small file (a few kB) with your playlists, their order, your folders and the list of your files. The music itself is not inside - keep your MP3s where they are (OneDrive, a USB stick…). On the other device open the F panel, tap 📂 RESTORE BACKUP and pick that file, then add your MP3s with ＋ ADD AUDIO FILES. Each file is recognised by its name and size and goes back into its playlists (in the right order) and folder automatically - you can add the MP3s before or after restoring, all at once or a few at a time. Until then a dashed note shows how many files are still missing. Playlists with the same name are replaced by the backup, everything else stays. Tip: keep the backup file next to your MP3s.", cz: "Klepnutím na 💾 ZÁLOHA SEZNAMŮ uložíte malý soubor (pár kB) s vašimi playlisty, jejich pořadím, složkami a seznamem souborů. Samotná hudba v něm není - MP3 nechte tam, kde je máte (OneDrive, flashka…). Na druhém zařízení otevřete panel F, klepněte na 📂 OBNOVIT ZE ZÁLOHY a vyberte tento soubor, potom přidejte své MP3 tlačítkem ＋ PŘIDAT AUDIO SOUBORY. Každý soubor se pozná podle názvu a velikosti a sám se vrátí do svých playlistů (ve správném pořadí) i do složky - MP3 můžete přidat před obnovením i po něm, všechny najednou nebo postupně. Do té doby čárkovaný rámeček ukazuje, kolik souborů ještě chybí. Playlisty se stejným názvem se zálohou nahradí, všechno ostatní zůstane. Tip: zálohu si uložte rovnou vedle svých MP3." },
     mf_btn_history: { en: "🕘 HISTORY", cz: "🕘 HISTORIE" },
@@ -12222,6 +12344,15 @@
     su_music_n: { en: "SOURCE", cz: "ZDROJ" },
     su_music_d: { en: "AUTO: server 1 first, R2 as backup\nSERVER 1: never use R2", cz: "AUTO: nejdřív server 1, R2 jako záloha\nSERVER 1: R2 se nepoužije" },
     su_sec_admin: { en: "ADMIN SECTION", cz: "ADMIN SEKCE" },
+    su_sec_backup: { en: "SETTINGS BACKUP", cz: "ZÁLOHA NASTAVENÍ" },
+    xpdl_title: { en: "⬇ DOWNLOAD TRACK", cz: "⬇ STÁHNOUT SKLADBU" },
+    xpdl_go: { en: "⬇ DOWNLOAD THIS TRACK", cz: "⬇ STÁHNOUT TUTO SKLADBU" },
+    xpdl_donate_text: { en: "Do you like the music? If you would like to support the project and the production of new tracks, you can send the author any contribution towards running the project and its further development via DONATE. Thank you!", cz: "Líbí se vám tvorba? Pokud chcete podpořit projekt a další produkci skladeb, můžete autorovi přes DONATE poslat libovolný příspěvek na provoz projektu a jeho další vývoj. Děkuji!" },
+    su_backup_note: { en: "Save how your player is set up into one small file - after clearing browser data (or on another device) you load it back in a moment.", cz: "Uložte si, jak máte player nastavený, do jednoho malého souboru - po smazání dat prohlížeče (nebo v jiném zařízení) ho za chvilku nahrajete zpět." },
+    su_backup_n: { en: "EXPORT / IMPORT SETTINGS", cz: "EXPORT / IMPORT NASTAVENÍ" },
+    su_backup_d: { en: "Inside: visuals and themes, SETUP switches, button modes, volume and crossfade, saved settings (SAVE), language, MY PLAYLIST with sections, HISTORY, statistics, breathing and binaural settings, reminders and motivational texts. Not inside: the audio files and playlists from F (they have their own backup in F). Only the player's own settings are loaded from the file, everything else in it is ignored.", cz: "Obsahuje: vzhled a motivy, přepínače v SETUP, režimy tlačítek, hlasitost a crossfade, uložená nastavení (SAVE), jazyk, MY PLAYLIST se sekcemi, HISTORY, statistiky, nastavení dýchání a binaurálních tónů, připomínky a motivační texty. Neobsahuje: zvukové soubory a playlisty z F (ty mají vlastní zálohu v F). Ze souboru se načte jen nastavení playeru, nic jiného se z něj nepoužije." },
+    su_backup_exp: { en: "💾 EXPORT", cz: "💾 EXPORT" },
+    su_backup_imp: { en: "📂 IMPORT", cz: "📂 IMPORT" },
     su_r2mode_n: { en: "R2 ONLY", cz: "JEN R2" },
     su_r2check_n: { en: "CHECK ALL TRACKS ON R2", cz: "KONTROLA SKLADEB NA R2" },
     su_r2check_d: { en: "Checks that every track from server 1 is also on R2 (same file name). Nothing is downloaded.", cz: "Ověří, že každá skladba ze serveru 1 je i na R2 (stejný název souboru). Nic se nestahuje." },
@@ -12660,6 +12791,7 @@
 
   // Ukazatel průběhu nahrávání (počet souborů + procenta podle velikosti)
   function setMyFilesUploadProgress(state) {
+    try { setMyFilesBusy(state); } catch (e) { /* jen okénko */ }
     const box = document.getElementById('myfiles-upload');
     const addBtn = document.getElementById('myfiles-add-btn');
     if (!box) return;
@@ -12687,6 +12819,37 @@
   }
   let myFilesUploadBusy = false;
   let myFilesUploadHideTimer = null;
+  // Okénko s kolečkem: hned u 3 a více souborů, u menšího počtu až když přidávání trvá déle než ~0,8 s
+  // (typicky soubor z cloudu, který se teprve stahuje - jinak by to vypadalo, že se nic neděje).
+  let mfBusyTimer = null, mfBusyLast = null;
+  function paintMyFilesBusy(state) {
+    const t = document.getElementById('mf-busy-title');
+    if (!t || !state) return;
+    t.textContent = mfT('ADDING FILES', 'PŘIDÁVÁM SOUBORY');
+    const c = document.getElementById('mf-busy-count');
+    if (c) c.textContent = Math.min(state.index, state.total) + ' / ' + state.total + '  ·  ' + Math.max(0, Math.min(100, Math.round(state.pct))) + ' %';
+    const f = document.getElementById('mf-busy-fill');
+    if (f) f.style.width = Math.max(0, Math.min(100, state.pct)) + '%';
+    const n = document.getElementById('mf-busy-name');
+    if (n) n.textContent = state.name || '';
+    const note = document.getElementById('mf-busy-note');
+    if (note) note.textContent = mfT('Files stored in the cloud (OneDrive, Google Drive, iCloud…) first download to your device - with many files this takes a while. Please keep the app open.',
+                                     'Soubory z cloudu (OneDrive, Google Disk, iCloud…) se nejdřív stahují do zařízení - u většího množství to chvíli trvá. Nechte prosím aplikaci otevřenou.');
+  }
+  function setMyFilesBusy(state) {
+    const box = document.getElementById('mf-busy');
+    if (!box) return;
+    if (!state || state.done) {
+      clearTimeout(mfBusyTimer); mfBusyTimer = null; mfBusyLast = null;
+      box.hidden = true;
+      return;
+    }
+    mfBusyLast = state;
+    if (!box.hidden) { paintMyFilesBusy(state); return; }
+    const show = () => { mfBusyTimer = null; if (!mfBusyLast) return; paintMyFilesBusy(mfBusyLast); box.hidden = false; };
+    if (state.total >= 3) { clearTimeout(mfBusyTimer); show(); }
+    else if (!mfBusyTimer) mfBusyTimer = setTimeout(show, 800);
+  }
 
   // Nahrání nových souborů uživatelem
   window.handleMyFilesUpload = async function(event) {
@@ -14067,6 +14230,24 @@
                   'Záloha uložena (playlistů: ' + data.playlists.length + ', souborů: ' + data.files.length + '). Hudba v ní není - MP3 si nechte.'), '💾');
   };
 
+  // Přečte textový soubor zálohy. Vrací text, nebo null, když se soubor nedá přečíst ani po opakování
+  // (typicky soubor jen v cloudu, který se ještě stahuje). Odstraní i BOM na začátku (soubor uložený v Poznámkovém bloku).
+  async function readBackupFileText(file) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const buf = await file.arrayBuffer();
+        if (buf && buf.byteLength) {
+          const txt = new TextDecoder('utf-8').decode(buf).replace(/^\uFEFF/, '').trim();
+          if (txt) {
+            try { JSON.parse(txt); return txt; } catch (e) { if (attempt >= 1) return txt; } // nedočtený soubor: zkusit ještě jednou
+          }
+        }
+      } catch (e) { /* zatím nejde přečíst - zkusí se znovu */ }
+      await new Promise(r => setTimeout(r, 1200));
+    }
+    return null;
+  }
+
   // Obnovení ze zálohy
   window.handleMyFilesBackupImport = async function(event) {
     const input = event.target;
@@ -14075,9 +14256,23 @@
     if (!file) return;
     if (myFilesUploadBusy) { showToast(mfT('Please wait - files are still being added.', 'Počkejte prosím - soubory se ještě nahrávají.'), '⏳'); return; }
     const bad = () => alert(mfT('This is not a SYNTHLUCIDA backup of your lists (or the file is damaged).', 'Tohle není záloha seznamů ze SYNTHLUCIDA playeru (nebo je soubor poškozený).'));
-    if (file.size > 2 * 1024 * 1024) { bad(); return; }
+    if (file.size > 20 * 1024 * 1024) { bad(); return; }
+    // Soubor z cloudu (OneDrive, Google Disk…), který ještě není stažený v zařízení, se napoprvé často nepřečte
+    // vůbec nebo jen zčásti - proto se čtení párkrát zopakuje. Starší záloha z jiného dne je přesně tenhle případ
+    // (dnešní soubor je v zařízení čerstvě uložený, včerejší už jen v cloudu).
+    const text = await readBackupFileText(file);
+    if (text === null) {
+      alert(mfT('The file could not be read.\n\nIf it is stored in the cloud (OneDrive, Google Drive, iCloud…), let it download to this device first (open it once or choose "Make available offline") and try again.',
+                'Soubor se nepodařilo načíst.\n\nPokud je uložený v cloudu (OneDrive, Google Disk, iCloud…), nechte ho nejdřív stáhnout do zařízení (jednou ho otevřete nebo zvolte „Vždy ponechat v zařízení“) a zkuste to znovu.'));
+      return;
+    }
     let data;
-    try { data = JSON.parse(await file.text()); } catch (e) { bad(); return; }
+    try { data = JSON.parse(text); } catch (e) { bad(); return; }
+    if (data && typeof data === 'object' && !Array.isArray(data) && data.type === 'my-playlist' && Array.isArray(data.tracks)) {
+      alert(mfT('This is an export of MY PLAYLIST, not a backup of your lists in F.\n\nRestore it in 🎵 MY PLAYLIST with the IMPORT button. A backup from F is named synthlucida-moje-seznamy-….json.',
+                'Tohle je export MY PLAYLIST, ne záloha seznamů z F.\n\nObnovíte ho v 🎵 MY PLAYLIST tlačítkem IMPORT. Záloha z F se jmenuje synthlucida-moje-seznamy-….json.'));
+      return;
+    }
     if (!data || typeof data !== 'object' || data.kind !== MYFILES_BACKUP_KIND || !Array.isArray(data.playlists) || !Array.isArray(data.files)) { bad(); return; }
 
     // vyčištění dat ze souboru
@@ -14561,10 +14756,61 @@
     } else {
       // sekce F: vrátit hlavní okno na hrající playlist/soubor z F a odrolovat na skladbu
       const loc = findPlayingFilesLocation();
-      if (loc) { leaveFocus2ForList(); revealTrackInMainList(loc, true); }
+      if (loc) {
+        // Vlastní soubor puštěný z FRONTY PŘEHRÁVÁNÍ má jen pomocný seznam s jedinou skladbou - místo něj ukázat
+        // skladbu v normálním seznamu (playlist z F / MY PLAYLIST, kam se po frontě vrací, nebo jiný playlist z F).
+        // Když soubor v žádném seznamu není, hlavní okno zůstane, jak je, a otevře se sekce F.
+        if (pqOwnFileLoc(loc)) {
+          const openF = () => { // soubor není v žádném seznamu: hlavní okno nechat, jak je, a otevřít sekci F (jako 🔍)
+            const panel = document.getElementById('main-files');
+            if (panel && !panel.classList.contains('visible')) toggleMainFiles();
+          };
+          pqOwnFileHome(loc).then((home) => {
+            if (home) { leaveFocus2ForList(); revealTrackInMainList(home, true); } else openF();
+            syncQueueBackBtn();
+          }, openF);
+          return;
+        }
+        leaveFocus2ForList(); revealTrackInMainList(loc, true);
+      }
     }
     syncQueueBackBtn();
   };
+  function pqOwnFileLoc(loc) {
+    try { return !!(loc && typeof loc.key === 'string' && loc.key.indexOf('custom:file:') === 0 && pqNowValid()); } catch (e) { return false; }
+  }
+  // Kde vlastní soubor z fronty "normálně" je: { kind:'list', key, index, fromQueue } / { kind:'queue', pos } / null
+  async function pqOwnFileHome(loc) {
+    const fid = loc.key.slice('custom:file:'.length);
+    const inList = (key) => {
+      const list = tracks[key];
+      if (!Array.isArray(list)) return -1;
+      return list.findIndex(t => t && (t.fileId === fid || isCurrentAudioSrc(t.src)));
+    };
+    const isF = (k) => typeof k === 'string' && k.indexOf('custom:') === 0 && k.indexOf('custom:file:') !== 0;
+    const ret = pqRet;
+    if (ret && ret.q) { // po frontě se vrací do MY PLAYLIST a soubor v ní je
+      const pos = customQueue.findIndex(e => e && e.fileId === fid);
+      if (pos >= 0) return { kind: 'queue', pos };
+    }
+    const keys = [];
+    if (ret && isF(ret.key)) keys.push(ret.key);
+    if (!mainListShowsQueue && isF(currentPlaylistKey)) keys.push(currentPlaylistKey);
+    Object.keys(tracks).forEach(k => { if (isF(k)) keys.push(k); });
+    for (const k of keys) { const i = inList(k); if (i >= 0) return { kind: 'list', key: k, index: i, fromQueue: true }; }
+    // playlist z F, který soubor obsahuje, ale v tomto sezení se ještě nenačetl
+    const pl = (Array.isArray(myPlaylists) ? myPlaylists : []).find(x => x && Array.isArray(x.items) && x.items.some(it => it && it.type === 'file' && it.fileId === fid));
+    if (pl) {
+      const key = 'custom:' + pl.id;
+      const resolved = await resolveMyPlaylistTracks(pl);
+      if (resolved.length) {
+        if (!Array.isArray(tracks[key])) tracks[key] = resolved;
+        const i = inList(key);
+        if (i >= 0) return { kind: 'list', key, index: i, fromQueue: true };
+      }
+    }
+    return null;
+  }
   ['play', 'pause', 'playing', 'emptied', 'loadstart', 'ended'].forEach(ev => audio.addEventListener(ev, syncQueueBackBtn));
   syncQueueBackBtn();
   setInterval(() => { syncQueueBackBtn(); try { updateQueueCountBadge(); } catch (e) { /* ignore */ } }, 1000); // pojistka: fronta se může změnit i bez události přehrávače (smazání poslední skladby...); zároveň drží číslo na tlačítku MY PLAYLIST aktuální
@@ -16831,6 +17077,10 @@
 
   let crossfadeTarget = null; // skladba, do které právě probíhá prolnutí (pro dokončení, když původní dohraje dřív)
   let cfFailed = null;        // { main, next } - další skladba se při prolnutí nenačetla -> u této skladby už neprolínat
+  // Nejtišší hlasitost během prolnutí/předání místo úplné nuly (-80 dB, není slyšet). Chrome přehrávač se ztlumením
+  // (muted) nebo hlasitostí 0 přepne do úsporného "tichého" výstupu a při zesílení se pak na 15-30 ms zasekne -
+  // to bylo slyšet jako zaškobrtnutí na začátku nové skladby a při předání na konci prolnutí.
+  const CF_QUIET = 0.0001;
   function startCrossfade() {
     if (crossfadeActive || crossfadeDuration <= 0 || IOS_NO_VOLUME) return; // iOS: hlasitost nejde měnit -> bez prolnutí
     if (cfFailed && cfFailed.main === audio.src) return; // skladba dohraje normálně, další se řeší až po jejím konci
@@ -16841,7 +17091,7 @@
 
     crossfadeAudio.src = target.src;
     crossfadeAudio.currentTime = 0;
-    crossfadeAudio.volume = 0;
+    crossfadeAudio.volume = CF_QUIET;
     const fadeInPromise = crossfadeAudio.play();
     if (fadeInPromise !== undefined) fadeInPromise.catch(() => {});
 
@@ -16868,8 +17118,8 @@
       const ratio = Math.min(1, step / steps);
       const g = cfGains(ratio);
       const sr = sleepRatio();
-      audio.volume = Math.min(1, Math.max(0, startVolume * g.out * sr));
-      crossfadeAudio.volume = Math.min(1, Math.max(0, targetVolume * g.in * sr));
+      audio.volume = Math.min(1, Math.max(CF_QUIET, startVolume * g.out * sr));
+      crossfadeAudio.volume = Math.min(1, Math.max(CF_QUIET, targetVolume * g.in * sr));
       if (ratio >= 1) {
         clearInterval(crossfadeInterval);
         crossfadeInterval = null;
@@ -16947,11 +17197,17 @@
   }
 
   // Předání zvuku na konci prolnutí: hlavní prvek se potichu (muted) načte, přetočí na místo, kde zrovna hraje
-  // druhý prvek, a až když hraje a rozdíl je zanedbatelný, krátce (cca 80 ms) se mezi nimi prolne a druhý
-  // prvek se zastaví. Kdyby se to do 6 s nepovedlo, použije se záložní postup (hlavní prvek prostě pokračuje).
+  // druhý prvek, a až když hraje a rozdíl je zanedbatelný, krátce se mezi nimi prolne a druhý prvek se zastaví.
+  // Kdyby se to do 8 s nepovedlo, použije se záložní postup (hlavní prvek prostě pokračuje).
+  // 11/2026: dřív se přepínalo už při rozdílu do 80 ms a rozdíl se měřil hned po přetočení, kdy hlavní prvek ještě
+  // neběžel naplno - dvě kopie stejné skladby posunuté o 30-80 ms pak při přepnutí slyšitelně "zaškobrtly"
+  // (krátká ozvěna / poskočení). Teď se po každém přetočení počká, až hlavní prvek opravdu plynule hraje
+  // (rozdíl se mezi dvěma měřeními nemění), přetočí se znovu s opravou o naměřenou chybu a přepne se až při
+  // rozdílu do 5 ms (obvykle 1-2 přetočení, cca 0,3 s). Ztlumený prvek není slyšet, takže přetáčení nevadí.
   function beginCrossfadeHandoff(target) {
     if (cfHandoff) cfHandoff.abort();
-    let done = false, timer = null, rampTimer = null, tries = 0, lead = 0.25, started = false;
+    let done = false, timer = null, rampTimer = null, tries = 0, lead = 0.25, started = false, lastD = null, settleAt = 0;
+    const SYNC_OK = 0.005; // takhle blízko (s) musí obě kopie hrát, než se přepne
     const t0 = Date.now();
     const restoreMain = () => { try { audio.muted = !!soundMuted; } catch (e) { /* ignore */ } };
     const clearTimers = () => {
@@ -16969,6 +17225,7 @@
     cfHandoff = handle;
 
     const seekMain = () => {
+      lastD = null; settleAt = Date.now() + 60; // po přetočení chvilku počkat, než se dá rozdíl měřit
       let t = crossfadeAudio.currentTime + lead;
       if (isFinite(audio.duration)) t = Math.min(t, Math.max(0, audio.duration - 0.25));
       audio.currentTime = t;
@@ -16985,11 +17242,11 @@
       const finalVol = mainVol();
       const cfStart = crossfadeAudio.volume;
       restoreMain();
-      audio.volume = 0;
-      let k = 0; const steps = 8;
+      audio.volume = CF_QUIET;
+      let k = 0; const steps = 12;
       rampTimer = setInterval(() => {
         k++; const r = Math.min(1, k / steps);
-        try { audio.volume = finalVol * r; crossfadeAudio.volume = cfStart * (1 - r); } catch (e) { /* ignore */ }
+        try { audio.volume = Math.max(CF_QUIET, finalVol * r); crossfadeAudio.volume = Math.max(CF_QUIET, cfStart * (1 - r)); } catch (e) { /* ignore */ }
         if (r >= 1) { clearInterval(rampTimer); rampTimer = null; end(); }
       }, 10);
     };
@@ -17016,7 +17273,7 @@
     const tick = () => {
       if (done) return;
       try {
-        if (Date.now() - t0 > 6000) { fallback(); return; }
+        if (Date.now() - t0 > 8000) { fallback(); return; }
         if (!started) {
           if (audio.readyState >= 1) {
             started = true;
@@ -17027,16 +17284,24 @@
         }
         if (audio.seeking || audio.paused || audio.readyState < 3) return;
         const d = audio.currentTime - crossfadeAudio.currentTime; // + = hlavní prvek je napřed
-        if (Math.abs(d) <= 0.08) { complete(); return; }
-        if (++tries > 4) { fallback(); return; }
-        lead = Math.min(3, Math.max(0.05, lead - d));
+        if (Date.now() < settleAt) return;
+        // rozdíl se měří, až je ustálený (hlavní prvek se po přetočení rozbíhá a jeho čas chvíli stojí)
+        const stable = lastD !== null && Math.abs(d - lastD) < 0.0015;
+        lastD = d;
+        if (!stable) return;
+        if (Math.abs(d) <= SYNC_OK) { complete(); return; }
+        if (++tries > 6) { // nepovedlo se trefit přesně: přepnout, pokud je to aspoň blízko, jinak záložní postup
+          if (Math.abs(d) <= 0.03) complete(); else fallback();
+          return;
+        }
+        lead = Math.min(3, Math.max(0.02, lead - d));
         seekMain();
       } catch (e) { fallback(); }
     };
 
     try {
-      audio.muted = true; // hlavní prvek je při načítání potichu, zvuk nese dál druhý prvek
-      audio.volume = 0;
+      // hlavní prvek je při načítání neslyšitelně potichu (ne muted / 0 - viz CF_QUIET), zvuk nese dál druhý prvek
+      audio.volume = CF_QUIET;
       audio.src = target.src;
       timer = setInterval(tick, 20);
     } catch (e) { fallback(); }
@@ -17301,6 +17566,7 @@
       if (pendingTrackXPListenSeconds >= TRACK_XP_MIN_LISTEN_SECONDS) {
         stats.xpEligibleTracksPlayed = (stats.xpEligibleTracksPlayed || 0) + 1;
         pendingTrackXPAwarded = true;
+        try { countShufflePlay(currentTrackTitle); } catch (e) { /* jen pro chytrý shuffle */ }
       }
     }
 
@@ -17994,7 +18260,13 @@
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const data = JSON.parse(reader.result);
+        const data = JSON.parse(String(reader.result || '').replace(/^\uFEFF/, ''));
+        if (data && typeof data === 'object' && data.kind === MYFILES_BACKUP_KIND) {
+          alert(guideLang === 'cz'
+            ? 'Tohle je záloha seznamů ze sekce F, ne export MY PLAYLIST.\n\nObnovíte ji v sekci F tlačítkem 📂 OBNOVIT ZE ZÁLOHY.'
+            : 'This is a backup of your lists from F, not a MY PLAYLIST export.\n\nRestore it in F with the 📂 RESTORE BACKUP button.');
+          return;
+        }
         const importedTracks = Array.isArray(data) ? data : data.tracks;
         if (!Array.isArray(importedTracks) || !importedTracks.length) {
           alert('This file does not contain a valid playlist.');
@@ -18250,6 +18522,14 @@
     if (!el.length) customQueue.forEach((e, p) => { if (p !== customQueueIndex && (!f || (e && e.mood === f)) && !isLayerTrack(e)) el.push(p); });
     if (!el.length) return customQueueIndex >= 0 ? customQueueIndex : 0;
     return pickNotRecent(customQueue, el);
+  }
+  // Náhodný START MY PLAYLIST (mini přehrávače, když ještě nehraje): stejný chytrý výběr, každá skladba jen jednou.
+  function queueRandomStartPos() {
+    const el = [];
+    customQueue.forEach((e, p) => { if (e && !isLayerTrack(e) && !isOtherSectionCopy(p)) el.push(p); });
+    if (!el.length) return 0;
+    const p = pickNotRecent(customQueue, el);
+    return p >= 0 ? p : 0;
   }
 
   let moodEditMode = null; // 'new' | 'rename' | null
@@ -18801,10 +19081,8 @@
             dlBtn.addEventListener('click', (e) => {
               e.stopPropagation();
               if (computeAvailableXP(stats) < DOWNLOAD_XP_STEP) { renderCustomQueue(); return; } // XP mezitím nestačí (např. reset v jiném okně)
-              spendXPForDownload(entry.src);
-              downloadTrackFile(entry.src, entry.title);
-              renderCustomQueue();
-              renderStats();
+              // nejdřív okno s potvrzením (a poděkováním / DONATE); XP se odečtou až tlačítkem STÁHNOUT TUTO SKLADBU
+              openXpDownloadWindow(entry.src, entry.title);
             });
           } else {
             const neededXP = (rank + 1) * DOWNLOAD_XP_STEP - availableXP;
@@ -18828,6 +19106,79 @@
 
     updateQueueCountBadge();
   }
+
+  // Okno "Stáhnout skladbu za XP" (viz #xpdl-window). XP se odečtou až po kliknutí na STÁHNOUT TUTO SKLADBU.
+  let xpdlPending = null, xpdlOpener = null;
+  function closeXpDownloadWindow() {
+    const w = document.getElementById('xpdl-window');
+    if (!w || w.hidden) return;
+    w.hidden = true;
+    xpdlPending = null;
+    if (xpdlOpener && document.contains(xpdlOpener)) { try { xpdlOpener.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    xpdlOpener = null;
+  }
+  function fillXpDownloadTexts() {
+    const p = xpdlPending;
+    if (!p) return;
+    const avail = computeAvailableXP(stats);
+    const set = (id, t) => { const el = document.getElementById(id); if (el && el.textContent !== t) el.textContent = t; };
+    set('xpdl-track', displayTrackTitle(p.title));
+    set('xpdl-text', guideLang === 'cz'
+      ? `Máte dost XP na stažení této skladby jako MP3 do zařízení. Stažení odečte ${DOWNLOAD_XP_STEP} XP (teď máte ${avail} XP k utracení) a skladba pak zůstane odemčená natrvalo.`
+      : `You have enough XP to download this track as an MP3 to your device. It costs ${DOWNLOAD_XP_STEP} XP (you have ${avail} XP to spend) and the track then stays unlocked for good.`);
+  }
+  function openXpDownloadWindow(src, title) {
+    const w = document.getElementById('xpdl-window');
+    if (!w) { // pojistka: bez okna původní chování
+      spendXPForDownload(src); downloadTrackFile(src, title); renderCustomQueue(); renderStats(); return;
+    }
+    xpdlPending = { src, title };
+    xpdlOpener = document.activeElement;
+    fillXpDownloadTexts();
+    // DONATE: vždy stejný odkaz jako tlačítko ☕ na hlavní stránce (to se mění v Audio editoru)
+    const main = document.querySelector('.main-donate-btn');
+    const don = document.getElementById('xpdl-donate');
+    if (don) {
+      const href = main ? main.getAttribute('href') : '';
+      const ok = !!href && /^https?:\/\//i.test(href);
+      don.hidden = !ok;
+      const txt = w.querySelector('.xpdl-donate-text'); if (txt) txt.hidden = !ok;
+      const sep = w.querySelector('.xpdl-sep'); if (sep) sep.hidden = !ok;
+      if (ok) don.setAttribute('href', href);
+    }
+    try { applyGuideLanguage(); } catch (e) { /* ignore */ }
+    w.hidden = false;
+    const go = document.getElementById('xpdl-go'); if (go) { go.disabled = false; try { go.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+  }
+  (function initXpDownloadWindow() {
+    const w = document.getElementById('xpdl-window');
+    if (!w) return;
+    const go = document.getElementById('xpdl-go');
+    go.addEventListener('click', () => {
+      const p = xpdlPending;
+      if (!p) { closeXpDownloadWindow(); return; }
+      if (!isDownloadUnlockedKey(stats, p.src) && computeAvailableXP(stats) < DOWNLOAD_XP_STEP) { // mezitím došly XP
+        closeXpDownloadWindow(); renderCustomQueue(); return;
+      }
+      go.disabled = true; // žádné dvojí odečtení při dvojkliku
+      spendXPForDownload(p.src);
+      downloadTrackFile(p.src, p.title);
+      closeXpDownloadWindow();
+      renderCustomQueue();
+      renderStats();
+    });
+    document.getElementById('xpdl-close').addEventListener('click', closeXpDownloadWindow);
+    // přepnutí jazyka při otevřeném okně: přeloží i text s počtem XP (statické texty přeloží applyGuideLanguage)
+    try { new MutationObserver(() => { if (!w.hidden) fillXpDownloadTexts(); }).observe(go, { childList: true, characterData: true, subtree: true }); } catch (e) { /* ignore */ }
+    w.addEventListener('click', (e) => { if (e.target === w) closeXpDownloadWindow(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !w.hidden) closeXpDownloadWindow(); });
+    // kliknutí na DONATE tady = stejné jako na ☕ (tlačítko vlevo nahoře už pak neblikne)
+    document.getElementById('xpdl-donate').addEventListener('click', () => {
+      try { localStorage.setItem('sl-donate-clicked', '1'); } catch (e) { /* ignore */ }
+      const main = document.querySelector('.main-donate-btn');
+      if (main) { try { main.dispatchEvent(new Event('contextmenu')); } catch (e) { /* ignore */ } main.classList.remove('donate-nudge'); } // vypne blikání natrvalo (bez otevření odkazu)
+    });
+  })();
 
   window.toggleCustomQueue = function() {
     const panel = document.getElementById('queue-panel');
@@ -19058,21 +19409,21 @@
     // Hlavní seznam skladeb tu není vidět, takže výběr playlistu rovnou spustí jeho první skladbu
     // (při zapnutém shuffle náhodnou). Když už z daného playlistu hraje, jen se případně obnoví přehrávání.
     function resumeIfPaused() { if (!isShownPlaying()) playBtn.click(); }
-    function randomOrFirst(len) { return shuffleEnabled ? Math.floor(Math.random() * len) : 0; }
+    function randomOrFirst(len, list) { return shuffleEnabled ? (list === customQueue ? queueRandomStartPos() : randomTrackIndex(list || playlist, -1)) : 0; }
 
     function handleChip(b) {
       const key = b.getAttribute('data-bm-key');
       if (key === 'queue') {
         if (!customQueue.length) return;
         if (customQueueActive) { resumeIfPaused(); return; }
-        playCustomQueueAt(randomOrFirst(customQueue.length));
+        playCustomQueueAt(randomOrFirst(customQueue.length, customQueue));
         return;
       }
       if (activeKey() === key) { resumeIfPaused(); return; }
       const mainBtn = document.querySelector('#atmos-panel-music .btn-atmos[onclick*="\'' + key + '\'"]');
       if (!mainBtn) return;
       setPlaylist(key, mainBtn);
-      if (Array.isArray(playlist) && playlist.length) playTrack(randomOrFirst(playlist.length));
+      if (Array.isArray(playlist) && playlist.length) playTrack(randomOrFirst(playlist.length, playlist));
     }
     chips.forEach((b) => b.addEventListener('click', () => { handleChip(b); sync(); }));
 
@@ -19817,7 +20168,7 @@
     // ASMR / PIANO / CHILL / MY PLAYLIST: stejně jako klepnutí na čip v mini přehrávači (spustí první, při shuffle náhodnou skladbu)
     selectList: function (key) {
       const shown = () => playBtn.getAttribute('data-state') === 'pause';
-      const pick = (len) => (shuffleEnabled ? Math.floor(Math.random() * len) : 0);
+      const pick = (len, list) => (shuffleEnabled ? (list === customQueue ? queueRandomStartPos() : randomTrackIndex(list || playlist, -1)) : 0);
       const cur = (() => {
         if (customQueueActive) return 'queue';
         if (audio.getAttribute('src') && playingRef && playingRef.key) return playingRef.key;
@@ -19826,14 +20177,14 @@
       if (key === 'queue') {
         if (!customQueue.length) return;
         if (customQueueActive) { if (!shown()) playBtn.click(); return; }
-        playCustomQueueAt(pick(customQueue.length));
+        playCustomQueueAt(pick(customQueue.length, customQueue));
         return;
       }
       if (cur === key) { if (!shown()) playBtn.click(); return; }
       const mainBtn = document.querySelector('#atmos-panel-music .btn-atmos[onclick*="\'' + key + '\'"]');
       if (!mainBtn) return;
       setPlaylist(key, mainBtn);
-      if (Array.isArray(playlist) && playlist.length) playTrack(pick(playlist.length));
+      if (Array.isArray(playlist) && playlist.length) playTrack(pick(playlist.length, playlist));
     },
     // playlist z MY FILES (tlačítko F)
     playFiles: function (id) {
@@ -23966,6 +24317,552 @@
       document.getElementById('tour-hint-skip').addEventListener('click', function () { clearInterval(waitT); markSeen(); hideHint(); });
       guideBtn.addEventListener('click', function () { if (!isSeen()) { clearInterval(waitT); markSeen(); hideHint(); } });
     }
+  })();
+</script>
+<script>
+  /* FILE MANAGER (jen PC) - most mezi playerem a manager.html.
+     Manažer běží v okně (iframe) nad playerem a všechno dělá přes tyto funkce, které používají stejná data
+     a stejné funkce jako sekce F a MY PLAYLIST. Každá změna se tak hned propíše do F, MY PLAYLIST i do hlavního
+     okna - a naopak změny udělané v playeru manažer pozná podle čísla verze (SLFM.version).
+     Samostatný skript: když se tady něco pokazí, player jede dál, jen manažer nepůjde otevřít. */
+  (function () {
+    'use strict';
+    if (window.SLFM) return;
+    var api = { version: 1 };
+    var bumpQueued = false;
+    function bump() {
+      if (bumpQueued) return;
+      bumpQueued = true;
+      Promise.resolve().then(function () { bumpQueued = false; api.version++; });
+    }
+    // Každé uložení nebo překreslení dat F / MY PLAYLIST zvýší verzi (manažer se pak sám obnoví).
+    ['saveCustomQueue', 'saveQueueMoods', 'saveMyPlaylistsToStorage', 'saveMyFolders', 'renderMyFiles', 'renderCustomQueue', 'saveMyFilesPending'].forEach(function (name) {
+      var orig = window[name];
+      if (typeof orig !== 'function') return;
+      window[name] = function () { var r = orig.apply(this, arguments); bump(); return r; };
+    });
+    var origRefresh = window.refreshMyFilesLibrary;
+    if (typeof origRefresh === 'function') {
+      window.refreshMyFilesLibrary = function () { var p = origRefresh.apply(this, arguments); Promise.resolve(p).then(bump, bump); return p; };
+    }
+
+    function str(v, max) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max || 300) : ''; }
+    function ints(arr) { var out = []; (Array.isArray(arr) ? Array.prototype.slice.call(arr) : []).forEach(function (x) { var n = Number(x); if (Number.isInteger(n)) out.push(n); }); return out; }
+    function isPerm(order, n) {
+      if (order.length !== n) return false;
+      var seen = new Array(n).fill(false);
+      for (var i = 0; i < n; i++) { var x = order[i]; if (x < 0 || x >= n || seen[x]) return false; seen[x] = true; }
+      return true;
+    }
+    function catalogKey(k) { return (k === 'asmr' || k === 'piano' || k === 'chill') ? k : ''; }
+    function msg(en, cz) { return guideLang === 'cz' ? cz : en; }
+
+    api.lang = function () { return guideLang === 'cz' ? 'cz' : 'en'; };
+    // Přepínač CZ/EN v manažeru přepne jazyk celého playeru (stejně jako tlačítko CZ/EN v playeru)
+    api.setLang = function (l) {
+      if ((l === 'cz' || l === 'en') && l !== api.lang() && typeof window.toggleGuideLanguage === 'function') window.toggleGuideLanguage();
+      return api.lang();
+    };
+
+    // Celý stav jako text JSON (manažer si ho rozbalí u sebe - žádné objekty playeru se nesdílí napřímo)
+    api.snapshot = function () {
+      var files = myFilesLibrary.map(function (f) { return { id: f.id, name: f.name, size: Number(f.size) || 0, type: f.type || '', addedAt: Number(f.addedAt) || 0, folder: fileFolderId(f.id) }; });
+      var catalog = {};
+      ['asmr', 'piano', 'chill'].forEach(function (k) {
+        catalog[k] = (tracks[k] || []).map(function (t, i) { return { i: i, title: t.title, name: displayTrackTitle(t.title), src: t.src, added: t.added || '' }; });
+      });
+      var pend = null;
+      try { pend = loadMyFilesPending(); } catch (e) { pend = null; }
+      var playingSrc = '';
+      try { playingSrc = audio && !audio.paused ? (audio.currentSrc || audio.src || '') : ''; } catch (e) { playingSrc = ''; }
+      return JSON.stringify({
+        lang: api.lang(),
+        libOk: !!myFilesLibraryOk,
+        uploadBusy: !!myFilesUploadBusy,
+        files: files,
+        folders: myFolders.map(function (f) { return { id: f.id, name: f.name }; }),
+        playlists: myPlaylists.map(function (pl) {
+          return { id: pl.id, name: pl.name, items: pl.items.map(function (it) {
+            return it.type === 'file' ? { type: 'file', fileId: it.fileId, title: it.title } : { type: 'track', playlist: it.playlist, index: it.index, title: it.title, src: typeof it.src === 'string' && it.src.indexOf('https://') === 0 ? it.src : '' };
+          }) };
+        }),
+        queue: customQueue.map(function (e) {
+          return { title: e.title, playlist: e.playlist, index: e.index, fileId: e.fileId || null, mood: e.mood || '', src: typeof e.src === 'string' && e.src.indexOf('https://') === 0 ? e.src : '' };
+        }),
+        moods: queueMoods.slice(),
+        moodMax: MOOD_MAX_COUNT,
+        folderMax: MYFILES_FOLDER_MAX,
+        catalog: catalog,
+        pending: pend && Array.isArray(pend.files) ? pend.files.length : 0,
+        playing: { queueActive: !!customQueueActive, queueIndex: customQueueIndex, key: currentPlaylistKey || '', src: playingSrc, playing: !!isPlaying }
+      });
+    };
+
+    // ---------- Soubory a složky (F) ----------
+    api.addFiles = function (fileList) {
+      var files = Array.prototype.slice.call(fileList || []);
+      if (!files.length) return Promise.resolve();
+      return window.handleMyFilesUpload({ target: { files: files, value: '' } });
+    };
+    api.restoreBackup = function (file) {
+      if (!file) return Promise.resolve();
+      return window.handleMyFilesBackupImport({ target: { files: [file], value: '' } });
+    };
+    api.exportBackup = function () { window.exportMyFilesBackup(); };
+    api.createFolder = function (name) {
+      var nm = str(name, 40);
+      if (!nm) return { error: msg('Type a name first', 'Nejdřív napište název') };
+      if (myFolders.some(function (f) { return f.name.toLowerCase() === nm.toLowerCase(); })) return { error: msg('That folder already exists', 'Taková složka už existuje') };
+      if (myFolders.length >= MYFILES_FOLDER_MAX) return { error: msg('Maximum is ' + MYFILES_FOLDER_MAX + ' folders', 'Maximum je ' + MYFILES_FOLDER_MAX + ' složek') };
+      var id = 'fld' + myFilesGenId();
+      myFolders.push({ id: id, name: nm });
+      myFolderOpen[id] = true;
+      saveMyFolders();
+      renderMyFiles();
+      return { id: id };
+    };
+    api.renameFolder = function (id, name) {
+      var fo = myFolders.find(function (f) { return f.id === id; });
+      var nm = str(name, 40);
+      if (!fo || !nm) return { error: msg('Type a name first', 'Nejdřív napište název') };
+      if (myFolders.some(function (f) { return f.id !== id && f.name.toLowerCase() === nm.toLowerCase(); })) return { error: msg('That folder already exists', 'Taková složka už existuje') };
+      fo.name = nm;
+      saveMyFolders();
+      renderMyFiles();
+      return { ok: true };
+    };
+    api.deleteFolder = function (id) { // soubory se nemažou, jen se vrátí mezi soubory bez složky
+      if (!myFolders.some(function (f) { return f.id === id; })) return;
+      Object.keys(myFolderMap).forEach(function (k) { if (myFolderMap[k] === id) delete myFolderMap[k]; });
+      myFolders = myFolders.filter(function (f) { return f.id !== id; });
+      delete myFolderOpen[id];
+      saveMyFolders();
+      renderMyFiles();
+    };
+    api.moveFiles = function (ids, folderId) {
+      var list = (Array.isArray(ids) ? Array.prototype.slice.call(ids) : []).filter(function (x) { return typeof x === 'string'; }).map(String);
+      window.moveFilesToFolder(list, typeof folderId === 'string' && folderId ? String(folderId) : null);
+    };
+    var deleting = false;
+    api.deleteFiles = async function (ids) {
+      if (deleting) return { error: 'busy' };
+      deleting = true;
+      var keys = [], failed = 0;
+      try {
+        var list = (Array.isArray(ids) ? Array.prototype.slice.call(ids) : []).filter(function (x) { return typeof x === 'string'; });
+        for (var i = 0; i < list.length; i++) {
+          if (!myFilesLibrary.some(function (f) { return f.id === list[i]; })) continue;
+          var k = await deleteMyFileCore(String(list[i]));
+          if (k) keys.push(k); else failed++;
+        }
+      } finally { deleting = false; }
+      await finishMyFilesDelete(keys);
+      return { deleted: keys.length, failed: failed };
+    };
+    api.playFile = function (id) { return window.playMyFileNow(String(id)); };
+
+    // ---------- Playlisty v F ----------
+    function plById(id) { return myPlaylists.find(function (p) { return p.id === id; }); }
+    function afterPl(id) { saveMyPlaylistsToStorage(); renderMyFiles(); try { syncMyPlaylistToMainWindow(id); } catch (e) { /* ignore */ } }
+    api.createPlaylist = function (name) {
+      var nm = str(name, 40);
+      if (!nm) return { error: msg('Type a name first', 'Nejdřív napište název') };
+      var id = myFilesGenId();
+      myPlaylists.push({ id: id, name: nm, items: [], createdAt: Date.now() });
+      saveMyPlaylistsToStorage();
+      renderMyFiles();
+      return { id: id };
+    };
+    api.renamePlaylist = function (id, name) {
+      var pl = plById(id), nm = str(name, 40);
+      if (!pl || !nm) return { error: msg('Type a name first', 'Nejdřív napište název') };
+      pl.name = nm;
+      saveMyPlaylistsToStorage();
+      renderMyFiles();
+      try { updatePlaylistNameBanner(); } catch (e) { /* ignore */ }
+      return { ok: true };
+    };
+    api.deletePlaylist = function (id) {
+      if (!plById(id)) return;
+      myPlaylists = myPlaylists.filter(function (p) { return p.id !== id; });
+      if (expandedMyPlaylistId === id) expandedMyPlaylistId = null;
+      saveMyPlaylistsToStorage();
+      renderMyFiles();
+    };
+    // refs: [{k:'f', id}] = vlastní soubor, [{k:'t', pl:'asmr', i:3}] = SYNTHLUCIDA skladba; at = kam vložit (jinak na konec)
+    function refToItem(r) {
+      if (!r || typeof r !== 'object') return null;
+      if (r.k === 'f') {
+        var rec = myFilesLibrary.find(function (f) { return f.id === r.id; });
+        return rec ? { type: 'file', fileId: rec.id, title: rec.name } : null;
+      }
+      if (r.k === 't') {
+        var key = catalogKey(r.pl), idx = Number(r.i);
+        var t = key && Number.isInteger(idx) ? getTrackByRef(key, idx) : null;
+        return t ? { type: 'track', playlist: key, index: idx, title: t.title, src: t.src } : null;
+      }
+      return null;
+    }
+    function sameItem(a, b) {
+      if (a.type !== b.type) return false;
+      if (a.type === 'file') return a.fileId === b.fileId;
+      if (a.src && b.src) return a.src === b.src;
+      return a.playlist === b.playlist && a.title === b.title;
+    }
+    api.addToPlaylist = function (id, refs, at) {
+      var pl = plById(id);
+      if (!pl) return { added: 0, skipped: 0 };
+      var items = [], skipped = 0;
+      (Array.isArray(refs) ? Array.prototype.slice.call(refs) : []).forEach(function (r) {
+        var it = refToItem(r);
+        if (!it) return;
+        if (pl.items.some(function (x) { return sameItem(x, it); }) || items.some(function (x) { return sameItem(x, it); })) { skipped++; return; }
+        items.push(it);
+      });
+      if (items.length) {
+        var pos = Number.isInteger(at) && at >= 0 && at <= pl.items.length ? at : pl.items.length;
+        Array.prototype.splice.apply(pl.items, [pos, 0].concat(items));
+        afterPl(id);
+      }
+      return { added: items.length, skipped: skipped };
+    };
+    api.removeFromPlaylist = function (id, positions) {
+      var pl = plById(id);
+      if (!pl) return;
+      var del = new Set(ints(positions));
+      if (!del.size) return;
+      pl.items = pl.items.filter(function (it, i) { return !del.has(i); });
+      afterPl(id);
+    };
+    api.reorderPlaylist = function (id, order) {
+      var pl = plById(id), o = ints(order);
+      if (!pl || !isPerm(o, pl.items.length)) return false;
+      pl.items = o.map(function (i) { return pl.items[i]; });
+      afterPl(id);
+      return true;
+    };
+    api.playPlaylist = function (id, pos) {
+      var pl = plById(id);
+      if (!pl) return;
+      var it = Number.isInteger(pos) ? pl.items[pos] : null;
+      if (!it) return window.playMyPlaylist(id);
+      var pick = it.type === 'file'
+        ? function (t) { return t.fileId === it.fileId; }
+        : function (t) { return t.title === it.title; };
+      return Promise.resolve(window.playMyPlaylist(id, pick)).then(function (ok) { if (ok === false) return window.playMyPlaylist(id); return ok; });
+    };
+
+    // ---------- MY PLAYLIST a sekce ----------
+    function afterQ() {
+      queueSelected.forEach(function (e) { if (customQueue.indexOf(e) < 0) queueSelected.delete(e); });
+      afterQueueBulkChange();
+    }
+    api.queueAdd = async function (refs, mood) {
+      var m = mood ? findMood(mood) : null;
+      if (mood && !m) return { added: 0, skipped: 0, error: msg('Section not found', 'Sekce neexistuje') };
+      var added = 0, skipped = 0;
+      var list = Array.isArray(refs) ? Array.prototype.slice.call(refs) : [];
+      for (var i = 0; i < list.length; i++) {
+        var r = list[i], e = null;
+        if (r && r.k === 'f') {
+          var rec = myFilesLibrary.find(function (f) { return f.id === r.id; });
+          if (!rec) continue;
+          var url = null;
+          try { url = await getMyFileBlobUrl(rec.id); } catch (err) { url = null; }
+          if (!url) continue;
+          var key = 'custom:file:' + rec.id;
+          if (!tracks[key]) tracks[key] = [{ title: rec.name, src: url }];
+          e = { title: rec.name, src: url, playlist: key, index: 0, fileId: rec.id };
+        } else if (r && r.k === 't') {
+          var ck = catalogKey(r.pl), idx = Number(r.i);
+          var t = ck && Number.isInteger(idx) ? getTrackByRef(ck, idx) : null;
+          if (!t) continue;
+          e = { title: t.title, src: t.src, playlist: ck, index: idx, fileId: null };
+        }
+        if (!e) continue;
+        if (customQueue.some(function (o) { return o && (o.mood || '') === (m || '') && sameQueueTrack(o, e); })) { skipped++; continue; }
+        if (m) e.mood = m;
+        customQueue.push(e);
+        try { slStat('heart', e.src); } catch (err) { /* ignore */ }
+        added++;
+      }
+      if (added) afterQ();
+      return { added: added, skipped: skipped };
+    };
+    api.queueRemove = function (positions) {
+      var del = new Set(ints(positions));
+      if (!del.size) return;
+      replaceQueueKeepingPlayback(customQueue.filter(function (e, i) { return !del.has(i); }));
+      afterQ();
+    };
+    api.queueReorder = function (order) {
+      var o = ints(order);
+      if (!isPerm(o, customQueue.length)) return false;
+      replaceQueueKeepingPlayback(o.map(function (i) { return customQueue[i]; }));
+      afterQ();
+      return true;
+    };
+    // přesun do sekce (mood = '' -> bez sekce); copy = přidat i do sekce (skladba zůstane i tam, kde byla)
+    api.queueSetMood = function (positions, mood, copy) {
+      var m = mood ? findMood(mood) : null;
+      if (mood && !m) return { changed: 0 };
+      var changed = 0;
+      var pos = ints(positions).filter(function (p) { return customQueue[p]; });
+      var entries = pos.map(function (p) { return customQueue[p]; });
+      entries.forEach(function (e) {
+        if (customQueue.some(function (o) { return o && o !== e && (o.mood || '') === (m || '') && sameQueueTrack(o, e); })) return; // tam už je
+        if (copy && m) { if ((e.mood || '') === m) return; customQueue.push(Object.assign({}, e, { mood: m })); changed++; return; }
+        if ((e.mood || '') === (m || '')) return;
+        if (m) e.mood = m; else delete e.mood;
+        changed++;
+      });
+      if (changed) afterQ();
+      return { changed: changed };
+    };
+    api.moodCreate = function (name) {
+      var nm = cleanMoodName(name);
+      if (!nm) return { error: msg('Type a name first', 'Nejdřív napište název') };
+      if (findMood(nm)) return { error: msg('That section already exists', 'Taková sekce už existuje') };
+      if (queueMoods.length >= MOOD_MAX_COUNT) return { error: msg('Up to ' + MOOD_MAX_COUNT + ' sections', 'Maximálně ' + MOOD_MAX_COUNT + ' sekcí') };
+      queueMoods.push(nm);
+      saveQueueMoods();
+      renderCustomQueue();
+      return { name: nm };
+    };
+    api.moodRename = function (oldName, name) {
+      var old = findMood(oldName), nm = cleanMoodName(name);
+      if (!old || !nm) return { error: msg('Type a name first', 'Nejdřív napište název') };
+      var ex = findMood(nm);
+      if (ex && ex !== old) return { error: msg('That section already exists', 'Taková sekce už existuje') };
+      var i = queueMoods.indexOf(old);
+      if (i >= 0) queueMoods[i] = nm;
+      customQueue.forEach(function (e) { if (e && e.mood === old) e.mood = nm; });
+      if (queueMoodView === old) queueMoodView = nm;
+      if (customQueueMoodPlay === old) customQueueMoodPlay = nm;
+      saveQueueMoods();
+      afterQ();
+      syncMainListWithQueue();
+      return { name: nm };
+    };
+    api.moodDelete = function (name) { // stejně jako v MY PLAYLIST: skladby zůstanou, kopie jen z této sekce zmizí
+      var m = findMood(name);
+      if (!m) return;
+      var keep = customQueue.filter(function (e) {
+        if (!e || e.mood !== m) return true;
+        return !customQueue.some(function (o) { return o && o !== e && sameQueueTrack(o, e); });
+      });
+      replaceQueueKeepingPlayback(keep);
+      customQueue.forEach(function (e) { if (e && e.mood === m) delete e.mood; });
+      queueMoods = queueMoods.filter(function (x) { return x !== m; });
+      if (queueMoodView === m) queueMoodView = null;
+      if (customQueueMoodPlay === m) customQueueMoodPlay = null;
+      saveQueueMoods();
+      afterQ();
+    };
+    api.queuePlay = function (pos) {
+      var p = Number(pos);
+      if (!Number.isInteger(p) || !customQueue[p]) return;
+      playCustomQueueAt(p, null);
+    };
+    api.playCatalog = function (key, i) {
+      var k = catalogKey(key), idx = Number(i);
+      if (!k || !Number.isInteger(idx) || !tracks[k] || !tracks[k][idx]) return;
+      var btn = document.querySelector('.btn-atmos[onclick*="\'' + k + '\'"]');
+      setPlaylist(k, btn);
+      playTrack(idx);
+    };
+
+    // ---------- Okno manažeru ----------
+    var overlay = null, opener = null;
+    function canOpen() { return window.matchMedia ? window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 900px)').matches : true; }
+    window.openFileManager = function () {
+      if (!canOpen()) { showToast(msg('FILE MANAGER is made for a computer screen.', 'FILE MANAGER je určený pro počítač.'), '🖥'); return; }
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'fm-overlay';
+        overlay.id = 'fm-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'FILE MANAGER');
+        var fr = document.createElement('iframe');
+        fr.className = 'fm-frame';
+        fr.id = 'fm-frame';
+        fr.title = 'FILE MANAGER';
+        overlay.appendChild(fr);
+        document.body.appendChild(overlay);
+      }
+      var frame = document.getElementById('fm-frame');
+      var want = 'manager.html?lang=' + api.lang();
+      // jen při prvním otevření (jazyk si pak manažer bere sám z playeru, takže kvůli němu se znovu nenačítá)
+      if (String(frame.getAttribute('src') || '').indexOf('manager.html') !== 0) frame.setAttribute('src', want);
+      else { try { if (frame.contentWindow && frame.contentWindow.fmRefresh) frame.contentWindow.fmRefresh(true); } catch (e) { /* ignore */ } }
+      opener = document.activeElement;
+      overlay.hidden = false;
+      document.documentElement.classList.add('fm-open');
+      try { frame.focus(); } catch (e) { /* ignore */ }
+    };
+    window.closeFileManager = function () {
+      if (!overlay || overlay.hidden) return;
+      overlay.hidden = true;
+      document.documentElement.classList.remove('fm-open');
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) { try { opener.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+      opener = null;
+    };
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay && !overlay.hidden) { e.preventDefault(); e.stopImmediatePropagation(); window.closeFileManager(); }
+    }, true);
+    // Na úzké obrazovce (zmenšené okno) se manažer zavře - je dělaný pro počítač
+    window.addEventListener('resize', function () { if (overlay && !overlay.hidden && !canOpen()) window.closeFileManager(); });
+
+    window.SLFM = api;
+  })();
+</script>
+<script>
+  /* ZÁLOHA NASTAVENÍ (SETUP → ZÁLOHA NASTAVENÍ): export a import nastavení playeru do jednoho .json souboru.
+     Bezpečnost - ze souboru se nikdy nic nespouští:
+       • načtou se JEN klíče z pevného seznamu SET_KEYS (nastavení playeru); cokoli jiného v souboru se ignoruje,
+       • hodnoty projdou kontrolou: jen text / čísla / ano-ne / seznamy a objekty, omezená velikost a hloubka,
+         z textů se odstraní znaky < a > (HTML), adresy typu javascript: / data: a CSS url(...) se zahodí,
+         klíče __proto__ / constructor / prototype se zahodí,
+       • po nahrání se player znovu načte a nastavení si přečte stejnými funkcemi jako vždycky (ty mají vlastní kontroly).
+     Samostatný skript: chyba tady nesmí rozbít zbytek playeru. */
+  (function () {
+    'use strict';
+    var KIND = 'synthlucida-player-settings';
+    var SET_KEYS = [
+      'synthlucida_settings', 'synthlucida_guide_lang', 'synthlucida_fullscreen_pref', 'synthlucida_last_playlist', 'synthlucida_last_track', 'synthlucida_last_queue',
+      'synthlucida_custom_queue', 'synthlucida_queue_moods', 'synthlucida_history', 'synthlucida_stats',
+      'synthlucida_christmas_override', 'synthlucida_allsouls_override', 'synthlucida_witches_override',
+      'synthlucida_focus_btn', 'synthlucida_weather_btn', 'synthlucida_sunset_btn', 'synthlucida_music_source', 'synthlucida_f3_h',
+      'synthlucida_opt_anim', 'synthlucida_opt_blur', 'synthlucida_opt_mix', 'synthlucida_opt_slide',
+      'synthlucida_glow_level', 'synthlucida_glow_master', 'synthlucida_logo_glow', 'synthlucida_text_glow', 'synthlucida_sparkle_state',
+      'synthlucida_binaural_gain_v1', 'synthlucida_binaural_vol_v2', 'synthlucida_binaural_vu', 'synthlucida_binaural_vu_mode', 'synthlucida_binaural_mini',
+      'synthlucida_breath_mini', 'synthlucida_breath_log', 'synthlucida_custom_breath', 'synthlucida_reminders', 'synthlucida_myfiles_sort_az',
+      'sl-orbs-style', 'sl-volume', 'sl-vol-mode', 'sl-main-gain', 'sl-main-gain2', 'sl-myfiles-gain', 'sl-wakelock', 'sl-motivation-texts',
+      'sl-list-sort', 'sl-list-sort-own', 'sl-shuffle-plays', 'sl-tour-seen', 'sl-support-dismissed', 'sl-donate-clicked'
+    ];
+    var MAX_FILE = 4 * 1024 * 1024, MAX_VALUE = 1024 * 1024, MAX_DEPTH = 12, MAX_ITEMS = 5000, MAX_STR = 20000;
+    function L(en, cz) { try { return guideLang === 'cz' ? cz : en; } catch (e) { return en; } }
+    function toast(t, ic) { try { showToast(t, ic || '⚙'); } catch (e) { /* ignore */ } }
+    var BAD_KEY = { '__proto__': 1, 'constructor': 1, 'prototype': 1 };
+    // Vyčistí hodnotu z JSONu; vrací undefined, když se hodnota nedá použít.
+    function clean(v, depth, budget) {
+      if (budget.n++ > MAX_ITEMS) throw new Error('too big');
+      if (v === null || typeof v === 'boolean') return v;
+      if (typeof v === 'number') return isFinite(v) ? v : undefined;
+      if (typeof v === 'string') {
+        var t = v.length > MAX_STR ? v.slice(0, MAX_STR) : v;
+        if (/^\s*(javascript|vbscript|data|file):/i.test(t) || /url\s*\(|expression\s*\(|@import/i.test(t)) return '';
+        return t.replace(/[<>]/g, '');
+      }
+      if (depth >= MAX_DEPTH) return undefined;
+      if (Array.isArray(v)) {
+        var a = [];
+        v.forEach(function (x) { var c = clean(x, depth + 1, budget); if (c !== undefined) a.push(c); });
+        return a;
+      }
+      if (typeof v === 'object') {
+        var o = {};
+        Object.keys(v).forEach(function (k) {
+          if (BAD_KEY[k] || k.length > 300) return;
+          var c = clean(v[k], depth + 1, budget);
+          if (c !== undefined) o[String(k).replace(/[<>]/g, '')] = c;
+        });
+        return o;
+      }
+      return undefined;
+    }
+    // Hodnota z localStorage (text) -> bezpečný text k uložení, nebo null
+    function cleanStored(raw) {
+      if (typeof raw !== 'string' || raw.length > MAX_VALUE) return null;
+      var parsed, isJson = false;
+      try { parsed = JSON.parse(raw); isJson = true; } catch (e) { isJson = false; }
+      var budget = { n: 0 };
+      try {
+        if (isJson) { var c = clean(parsed, 0, budget); return c === undefined ? null : JSON.stringify(c); }
+        var t = clean(raw, 0, budget);
+        return typeof t === 'string' ? t : null;
+      } catch (e) { return null; }
+    }
+    // Vlastní soubory z F se po smazání dat ztratí (záloha F je řeší zvlášť) - jejich záznamy se do zálohy nedávají
+    function dropFileRefs(key, raw) {
+      if (key !== 'synthlucida_custom_queue' && key !== 'synthlucida_history') return raw;
+      try {
+        var a = JSON.parse(raw);
+        if (!Array.isArray(a)) return raw;
+        return JSON.stringify(a.filter(function (e) {
+          return e && typeof e === 'object' && !e.fileId && !(typeof e.src === 'string' && /^blob:/i.test(e.src)) &&
+            !(typeof e.playlist === 'string' && e.playlist.indexOf('custom:') === 0);
+        }));
+      } catch (e) { return raw; }
+    }
+    function exportSettings() {
+      try { if (typeof saveStats === 'function') saveStats(); } catch (e) { /* ignore */ }
+      try { if (typeof saveCustomQueue === 'function') saveCustomQueue(); } catch (e) { /* ignore */ }
+      var data = {};
+      var n = 0;
+      SET_KEYS.forEach(function (k) {
+        var raw = null;
+        try { raw = localStorage.getItem(k); } catch (e) { raw = null; }
+        if (raw === null) return;
+        var c = cleanStored(dropFileRefs(k, raw));
+        if (c !== null) { data[k] = c; n++; }
+      });
+      if (!n) { toast(L('There is nothing saved to export yet.', 'Zatím tu není nic uloženého k exportu.')); return; }
+      var ver = '';
+      try { var m = document.querySelector('meta[name="app-version"]'); ver = m ? m.getAttribute('content') : ''; } catch (e) { /* ignore */ }
+      var out = { app: 'SYNTHLUCIDA Player', kind: KIND, v: 1, appVersion: ver, created: new Date().toISOString(), data: data };
+      var d = new Date(), stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      downloadTextFile(L('synthlucida-settings-', 'synthlucida-nastaveni-') + stamp + '.json', JSON.stringify(out), 'application/json');
+      toast(L('Settings saved (' + n + ' items). Keep the file safe.', 'Nastavení uloženo (položek: ' + n + '). Soubor si dobře schovejte.'), '💾');
+    }
+    async function importSettings(file) {
+      if (!file) return;
+      if (file.size > MAX_FILE) { alert(L('This file is too big for a settings backup.', 'Tenhle soubor je na zálohu nastavení moc velký.')); return; }
+      var text = null;
+      try { text = (typeof readBackupFileText === 'function') ? await readBackupFileText(file) : await file.text(); } catch (e) { text = null; }
+      if (text === null || text === undefined) {
+        alert(L('The file could not be read.\n\nIf it is stored in the cloud (OneDrive, Google Drive…), wait until it downloads to the device and try again.',
+          'Soubor se nepodařilo načíst.\n\nPokud je uložený v cloudu (OneDrive, Google Disk…), počkejte, až se stáhne do zařízení, a zkuste to znovu.'));
+        return;
+      }
+      var obj = null;
+      try { obj = JSON.parse(String(text).replace(/^﻿/, '').trim()); } catch (e) { obj = null; }
+      var bad = function (msg) { alert(msg || L('This is not a SYNTHLUCIDA player settings backup (or the file is damaged).', 'Tohle není záloha nastavení SYNTHLUCIDA playeru (nebo je soubor poškozený).')); };
+      if (!obj || typeof obj !== 'object') { bad(); return; }
+      if (obj.kind === 'synthlucida-myfiles-backup') { bad(L('This is a backup of the lists from section F.\n\nRestore it in F with 📂 RESTORE FROM BACKUP.', 'Tohle je záloha seznamů ze sekce F.\n\nObnovíte ji v sekci F tlačítkem 📂 OBNOVIT ZE ZÁLOHY.')); return; }
+      if (obj.type === 'my-playlist') { bad(L('This is a MY PLAYLIST export.\n\nLoad it in 🎵 MY PLAYLIST with 📂 IMPORT PLAYLIST.', 'Tohle je export MY PLAYLIST.\n\nNačtete ho v 🎵 MY PLAYLIST tlačítkem 📂 IMPORT PLAYLIST.')); return; }
+      if (obj.kind !== KIND || !obj.data || typeof obj.data !== 'object' || Array.isArray(obj.data)) { bad(); return; }
+      var put = [];
+      SET_KEYS.forEach(function (k) {
+        if (!Object.prototype.hasOwnProperty.call(obj.data, k)) return;
+        var v = obj.data[k];
+        if (typeof v !== 'string') return;
+        var c = cleanStored(v);
+        if (c !== null) put.push([k, c]);
+      });
+      if (!put.length) { bad(); return; }
+      var when = '';
+      try { var dt = new Date(obj.created); if (!isNaN(dt.getTime())) when = dt.toLocaleString(L('en-GB', 'cs-CZ')); } catch (e) { /* ignore */ }
+      var ok = confirm(L('Load settings from this backup?' + (when ? '\n\nCreated: ' + when : '') + '\nItems: ' + put.length + '\n\nYour current settings will be replaced and the player will reload.',
+        'Nahrát nastavení z této zálohy?' + (when ? '\n\nVytvořeno: ' + when : '') + '\nPoložek: ' + put.length + '\n\nAktuální nastavení se nahradí a player se znovu načte.'));
+      if (!ok) return;
+      var failed = 0;
+      put.forEach(function (kv) { try { localStorage.setItem(kv[0], kv[1]); } catch (e) { failed++; } });
+      if (failed === put.length) { alert(L('The settings could not be saved (the browser blocks storage).', 'Nastavení se nepodařilo uložit (prohlížeč blokuje ukládání).')); return; }
+      // při znovunačtení nesmí player zapsat zpátky svoje staré nastavení z paměti (ukládání při opuštění stránky)
+      try { Storage.prototype.setItem = function () {}; } catch (e) { /* ignore */ }
+      location.reload();
+    }
+    function init() {
+      var ex = document.getElementById('su-set-export'), im = document.getElementById('su-set-import'), inp = document.getElementById('su-set-file');
+      if (!ex || !im || !inp) return;
+      ex.addEventListener('click', exportSettings);
+      im.addEventListener('click', function () { inp.value = ''; inp.click(); });
+      inp.addEventListener('change', function () { var f = inp.files && inp.files[0]; inp.value = ''; if (f) importSettings(f); });
+    }
+    window.slSettingsBackup = { exportSettings: exportSettings, importSettings: importSettings, keys: SET_KEYS.slice() };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
   })();
 </script>
 <div class="app-toast" id="app-toast" role="status" aria-live="polite">
