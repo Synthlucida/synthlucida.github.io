@@ -82,6 +82,12 @@ class Env:
                 self.onair_src = f.read()
         except Exception:
             pass
+        self.manager_src = None  # manager.html (FILE MANAGER) – hledá se vedle player.html
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(player_path)), "manager.html"), "r", encoding="utf-8") as f:
+                self.manager_src = f.read()
+        except Exception:
+            pass
         self.wav = make_wav()
         self.gh = {"mode": "ok", "ms": 0, "hits": 0}
         self.r2 = {"mode": "ok", "cors": True, "status": 200, "hits": 0}
@@ -207,6 +213,8 @@ class Env:
                     return self.send_bytes(200, env.page_html().encode("utf-8"), dict(nc, **{"Content-Type": "text/html; charset=utf-8"}))
                 if path == "/sw.js":
                     return self.send_bytes(200, env.sw.encode("utf-8"), dict(nc, **{"Content-Type": "application/javascript"}))
+                if path == "/manager.html" and env.manager_src is not None:
+                    return self.send_bytes(200, env.manager_src.encode("utf-8"), dict(nc, **{"Content-Type": "text/html; charset=utf-8"}))
                 if path == "/onair.html" and env.onair_src is not None:
                     return self.send_bytes(200, env.onair_src.encode("utf-8"), dict(nc, **{"Content-Type": "text/html; charset=utf-8"}))
                 if path in ("/favicon.png", "/icon.png", "/logo.jpg"):
@@ -3366,6 +3374,404 @@ def t_onair_viewer(s, c):
         c.ok(off and not ov and not e2, "onair.html (%s): na telefonu nic nepřetéká, bez chyb" % lang + (" " + str(ov or e2) if (ov or e2) else ""))
 
 
+# --------------------------------------------------------------------------- #
+#  Testy z 28. 11. 2026: FILE MANAGER, chytrý shuffle, záloha nastavení, F (záloha, okénko),
+#  plynulé prolnutí, notička u fronty, stažení za XP s DONATE
+# --------------------------------------------------------------------------- #
+FM_READY = "()=>{const f=document.getElementById('fm-frame');try{return !!(f&&f.contentWindow&&typeof f.contentWindow.fmRefresh==='function'&&f.contentDocument.getElementById('stat').textContent)}catch(e){return false}}"
+
+
+def _wavf(name, sec=3):
+    return {"name": name, "mimeType": "audio/wav", "buffer": make_wav(sec, 8000)}
+
+
+def _upload_f(p, files):
+    """Nahraje soubory přes sekci F a počká, až je hotovo."""
+    p.set_input_files("#myfiles-input", files)
+    p.wait_for_function("!document.getElementById('myfiles-add-btn').disabled&&!myFilesUploadBusy", timeout=30000)
+    p.wait_for_timeout(400)
+
+
+def _dialogs(p):
+    """Zapisuje texty oken alert/confirm (potvrzuje je Session.page)."""
+    msgs = []
+    p.on("dialog", lambda d: msgs.append(d.message))
+    return msgs
+
+
+def t_file_manager(s, c):
+    """FILE MANAGER (manager.html): jen na PC, soubory/složky/playlisty/My Playlist, obousměrná synchronizace, návod, CZ/EN, Esc."""
+    if s.env.manager_src is None:
+        c.ok(False, "Vedle player.html chybí manager.html (FILE MANAGER) – nahraj ho do stejné složky")
+        return
+    ctx, p, errs = s.page()  # telefon
+    if not p.evaluate("typeof openFileManager==='function'&&!!window.SLFM&&!!document.getElementById('btn-fm')"):
+        c.ok(False, "Player nemá FILE MANAGER (je to aktuální player.html?)")
+        return
+    r = p.evaluate("()=>{openFileManager();const o=document.getElementById('fm-overlay');return {vis:getComputedStyle(document.getElementById('btn-fm')).display!=='none',open:!!(o&&!o.hidden)}}")
+    c.ok(not r["vis"] and not r["open"], "Na telefonu je FILE MANAGER v EXPLORE skrytý a nejde otevřít")
+    ctx.close()
+
+    ctx, p, errs2 = s.page(w=1366, h=860)
+    c.ok(p.evaluate("getComputedStyle(document.getElementById('btn-fm')).display!=='none'"), "Na počítači je FILE MANAGER v EXPLORE vidět")
+    set_lang(p, "cz")
+    p.evaluate("openFileManager()")
+    try:
+        p.wait_for_function(FM_READY, timeout=15000)
+        ready = True
+    except Exception:
+        ready = False
+    c.ok(ready, "Okno FILE MANAGER se otevře a načte manager.html")
+    if not ready:
+        return
+    fr = p.frame_locator("#fm-frame")
+    fr.locator("#add-input").set_input_files([_wavf("Fm Alfa.wav"), _wavf("Fm Beta.wav", 4), _wavf("Fm Gama.wav", 5)])
+    p.wait_for_function("()=>myFilesLibrary.length===3&&!myFilesUploadBusy", timeout=30000)
+    p.wait_for_timeout(700)
+    c.ok(fr.locator("#mid-body .row").count() >= 3 and p.evaluate("myFilesLibrary.length") == 3,
+         "Soubory přidané v manažeru jsou v sekci F i v manažeru")
+    r = p.evaluate("""()=>{const id=n=>myFilesLibrary.find(x=>x.name===n).id;
+      const fo=SLFM.createFolder('Spaní');SLFM.moveFiles([id('Fm Alfa'),id('Fm Beta')],fo.id);
+      const pl=SLFM.createPlaylist('Večer');
+      SLFM.addToPlaylist(pl.id,[{k:'f',id:id('Fm Gama')},{k:'t',pl:'piano',i:0},{k:'f',id:id('Fm Alfa')}]);
+      const again=SLFM.addToPlaylist(pl.id,[{k:'f',id:id('Fm Gama')}]);
+      SLFM.reorderPlaylist(pl.id,[2,0,1]);
+      const P=myPlaylists.find(x=>x.id===pl.id);
+      return {folder:myFolders.some(f=>f.name==='Spaní')&&myFilesLibrary.filter(x=>myFolderMap[x.id]===fo.id).length,
+        items:P.items.map(i=>i.type==='file'?(myFilesLibrary.find(x=>x.id===i.fileId)||{}).name:'T').join(','),again:again.added,id:pl.id}}""")
+    c.ok(r["folder"] == 2, "Složka z manažeru je v sekci F a soubory jsou v ní")
+    c.ok(r["items"] == "Fm Alfa,Fm Gama,T" and r["again"] == 0,
+         "Playlist z manažeru: soubory i SYNTHLUCIDA skladby, nic dvakrát, změna pořadí se uloží (%s)" % r["items"])
+    q = p.evaluate("""async()=>{customQueue.length=0;saveCustomQueue();const id=n=>myFilesLibrary.find(x=>x.name===n).id;
+      SLFM.moodCreate('Klid');const a=await SLFM.queueAdd([{k:'f',id:id('Fm Beta')},{k:'t',pl:'chill',i:1}]);
+      const b=await SLFM.queueAdd([{k:'t',pl:'chill',i:1}],'Klid');
+      return {n:customQueue.length,mood:customQueue.filter(e=>e.mood==='Klid').length,a:a.added,saved:JSON.parse(localStorage.getItem('synthlucida_custom_queue')||'[]').length}}""")
+    c.ok(q["n"] == 3 and q["mood"] == 1 and q["saved"] == 3, "My Playlist z manažeru: přidání, sekce, uloží se (%s)" % q)
+    # player -> manažer
+    p.evaluate("()=>{myPlaylists.push({id:'fmzz',name:'Z playeru',items:[],createdAt:1});saveMyPlaylistsToStorage();renderMyFiles()}")
+    try:
+        fr.locator("#tgt-select option", has_text="Z playeru").first.wait_for(state="attached", timeout=4000)
+        synced = True
+    except Exception:
+        synced = False
+    c.ok(synced, "Změna v playeru se sama objeví v manažeru")
+    st = fr.locator("#stat").text_content()
+    c.ok("3" in st and "My Playlist 3" in st, "Horní lišta manažeru ukazuje počty (%s)" % st)
+    # návod + jazyk
+    fr.locator("#btn-help").click()
+    p.wait_for_timeout(250)
+    h = fr.locator(".help h5").count()
+    c.ok(fr.locator(".help").is_visible() and h >= 6, "? Návod otevře návod (%d částí)" % h)
+    fr.locator(".help").press("Escape")
+    p.wait_for_timeout(250)
+    c.ok(fr.locator(".help").count() == 0 and p.evaluate("!document.getElementById('fm-overlay').hidden"),
+         "Esc zavře jen návod, manažer zůstane otevřený")
+    fr.locator("#btn-lang").click()
+    p.wait_for_timeout(800)
+    c.ok(p.evaluate("guideLang") == "en" and "Add audio" in fr.locator("#btn-add").text_content(),
+         "Tlačítko CZ/EN přepne jazyk manažeru i playeru")
+    src0 = p.evaluate("document.getElementById('fm-frame').getAttribute('src')")
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(300)
+    closed = p.evaluate("document.getElementById('fm-overlay').hidden")
+    p.evaluate("openFileManager()")
+    p.wait_for_timeout(500)
+    c.ok(closed and p.evaluate("document.getElementById('fm-frame').getAttribute('src')") == src0,
+         "Esc zavře manažer; znovu otevřený se nenačítá od začátku")
+    # smazání souboru z manažeru = zmizí i z F, playlistů a My Playlist
+    r = p.evaluate("""async()=>{const id=myFilesLibrary.find(x=>x.name==='Fm Beta').id;await SLFM.deleteFiles([id]);
+      return {lib:myFilesLibrary.some(x=>x.name==='Fm Beta'),q:customQueue.some(e=>e.fileId===id)}}""")
+    c.ok(not r["lib"] and not r["q"], "Smazání souboru v manažeru ho odstraní i z F a My Playlist")
+    allerr = errs + errs2
+    c.ok(not allerr, "Bez chyby ve stránce" + (": " + allerr[0] if allerr else ""))
+
+
+def t_smart_shuffle(s, c):
+    """Chytrý shuffle: paměť 50 skladeb z HISTORY, podle playlistu, oblíbené o trochu častěji, kostka, mini přehrávač."""
+    hist = [{"title": "T%d" % (i % 60), "playlist": "piano", "index": 0, "time": 1700000000000 - i * 1000} for i in range(70)]
+    init = "try{if(!sessionStorage.getItem('h')){sessionStorage.setItem('h','1');localStorage.setItem('synthlucida_history',%s)}}catch(e){}" % json.dumps(json.dumps(hist))
+    ctx, p, errs = s.page(init=init)
+    if not p.evaluate("typeof weightedShufflePick==='function'&&typeof countShufflePlay==='function'"):
+        c.ok(False, "Player nemá chytrý shuffle (je to aktuální player.html?)")
+        return
+    r = p.evaluate("()=>({n:recentTitles.length,last:recentTitles[recentTitles.length-1],u:new Set(recentTitles).size})")
+    c.ok(r["n"] == 50 and r["u"] == 50 and r["last"] == "T0", "Po startu si pamatuje posledních 50 skladeb z HISTORY (%s)" % r)
+    r = p.evaluate("""()=>{const list=[];for(let i=0;i<20;i++)list.push({title:'L'+i});recentTitles=[];for(let i=0;i<14;i++)rememberRecentTrack('L'+i);
+      const seen={};for(let k=0;k<3000;k++){const x=randomTrackIndex(list,19);seen[x]=1;}return Object.keys(seen).map(Number).sort((a,b)=>a-b)}""")
+    c.ok(19 not in r and all(k < 4 or k >= 14 for k in r) and len(r) == 9,
+         "20 skladeb: nevybere hrající ani 10 naposledy hraných z playlistu (%s)" % r)
+    r = p.evaluate("""()=>{const list=[];for(let i=0;i<10;i++)list.push({title:'Q'+i});recentTitles=['X1','X2','X3','X4','X5','X6','Q1'];
+      const seen={};for(let k=0;k<2000;k++){seen[randomTrackIndex(list,0)]=1;}return Object.keys(seen).length}""")
+    c.ok(r == 8, "Skladby z jiných playlistů nevadí - vynechá jen nedávné z tohoto playlistu (%s možností z 9)" % r)
+    r = p.evaluate("""()=>{const list=[];for(let i=0;i<5;i++)list.push({title:'W'+i});localStorage.removeItem('sl-shuffle-plays');shufflePlays=null;
+      for(let k=0;k<40;k++)countShufflePlay('W0');const n=[0,0,0,0,0];for(let k=0;k<60000;k++)n[weightedShufflePick(list,[0,1,2,3,4])]++;
+      return {ratio:n[0]/((n[1]+n[2]+n[3]+n[4])/4),saved:JSON.parse(localStorage.getItem('sl-shuffle-plays')).W0}}""")
+    c.ok(1.35 < r["ratio"] < 1.65 and r["saved"] == 40, "Často poslouchaná skladba hraje jen o trochu častěji (%.2f×) a počet se uloží" % r["ratio"])
+    r = p.evaluate("""()=>{localStorage.removeItem('sl-shuffle-plays');shufflePlays=null;currentTrackTitle='ZZ';pendingTrackXPAwarded=false;pendingTrackXPListenSeconds=0;
+      addListenSeconds(10);const a=shufflePlayCount('ZZ');addListenSeconds(15);const b=shufflePlayCount('ZZ');addListenSeconds(30);return [a,b,shufflePlayCount('ZZ')]}""")
+    c.ok(r == [0, 1, 1], "Poslech se započítá až po 20 s a jen jednou za skladbu (%s)" % r)
+    r = p.evaluate("""()=>{localStorage.setItem('sl-shuffle-plays','{"__proto__":{"x":1},"a":"5","b":-3,"c":"abc"}');shufflePlays=null;
+      countShufflePlay('__proto__');return [shufflePlayCount('a'),shufflePlayCount('b'),shufflePlayCount('c'),({}).x===undefined]}""")
+    c.ok(r == [5, 0, 0, True], "Poškozené počty poslechů se bezpečně ignorují")
+    r = p.evaluate("""()=>{localStorage.removeItem('sl-shuffle-plays');shufflePlays=null;const m={};for(let i=0;i<700;i++)m['k'+i]=3;
+      localStorage.setItem('sl-shuffle-plays',JSON.stringify(m));shufflePlays=null;countShufflePlay('nova');const o=JSON.parse(localStorage.getItem('sl-shuffle-plays'));
+      return {n:Object.keys(o).length,sum:Object.values(o).reduce((a,b)=>a+b,0)}}""")
+    c.ok(r["n"] <= 600 and r["sum"] <= 3000, "Počty poslechů nerostou donekonečna (%s)" % r)
+    p.evaluate("()=>{localStorage.removeItem('sl-shuffle-plays');shufflePlays=null;recentTitles=[];setCrossfade(0,null)}")
+    picks = []
+    for _ in range(6):
+        p.evaluate("playRandomMix()")
+        p.wait_for_timeout(300)
+        picks.append(p.evaluate("currentPlaylistKey+':'+currentTrackIndex+':'+shuffleEnabled"))
+    c.ok(len(set(picks)) == 6 and all(re.match(r"^(piano|chill):\d+:true$", x) for x in picks),
+         "Kostka 6× po sobě: pokaždé jiná skladba z PIANO/CHILL a zapne shuffle (%s)" % ", ".join(picks))
+    r = p.evaluate("()=>{const s=[];for(let k=0;k<40;k++)s.push(randomTrackIndex(tracks.asmr,-1));return s.every(i=>i>=0&&i<tracks.asmr.length&&!isSpecialTrack(tracks.asmr[i]))}")
+    c.ok(r, "Start playlistu při zapnutém shuffle nevybere skladbu SPECIAL")
+    r = p.evaluate("""async()=>{customQueue.length=0;tracks.piano.slice(0,6).forEach((t,i)=>customQueue.push({title:t.title,src:t.src,playlist:'piano',index:i}));saveCustomQueue();
+      customQueueActive=false;slPlayback.selectList('queue');await new Promise(r=>setTimeout(r,400));const st=new Set();for(let k=0;k<40;k++)st.add(queueRandomStartPos());
+      return {a:customQueueActive,n:st.size}}""")
+    c.ok(r["a"] and r["n"] >= 3, "Mini přehrávač: MY PLAYLIST při shuffle začne náhodnou skladbou (%s)" % r)
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_settings_backup(s, c):
+    """SETUP → ZÁLOHA NASTAVENÍ: export, obnova po smazání dat, škodlivý soubor, špatné soubory."""
+    init = "try{if(!sessionStorage.getItem('seed')){sessionStorage.setItem('seed','1');localStorage.setItem('synthlucida_guide_lang','cz')}}catch(e){}"
+    ctx, p, errs = s.page(init=init)
+    msgs = _dialogs(p)
+    if not p.evaluate("!!window.slSettingsBackup&&!!document.getElementById('su-set-export')"):
+        c.ok(False, "Player nemá zálohu nastavení v SETUP (je to aktuální player.html?)")
+        return
+    p.evaluate("""()=>{localStorage.setItem('synthlucida_opt_blur','1');localStorage.setItem('sl-orbs-style','disco');
+      customQueue.length=0;customQueue.push({title:'A',src:tracks.piano[0].src,playlist:'piano',index:0},{title:'Mine',src:'blob:x',fileId:'f1'});saveCustomQueue();
+      localStorage.setItem('synthlucida_history',JSON.stringify([{title:'A',playlist:'piano'},{title:'Mine',playlist:'custom:file:f1',fileId:'f1'}]));
+      localStorage.setItem('synthlucida_custom_playlists','[{"id":"1","name":"x","items":[]}]');localStorage.setItem('sl-onair-names','{"a":"b"}');toggleSetup()}""")
+    p.wait_for_timeout(300)
+    with p.expect_download() as dl:
+        p.click("#su-set-export")
+    path = os.path.join(tempfile.gettempdir(), "testplayeru_nastaveni.json")
+    dl.value.save_as(path)
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    d = data.get("data", {})
+    q = json.loads(d.get("synthlucida_custom_queue", "[]"))
+    c.ok(data.get("kind") == "synthlucida-player-settings" and d.get("synthlucida_opt_blur") == "1" and d.get("sl-orbs-style") == "disco",
+         "Export uloží nastavení playeru (%d položek)" % len(d))
+    c.ok(len(q) == 1 and len(json.loads(d.get("synthlucida_history", "[]"))) == 1 and "synthlucida_custom_playlists" not in d
+         and "sl-onair-names" not in d and "sl-app-version-seen" not in d,
+         "V exportu nejsou soubory z F, admin věci ani číslo verze")
+    p.evaluate("()=>{toggleSetup();localStorage.clear()}")
+    p.reload()
+    p.wait_for_timeout(1500)
+    before = p.evaluate("localStorage.getItem('sl-orbs-style')")
+    p.evaluate("toggleSetup()")
+    p.wait_for_timeout(200)
+    with p.expect_navigation(timeout=15000):
+        p.set_input_files("#su-set-file", path)
+    p.wait_for_timeout(1500)
+    r = p.evaluate("()=>[localStorage.getItem('sl-orbs-style'),localStorage.getItem('synthlucida_opt_blur'),customQueue.length]")
+    c.ok(before is None and r == ["disco", "1", 1] and any("Load settings" in m or "Nahrát nastavení" in m for m in msgs),
+         "Po smazání dat import vrátí nastavení (s potvrzením a novým načtením playeru)")
+    evil = {"kind": "synthlucida-player-settings", "v": 1, "data": {
+        "evil-key": "x", "sl-orbs-style": "<img src=x onerror=window.__pwned=1>disco",
+        "synthlucida_settings": json.dumps({"theme": "javascript:window.__pwned=2", "a": "<script>x</script>", "__proto__": {"polluted": 1}, "deep": {"u": "url(https://evil.example)"}}),
+        "synthlucida_history": 123}}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(evil, fh)
+    p.evaluate("toggleSetup()")
+    p.wait_for_timeout(200)
+    with p.expect_navigation(timeout=15000):
+        p.set_input_files("#su-set-file", path)
+    p.wait_for_timeout(1500)
+    r = p.evaluate("()=>({evil:localStorage.getItem('evil-key'),orbs:localStorage.getItem('sl-orbs-style'),set:localStorage.getItem('synthlucida_settings'),pw:window.__pwned||0,pol:({}).polluted,img:document.querySelectorAll('img[src=\"x\"]').length})")
+    c.ok(r["evil"] is None and "<" not in r["orbs"] and not re.search(r"javascript:|<|url\(|polluted", r["set"] or "") and not r["pw"] and r["pol"] is None and not r["img"],
+         "Podstrčený kód ani cizí klíče se z importu nepoužijí")
+    for obj, pat, name in (({"kind": "synthlucida-myfiles-backup"}, r"sekce F|section F", "záloha z F"), ({"type": "my-playlist", "tracks": []}, r"MY PLAYLIST", "export My Playlist"),
+                           ({"hello": 1}, r"není záloha nastavení|not a SYNTHLUCIDA player settings", "jiný soubor")):
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(obj, fh)
+        del msgs[:]
+        p.evaluate("()=>{const m=document.getElementById('setup-window');if(m.hidden)toggleSetup()}")
+        p.set_input_files("#su-set-file", path)
+        p.wait_for_timeout(1800)
+        c.ok(any(re.search(pat, m) for m in msgs), "Špatný soubor (%s) → srozumitelná hláška, nic se nezmění" % name)
+    try:
+        os.remove(path)
+    except Exception:
+        pass
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_own_busy_backup(s, c):
+    """Sekce F: okénko s kolečkem při přidávání více souborů, poznámka o cloudu, záloha s BOM / omylem vybraný jiný soubor."""
+    ctx, p, errs = s.page()
+    msgs = _dialogs(p)
+    if not p.evaluate("!!document.getElementById('mf-busy')&&typeof readBackupFileText==='function'"):
+        c.ok(False, "Player nemá okénko pro přidávání souborů (je to aktuální player.html?)")
+        return
+    p.evaluate("toggleMainFiles()")
+    p.wait_for_timeout(300)
+    c.ok(p.evaluate("!!document.querySelector('.myfiles-cloud-note')&&document.querySelector('.myfiles-cloud-note').getBoundingClientRect().height>0"),
+         "V sekci F je poznámka, že soubory z cloudu se načítají déle")
+    p.evaluate("""()=>{window.__busy=0;new MutationObserver(()=>{if(!document.getElementById('mf-busy').hidden)window.__busy++}).observe(document.getElementById('mf-busy'),{attributes:true})}""")
+    _upload_f(p, [_wavf("Busy %d.wav" % i, 2 + i) for i in range(4)])
+    p.wait_for_timeout(3000)
+    r = p.evaluate("()=>({seen:window.__busy,hidden:document.getElementById('mf-busy').hidden,n:myFilesLibrary.length})")
+    c.ok(r["seen"] > 0 and r["hidden"] and r["n"] == 4, "Při přidávání 4 souborů se ukáže okénko s kolečkem a pak samo zmizí")
+    # záloha F uložená s BOM a koncem řádků Windows
+    with p.expect_download() as dl:
+        p.evaluate("exportMyFilesBackup()")
+    path = os.path.join(tempfile.gettempdir(), "testplayeru_bom.json")
+    dl.value.save_as(path)
+    with open(path, "r", encoding="utf-8") as fh:
+        txt = fh.read()
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        fh.write("﻿" + txt.replace("\n", "\r\n"))
+    del msgs[:]
+    p.set_input_files("#myfiles-backup-input", path)
+    p.wait_for_timeout(1500)
+    c.ok(any("Obnovit z této" in m or "Restore from this" in m for m in msgs) and not any("není záloha" in m or "is not a SYNTHLUCIDA" in m for m in msgs),
+         "Záloha F upravená v Poznámkovém bloku (BOM, konce řádků Windows) jde obnovit")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"app": "SYNTHLUCIDA", "type": "my-playlist", "tracks": [{"title": "a", "src": "x"}]}, fh)
+    del msgs[:]
+    p.set_input_files("#myfiles-backup-input", path)
+    p.wait_for_timeout(1500)
+    c.ok(any("MY PLAYLIST" in m for m in msgs), "Omylem vybraný export My Playlist v F: řekne, kde ho obnovit")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"kind": "synthlucida-myfiles-backup", "folders": [], "files": [], "playlists": []}, fh)
+    del msgs[:]
+    p.set_input_files("#queue-import-input", path)
+    p.wait_for_timeout(1500)
+    c.ok(any("sekce F" in m or "from F" in m for m in msgs), "Omylem vybraná záloha F v importu My Playlist: řekne, kde ji obnovit")
+    r = p.evaluate("""async()=>{let n=0;const real=new File(['{"a":1}'],'c.json');const f={name:'c.json',size:7,arrayBuffer:async()=>{if(n++<2)throw new DOMException('x','NotReadableError');return real.arrayBuffer()}};
+      const t=await readBackupFileText(f);let m=0;const g={name:'d.json',size:7,arrayBuffer:async()=>{m++;throw new DOMException('x','NotReadableError')}};const u=await readBackupFileText(g);return {t,u,m}}""")
+    c.ok(r["t"] == '{"a":1}' and r["u"] is None and r["m"] == 4, "Soubor z cloudu, který se napoprvé nepřečte, se zkusí načíst znovu")
+    try:
+        os.remove(path)
+    except Exception:
+        pass
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_crossfade_smooth(s, c):
+    """Prolnutí: na konci se nová skladba předá do hlavního přehrávače bez zaškobrtnutí (obě kopie do pár ms, bez ztlumení)."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof CF_QUIET!=='undefined'"):
+        c.ok(False, "Player nemá plynulé předání při prolnutí (je to aktuální player.html?)")
+        return
+    p.evaluate("()=>{const B=%s;setCrossfade(3,null);shuffleEnabled=false;repeatEnabled=false;setPlaylist('piano',B('piano'));playTrack(0)}" % BTN_JS)
+    p.wait_for_timeout(1500)
+    res = p.evaluate("""async()=>{const cf=crossfadeAudio,w=ms=>new Promise(r=>setTimeout(r,ms)),out=[];
+      for(let n=0;n<3;n++){for(let i=0;i<100&&!(audio.duration>0);i++)await w(50);
+        audio.currentTime=audio.duration-5;await w(200);
+        let worst=0,samples=0,hand=0,muted=false,zero=false;const t0=Date.now();
+        const iv=setInterval(()=>{if(cfHandoff)hand=1;if(hand&&crossfadeActive){if(audio.muted&&!soundMuted)muted=true;if(!audio.paused&&audio.volume===0)zero=true;}
+          if(!audio.paused&&!cf.paused&&cf.src===audio.src&&audio.volume>0.002&&cf.volume>0.002){samples++;worst=Math.max(worst,Math.abs(audio.currentTime-cf.currentTime));}},2);
+        while(Date.now()-t0<15000&&!(hand&&!crossfadeActive))await w(20);
+        clearInterval(iv);out.push({ms:Math.round(worst*1000),samples,ok:hand&&!crossfadeActive&&!audio.paused,muted,zero});await w(1200);}
+      return out}""")
+    ms = sorted(x["ms"] for x in res)
+    c.ok(all(x["ok"] for x in res), "3× prolnutí: nová skladba pokaždé převzata a hraje dál")
+    c.ok(ms[1] <= 12, "Při předání hrají obě kopie skladby skoro přesně spolu (%s ms, dřív 30-80 ms)" % ", ".join(str(m) for m in [x["ms"] for x in res]))
+    c.ok(not any(x["muted"] or x["zero"] for x in res), "Při předání se hlavní přehrávač neztlumí úplně (jinak se Chrome na chvilku zasekne)")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_pq_note_own_file(s, c):
+    """Fronta přehrávání + vlastní soubor: točící se notička ukáže skladbu v normálním seznamu (ne seznam s jedinou skladbou)."""
+    ctx, p, errs = s.page()
+    if not p.evaluate("typeof pqOwnFileHome==='function'"):
+        c.ok(False, "Player nemá opravenou notičku u fronty (je to aktuální player.html?)")
+        return
+    p.evaluate("toggleMainFiles()")
+    _upload_f(p, [_wavf("Pq A.wav", 20), _wavf("Pq B.wav", 20), _wavf("Pq C.wav", 20)])
+    p.evaluate("""async()=>{const id=n=>myFilesLibrary.find(x=>x.name===n).id;setCrossfade(0,null);shuffleEnabled=false;repeatEnabled=false;
+      myPlaylists.push({id:'pqf',name:'Noc',createdAt:1,items:[{type:'file',fileId:id('Pq A'),title:'Pq A'},
+        {type:'track',playlist:'chill',index:0,title:tracks.chill[0].title,src:tracks.chill[0].src},{type:'file',fileId:id('Pq B'),title:'Pq B'}]});
+      saveMyPlaylistsToStorage();await playMyPlaylist('pqf');
+      pqToggleEntry({t:'file',fileId:id('Pq B'),title:'Pq B'});pqToggleEntry({t:'file',fileId:id('Pq C'),title:'Pq C'})}""")
+    p.wait_for_timeout(1000)
+    near_end(p)
+    wait_next(p)
+    c.ok(p.evaluate("currentTrackTitle") == "Pq B" and not p.evaluate("document.getElementById('btn-back-queue').disabled"),
+         "Z fronty hraje vlastní soubor a notička je aktivní")
+    p.evaluate("backToMyPlaylist()")
+    p.wait_for_timeout(700)
+    r = p.evaluate("()=>({key:currentPlaylistKey,rows:document.querySelectorAll('#playlist li').length,act:(document.querySelector('#playlist li.active')||{textContent:''}).textContent})")
+    c.ok(r["key"] == "custom:pqf" and r["rows"] == 3 and "Pq B" in r["act"],
+         "Notička: soubor z playlistu F se ukáže v celém playlistu a je označený (%s)" % r)
+    near_end(p)
+    wait_next(p)
+    p.evaluate("()=>{const x=document.getElementById('main-files');if(x.classList.contains('visible'))toggleMainFiles()}")
+    p.evaluate("backToMyPlaylist()")
+    p.wait_for_timeout(700)
+    r = p.evaluate("()=>({t:currentTrackTitle,key:currentPlaylistKey,rows:document.querySelectorAll('#playlist li').length,f:document.getElementById('main-files').classList.contains('visible')})")
+    c.ok(r["t"] == "Pq C" and r["key"] == "custom:pqf" and r["rows"] == 3 and r["f"],
+         "Soubor, který není v žádném seznamu: okno zůstane, jak je, a otevře se sekce F (%s)" % r)
+    near_end(p)
+    wait_next(p)
+    c.ok(p.evaluate("playingRef&&playingRef.key") == "custom:pqf", "Po frontě hraje dál playlist z F")
+    c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+
+
+def t_xp_download_window(s, c):
+    """Stažení za XP (MY PLAYLIST, ASMR/PIANO/CHILL): okno s potvrzením a DONATE (odkaz z tlačítka ☕), XP až po potvrzení."""
+    for w, lang in ((1280, "cz"), (360, "en")):
+        ctx, p, errs = s.page(w=w, h=800)
+        if not p.evaluate("!!document.getElementById('xpdl-window')&&typeof openXpDownloadWindow==='function'"):
+            c.ok(False, "Player nemá okno pro stažení za XP (je to aktuální player.html?)")
+            return
+        set_lang(p, lang)
+        p.evaluate("toggleMainFiles()")
+        _upload_f(p, [_wavf("Xp Moje.wav")])
+        p.evaluate("""async()=>{const x=document.getElementById('main-files');if(x.classList.contains('visible'))toggleMainFiles();
+          stats.xpSpent=computeXP(stats)-DOWNLOAD_XP_STEP*3;saveStats();customQueue.length=0;
+          [['piano',0],['chill',1]].forEach(([k,i])=>customQueue.push({title:tracks[k][i].title,src:tracks[k][i].src,playlist:k,index:i}));
+          const f=myFilesLibrary[0];const url=await getMyFileBlobUrl(f.id);customQueue.push({title:f.name,src:url,playlist:'custom:file:'+f.id,index:0,fileId:f.id});
+          saveCustomQueue();if(!document.getElementById('queue-panel').classList.contains('visible'))toggleCustomQueue();renderCustomQueue()}""")
+        p.wait_for_timeout(300)
+        DL = "(i)=>{const li=document.querySelectorAll('#queue-list > li')[i];Array.from(li.querySelectorAll('button')).find(b=>/⬇|🔒/.test(b.textContent)).click()}"
+        xp0 = p.evaluate("computeAvailableXP(stats)")
+        p.evaluate(DL, 0)
+        p.wait_for_timeout(300)
+        r = p.evaluate("()=>({vis:!document.getElementById('xpdl-window').hidden,don:document.getElementById('xpdl-donate').getAttribute('href'),main:document.querySelector('.main-donate-btn').getAttribute('href'),xp:computeAvailableXP(stats),t:document.getElementById('xpdl-text').textContent,go:document.getElementById('xpdl-go').textContent})")
+        c.ok(r["vis"] and r["xp"] == xp0 and r["don"] == r["main"],
+             "[%d px, %s] ⬇ otevře okno se STÁHNOUT a DONATE (odkaz z ☕), XP se zatím neodečtou" % (w, lang))
+        c.ok(("Máte dost XP" in r["t"] and "STÁHNOUT TUTO" in r["go"]) if lang == "cz" else ("enough XP" in r["t"] and "DOWNLOAD THIS" in r["go"]),
+             "Texty okna jsou v jazyce playeru (%s)" % lang)
+        bad = p.evaluate("()=>{const W=document.documentElement.clientWidth;const o=[];document.querySelectorAll('#xpdl-window *').forEach(e=>{const r=e.getBoundingClientRect();if(r.width&&(r.right>W+0.5||r.left<-0.5))o.push(e.id||e.className)});return o}")
+        c.ok(not bad, "Okno se vejde na šířku %d px" % w + (" – přetéká: " + ", ".join(bad[:3]) if bad else ""))
+        p.keyboard.press("Escape")
+        p.wait_for_timeout(200)
+        c.ok(p.evaluate("document.getElementById('xpdl-window').hidden") and p.evaluate("computeAvailableXP(stats)") == xp0, "Esc okno zavře a nic neodečte")
+        p.evaluate("document.querySelector('.main-donate-btn').setAttribute('href','https://example.org/jiny-odkaz')")
+        p.evaluate(DL, 0)
+        p.wait_for_timeout(200)
+        c.ok(p.evaluate("document.getElementById('xpdl-donate').getAttribute('href')") == "https://example.org/jiny-odkaz",
+             "Změněný odkaz tlačítka ☕ (Audio editor) platí i pro DONATE v okně")
+        step = p.evaluate("DOWNLOAD_XP_STEP")
+        with p.expect_download(timeout=15000) as dl:
+            p.evaluate("()=>{const g=document.getElementById('xpdl-go');g.click();g.click()}")
+        p.wait_for_timeout(400)
+        r = p.evaluate("()=>({vis:!document.getElementById('xpdl-window').hidden,xp:computeAvailableXP(stats),unl:isDownloadUnlockedKey(stats,customQueue[0].src)})")
+        c.ok(not r["vis"] and r["xp"] == xp0 - step and r["unl"] and dl.value.suggested_filename.lower().endswith(".mp3"),
+             "STÁHNOUT TUTO SKLADBU stáhne MP3 a odečte XP jen jednou (i při dvojkliku)")
+        with p.expect_download(timeout=15000):
+            p.evaluate(DL, 0)
+        p.wait_for_timeout(200)
+        with p.expect_download(timeout=15000):
+            p.evaluate(DL, 2)
+        p.wait_for_timeout(200)
+        c.ok(p.evaluate("document.getElementById('xpdl-window').hidden") and p.evaluate("computeAvailableXP(stats)") == xp0 - step,
+             "Už zaplacená skladba i vlastní soubor z F se stáhnou rovnou, bez okna a bez XP")
+        p.evaluate("()=>{stats.xpSpent=computeXP(stats);saveStats();renderCustomQueue()}")
+        r = p.evaluate("()=>{const li=document.querySelectorAll('#queue-list > li')[1];const b=Array.from(li.querySelectorAll('button')).find(b=>/⬇|🔒/.test(b.textContent));return [b.textContent,b.disabled]}")
+        c.ok(r == ["🔒", True], "Bez dost XP zůstává zámek 🔒")
+        c.ok(not errs, "Bez chyby ve stránce" + (": " + errs[0] if errs else ""))
+        ctx.close()
+
+
 TESTS = [
     ("Kontrola souborů", t_static),
     ("Načtení playeru a okna", t_load),
@@ -3424,6 +3830,13 @@ TESTS = [
     ("Společné dýchání – srdíčka, pozvánka, připomínka, jazyk", t_together_extras),
     ("Společné dýchání – večerní sezení ve 21:00", t_together_evening),
     ("Společné dýchání – statistiky a XP", t_together_stats),
+    ("FILE MANAGER (jen počítač)", t_file_manager),
+    ("Chytré náhodné přehrávání", t_smart_shuffle),
+    ("Záloha nastavení (SETUP)", t_settings_backup),
+    ("Sekce F – okénko při přidávání, čtení zálohy", t_own_busy_backup),
+    ("Plynulé předání při prolnutí", t_crossfade_smooth),
+    ("Fronta – notička u vlastního souboru", t_pq_note_own_file),
+    ("Stažení za XP – okno s DONATE", t_xp_download_window),
     ("Skladby jsou opravdu na GitHubu a R2 (online)", t_online),
 ]
 
